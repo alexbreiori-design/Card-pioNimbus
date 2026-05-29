@@ -1,0 +1,56 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import { useAdminData } from '@/hooks/useAdminData';
+import { getEmpresaBySlug } from '@/lib/supabase/empresa';
+
+/**
+ * Carrega a empresa (tenant) atual com base no slug da loja no admin.
+ */
+export function useEmpresa() {
+  const { data, ready } = useAdminData();
+  const [empresaId, setEmpresaId] = useState(null);
+  const [empresa, setEmpresa] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const slug = (data?.loja?.slug || '').toLowerCase();
+
+  const refresh = useCallback(async () => {
+    if (!slug) {
+      setEmpresaId(null);
+      setEmpresa(null);
+      setLoading(false);
+      setError('Slug da loja não configurado em Minha loja.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const row = await getEmpresaBySlug(slug);
+      if (!row) {
+        setEmpresaId(null);
+        setEmpresa(null);
+        setError(
+          `Nenhuma empresa encontrada com o slug "${slug}". Confira o seed no Supabase (tabela empresas).`
+        );
+        return;
+      }
+      setEmpresaId(row.id);
+      setEmpresa(row);
+    } catch (e) {
+      setEmpresaId(null);
+      setEmpresa(null);
+      setError(e?.message || 'Erro ao carregar empresa.');
+    } finally {
+      setLoading(false);
+    }
+  }, [slug]);
+
+  useEffect(() => {
+    if (!ready) return;
+    refresh();
+  }, [ready, refresh]);
+
+  return { empresaId, empresa, slug, loading, error, refresh };
+}
