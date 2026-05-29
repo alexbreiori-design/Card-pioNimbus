@@ -41,3 +41,9 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# arquivos locais
+AJUSTES DE IMPLEMENTAÇÕES.md
+IMPLEMENTAÇÕES.md
+dev-err.txt
+dev-out.txt
