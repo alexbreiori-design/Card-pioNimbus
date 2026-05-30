@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "extract": "node scripts/extract-from-html.mjs",
     "dev": "next dev -p 3010",
     "build": "next build",
     "start": "next start",
