@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "extract": "node scripts/extract-from-html.mjs",
-    "prebuild": "node scripts/extract-from-html.mjs",
     "dev": "next dev -p 3010",
     "build": "next build",
     "start": "next start",
