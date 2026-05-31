@@ -388,7 +388,7 @@ export default function ClientesPage() {
   }
 
   return (
-    <div className="admin-content admin-content-pedidos admin-low-info-page admin-clientes-page">
+    <div className="admin-content admin-content-pedidos admin-catalog-page admin-section-page admin-clientes-page">
       {msg ? <div className="admin-store-message">{msg}</div> : null}
       {cepError ? <div className="admin-store-message">{cepError}</div> : null}
 

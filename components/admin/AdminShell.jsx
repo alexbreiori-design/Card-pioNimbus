@@ -17,7 +17,7 @@ export default function AdminShell({ children }) {
     const refresh = () => {
       refreshFromRemote().catch(() => {});
     };
-    const timer = setInterval(refresh, 30000);
+    const timer = setInterval(refresh, 10000);
     window.addEventListener('focus', refresh);
     return () => {
       clearInterval(timer);

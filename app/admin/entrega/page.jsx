@@ -75,7 +75,7 @@ export default function EntregaPage() {
   if (!ready) return null;
 
   return (
-    <div className="admin-content admin-content-pedidos admin-store-page admin-delivery-page admin-low-info-page">
+    <div className="admin-content admin-content-pedidos admin-catalog-page admin-section-page admin-delivery-page">
       {empresaError ? (
         <div className="admin-card admin-store-message" style={{ color: 'var(--admin-red)' }}>
           {empresaError}
@@ -86,7 +86,7 @@ export default function EntregaPage() {
       <AdminPageHeader title="Entrega" icon="delivery" />
 
       <div className="admin-card admin-store-block-card">
-        <div className="admin-store-section-head admin-store-fields-center admin-delivery-address-head">
+        <div className="admin-store-section-head admin-delivery-address-head">
           <div className="admin-delivery-section-intro">
             <h2>Endereço da loja</h2>
             <span>Usado como origem das entregas. Edite em Minha loja.</span>
@@ -100,7 +100,7 @@ export default function EntregaPage() {
             {geocoding ? 'Recalculando…' : 'Recalcular coordenadas'}
           </button>
         </div>
-        <div className="admin-store-fields-center admin-delivery-address-body">
+        <div className="admin-delivery-address-body">
           <p className="admin-delivery-store-address-line1">{addressLines.line1}</p>
           {addressLines.line2 ? (
             <p className="admin-delivery-store-address-line2">{addressLines.line2}</p>
@@ -112,13 +112,13 @@ export default function EntregaPage() {
       </div>
 
       <div className="admin-card admin-store-block-card">
-        <div className="admin-store-section-head admin-store-fields-center">
+        <div className="admin-store-section-head">
           <div className="admin-delivery-section-intro">
             <h2>Áreas de entrega</h2>
             <span>Taxa por distância em km a partir da loja.</span>
           </div>
         </div>
-        <div className="admin-store-fields-center admin-delivery-areas-body">
+        <div className="admin-delivery-areas-body">
           <DeliveryZonesCrud empresaId={empresa?.id} />
         </div>
       </div>

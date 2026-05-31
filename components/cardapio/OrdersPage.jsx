@@ -63,7 +63,7 @@ export default function OrdersPage() {
           <div className="profile-form-title">Pedidos em andamento</div>
           {openOrders.length === 0 ? (
             <p style={{ color: 'var(--text-light)' }}>
-              Você ainda não tem pedidos em andamento neste dispositivo.
+              Você ainda não tem pedidos em andamento.
             </p>
           ) : (
             openOrders.map(renderOrder)

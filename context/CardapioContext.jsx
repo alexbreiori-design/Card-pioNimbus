@@ -9,7 +9,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import { PRODUCTS, CATEGORIES } from '@/lib/data/products';
 import { formatPrice } from '@/lib/utils/format';
 import { fetchViaCep } from '@/lib/cep/viacep';
 import { calculateCupomDiscount, findCupomByCode } from '@/lib/cupons';
@@ -21,6 +20,12 @@ import {
 import { getConfiguredDefaultSlug } from '@/lib/storeBoot';
 import { DEFAULT_ADMIN_DATA, withDerivedData } from '@/lib/adminData';
 import { fetchStoreStateRemote, saveStoreStateRemote } from '@/lib/storeStateClient';
+import {
+  fetchPublicOrdersRemote,
+  mergePublicOrders,
+  readCachedOrders,
+  writeCachedOrders,
+} from '@/lib/publicOrders';
 import { normalizePhone } from '@/lib/supabase/customers';
 import { trackMetaEvent } from '@/lib/meta/pixel';
 import { getEmpresaBySlug, mergeEmpresaIntoLoja } from '@/lib/supabase/empresa';
@@ -46,6 +51,7 @@ const PAY_LABELS = {
   vale: 'Vale refeição',
 };
 const PROFILE_STORAGE_KEY = 'cardapio_profile_v1';
+const STORE_SYNC_MS = 10000;
 
 function emptyProfile() {
   return {
@@ -206,8 +212,10 @@ function getInitialProfile() {
 export function CardapioProvider({ children, slug = '' }) {
   const [effectiveSlug, setEffectiveSlug] = useState(() => normalizeSlug(slug));
   const [storeConfig, setStoreConfig] = useState(DEFAULT_ADMIN_DATA.loja);
-  const [dynamicProducts, setDynamicProducts] = useState(PRODUCTS);
-  const [dynamicCategories, setDynamicCategories] = useState(CATEGORIES);
+  const [dynamicProducts, setDynamicProducts] = useState([]);
+  const [dynamicCategories, setDynamicCategories] = useState(['Todos']);
+  const [storeReady, setStoreReady] = useState(false);
+  const [splashVisible, setSplashVisible] = useState(true);
   const [categoryIconsByName, setCategoryIconsByName] = useState({});
   const [page, setPage] = useState('main');
   const [navActive, setNavActive] = useState('navInicio');
@@ -317,6 +325,30 @@ export function CardapioProvider({ children, slug = '' }) {
     },
     [persistStoreSnapshot]
   );
+
+  const hydratePublicOrders = useCallback(async () => {
+    if (typeof window === 'undefined') return;
+
+    const slugToUse = normalizeSlug(
+      effectiveSlug || storeConfig.slug || slug || storeSnapshotRef.current?.loja?.slug || getConfiguredDefaultSlug()
+    );
+    const phoneDigits = normalizePhone(profileDisplayPhone);
+    const jsonPedidos = storeSnapshotRef.current?.pedidos || [];
+    const cachedOrders = readCachedOrders(slugToUse);
+    const apiOrders = phoneDigits ? await fetchPublicOrdersRemote(slugToUse, phoneDigits) : [];
+
+    const merged = mergePublicOrders({
+      jsonPedidos,
+      apiOrders,
+      cachedOrders,
+      phoneDigits,
+    });
+
+    setPublicOrders(merged);
+    if (phoneDigits && merged.length) {
+      writeCachedOrders(slugToUse, merged);
+    }
+  }, [effectiveSlug, profileDisplayPhone, slug, storeConfig.slug]);
 
   const modalOpen =
     productOpen || checkoutOpen || cepOpen || addressOpen || cupomOpen;
@@ -495,10 +527,14 @@ export function CardapioProvider({ children, slug = '' }) {
         const lojaWithAddress = { ...loja, endereco: formatStoreAddress(loja) };
         setStoreConfig(lojaWithAddress);
         applyBrandColor(lojaWithAddress.corMarca);
-      } catch {}
+      } catch {
+      } finally {
+        setStoreReady(true);
+        void hydratePublicOrders();
+      }
     };
     syncFromAdmin();
-    const interval = window.setInterval(syncFromAdmin, 30000);
+    const interval = window.setInterval(syncFromAdmin, STORE_SYNC_MS);
     const onFocus = () => syncFromAdmin();
     window.addEventListener('focus', onFocus);
     window.addEventListener('storage', syncFromAdmin);
@@ -509,44 +545,26 @@ export function CardapioProvider({ children, slug = '' }) {
       window.removeEventListener('storage', syncFromAdmin);
       window.removeEventListener('admin-data-updated', syncFromAdmin);
     };
-  }, [effectiveSlug]);
+  }, [effectiveSlug, hydratePublicOrders]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const phoneDigits = normalizePhone(profileDisplayPhone);
-    const syncOrders = () => {
-      const pedidos = storeSnapshotRef.current?.pedidos || [];
-      const mapped = pedidos
-        .filter((pedido) => !phoneDigits || normalizePhone(pedido.clienteTelefone) === phoneDigits)
-        .map((pedido) => ({
-          id: pedido.id,
-          status: pedido.status,
-          tipo: pedido.tipo,
-          createdAt: pedido.createdAt,
-          prazo: pedido.prazo,
-          entregarAte: pedido.entregarAte,
-          clienteNome: pedido.clienteNome,
-          clienteTelefone: pedido.clienteTelefone,
-          enderecoTexto: pedido.enderecoTexto,
-          pagamento: PAY_LABELS[pedido.pagamento?.metodo] || pedido.pagamento?.metodo || '',
-          itens: pedido.itens || [],
-          subtotal: pedido.subtotal,
-          frete: pedido.frete,
-          desconto: pedido.desconto,
-          cupomCodigo: pedido.cupomCodigo,
-          total: pedido.total,
-        }))
-        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-      setPublicOrders(mapped);
+    if (!storeReady) return undefined;
+    const timer = window.setTimeout(() => setSplashVisible(false), 800);
+    return () => window.clearTimeout(timer);
+  }, [storeReady]);
+
+  useEffect(() => {
+    void hydratePublicOrders();
+    const onOrdersUpdated = () => {
+      void hydratePublicOrders();
     };
-    syncOrders();
-    window.addEventListener('admin-data-updated', syncOrders);
-    window.addEventListener('cardapio-public-orders-updated', syncOrders);
+    window.addEventListener('admin-data-updated', onOrdersUpdated);
+    window.addEventListener('cardapio-public-orders-updated', onOrdersUpdated);
     return () => {
-      window.removeEventListener('admin-data-updated', syncOrders);
-      window.removeEventListener('cardapio-public-orders-updated', syncOrders);
+      window.removeEventListener('admin-data-updated', onOrdersUpdated);
+      window.removeEventListener('cardapio-public-orders-updated', onOrdersUpdated);
     };
-  }, [storeConfig.slug, slug, effectiveSlug, profileDisplayPhone]);
+  }, [hydratePublicOrders, storeConfig.slug, slug, effectiveSlug, profileDisplayPhone, storeReady]);
 
   useEffect(() => {
     if (modalOpen) {
@@ -1244,8 +1262,12 @@ export function CardapioProvider({ children, slug = '' }) {
 
       const safeSlug = normalizeSlug(storeConfig.slug || effectiveSlug || slug || nextState.loja?.slug);
       await persistStoreSnapshot(nextState);
-      setPublicOrders((prev) => [publicOrder, ...prev.filter((order) => String(order.id) !== String(orderNumber))]);
-      fetch('/api/public-order', {
+      setPublicOrders((prev) => {
+        const next = [publicOrder, ...prev.filter((order) => String(order.id) !== String(orderNumber))];
+        writeCachedOrders(safeSlug, next);
+        return next;
+      });
+      await fetch('/api/public-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slug: safeSlug, order: adminOrder, customer: nextCustomer }),
@@ -1439,6 +1461,8 @@ export function CardapioProvider({ children, slug = '' }) {
     relatedItems,
     STORE_ADDRESS,
     storeConfig,
+    storeReady,
+    splashVisible,
     STEP_LABELS,
     PAYMENT_METHODS,
     PAY_LABELS,

@@ -3103,6 +3103,85 @@ textarea.admin-input::placeholder {
   padding: 32px 40px 44px;
 }
 
+.admin-section-page .admin-page-heading {
+  margin-bottom: 24px;
+}
+
+.admin-section-page .admin-store-block-card {
+  padding: 24px 28px 28px;
+  margin-bottom: 18px;
+}
+
+.admin-section-page .admin-store-fields-center {
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.admin-section-page .admin-pedidos-search-row {
+  margin-bottom: 24px;
+}
+
+.admin-section-page .admin-pedidos-search {
+  height: 56px;
+  padding: 0 24px 0 58px;
+  border: 1px solid #e0e4ee;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #283044;
+  font-size: 15px;
+  box-shadow: 0 10px 24px rgba(41, 49, 79, 0.06);
+}
+
+.admin-section-page .admin-pedidos-search-wrap > svg {
+  left: 24px;
+  width: 22px;
+  height: 22px;
+}
+
+.admin-section-page .admin-card {
+  padding: 24px 28px;
+}
+
+.admin-section-page .admin-crud-panel {
+  width: 100%;
+}
+
+.admin-section-page .admin-delivery-areas-hint {
+  max-width: none;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.admin-section-page .admin-delivery-section-intro h2 {
+  font-size: 21px;
+}
+
+.admin-section-page .admin-delivery-section-intro span {
+  font-size: 14px;
+}
+
+.admin-section-page .admin-delivery-store-address-line1 {
+  font-size: 16px;
+}
+
+.admin-section-page .admin-promo-form-grid {
+  gap: 16px;
+}
+
+.admin-section-page .admin-order-card {
+  padding: 14px 16px;
+  margin: 0;
+}
+
+.admin-section-page .admin-client-name {
+  font-size: 15px;
+  font-weight: 500;
+}
+
 .admin-catalog-page .admin-pedidos-search-row {
   margin-bottom: 24px;
 }
@@ -3174,7 +3253,8 @@ textarea.admin-input::placeholder {
 
 @media (max-width: 768px) {
   .admin-low-info-page,
-  .admin-catalog-page {
+  .admin-catalog-page,
+  .admin-section-page {
     padding: 18px;
   }
 }

@@ -13,24 +13,28 @@ import CheckoutModal from './CheckoutModal';
 import CepModal from './CepModal';
 import AddressModal from './AddressModal';
 import CupomModal from './CupomModal';
+import CardapioSplash from './CardapioSplash';
 
 export default function CardapioApp() {
-  const { storeConfig } = useCardapio();
+  const { storeConfig, splashVisible } = useCardapio();
 
   return (
-    <div className="cardapio-theme-root">
-      <MetaPixel pixelId={storeConfig?.metaPixelId} />
-      <TopNav />
-      <MainPage />
-      <OrdersPage />
-      <ProfilePage />
-      <MobileSacolaBar />
-      <MobileBottomNav />
-      <ProductModal />
-      <CheckoutModal />
-      <CepModal />
-      <AddressModal />
-      <CupomModal />
-    </div>
+    <>
+      <CardapioSplash visible={splashVisible} />
+      <div className="cardapio-theme-root">
+        <MetaPixel pixelId={storeConfig?.metaPixelId} />
+        <TopNav />
+        <MainPage />
+        <OrdersPage />
+        <ProfilePage />
+        <MobileSacolaBar />
+        <MobileBottomNav />
+        <ProductModal />
+        <CheckoutModal />
+        <CepModal />
+        <AddressModal />
+        <CupomModal />
+      </div>
+    </>
   );
 }
