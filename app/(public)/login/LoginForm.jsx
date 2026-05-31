@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import styles from './login.module.css';
 
@@ -16,13 +16,15 @@ function getSafeRedirect(searchParams) {
 }
 
 export default function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = getSafeRedirect(searchParams);
+  const configError = searchParams.get('error') === 'config';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(
+    configError ? 'Autenticação indisponível. Verifique a configuração do Supabase.' : ''
+  );
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event) {
@@ -30,21 +32,32 @@ export default function LoginForm() {
     setError('');
     setLoading(true);
 
-    const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    setLoading(false);
-
-    if (authError) {
-      setError('E-mail ou senha incorretos. Tente novamente.');
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      setError('Supabase não configurado. Contate o administrador.');
+      setLoading(false);
       return;
     }
 
-    router.replace(redirect);
-    router.refresh();
+    try {
+      const supabase = createClient();
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) {
+        setError('E-mail ou senha incorretos. Tente novamente.');
+        return;
+      }
+
+      // Navegação completa garante que cookies de sessão cheguem ao proxy.
+      window.location.assign(redirect);
+    } catch (submitError) {
+      console.error('Erro no login:', submitError?.message || submitError);
+      setError('Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

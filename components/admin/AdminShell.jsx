@@ -27,15 +27,6 @@ export default function AdminShell({ children }) {
 
   return (
     <div className="admin-shell">
-      {saveError ? (
-        <div className="admin-sync-banner admin-sync-banner-error">
-          <span>{saveError}</span>
-          <button type="button" className="admin-btn admin-btn-ghost" onClick={clearSaveError}>
-            Fechar
-          </button>
-        </div>
-      ) : null}
-      {saving ? <div className="admin-sync-banner admin-sync-banner-saving">Salvando alterações…</div> : null}
       <AdminSidebar
         storeName={store.nome}
         logoUrl={store.logoUrl}
@@ -47,7 +38,20 @@ export default function AdminShell({ children }) {
           saveData((prev) => ({ ...prev, loja: { ...prev.loja, aberta: open } }))
         }
       />
-      <div className={`admin-main ${collapsed ? 'sidebar-collapsed' : ''}`}>{children}</div>
+      <div className={`admin-main ${collapsed ? 'sidebar-collapsed' : ''}`}>
+        {saveError ? (
+          <div className="admin-sync-banner admin-sync-banner-error">
+            <span>{saveError}</span>
+            <button type="button" className="admin-btn admin-btn-ghost" onClick={clearSaveError}>
+              Fechar
+            </button>
+          </div>
+        ) : null}
+        {saving ? (
+          <div className="admin-sync-banner admin-sync-banner-saving">Salvando alterações…</div>
+        ) : null}
+        {children}
+      </div>
     </div>
   );
 }
