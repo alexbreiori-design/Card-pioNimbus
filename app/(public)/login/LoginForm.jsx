@@ -32,12 +32,6 @@ export default function LoginForm() {
     setError('');
     setLoading(true);
 
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      setError('Supabase não configurado. Contate o administrador.');
-      setLoading(false);
-      return;
-    }
-
     try {
       const supabase = createClient();
       const { error: authError } = await supabase.auth.signInWithPassword({
@@ -54,7 +48,14 @@ export default function LoginForm() {
       window.location.assign(redirect);
     } catch (submitError) {
       console.error('Erro no login:', submitError?.message || submitError);
-      setError('Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.');
+      const message = String(submitError?.message || submitError || '');
+      if (message.includes('Supabase public config ausente')) {
+        setError(
+          'Supabase não configurado na Vercel. Confira NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY no projeto cardapio-nimbus (Production) e faça um novo deploy.'
+        );
+      } else {
+        setError('Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.');
+      }
     } finally {
       setLoading(false);
     }

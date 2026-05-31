@@ -1,6 +1,10 @@
 import './globals.css';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import SupabaseConfigProvider from '@/components/SupabaseConfigProvider';
+import { getSupabasePublicEnv } from '@/lib/supabase/publicEnv';
+
+export const dynamic = 'force-dynamic';
 
 function getCardapioCss() {
   try {
@@ -18,6 +22,8 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
+  const supabase = getSupabasePublicEnv();
+
   return (
     <html lang="pt-BR">
       <head>
@@ -25,7 +31,11 @@ export default function RootLayout({ children }) {
           <style dangerouslySetInnerHTML={{ __html: cardapioCss }} />
         ) : null}
       </head>
-      <body>{children}</body>
+      <body>
+        <SupabaseConfigProvider url={supabase.url} anonKey={supabase.anonKey}>
+          {children}
+        </SupabaseConfigProvider>
+      </body>
     </html>
   );
 }
