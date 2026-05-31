@@ -109,7 +109,16 @@ export default function ProductModal() {
           <div className={`popup-header ${popupHeaderCompact ? 'compact' : ''}`} id="popupHeader">
             <div className="popup-header-title">{product.name}</div>
             <div className="popup-header-desc">{product.desc}</div>
-            <div className="popup-header-price">{formatPrice(isPizza ? pizzaUnitPrice : product.price)}</div>
+            <div className={`popup-header-price ${product.isPromocao && product.promoOriginalPrice > product.price ? 'has-promo' : ''}`}>
+              {product.isPromocao && product.promoOriginalPrice > product.price ? (
+                <>
+                  <span className="product-price-original">{formatPrice(product.promoOriginalPrice)}</span>
+                  <span className="product-price-promo">{formatPrice(isPizza ? pizzaUnitPrice : product.price)}</span>
+                </>
+              ) : (
+                formatPrice(isPizza ? pizzaUnitPrice : product.price)
+              )}
+            </div>
           </div>
           <div className="popup-body" id="popupBody">
             {isPizza ? (

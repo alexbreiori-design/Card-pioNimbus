@@ -1,5 +1,6 @@
 'use client';
 
+import { calculateCupomDiscount } from '@/lib/cupons';
 import { useCardapio } from '@/context/CardapioContext';
 import { IconBack, IconClose, IconContinue, IconStepCheck } from './icons';
 
@@ -58,13 +59,15 @@ export default function CheckoutModal() {
     appliedCupom,
     savedAddress,
     formatPrice,
-    STORE_ADDRESS,
     storeConfig,
+    formatStoreAddress,
     selectDelivery,
     selectPayment,
     checkoutNext,
     checkoutBack,
     finalizeOrder,
+    checkoutAddressConfirmed,
+    openCheckoutAddressFlow,
   } = useCardapio();
 
   const handleOverlayClick = (e) => {
@@ -73,9 +76,10 @@ export default function CheckoutModal() {
 
   const subtotal = cartSubtotal();
   const taxaEntrega = checkoutData.delivery === 'entregar' ? Number(deliveryFee) || 0 : 0;
-  const cupomOff = Number(appliedCupom?.valorDesconto) || 0;
+  const cupomOff = calculateCupomDiscount(appliedCupom, subtotal);
   const total = Math.max(0, subtotal + taxaEntrega - cupomOff);
   const showPixInfo = checkoutData.payment === 'pix' && Boolean(storeConfig?.chavePix);
+  const storeAddress = formatStoreAddress(storeConfig);
 
   const pixInfoBlock = showPixInfo ? (
     <div className="checkout-pix-info">
@@ -99,7 +103,7 @@ export default function CheckoutModal() {
             Nº do pedido: <strong>{checkoutOrderNumber || '—'}</strong>
           </div>
           <button type="button" className="btn-voltar" onClick={finalizeOrder}>
-            Voltar ao início
+            Acompanhar pedido
           </button>
         </div>
       );
@@ -133,6 +137,10 @@ export default function CheckoutModal() {
     }
 
     if (checkoutStep === 2) {
+      const deliveryAddressLabel =
+        checkoutAddressConfirmed && savedAddress
+          ? `${savedAddress.rua}${savedAddress.num ? `, ${savedAddress.num}` : ''} — ${savedAddress.bairro}`
+          : null;
       return (
         <>
           <div
@@ -149,7 +157,22 @@ export default function CheckoutModal() {
             </div>
             <div className="del-info">
               <div className="del-title">Receber no seu endereço</div>
-              <div className="del-sub">Entrega em casa</div>
+              <div className="del-sub">
+                {deliveryAddressLabel || 'Informe o CEP para calcular a entrega'}
+              </div>
+              {checkoutData.delivery === 'entregar' ? (
+                <button
+                  type="button"
+                  className="btn-modal-back"
+                  style={{ marginTop: 8, padding: '6px 10px', fontSize: 12 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openCheckoutAddressFlow();
+                  }}
+                >
+                  {checkoutAddressConfirmed ? 'Alterar endereço' : 'Informar endereço'}
+                </button>
+              ) : null}
             </div>
             <div className={`radio-circle ${checkoutData.delivery === 'entregar' ? 'selected' : ''}`} />
           </div>
@@ -167,7 +190,7 @@ export default function CheckoutModal() {
             </div>
             <div className="del-info">
               <div className="del-title">Retirar no estabelecimento</div>
-              <div className="del-sub">{STORE_ADDRESS}</div>
+              <div className="del-sub">{storeAddress}</div>
             </div>
             <div className={`radio-circle ${checkoutData.delivery === 'retirar' ? 'selected' : ''}`} />
           </div>
@@ -243,9 +266,9 @@ export default function CheckoutModal() {
           <div className="confirm-delivery-row">
             <strong>{deliveryLabel}</strong>
             <span>
-              {checkoutData.delivery === 'entregar' && savedAddress
+              {checkoutData.delivery === 'entregar' && checkoutAddressConfirmed && savedAddress
                 ? `${savedAddress.rua}${savedAddress.num ? `, ${savedAddress.num}` : ''} — ${savedAddress.bairro}`
-                : STORE_ADDRESS}
+                : storeAddress}
             </span>
           </div>
           <div className="confirm-section-title">Pagamento</div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCardapio } from '@/context/CardapioContext';
+import { calculateCupomDiscount } from '@/lib/cupons';
 import { IconCupom, IconChevron } from './icons';
 
 export default function CartSidebar() {
@@ -18,12 +19,13 @@ export default function CartSidebar() {
     editCartItem,
     openCheckout,
     openCupomPopup,
+    openProduct,
     isStoreOpen,
   } = useCardapio();
 
   const subtotal = cartSubtotal();
   const fee = currentDeliveryMode === 'entregar' ? Number(deliveryFee) || 0 : 0;
-  const cupomOff = Number(appliedCupom?.valorDesconto) || 0;
+  const cupomOff = calculateCupomDiscount(appliedCupom, subtotal);
   const total = cartTotal();
   const empty = cart.length === 0;
 
@@ -85,14 +87,14 @@ export default function CartSidebar() {
                   <div className="sacola-also-title">Peça também</div>
                   <div className="sacola-also-scroll">
                     {relatedItems.map((a) => (
-                      <div className="also-item" key={a.id}>
+                      <button type="button" className="also-item" key={a.id} onClick={() => openProduct(a.id)}>
                         <div
                           className={`also-item-img ${a.imageUrl ? 'has-image' : 'is-placeholder'}`}
                           style={a.imageUrl ? { backgroundImage: `url(${a.imageUrl})` } : undefined}
                         />
                         <div className="also-item-name">{a.name}</div>
                         <div className="also-item-price">{formatPrice(a.price)}</div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </>

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import AdminAvailabilitySwitch from '@/components/admin/AdminAvailabilitySwitch';
+import ImagePlaceholder from '@/components/admin/ImagePlaceholder';
 import { useAdminData } from '@/hooks/useAdminData';
 
 function uid() {
@@ -34,6 +35,21 @@ function formatCurrency(value) {
   });
 }
 
+function ProductThumb({ product, size = 52 }) {
+  if (product?.imagemUrl) {
+    return (
+      <img
+        className="admin-promo-product-thumb"
+        src={product.imagemUrl}
+        alt=""
+        width={size}
+        height={size}
+      />
+    );
+  }
+  return <ImagePlaceholder size={size} />;
+}
+
 export default function PromocoesCrud() {
   const { data, saveData } = useAdminData();
   const promocoes = data.promocoes || [];
@@ -42,17 +58,38 @@ export default function PromocoesCrud() {
   const [draft, setDraft] = useState(emptyDraft());
   const [editingId, setEditingId] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const selectedProduct = useMemo(
+    () => produtos.find((p) => p.id === draft.produtoId) || null,
+    [produtos, draft.produtoId]
+  );
+
+  const filteredProducts = useMemo(() => {
+    const q = productSearch.trim().toLowerCase();
+    if (!q) return produtos;
+    return produtos.filter(
+      (p) =>
+        String(p.nome || '').toLowerCase().includes(q) ||
+        String(p.descricao || '').toLowerCase().includes(q)
+    );
+  }, [produtos, productSearch]);
 
   function resetForm() {
     setDraft(emptyDraft());
     setEditingId(null);
     setFormOpen(false);
+    setProductSearch('');
+    setPickerOpen(false);
   }
 
   function openNewForm() {
     setDraft(emptyDraft());
     setEditingId(null);
     setFormOpen(true);
+    setProductSearch('');
+    setPickerOpen(false);
   }
 
   function onSelectProduct(produtoId) {
@@ -62,6 +99,8 @@ export default function PromocoesCrud() {
       produtoId,
       valorOriginal: product ? moneyToInput(product.preco) : d.valorOriginal,
     }));
+    setPickerOpen(false);
+    setProductSearch('');
   }
 
   function handleSave(e) {
@@ -145,10 +184,16 @@ export default function PromocoesCrud() {
       valorPromocional: moneyToInput(promo.valorPromocional),
     });
     setFormOpen(true);
+    setProductSearch('');
+    setPickerOpen(false);
+  }
+
+  function productById(produtoId) {
+    return produtos.find((p) => p.id === produtoId) || null;
   }
 
   function productName(produtoId) {
-    return produtos.find((p) => p.id === produtoId)?.nome || 'Produto removido';
+    return productById(produtoId)?.nome || 'Produto removido';
   }
 
   return (
@@ -169,21 +214,75 @@ export default function PromocoesCrud() {
           <h3 className="admin-delivery-area-form-title">
             {editingId ? 'Editar promoção' : 'Nova promoção'}
           </h3>
-          <div className="admin-promo-form-grid">
-            <div className="admin-form-group">
+          <div className="admin-promo-form-grid admin-promo-form-grid-with-product">
+            <div className="admin-form-group admin-promo-product-field">
               <label className="admin-label">Produto</label>
-              <select
-                className="admin-input"
-                value={draft.produtoId}
-                onChange={(e) => onSelectProduct(e.target.value)}
-              >
-                <option value="">Selecione…</option>
-                {produtos.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nome}
-                  </option>
-                ))}
-              </select>
+              {selectedProduct ? (
+                <div className="admin-promo-selected-product">
+                  <ProductThumb product={selectedProduct} size={56} />
+                  <div className="admin-promo-selected-product-info">
+                    <strong>{selectedProduct.nome}</strong>
+                    <span>{formatCurrency(selectedProduct.preco)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="admin-link-btn"
+                    onClick={() => {
+                      setPickerOpen(true);
+                      setProductSearch('');
+                    }}
+                  >
+                    Trocar
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="admin-input admin-promo-product-trigger"
+                  onClick={() => setPickerOpen(true)}
+                >
+                  Selecionar produto…
+                </button>
+              )}
+              {pickerOpen ? (
+                <div className="admin-promo-product-picker">
+                  <input
+                    className="admin-input"
+                    placeholder="Buscar produto..."
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    autoFocus
+                  />
+                  <div className="admin-promo-product-picker-list">
+                    {filteredProducts.length === 0 ? (
+                      <p className="admin-help-text">Nenhum produto encontrado.</p>
+                    ) : (
+                      filteredProducts.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          className={`admin-promo-product-option ${draft.produtoId === p.id ? 'active' : ''}`}
+                          onClick={() => onSelectProduct(p.id)}
+                        >
+                          <ProductThumb product={p} size={48} />
+                          <div>
+                            <strong>{p.nome}</strong>
+                            {p.descricao ? <p>{p.descricao}</p> : null}
+                          </div>
+                          <span>{formatCurrency(p.preco)}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="admin-text-btn admin-promo-picker-close"
+                    onClick={() => setPickerOpen(false)}
+                  >
+                    Fechar
+                  </button>
+                </div>
+              ) : null}
             </div>
             <div className="admin-form-group">
               <label className="admin-label">Valor original</label>
@@ -219,38 +318,42 @@ export default function PromocoesCrud() {
         <p className="admin-help-text admin-delivery-areas-empty">Nenhuma promoção cadastrada.</p>
       ) : (
         <div className="admin-delivery-areas-list">
-          {promocoes.map((promo) => (
-            <div key={promo.id} className="admin-catalog-item-row admin-delivery-area-row">
-              <div className="admin-catalog-item-main">
-                <div className="admin-item-title">{productName(promo.produtoId)}</div>
-                <div className="admin-item-desc">
-                  De {formatCurrency(promo.valorOriginal)} por{' '}
-                  <strong>{formatCurrency(promo.valorPromocional)}</strong>
+          {promocoes.map((promo) => {
+            const product = productById(promo.produtoId);
+            return (
+              <div key={promo.id} className="admin-catalog-item-row admin-delivery-area-row admin-promo-list-row">
+                <ProductThumb product={product} size={64} />
+                <div className="admin-catalog-item-main">
+                  <div className="admin-item-title">{productName(promo.produtoId)}</div>
+                  <div className="admin-item-desc">
+                    De {formatCurrency(promo.valorOriginal)} por{' '}
+                    <strong>{formatCurrency(promo.valorPromocional)}</strong>
+                  </div>
+                </div>
+                <div className="admin-item-actions-col">
+                  <div className="admin-availability-cell">
+                    <span>Disponível</span>
+                    <AdminAvailabilitySwitch
+                      checked={promo.ativo !== false}
+                      label={`Alterar disponibilidade da promoção ${productName(promo.produtoId)}`}
+                      onChange={() => handleToggle(promo)}
+                    />
+                  </div>
+                  <button type="button" className="admin-link-btn" onClick={() => startEdit(promo)}>
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-link-btn"
+                    style={{ color: 'var(--admin-danger, #dc2626)' }}
+                    onClick={() => handleDelete(promo.id)}
+                  >
+                    Remover
+                  </button>
                 </div>
               </div>
-              <div className="admin-item-actions-col">
-                <div className="admin-availability-cell">
-                  <span>Disponível</span>
-                  <AdminAvailabilitySwitch
-                    checked={promo.ativo !== false}
-                    label={`Alterar disponibilidade da promoção ${productName(promo.produtoId)}`}
-                    onChange={() => handleToggle(promo)}
-                  />
-                </div>
-                <button type="button" className="admin-link-btn" onClick={() => startEdit(promo)}>
-                  Editar
-                </button>
-                <button
-                  type="button"
-                  className="admin-link-btn"
-                  style={{ color: 'var(--admin-danger, #dc2626)' }}
-                  onClick={() => handleDelete(promo.id)}
-                >
-                  Remover
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

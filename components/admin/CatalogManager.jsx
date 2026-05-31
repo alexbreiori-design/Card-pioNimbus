@@ -5,6 +5,9 @@
 import { useMemo, useState } from 'react';
 import { useAdminData } from '@/hooks/useAdminData';
 import ImagePlaceholder from './ImagePlaceholder';
+import AdminIcon from './AdminIcon';
+import CategoryIcon from './CategoryIcon';
+import { CATEGORY_ICONS } from '@/lib/categoryIcons';
 
 const TAB_ALL = 'all';
 
@@ -377,18 +380,41 @@ export default function CatalogManager({ mode = 'produtos' }) {
   function addCategory() {
     const nome = newCatName.trim();
     if (!nome) return;
+    const baseCategory = {
+      id: uid(isProdutos ? 'cat' : 'add-cat'),
+      nome,
+      ativo: true,
+      ordem: data[catKey]?.length || 0,
+    };
+    const nextCategory = isProdutos
+      ? { ...baseCategory, icone: 'burger' }
+      : {
+          ...baseCategory,
+          obrigatorio: false,
+          min: 0,
+          max: 99,
+          tipoSelecao: 'multipla',
+        };
     saveData((prev) => ({
       ...prev,
-      [catKey]: [
-        ...prev[catKey],
-        { id: uid(isProdutos ? 'cat' : 'add-cat'), nome, ativo: true, ordem: prev[catKey].length },
-      ],
+      [catKey]: [...prev[catKey], nextCategory],
     }));
     setNewCatName('');
   }
 
   function openEditCategory(cat) {
-    setEditingCategory({ id: cat.id, nome: cat.nome });
+    if (isProdutos) {
+      setEditingCategory({ id: cat.id, nome: cat.nome, icone: cat.icone || 'burger' });
+    } else {
+      setEditingCategory({
+        id: cat.id,
+        nome: cat.nome,
+        obrigatorio: cat.obrigatorio === true,
+        min: cat.min ?? 0,
+        max: cat.max ?? 99,
+        tipoSelecao: cat.tipoSelecao === 'simples' ? 'simples' : 'multipla',
+      });
+    }
     setCategoryMenuId('');
   }
 
@@ -397,9 +423,23 @@ export default function CatalogManager({ mode = 'produtos' }) {
     if (!nome) return;
     saveData((prev) => ({
       ...prev,
-      [catKey]: prev[catKey].map((cat) =>
-        cat.id === editingCategory.id ? { ...cat, nome } : cat
-      ),
+      [catKey]: prev[catKey].map((cat) => {
+        if (cat.id !== editingCategory.id) return cat;
+        if (isProdutos) {
+          return { ...cat, nome, icone: editingCategory.icone || cat.icone || 'burger' };
+        }
+        const min = Math.max(0, Number(editingCategory.min || 0));
+        let max = Math.max(min, Number(editingCategory.max || min));
+        if (editingCategory.tipoSelecao === 'simples') max = 1;
+        return {
+          ...cat,
+          nome,
+          obrigatorio: editingCategory.obrigatorio === true,
+          min,
+          max,
+          tipoSelecao: editingCategory.tipoSelecao === 'simples' ? 'simples' : 'multipla',
+        };
+      }),
     }));
     setEditingCategory(null);
   }
@@ -657,15 +697,15 @@ export default function CatalogManager({ mode = 'produtos' }) {
 
   function getGroupRule(groupId) {
     const rules = normalizeAddonRules(form.adicionaisConfig);
-    return (
-      rules.grupos[groupId] || {
-        tipoSelecao: 'multipla',
-        min: 0,
-        max: 99,
-        obrigatorio: false,
-        itens: {},
-      }
-    );
+    const category = addonCategories.find((cat) => cat.id === groupId);
+    const defaults = {
+      tipoSelecao: category?.tipoSelecao === 'simples' ? 'simples' : 'multipla',
+      min: category?.min ?? 0,
+      max: category?.max ?? 99,
+      obrigatorio: category?.obrigatorio === true,
+      itens: {},
+    };
+    return rules.grupos[groupId] ? { ...defaults, ...rules.grupos[groupId] } : defaults;
   }
 
   function setGroupRule(groupId, patch) {
@@ -814,14 +854,17 @@ export default function CatalogManager({ mode = 'produtos' }) {
   }
 
   return (
-    <div className="admin-content admin-content-pedidos">
+    <div className="admin-content admin-content-pedidos admin-catalog-page">
       <div className="admin-pedidos-search-row">
-        <input
-          className="admin-input admin-pedidos-search"
-          placeholder="Pesquisar..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <div className="admin-pedidos-search-wrap">
+          <AdminIcon name="search" />
+          <input
+            className="admin-input admin-pedidos-search"
+            placeholder={isProdutos ? 'Pesquisar por nome, descrição ou categoria...' : 'Pesquisar adicionais por nome ou descrição...'}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="admin-catalog-top-row">
@@ -836,9 +879,12 @@ export default function CatalogManager({ mode = 'produtos' }) {
           ))}
         </div>
         <div className="admin-catalog-top-actions">
-          <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setNewCatName((v) => (v ? '' : ' '))}>+ Nova categoria</button>
+          <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setNewCatName((v) => (v ? '' : ' '))}>
+            <AdminIcon name="plus" />
+            Nova categoria
+          </button>
           <button type="button" className="admin-catalog-order-btn" onClick={() => setOrdering((v) => !v)}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4v14" /><path d="M5 7l3-3 3 3" /><path d="M16 20V6" /><path d="M13 17l3 3 3-3" /></svg>
+            <AdminIcon name="sort" />
             {ordering ? 'Voltar' : 'Ordenar'}
           </button>
         </div>
@@ -846,7 +892,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
 
       {newCatName !== '' ? (
         <div className="admin-card admin-new-category-card">
-          <input className="admin-input" placeholder="Nome da categoria" value={newCatName === ' ' ? '' : newCatName} onChange={(e) => setNewCatName(e.target.value)} />
+          <input className="admin-input" placeholder={isProdutos ? 'Ex: Burgers artesanais' : 'Ex: Molhos extras'} value={newCatName === ' ' ? '' : newCatName} onChange={(e) => setNewCatName(e.target.value)} />
           <button type="button" className="admin-btn admin-btn-primary" onClick={addCategory}>Salvar</button>
         </div>
       ) : null}
@@ -905,6 +951,13 @@ export default function CatalogManager({ mode = 'produtos' }) {
             <div key={cat.id} className="admin-card admin-catalog-card">
               <div className="admin-catalog-header-bar">
                 <div className="admin-catalog-title-row">
+                  <span className="admin-section-icon">
+                    {isProdutos ? (
+                      <CategoryIcon name={cat.icone || 'burger'} size={22} />
+                    ) : (
+                      <AdminIcon name="category" />
+                    )}
+                  </span>
                   <h3>{cat.nome}</h3>
                   <span>Disponivel</span>
                   <Switch
@@ -920,7 +973,8 @@ export default function CatalogManager({ mode = 'produtos' }) {
                 </div>
                 <div className="admin-category-actions">
                   <button type="button" className="admin-btn admin-btn-ghost" onClick={() => openNewItemModal(cat.id)}>
-                    + Novo item
+                    <AdminIcon name="plus" />
+                    Novo item
                   </button>
                   <div className="admin-category-menu-wrap">
                     <button
@@ -1032,9 +1086,14 @@ export default function CatalogManager({ mode = 'produtos' }) {
           <div className="product-popup admin-product-popup" onClick={(e) => e.stopPropagation()}>
             <div className="popup-details-col admin-item-form-col">
               <div className="popup-header admin-item-popup-header">
-                <div>
-                  <div className="popup-header-title">{editingItemId ? 'Editando item' : 'Cadastrando novo item'}</div>
-                  <div className="popup-header-desc">Configure o item como ele sera exibido no cardapio.</div>
+                <div className="admin-modal-title-row">
+                  <span className="admin-section-icon">
+                    <AdminIcon name={isProdutos ? 'burger' : 'category'} />
+                  </span>
+                  <div>
+                    <div className="popup-header-title">{editingItemId ? 'Editando item' : 'Cadastrando novo item'}</div>
+                    <div className="popup-header-desc">Configure o item como ele sera exibido no cardapio.</div>
+                  </div>
                 </div>
                 <div className="admin-inline-switch">
                   <span>Disponivel</span>
@@ -1070,29 +1129,29 @@ export default function CatalogManager({ mode = 'produtos' }) {
                   </div>
                   <div className="admin-form-group">
                     <label className="admin-label">Codigo PDV</label>
-                    <input className="admin-input" value={form.codigoPdv} onChange={(e) => setForm((p) => ({ ...p, codigoPdv: e.target.value }))} placeholder="Opcional" />
+                    <input className="admin-input" value={form.codigoPdv} onChange={(e) => setForm((p) => ({ ...p, codigoPdv: e.target.value }))} placeholder="Ex: 12345" />
                   </div>
                   <div className="admin-form-group">
                     <label className="admin-label">Titulo do item</label>
-                    <input className="admin-input" value={form.nome} onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))} />
+                    <input className="admin-input" value={form.nome} onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))} placeholder={isProdutos ? 'Ex: Burger artesanal da casa' : 'Ex: Bacon crocante'} />
                   </div>
                   <div className="admin-form-group">
                     <label className="admin-label">{form.tipo === 'pizza' ? 'Preco a partir de' : 'Preco'}</label>
                     {form.tipo === 'pizza' ? (
                       <input className="admin-input" disabled value={Number.isNaN(pizzaFromPrice) ? '' : `R$ ${pizzaFromPrice.toFixed(2).replace('.', ',')}`} placeholder="Configure tamanhos e sabores" />
                     ) : (
-                      <input className="admin-input" value={form.preco} onChange={(e) => setForm((p) => ({ ...p, preco: e.target.value }))} placeholder="R$" />
+                      <input className="admin-input" value={form.preco} onChange={(e) => setForm((p) => ({ ...p, preco: e.target.value }))} placeholder="Ex: 32,90" />
                     )}
                   </div>
                   {form.tipo !== 'combo' ? (
                     <div className="admin-form-group">
                       <label className="admin-label">{form.tipo === 'pizza' ? 'Configuracao de tamanhos' : 'Medida'}</label>
                       <div className="admin-measure-grid">
-                        <input className="admin-input" value={form.medidaQtd} onChange={(e) => setForm((p) => ({ ...p, medidaQtd: e.target.value }))} placeholder="Ex: 8" />
+                        <input className="admin-input" value={form.medidaQtd} onChange={(e) => setForm((p) => ({ ...p, medidaQtd: e.target.value }))} placeholder="Ex: 180" />
                         <select className="admin-input" value={form.medidaUn} onChange={(e) => setForm((p) => ({ ...p, medidaUn: e.target.value }))}>
                           <option value="un">Un</option>
                           <option value="g">Gramas</option>
-                          <option value="ml">ML</option>
+                          <option value="ml">ml</option>
                           <option value="fatias">Fatias</option>
                           <option value="cm">cm</option>
                         </select>
@@ -1101,15 +1160,15 @@ export default function CatalogManager({ mode = 'produtos' }) {
                   ) : null}
                   <div className="admin-form-group">
                     <label className="admin-label">Serve quantas pessoas?</label>
-                    <input className="admin-input" value={form.servePessoas} onChange={(e) => setForm((p) => ({ ...p, servePessoas: e.target.value }))} placeholder="Opcional" />
+                    <input className="admin-input" value={form.servePessoas} onChange={(e) => setForm((p) => ({ ...p, servePessoas: e.target.value }))} placeholder="Ex: 2 pessoas" />
                   </div>
                   <div className="admin-form-group">
                     <label className="admin-label">Estoque</label>
-                    <input className="admin-input" value={form.estoque} onChange={(e) => setForm((p) => ({ ...p, estoque: e.target.value }))} placeholder="Opcional" />
+                    <input className="admin-input" value={form.estoque} onChange={(e) => setForm((p) => ({ ...p, estoque: e.target.value }))} placeholder="Quantidade disponível" />
                   </div>
                   <div className="admin-form-group">
                     <label className="admin-label">Desconto</label>
-                    <input className="admin-input" value={form.desconto} onChange={(e) => setForm((p) => ({ ...p, desconto: e.target.value }))} placeholder="Opcional" />
+                    <input className="admin-input" value={form.desconto} onChange={(e) => setForm((p) => ({ ...p, desconto: e.target.value }))} placeholder="Ex: 10% ou R$ 5,00" />
                   </div>
                   {form.tipo === 'pizza' ? (
                     <div className="admin-form-group admin-form-full admin-pizza-from-row">
@@ -1297,8 +1356,8 @@ export default function CatalogManager({ mode = 'produtos' }) {
                     <Switch checked={form.entregaRetirada} label="Entrega e retirada" onChange={(checked) => setForm((p) => ({ ...p, entregaRetirada: checked }))} />
                   </div>
                   <div className="admin-option-row">
-                    <span>Mesa e balcao</span>
-                    <Switch checked={form.mesaBalcao} label="Mesa e balcao" onChange={(checked) => setForm((p) => ({ ...p, mesaBalcao: checked }))} />
+                    <span>Mesa e Balcão</span>
+                    <Switch checked={form.mesaBalcao} label="Mesa e Balcão" onChange={(checked) => setForm((p) => ({ ...p, mesaBalcao: checked }))} />
                   </div>
                 </div>
 
@@ -1509,7 +1568,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
                 <button type="button" className="admin-picker-close" onClick={() => setPickerType('')}>x</button>
               </div>
               <div className="admin-picker-search-row">
-                <input className="admin-input" placeholder="Pesquisar..." value={pickerSearch} onChange={(e) => setPickerSearch(e.target.value)} />
+                <input className="admin-input" placeholder="Pesquisar categoria ou item adicional..." value={pickerSearch} onChange={(e) => setPickerSearch(e.target.value)} />
               </div>
               <div className="admin-picker-content">
                 {addonCategories.length ? (
@@ -1616,15 +1675,105 @@ export default function CatalogManager({ mode = 'produtos' }) {
 
       {editingCategory ? (
         <div className="admin-confirm-overlay" onClick={() => setEditingCategory(null)}>
-          <div className="admin-confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Editar categoria</h3>
-            <p>Altere o nome da categoria que aparece no painel e no cardapio.</p>
-            <input
-              className="admin-input"
-              value={editingCategory.nome}
-              onChange={(e) => setEditingCategory((cat) => ({ ...cat, nome: e.target.value }))}
-              autoFocus
-            />
+          <div
+            className={`admin-confirm-modal ${isProdutos ? '' : 'admin-category-edit-modal'}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3>{isProdutos ? 'Editar categoria' : 'Editar categoria de adicional'}</h3>
+            <p>
+              {isProdutos
+                ? 'Altere o nome e o ícone da categoria que aparece no painel e no cardápio.'
+                : 'Configure nome e regras padrão de seleção para esta categoria de adicionais.'}
+            </p>
+            <div className="admin-form-group">
+              <label className="admin-label">Nome</label>
+              <input
+                className="admin-input"
+                value={editingCategory.nome}
+                onChange={(e) => setEditingCategory((cat) => ({ ...cat, nome: e.target.value }))}
+                autoFocus
+              />
+            </div>
+            {isProdutos ? (
+              <div className="admin-category-icon-picker">
+                {CATEGORY_ICONS.map((icon) => (
+                  <button
+                    key={icon.id}
+                    type="button"
+                    className={`admin-category-icon-option ${editingCategory.icone === icon.id ? 'active' : ''}`}
+                    onClick={() => setEditingCategory((cat) => ({ ...cat, icone: icon.id }))}
+                    title={icon.label}
+                  >
+                    <CategoryIcon name={icon.id} size={28} />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="admin-addon-category-rules">
+                <label className="admin-option-row">
+                  <input
+                    type="checkbox"
+                    checked={editingCategory.obrigatorio === true}
+                    onChange={(e) =>
+                      setEditingCategory((cat) => ({ ...cat, obrigatorio: e.target.checked }))
+                    }
+                  />
+                  <span>Obrigatório</span>
+                </label>
+                <div className="admin-addon-group-controls">
+                  <label className="admin-option-row">
+                    <input
+                      type="radio"
+                      name="cat-tipo-selecao"
+                      checked={editingCategory.tipoSelecao !== 'simples'}
+                      onChange={() =>
+                        setEditingCategory((cat) => ({ ...cat, tipoSelecao: 'multipla', max: Math.max(Number(cat.max || 1), Number(cat.min || 0)) }))
+                      }
+                    />
+                    <span>Múltipla escolha</span>
+                  </label>
+                  <label className="admin-option-row">
+                    <input
+                      type="radio"
+                      name="cat-tipo-selecao"
+                      checked={editingCategory.tipoSelecao === 'simples'}
+                      onChange={() =>
+                        setEditingCategory((cat) => ({ ...cat, tipoSelecao: 'simples', min: Math.min(1, Number(cat.min || 0)), max: 1 }))
+                      }
+                    />
+                    <span>Escolha simples</span>
+                  </label>
+                </div>
+                <div className="admin-catalog-form-grid">
+                  <div className="admin-form-group">
+                    <label className="admin-label">Mínimo</label>
+                    <input
+                      className="admin-input"
+                      type="number"
+                      min={0}
+                      value={editingCategory.min ?? 0}
+                      disabled={editingCategory.tipoSelecao === 'simples'}
+                      onChange={(e) =>
+                        setEditingCategory((cat) => ({ ...cat, min: Number(e.target.value || 0) }))
+                      }
+                    />
+                  </div>
+                  <div className="admin-form-group">
+                    <label className="admin-label">Máximo</label>
+                    <input
+                      className="admin-input"
+                      type="number"
+                      min={0}
+                      value={editingCategory.max ?? 99}
+                      disabled={editingCategory.tipoSelecao === 'simples'}
+                      onChange={(e) =>
+                        setEditingCategory((cat) => ({ ...cat, max: Number(e.target.value || 0) }))
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="admin-confirm-actions">
               <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setEditingCategory(null)}>Cancelar</button>
               <button type="button" className="admin-btn admin-btn-primary" onClick={saveCategoryName}>Salvar</button>

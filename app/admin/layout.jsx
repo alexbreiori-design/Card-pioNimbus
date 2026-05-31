@@ -1,5 +1,5 @@
 import '@/styles/admin.css';
-import AdminShell from '@/components/admin/AdminShell';
+import AdminProviders from './AdminProviders';
 
 export const metadata = {
   title: 'Admin — Nimbus Cardápio',
@@ -9,7 +9,7 @@ export const metadata = {
 export default function AdminRootLayout({ children }) {
   return (
     <div className="admin-root">
-      <AdminShell>{children}</AdminShell>
+      <AdminProviders>{children}</AdminProviders>
     </div>
   );
 }

@@ -1,8 +1,8 @@
 'use client';
 
+import { calculateCupomDiscount } from '@/lib/cupons';
 import { useCardapio } from '@/context/CardapioContext';
 import { IconClose } from './icons';
-
 export default function CupomModal() {
   const {
     cupomOpen,
@@ -10,7 +10,11 @@ export default function CupomModal() {
     cupomValue,
     setCupomValue,
     aplicarCupom,
+    appliedCupom,
+    clearAppliedCupom,
     cupomInputRef,
+    formatPrice,
+    cartSubtotal,
   } = useCardapio();
 
   const handleOverlayClick = (e) => {
@@ -32,6 +36,25 @@ export default function CupomModal() {
           </button>
         </div>
         <div className="modal-body">
+          {appliedCupom ? (
+            <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 10, background: 'var(--bg)' }}>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>Cupom {appliedCupom.codigo} aplicado</div>
+              <div style={{ fontSize: 13, color: 'var(--text-light)', marginTop: 4 }}>
+                Desconto de {formatPrice(calculateCupomDiscount(appliedCupom, cartSubtotal()))}
+              </div>
+              <button
+                type="button"
+                className="btn-modal-back"
+                style={{ marginTop: 10 }}
+                onClick={() => {
+                  clearAppliedCupom();
+                  closeCupomPopup();
+                }}
+              >
+                Remover cupom
+              </button>
+            </div>
+          ) : null}
           <p style={{ fontSize: 13, color: 'var(--text-mid)', fontWeight: 300, marginBottom: 16 }}>
             Insira o código do seu cupom abaixo para aplicar o desconto.
           </p>
@@ -48,7 +71,7 @@ export default function CupomModal() {
               Aplicar
             </button>
           </div>
-          <div className="cupom-hint">Ex: ACAI10, PRIMEIROAPP, FRETE0</div>
+          <div className="cupom-hint">Ex: CUPOM10, PRIMEIROAPP, FRETE0</div>
         </div>
       </div>
     </div>

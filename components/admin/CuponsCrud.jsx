@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import AdminAvailabilitySwitch from '@/components/admin/AdminAvailabilitySwitch';
 import { useAdminData } from '@/hooks/useAdminData';
+import { formatCupomLabel, getCupomTipo } from '@/lib/cupons';
 
 function uid() {
   return `cupom-${Date.now()}${Math.floor(Math.random() * 1000)}`;
@@ -24,7 +25,7 @@ function inputToMoney(value) {
 }
 
 function emptyDraft() {
-  return { codigo: '', valorDesconto: '' };
+  return { codigo: '', tipoDesconto: 'valor', valorDesconto: '', percentualDesconto: '' };
 }
 
 function formatCurrency(value) {
@@ -54,17 +55,25 @@ export default function CuponsCrud() {
     setFormOpen(true);
   }
 
-  function handleSave(e) {
+  async function handleSave(e) {
     e.preventDefault();
     setMsg('');
     const codigo = String(draft.codigo || '').trim().toUpperCase();
-    const valorDesconto = inputToMoney(draft.valorDesconto);
+    const tipoDesconto = draft.tipoDesconto === 'percentual' ? 'percentual' : 'valor';
+    const valorDesconto = tipoDesconto === 'valor' ? inputToMoney(draft.valorDesconto) : 0;
+    const percentualDesconto =
+      tipoDesconto === 'percentual' ? Number(String(draft.percentualDesconto || '').replace(',', '.')) : 0;
+
     if (!codigo) {
       setMsg('Informe o código do cupom.');
       return;
     }
-    if (valorDesconto <= 0) {
+    if (tipoDesconto === 'valor' && valorDesconto <= 0) {
       setMsg('Informe um valor de desconto válido.');
+      return;
+    }
+    if (tipoDesconto === 'percentual' && (percentualDesconto <= 0 || percentualDesconto > 100)) {
+      setMsg('Informe um percentual entre 1 e 100.');
       return;
     }
     const duplicate = cupons.some(
@@ -75,40 +84,41 @@ export default function CuponsCrud() {
       return;
     }
 
-    saveData((prev) => {
-      if (editingId) {
+    try {
+      await saveData((prev) => {
+        const payload = {
+          codigo,
+          tipoDesconto,
+          valorDesconto: tipoDesconto === 'valor' ? valorDesconto : 0,
+          percentualDesconto: tipoDesconto === 'percentual' ? percentualDesconto : 0,
+          ativo: true,
+        };
+        if (editingId) {
+          return {
+            ...prev,
+            cupons: prev.cupons.map((c) =>
+              c.id === editingId ? { ...c, ...payload, ativo: c.ativo !== false } : c
+            ),
+          };
+        }
         return {
           ...prev,
-          cupons: prev.cupons.map((c) =>
-            c.id === editingId
-              ? {
-                  ...c,
-                  codigo,
-                  valorDesconto,
-                  ativo: c.ativo !== false,
-                }
-              : c
-          ),
+          cupons: [
+            ...prev.cupons,
+            {
+              id: uid(),
+              ...payload,
+              ordem: prev.cupons.length,
+            },
+          ],
         };
-      }
-      return {
-        ...prev,
-        cupons: [
-          ...prev.cupons,
-          {
-            id: uid(),
-            codigo,
-            valorDesconto,
-            ativo: true,
-            ordem: prev.cupons.length,
-          },
-        ],
-      };
-    });
-
-    resetForm();
-    setMsg(editingId ? 'Cupom atualizado.' : 'Cupom cadastrado.');
-    setTimeout(() => setMsg(''), 2500);
+      });
+      resetForm();
+      setMsg(editingId ? 'Cupom atualizado.' : 'Cupom cadastrado.');
+      setTimeout(() => setMsg(''), 2500);
+    } catch {
+      setMsg('Erro ao salvar cupom no Supabase.');
+    }
   }
 
   function handleToggle(cupom) {
@@ -133,7 +143,9 @@ export default function CuponsCrud() {
     setEditingId(cupom.id);
     setDraft({
       codigo: cupom.codigo,
+      tipoDesconto: getCupomTipo(cupom),
       valorDesconto: moneyToInput(cupom.valorDesconto),
+      percentualDesconto: String(cupom.percentualDesconto ?? cupom.valorDesconto ?? ''),
     });
     setFormOpen(true);
   }
@@ -156,7 +168,7 @@ export default function CuponsCrud() {
           <h3 className="admin-delivery-area-form-title">
             {editingId ? 'Editar cupom' : 'Novo cupom'}
           </h3>
-          <div className="admin-promo-form-grid">
+          <div className="admin-promo-form-grid admin-cupom-form-grid">
             <div className="admin-form-group">
               <label className="admin-label">Código do cupom</label>
               <input
@@ -165,16 +177,35 @@ export default function CuponsCrud() {
                 onChange={(e) =>
                   setDraft((d) => ({ ...d, codigo: e.target.value.toUpperCase() }))
                 }
-                placeholder="Ex: ACAI10"
+                placeholder="Ex: CUPOM10"
               />
             </div>
             <div className="admin-form-group">
-              <label className="admin-label">Valor do desconto</label>
+              <label className="admin-label">Tipo de desconto</label>
+              <select
+                className="admin-input"
+                value={draft.tipoDesconto}
+                onChange={(e) => setDraft((d) => ({ ...d, tipoDesconto: e.target.value }))}
+              >
+                <option value="valor">Valor fixo (R$)</option>
+                <option value="percentual">Percentual (%)</option>
+              </select>
+            </div>
+            <div className="admin-form-group">
+              <label className="admin-label">
+                {draft.tipoDesconto === 'percentual' ? 'Percentual de desconto' : 'Valor do desconto'}
+              </label>
               <input
                 className="admin-input"
-                value={draft.valorDesconto}
-                onChange={(e) => setDraft((d) => ({ ...d, valorDesconto: e.target.value }))}
-                placeholder="R$ 10,00"
+                value={draft.tipoDesconto === 'percentual' ? draft.percentualDesconto : draft.valorDesconto}
+                onChange={(e) =>
+                  setDraft((d) =>
+                    d.tipoDesconto === 'percentual'
+                      ? { ...d, percentualDesconto: e.target.value }
+                      : { ...d, valorDesconto: e.target.value }
+                  )
+                }
+                placeholder={draft.tipoDesconto === 'percentual' ? 'Ex: 10' : 'R$ 10,00'}
               />
             </div>
           </div>
@@ -197,7 +228,7 @@ export default function CuponsCrud() {
             <div key={cupom.id} className="admin-catalog-item-row admin-delivery-area-row">
               <div className="admin-catalog-item-main">
                 <div className="admin-item-title">{cupom.codigo}</div>
-                <div className="admin-item-desc">Desconto: {formatCurrency(cupom.valorDesconto)}</div>
+                <div className="admin-item-desc">Desconto: {formatCupomLabel(cupom)}</div>
               </div>
               <div className="admin-item-actions-col">
                 <div className="admin-availability-cell">

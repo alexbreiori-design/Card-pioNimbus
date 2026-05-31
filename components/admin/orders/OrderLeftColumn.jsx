@@ -8,6 +8,7 @@ import PhoneSearchInput from './PhoneSearchInput';
 import { useAdminData } from '@/hooks/useAdminData';
 import OrderCouponPicker from './OrderCouponPicker';
 import { currency, PAYMENT_METHODS } from './orderDraftUtils';
+import AdminIcon from '@/components/admin/AdminIcon';
 
 export default function OrderLeftColumn({
   draft,
@@ -65,12 +66,16 @@ export default function OrderLeftColumn({
           className="admin-input"
           value={draft.clienteNome}
           onChange={(e) => setDraft((d) => ({ ...d, clienteNome: e.target.value }))}
+          placeholder="Nome completo do cliente"
         />
       </div>
 
       {draft.tipo === 'delivery' ? (
         <section className="admin-order-section">
-          <h4 className="admin-order-section-title">Endereço do cliente</h4>
+          <h4 className="admin-order-section-title">
+            <AdminIcon name="location" />
+            Endereço do cliente
+          </h4>
           <div className="admin-form-group admin-order-cep-row">
             <label className="admin-label">CEP</label>
             <div className="admin-input-icon-wrap">
@@ -101,6 +106,7 @@ export default function OrderLeftColumn({
               className="admin-input"
               value={draft.logradouro}
               onChange={(e) => setDraft((d) => ({ ...d, logradouro: e.target.value }))}
+              placeholder="Rua, avenida, número..."
             />
           </div>
           <div className="admin-order-address-grid">
@@ -110,6 +116,7 @@ export default function OrderLeftColumn({
                 className="admin-input"
                 value={draft.numero}
                 onChange={(e) => setDraft((d) => ({ ...d, numero: e.target.value }))}
+                placeholder="124"
               />
             </div>
             <div className="admin-form-group admin-order-field-bairro">
@@ -118,6 +125,7 @@ export default function OrderLeftColumn({
                 className="admin-input"
                 value={draft.bairro}
                 onChange={(e) => setDraft((d) => ({ ...d, bairro: e.target.value }))}
+                placeholder="Centro"
               />
             </div>
             <div className="admin-form-group admin-order-field-cidade">
@@ -126,6 +134,7 @@ export default function OrderLeftColumn({
                 className="admin-input"
                 value={draft.cidade}
                 onChange={(e) => setDraft((d) => ({ ...d, cidade: e.target.value }))}
+                placeholder="São Paulo"
               />
             </div>
             <div className="admin-form-group admin-order-field-estado">
@@ -147,6 +156,7 @@ export default function OrderLeftColumn({
               className="admin-input"
               value={draft.complemento}
               onChange={(e) => setDraft((d) => ({ ...d, complemento: e.target.value }))}
+              placeholder="Apto, bloco, referência..."
             />
           </div>
         </section>
@@ -159,12 +169,15 @@ export default function OrderLeftColumn({
           rows={3}
           value={draft.observacao}
           onChange={(e) => setDraft((d) => ({ ...d, observacao: e.target.value }))}
-          placeholder="Tem alguma observação?"
+          placeholder="Alguma observação sobre o pedido..."
         />
       </section>
 
       <section className="admin-order-section">
-        <h4 className="admin-order-section-title">Detalhes da compra</h4>
+        <h4 className="admin-order-section-title">
+          <AdminIcon name="cart" />
+          Detalhes da compra
+        </h4>
         <div className="admin-order-purchase-row">
           <MoneyInput
             label="Acréscimo"

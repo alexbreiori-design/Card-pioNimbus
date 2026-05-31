@@ -1,9 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { formatCep } from '@/lib/cep/viacep';
 import { useCepLookup } from '@/hooks/useCepLookup';
 import { useEmpresa } from '@/hooks/useEmpresa';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminIcon from '@/components/admin/AdminIcon';
+import OrderDetailModal from '@/components/admin/orders/OrderDetailModal';
+import { useAdminData } from '@/hooks/useAdminData';
 import {
   createCustomer,
   deleteCliente,
@@ -24,6 +28,57 @@ function fmtPhone(v) {
   if (n.length <= 2) return n;
   if (n.length <= 7) return `(${n.slice(0, 2)}) ${n.slice(2)}`;
   return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;
+}
+
+function mapLocalPedido(pedido) {
+  return {
+    id: pedido.id,
+    rawId: String(pedido.id),
+    total: Number(pedido.total || 0),
+    status: pedido.status,
+    statusLabel: pedido.status,
+    created_at: pedido.createdAt,
+  };
+}
+
+function dedupeOrders(orders) {
+  const seen = new Set();
+  return orders.filter((order) => {
+    const key = String(order.rawId || order.id);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function dedupeAddresses(addresses) {
+  const seen = new Set();
+  return addresses.filter((address) => {
+    const key = String(address.id || `${address.street}-${address.number}-${address.cep}`);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function orderItemsSummary(pedido) {
+  const itens = pedido?.itens || [];
+  if (!itens.length) return 'Sem itens';
+  const preview = itens
+    .slice(0, 2)
+    .map((item) => `${item.qtd}x ${item.nome}`)
+    .join(', ');
+  return itens.length > 2 ? `${preview} +${itens.length - 2}` : preview;
+}
+
+function localOrdersForCustomer(customer, adminPedidos = []) {
+  const phoneKey = fmtPhone(customer.phone);
+  return (adminPedidos || [])
+    .filter(
+      (pedido) =>
+        pedido.customer_id === customer.id || fmtPhone(pedido.clienteTelefone) === phoneKey
+    )
+    .map(mapLocalPedido);
 }
 
 const EMPTY_NEW = {
@@ -58,6 +113,7 @@ function CepSearchButton({ onLookup, cep, disabled }) {
 
 export default function ClientesPage() {
   const { empresaId, loading: empresaLoading, error: empresaError } = useEmpresa();
+  const { data: adminData } = useAdminData();
   const { lookup: lookupCep, loading: cepLoading, error: cepError, clearError: clearCepError } = useCepLookup();
 
   const [customers, setCustomers] = useState([]);
@@ -69,26 +125,91 @@ export default function ClientesPage() {
   const [tab, setTab] = useState('dados');
   const [newDraft, setNewDraft] = useState(EMPTY_NEW);
   const [msg, setMsg] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedOrderId, setSelectedOrderId] = useState('');
+
+  const filteredCustomers = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return customers;
+    return customers.filter(
+      (c) =>
+        String(c.name || '').toLowerCase().includes(q) ||
+        fmtPhone(c.phone).includes(q) ||
+        String(c.phone || '').replace(/\D/g, '').includes(q.replace(/\D/g, ''))
+    );
+  }, [customers, searchQuery]);
+
+  const selectedOrder = useMemo(
+    () => (adminData.pedidos || []).find((p) => String(p.id) === String(selectedOrderId)),
+    [adminData.pedidos, selectedOrderId]
+  );
 
   const loadAll = useCallback(async () => {
-    if (!empresaId) return;
+    if (!empresaId && !(adminData.clientes || []).length && !(adminData.pedidos || []).length) return;
     setLoading(true);
     try {
-      const clientes = await listClientes(empresaId);
-      setCustomers(clientes);
-
+      let clientes = [];
       const oMap = {};
       const aMap = {};
-      await Promise.all(
-        clientes.map(async (c) => {
-          const [pedidos, enderecos] = await Promise.all([
-            listPedidosByCliente(c.id, empresaId),
-            listClienteEnderecos(c.id, empresaId),
-          ]);
-          oMap[c.id] = pedidos;
-          aMap[c.id] = enderecos;
-        })
+
+      if (empresaId) {
+        clientes = await listClientes(empresaId);
+        await Promise.all(
+          clientes.map(async (c) => {
+            const [pedidos, enderecos] = await Promise.all([
+              listPedidosByCliente(c.id, empresaId),
+              listClienteEnderecos(c.id, empresaId),
+            ]);
+            oMap[c.id] = pedidos;
+            aMap[c.id] = enderecos;
+          })
+        );
+      }
+
+      const byPhone = new Map(clientes.map((cliente) => [fmtPhone(cliente.phone), cliente]));
+      (adminData.clientes || []).forEach((local) => {
+        const phoneKey = fmtPhone(local.phone);
+        const existing = byPhone.get(phoneKey);
+        const merged = {
+          ...(existing || {}),
+          id: existing?.id || local.id,
+          name: existing?.name || local.name,
+          phone: existing?.phone || local.phone,
+          total_orders: Math.max(Number(existing?.total_orders || 0), Number(local.total_orders || 0)),
+          total_spent: Math.max(Number(existing?.total_spent || 0), Number(local.total_spent || 0)),
+          last_order_at: existing?.last_order_at || local.last_order_at,
+        };
+        byPhone.set(phoneKey, merged);
+        aMap[merged.id] = dedupeAddresses([
+          ...(aMap[merged.id] || []),
+          ...(local.addresses || []).map((address) => ({
+            id: address.id,
+            cliente_id: merged.id,
+            cep: address.cep || '',
+            street: address.street || address.rua || '',
+            number: address.number || address.num || '',
+            district: address.district || address.bairro || '',
+            city: address.city || address.cidade || '',
+            state: address.state || address.estado || '',
+            complement: address.complement || address.comp || '',
+            referencia: address.referencia || address.ref || '',
+            principal: address.principal !== false,
+          })),
+        ]);
+      });
+
+      clientes = [...byPhone.values()].sort(
+        (a, b) => new Date(b.last_order_at || 0).getTime() - new Date(a.last_order_at || 0).getTime()
       );
+
+      clientes.forEach((customer) => {
+        oMap[customer.id] = dedupeOrders([
+          ...(oMap[customer.id] || []),
+          ...localOrdersForCustomer(customer, adminData.pedidos),
+        ]).sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+      });
+
+      setCustomers(clientes);
       setOrdersByCustomer(oMap);
       setAddressesByCustomer(aMap);
     } catch (e) {
@@ -96,12 +217,11 @@ export default function ClientesPage() {
     } finally {
       setLoading(false);
     }
-  }, [empresaId]);
+  }, [empresaId, adminData.clientes, adminData.pedidos]);
 
   useEffect(() => {
-    if (!empresaId) return;
     loadAll();
-  }, [empresaId, loadAll]);
+  }, [loadAll]);
 
   async function handleNewCepLookup() {
     clearCepError();
@@ -259,7 +379,7 @@ export default function ClientesPage() {
     );
   }
 
-  if (empresaError || !empresaId) {
+  if ((empresaError || !empresaId) && !(adminData.clientes || []).length) {
     return (
       <div className="admin-content admin-content-pedidos">
         <div className="admin-store-message">{empresaError || 'Empresa não encontrada.'}</div>
@@ -268,25 +388,40 @@ export default function ClientesPage() {
   }
 
   return (
-    <div className="admin-content admin-content-pedidos">
+    <div className="admin-content admin-content-pedidos admin-low-info-page admin-clientes-page">
       {msg ? <div className="admin-store-message">{msg}</div> : null}
       {cepError ? <div className="admin-store-message">{cepError}</div> : null}
 
-      <div className="admin-store-actions-row">
-        <div className="admin-page-title">Clientes</div>
-        <button type="button" className="admin-btn admin-btn-primary" onClick={() => setNewOpen(true)}>
-          + Novo cliente
-        </button>
+      <AdminPageHeader
+        title="Clientes"
+        icon="customers"
+        actions={
+          <button type="button" className="admin-btn admin-btn-primary" onClick={() => setNewOpen(true)}>
+            + Novo cliente
+          </button>
+        }
+      />
+
+      <div className="admin-pedidos-search-row">
+        <div className="admin-pedidos-search-wrap">
+          <AdminIcon name="search" />
+          <input
+            className="admin-input admin-pedidos-search"
+            placeholder="Buscar por nome ou telefone"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="admin-card">
         {loading ? (
           <div className="admin-order-meta">Carregando clientes...</div>
-        ) : customers.length === 0 ? (
-          <div className="admin-order-meta">Nenhum cliente cadastrado.</div>
+        ) : filteredCustomers.length === 0 ? (
+          <div className="admin-order-meta">Nenhum cliente encontrado.</div>
         ) : (
           <div style={{ display: 'grid', gap: 8 }}>
-            {customers.map((c) => (
+            {filteredCustomers.map((c) => (
               <div key={c.id} className="admin-order-card" style={{ margin: 0 }}>
                 <div
                   style={{
@@ -296,7 +431,7 @@ export default function ClientesPage() {
                     alignItems: 'center',
                   }}
                 >
-                  <strong>{c.name}</strong>
+                  <span className="admin-client-name">{c.name}</span>
                   <span className="admin-order-meta">{fmtPhone(c.phone)}</span>
                   <span>{c.total_orders || 0} pedidos</span>
                   <span>{money(c.total_spent)}</span>
@@ -345,6 +480,7 @@ export default function ClientesPage() {
                 className="admin-input"
                 value={newDraft.name}
                 onChange={(e) => setNewDraft((d) => ({ ...d, name: e.target.value }))}
+                placeholder="Nome completo do cliente"
               />
             </div>
             <div className="admin-form-group">
@@ -353,6 +489,7 @@ export default function ClientesPage() {
                 className="admin-input"
                 value={newDraft.phone}
                 onChange={(e) => setNewDraft((d) => ({ ...d, phone: fmtPhone(e.target.value) }))}
+                placeholder="(00) 00000-0000"
               />
             </div>
             <p className="admin-help-text" style={{ marginTop: 16 }}>
@@ -376,6 +513,7 @@ export default function ClientesPage() {
                 className="admin-input"
                 value={newDraft.street}
                 onChange={(e) => setNewDraft((d) => ({ ...d, street: e.target.value }))}
+                placeholder="Rua, avenida ou travessa"
               />
             </div>
             <div className="admin-store-form-grid" style={{ padding: 0, gridTemplateColumns: '1fr 1fr 1fr' }}>
@@ -385,6 +523,7 @@ export default function ClientesPage() {
                   className="admin-input"
                   value={newDraft.number}
                   onChange={(e) => setNewDraft((d) => ({ ...d, number: e.target.value }))}
+                  placeholder="Número"
                 />
               </div>
               <div className="admin-form-group">
@@ -393,6 +532,7 @@ export default function ClientesPage() {
                   className="admin-input"
                   value={newDraft.district}
                   onChange={(e) => setNewDraft((d) => ({ ...d, district: e.target.value }))}
+                  placeholder="Bairro"
                 />
               </div>
               <div className="admin-form-group">
@@ -401,6 +541,7 @@ export default function ClientesPage() {
                   className="admin-input"
                   value={newDraft.city}
                   onChange={(e) => setNewDraft((d) => ({ ...d, city: e.target.value }))}
+                  placeholder="Cidade"
                 />
               </div>
             </div>
@@ -454,6 +595,7 @@ export default function ClientesPage() {
                     className="admin-input"
                     value={detail.name || ''}
                     onChange={(e) => setDetail((d) => ({ ...d, name: e.target.value }))}
+                    placeholder="Nome completo do cliente"
                   />
                 </div>
                 <div className="admin-form-group">
@@ -462,6 +604,7 @@ export default function ClientesPage() {
                     className="admin-input"
                     value={detail.phone || ''}
                     onChange={(e) => setDetail((d) => ({ ...d, phone: fmtPhone(e.target.value) }))}
+                    placeholder="(00) 00000-0000"
                   />
                 </div>
                 <div className="admin-confirm-actions">
@@ -490,6 +633,7 @@ export default function ClientesPage() {
                             className="admin-input"
                             value={a.cep}
                             onChange={(e) => patchAddressLocal(detail.id, a.id, 'cep', formatCep(e.target.value))}
+                            placeholder="00000-000"
                           />
                           <CepSearchButton
                             onLookup={() => handleAddressCepLookup(detail.id, a)}
@@ -504,6 +648,7 @@ export default function ClientesPage() {
                           className="admin-input"
                           value={a.street}
                           onChange={(e) => patchAddressLocal(detail.id, a.id, 'street', e.target.value)}
+                          placeholder="Rua, avenida ou travessa"
                         />
                       </div>
                       <div className="admin-store-form-grid" style={{ padding: 0, gridTemplateColumns: '1fr 1fr 1fr' }}>
@@ -513,6 +658,7 @@ export default function ClientesPage() {
                             className="admin-input"
                             value={a.number}
                             onChange={(e) => patchAddressLocal(detail.id, a.id, 'number', e.target.value)}
+                            placeholder="Número"
                           />
                         </div>
                         <div className="admin-form-group">
@@ -521,6 +667,7 @@ export default function ClientesPage() {
                             className="admin-input"
                             value={a.district}
                             onChange={(e) => patchAddressLocal(detail.id, a.id, 'district', e.target.value)}
+                            placeholder="Bairro"
                           />
                         </div>
                         <div className="admin-form-group">
@@ -529,6 +676,7 @@ export default function ClientesPage() {
                             className="admin-input"
                             value={a.city}
                             onChange={(e) => patchAddressLocal(detail.id, a.id, 'city', e.target.value)}
+                            placeholder="Cidade"
                           />
                         </div>
                       </div>
@@ -539,6 +687,7 @@ export default function ClientesPage() {
                           value={a.state}
                           maxLength={2}
                           onChange={(e) => patchAddressLocal(detail.id, a.id, 'state', e.target.value.toUpperCase())}
+                          placeholder="UF"
                         />
                       </div>
                       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
@@ -560,8 +709,18 @@ export default function ClientesPage() {
                 {(ordersByCustomer[detail.id] || []).length === 0 ? (
                   <p className="admin-order-meta">Nenhum pedido encontrado para este cliente.</p>
                 ) : null}
-                {(ordersByCustomer[detail.id] || []).map((o) => (
-                  <div key={o.rawId} className="admin-card">
+                {(ordersByCustomer[detail.id] || []).map((o) => {
+                  const fullOrder = (adminData.pedidos || []).find(
+                    (p) => String(p.id) === String(o.rawId || o.id)
+                  );
+                  return (
+                  <button
+                    key={o.rawId}
+                    type="button"
+                    className="admin-card admin-client-order-history-btn"
+                    onClick={() => fullOrder && setSelectedOrderId(fullOrder.id)}
+                    disabled={!fullOrder}
+                  >
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <strong>Pedido #{o.id}</strong>
                       <strong>{money(o.total)}</strong>
@@ -569,8 +728,12 @@ export default function ClientesPage() {
                     <div className="admin-order-meta">
                       {o.statusLabel} · {new Date(o.created_at).toLocaleString('pt-BR')}
                     </div>
-                  </div>
-                ))}
+                    {fullOrder ? (
+                      <div className="admin-order-meta">{orderItemsSummary(fullOrder)}</div>
+                    ) : null}
+                  </button>
+                  );
+                })}
               </div>
             ) : null}
 
@@ -582,6 +745,17 @@ export default function ClientesPage() {
           </div>
         </div>
       ) : null}
+
+      <OrderDetailModal
+        order={selectedOrder}
+        readOnly
+        onClose={() => setSelectedOrderId('')}
+        onEdit={() => {}}
+        onPrint={() => window.print()}
+        onCancel={() => {}}
+        onAdvance={() => {}}
+        canAdvance={false}
+      />
     </div>
   );
 }

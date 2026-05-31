@@ -1,10 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAdminData } from '@/hooks/useAdminData';
 import { findCustomerByPhone, listClienteEnderecos } from '@/lib/supabase/customers';
 import { resolveEmpresaIdFromStore } from '@/lib/supabase/empresa';
 import OrderLeftColumn from './OrderLeftColumn';
 import OrderRightColumn from './OrderRightColumn';
+import AdminIcon from '@/components/admin/AdminIcon';
 import { useOrderDeliveryFee } from '@/hooks/useOrderDeliveryFee';
 import {
   computeOrderTotals,
@@ -22,8 +24,10 @@ export default function NewOrderModal({
   onClose,
   onSave,
   products = [],
+  categorias = [],
   initialDraft = null,
 }) {
+  const { data } = useAdminData();
   const [draft, setDraft] = useState(EMPTY_ORDER_DRAFT);
   const [productSearch, setProductSearch] = useState('');
   const [discardOpen, setDiscardOpen] = useState(false);
@@ -52,7 +56,7 @@ export default function NewOrderModal({
   async function searchCustomer() {
     setSearchingCustomer(true);
     try {
-      const empresaId = await resolveEmpresaIdFromStore();
+      const empresaId = await resolveEmpresaIdFromStore(data.loja?.slug);
       const found = await findCustomerByPhone(draft.telefone, empresaId);
       if (!found) return;
       setDraft((d) => ({
@@ -116,7 +120,12 @@ export default function NewOrderModal({
           className="admin-confirm-modal admin-new-order-modal"
           onClick={(e) => e.stopPropagation()}
         >
-          <h3 className="admin-new-order-title">Novo pedido</h3>
+          <h3 className="admin-new-order-title">
+            <span className="admin-section-icon">
+              <AdminIcon name="orders" />
+            </span>
+            Novo pedido
+          </h3>
           <div className="admin-new-order-layout">
             <OrderLeftColumn
               draft={draft}
@@ -132,6 +141,7 @@ export default function NewOrderModal({
               draft={draft}
               setDraft={setDraft}
               products={products}
+              categorias={categorias}
               productSearch={productSearch}
               setProductSearch={setProductSearch}
               onAddProduct={addProduct}

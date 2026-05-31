@@ -112,6 +112,8 @@ export default function MinhaLojaPage() {
             paletteLogoUrl: data.loja.paletteLogoUrl,
             chavePix: data.loja.chavePix,
             descricaoChavePix: data.loja.descricaoChavePix,
+            tempoEntregaValor: data.loja.tempoEntregaValor,
+            tempoEntregaUnidade: data.loja.tempoEntregaUnidade,
             enderecoCep: data.loja.enderecoCep,
             enderecoLogradouro: data.loja.enderecoLogradouro,
             enderecoNumero: data.loja.enderecoNumero,
@@ -285,21 +287,26 @@ export default function MinhaLojaPage() {
       </div>
 
       <div className="admin-card admin-store-profile-card">
-        <div
-          className="admin-store-cover-preview"
-          style={draft.capaUrl ? { backgroundImage: `url(${draft.capaUrl})` } : undefined}
-        >
-          {!draft.capaUrl ? <span>Capa do cardápio</span> : null}
-          <button type="button" className="admin-store-cover-edit" onClick={() => coverInputRef.current?.click()}>
-            Alterar capa
-          </button>
-          <input
-            ref={coverInputRef}
-            type="file"
-            accept="image/*"
-            className="admin-store-hidden-file"
-            onChange={onImageSelect('capaUrl', 5)}
-          />
+        <div className="admin-store-cover-block">
+          <div
+            className="admin-store-cover-preview"
+            style={draft.capaUrl ? { backgroundImage: `url(${draft.capaUrl})` } : undefined}
+          >
+            {!draft.capaUrl ? <span>Capa do cardápio</span> : null}
+            <button type="button" className="admin-store-cover-edit" onClick={() => coverInputRef.current?.click()}>
+              Alterar capa
+            </button>
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/*"
+              className="admin-store-hidden-file"
+              onChange={onImageSelect('capaUrl', 5)}
+            />
+          </div>
+          <div className="admin-store-cover-footer">
+            <p className="admin-store-cover-hint">Tamanho ideal: 1240 × 248 px (proporção 5:1)</p>
+          </div>
         </div>
 
         <div className="admin-store-logo-area">
@@ -486,6 +493,39 @@ export default function MinhaLojaPage() {
               onChange={(e) => setLojaField('descricaoChavePix', e.target.value)}
               placeholder="Ex: Pix CNPJ — Razão social"
             />
+          </div>
+        </div>
+      </div>
+
+      <div className="admin-card admin-store-block-card">
+        <div className="admin-store-section-head admin-store-fields-center">
+          <h2>Tempo estimado de entrega</h2>
+          <span>Usado para calcular o horário previsto mostrado ao cliente e nos pedidos novos.</span>
+        </div>
+        <div className="admin-store-fields-center">
+          <div className="admin-store-dados-row-2">
+            <div className="admin-form-group">
+              <label className="admin-label">Tempo</label>
+              <input
+                className="admin-input"
+                type="number"
+                min="1"
+                value={draft.tempoEntregaValor || ''}
+                onChange={(e) => setLojaField('tempoEntregaValor', Math.max(1, Number(e.target.value || 1)))}
+                placeholder="Ex: 45"
+              />
+            </div>
+            <div className="admin-form-group">
+              <label className="admin-label">Unidade</label>
+              <select
+                className="admin-input"
+                value={draft.tempoEntregaUnidade || 'minutos'}
+                onChange={(e) => setLojaField('tempoEntregaUnidade', e.target.value)}
+              >
+                <option value="minutos">Minutos</option>
+                <option value="horas">Horas</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>

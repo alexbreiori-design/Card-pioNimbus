@@ -1,1 +1,1 @@
-@import "../styles/cardapio.css";
+/* Estilos do cardápio são injetados em app/layout.js para evitar conflito com PostCSS/Tailwind. */

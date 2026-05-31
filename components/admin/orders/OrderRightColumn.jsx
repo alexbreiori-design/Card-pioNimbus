@@ -1,22 +1,15 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import ImagePlaceholder from '@/components/admin/ImagePlaceholder';
+import AdminIcon from '@/components/admin/AdminIcon';
 import { currency } from './orderDraftUtils';
-
-function PrinterIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M6 9V2h12v7" />
-      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-      <rect x="6" y="14" width="12" height="8" />
-    </svg>
-  );
-}
 
 export default function OrderRightColumn({
   draft,
   setDraft,
   products,
+  categorias = [],
   productSearch,
   setProductSearch,
   onAddProduct,
@@ -25,15 +18,21 @@ export default function OrderRightColumn({
   onSave,
   onSavePrint,
 }) {
+  const [categoryFilter, setCategoryFilter] = useState('todos');
   const q = productSearch.trim().toLowerCase();
-  const filtered = products.filter((p) => {
-    if (!q) return true;
-    return (
-      String(p.nome || '').toLowerCase().includes(q) ||
-      String(p.descricao || '').toLowerCase().includes(q) ||
-      String(p.medida || '').toLowerCase().includes(q)
-    );
-  });
+
+  const filtered = useMemo(() => {
+    return products.filter((p) => {
+      const matchCat = categoryFilter === 'todos' || p.categoriaId === categoryFilter;
+      if (!matchCat) return false;
+      if (!q) return true;
+      return (
+        String(p.nome || '').toLowerCase().includes(q) ||
+        String(p.descricao || '').toLowerCase().includes(q) ||
+        String(p.medida || '').toLowerCase().includes(q)
+      );
+    });
+  }, [products, categoryFilter, q]);
 
   return (
     <div className="admin-new-order-col admin-new-order-col-right">
@@ -48,7 +47,7 @@ export default function OrderRightColumn({
             disabled={!canSave}
             onClick={onSavePrint}
           >
-            <PrinterIcon />
+            <AdminIcon name="printer" />
             Salvar e imprimir
           </button>
           <button
@@ -64,12 +63,36 @@ export default function OrderRightColumn({
 
       <div className="admin-order-product-search">
         <label className="admin-label">Buscar produtos</label>
-        <input
-          className="admin-input"
-          value={productSearch}
-          onChange={(e) => setProductSearch(e.target.value)}
-          placeholder="Nome ou descrição..."
-        />
+        <div className="admin-pedidos-search-wrap compact">
+          <AdminIcon name="search" />
+          <input
+            className="admin-input"
+            value={productSearch}
+            onChange={(e) => setProductSearch(e.target.value)}
+            placeholder="Digite o nome ou descrição do produto..."
+          />
+        </div>
+        {categorias.length > 0 ? (
+          <div className="admin-order-category-tabs">
+            <button
+              type="button"
+              className={`admin-order-category-tab ${categoryFilter === 'todos' ? 'active' : ''}`}
+              onClick={() => setCategoryFilter('todos')}
+            >
+              Todos
+            </button>
+            {categorias.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                className={`admin-order-category-tab ${categoryFilter === cat.id ? 'active' : ''}`}
+                onClick={() => setCategoryFilter(cat.id)}
+              >
+                {cat.nome}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <div className="admin-order-products-panel">
@@ -80,7 +103,7 @@ export default function OrderRightColumn({
             filtered.map((p) => (
               <div key={p.id} className="admin-order-product-row">
                 <div className="admin-order-product-info">
-                  <strong>{p.nome}</strong>
+                  <span className="admin-order-product-name">{p.nome}</span>
                   {p.medida ? <div className="admin-order-meta">{p.medida}</div> : null}
                   <div className="admin-order-product-price">{currency(p.preco)}</div>
                 </div>
@@ -96,7 +119,7 @@ export default function OrderRightColumn({
                     onClick={() => onAddProduct(p)}
                     aria-label={`Adicionar ${p.nome}`}
                   >
-                    +
+                    <AdminIcon name="plus" />
                   </button>
                 </div>
               </div>

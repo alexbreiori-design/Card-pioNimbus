@@ -13,6 +13,8 @@ export default function ProfilePage() {
     setProfilePhone,
     profileImage,
     setProfileImage,
+    profileAddress,
+    setProfileAddress,
     saveProfile,
   } = useCardapio();
 
@@ -23,6 +25,9 @@ export default function ProfilePage() {
     reader.onload = () => setProfileImage(String(reader.result || ''));
     reader.readAsDataURL(file);
   }
+
+  const updateAddress = (field) => (e) =>
+    setProfileAddress((address) => ({ ...address, [field]: e.target.value }));
 
   return (
     <div id="profilePage" className={`profile-page ${page === 'profile' ? 'open' : ''}`}>
@@ -67,14 +72,68 @@ export default function ProfilePage() {
           </div>
         </div>
         <div className="profile-form">
-          <div className="profile-form-title">Segurança</div>
+          <div className="profile-form-title">Endereço</div>
           <div className="form-group">
-            <label className="form-label">Senha atual</label>
-            <input className="form-input" type="password" placeholder="••••••••" />
+            <label className="form-label">CEP</label>
+            <input
+              className="form-input"
+              type="text"
+              placeholder="00000-000"
+              value={profileAddress.cep}
+              onChange={updateAddress('cep')}
+            />
           </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Nova senha</label>
-            <input className="form-input" type="password" placeholder="••••••••" />
+          <div className="form-group">
+            <label className="form-label">Rua</label>
+            <input
+              className="form-input"
+              type="text"
+              placeholder="Rua, avenida ou travessa"
+              value={profileAddress.rua}
+              onChange={updateAddress('rua')}
+            />
+          </div>
+          <div className="address-grid">
+            <input
+              className="form-input"
+              type="text"
+              placeholder="Número"
+              value={profileAddress.num}
+              onChange={updateAddress('num')}
+            />
+            <input
+              className="form-input"
+              type="text"
+              placeholder="Bairro"
+              value={profileAddress.bairro}
+              onChange={updateAddress('bairro')}
+            />
+          </div>
+          <div className="address-grid-state">
+            <input
+              className="form-input"
+              type="text"
+              placeholder="Cidade"
+              value={profileAddress.cidade}
+              onChange={updateAddress('cidade')}
+            />
+            <input
+              className="form-input"
+              type="text"
+              placeholder="UF"
+              value={profileAddress.estado}
+              onChange={updateAddress('estado')}
+            />
+          </div>
+          <div className="form-group" style={{ marginTop: 10, marginBottom: 0 }}>
+            <label className="form-label">Complemento e referência</label>
+            <input
+              className="form-input"
+              type="text"
+              placeholder="Apto, bloco, ponto de referência"
+              value={[profileAddress.comp, profileAddress.ref].filter(Boolean).join(' - ')}
+              onChange={(e) => setProfileAddress((address) => ({ ...address, comp: e.target.value, ref: '' }))}
+            />
           </div>
         </div>
         <button type="button" className="btn-salvar" onClick={saveProfile}>

@@ -14,6 +14,7 @@ export default function StoreHeader() {
     locStrong,
     locSub,
     storeConfig,
+    formatStoreAddress,
   } = useCardapio();
   const weekdays = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
   const dayKey = weekdays[new Date().getDay()];
@@ -52,7 +53,7 @@ export default function StoreHeader() {
         <br />
         <strong>Funcionamento hoje:</strong> {todaySchedule}
         <br />
-        <strong>Endereço:</strong> {storeConfig.endereco || '-'}
+        <strong>Endereço:</strong> {formatStoreAddress(storeConfig)}
         {storeConfig.descricao ? (
           <>
             <br />

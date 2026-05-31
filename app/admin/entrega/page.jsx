@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import DeliveryZonesCrud from '@/components/admin/DeliveryZonesCrud';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import { formatCep } from '@/lib/cep/viacep';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useEmpresa } from '@/hooks/useEmpresa';
@@ -74,7 +75,7 @@ export default function EntregaPage() {
   if (!ready) return null;
 
   return (
-    <div className="admin-content admin-content-pedidos admin-store-page admin-delivery-page">
+    <div className="admin-content admin-content-pedidos admin-store-page admin-delivery-page admin-low-info-page">
       {empresaError ? (
         <div className="admin-card admin-store-message" style={{ color: 'var(--admin-red)' }}>
           {empresaError}
@@ -82,9 +83,7 @@ export default function EntregaPage() {
       ) : null}
       {msg ? <div className="admin-card admin-store-message">{msg}</div> : null}
 
-      <div className="admin-store-actions-row">
-        <div className="admin-page-title">Entrega</div>
-      </div>
+      <AdminPageHeader title="Entrega" icon="delivery" />
 
       <div className="admin-card admin-store-block-card">
         <div className="admin-store-section-head admin-store-fields-center admin-delivery-address-head">

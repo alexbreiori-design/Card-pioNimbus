@@ -80,6 +80,7 @@ export default function AdminSidebar({
   logoUrl = '',
   isOpen = true,
   collapsed = false,
+  newOrdersCount = 0,
   onToggleCollapse,
   onToggleOpen,
 }) {
@@ -97,16 +98,7 @@ export default function AdminSidebar({
           <div className="admin-store-avatar">
             {logoUrl ? <img src={logoUrl} alt="Logo da loja" /> : 'N'}
           </div>
-          <div>
-            <div className="admin-store-name">{storeName}</div>
-            <div className="admin-store-status">
-              {isOpen ? (
-                <span style={{ color: 'var(--admin-green)' }}>● Aberta</span>
-              ) : (
-                <span>○ Fechada</span>
-              )}
-            </div>
-          </div>
+          <div className="admin-store-name">{storeName}</div>
         </div>
         <div className="admin-toggle-row">
           <span className={`admin-toggle-label ${isOpen ? 'open' : 'closed'}`}>
@@ -128,6 +120,9 @@ export default function AdminSidebar({
           >
             <NavIcon name={item.icon} />
             <span>{item.label}</span>
+            {item.href === '/admin/pedidos' && newOrdersCount > 0 ? (
+              <span className="admin-nav-badge">{newOrdersCount > 99 ? '99+' : newOrdersCount}</span>
+            ) : null}
           </Link>
         ))}
       </nav>

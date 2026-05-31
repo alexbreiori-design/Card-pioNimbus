@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import NewOrderModal from '@/components/admin/orders/NewOrderModal';
+import OrderDetailModal from '@/components/admin/orders/OrderDetailModal';
+import AdminIcon from '@/components/admin/AdminIcon';
 import {
   computeOrderTotals,
   currency,
@@ -10,14 +12,42 @@ import {
 } from '@/components/admin/orders/orderDraftUtils';
 import { useAdminData } from '@/hooks/useAdminData';
 import { createClient as createSupabaseClient } from '@/lib/supabase/client';
-import { ensureCustomer, normalizePhone, updateCustomerStats } from '@/lib/supabase/customers';
+import { ensureCustomer, normalizePhone, updateCustomerStats, upsertClienteEndereco } from '@/lib/supabase/customers';
 import { resolveEmpresaIdFromStore } from '@/lib/supabase/empresa';
 
 const COLS = [
-  { key: 'novo', label: 'Novos', color: '#F59E0B' },
-  { key: 'em_preparo', label: 'Em preparo', color: '#3B82F6' },
-  { key: 'saiu_entrega', label: 'Saiu para entrega', color: '#10B981' },
-  { key: 'concluido', label: 'Concluídos', color: '#6B7280' },
+  {
+    key: 'novo',
+    label: 'Novos',
+    icon: 'orders',
+    tone: 'blue',
+    emptyTitle: 'Nenhum pedido novo',
+    emptyDescription: 'Pedidos novos aparecerão aqui',
+  },
+  {
+    key: 'em_preparo',
+    label: 'Em preparo',
+    icon: 'prep',
+    tone: 'amber',
+    emptyTitle: 'Nenhum pedido em preparo',
+    emptyDescription: 'Pedidos em preparo aparecerão aqui',
+  },
+  {
+    key: 'saiu_entrega',
+    label: 'Saiu para entrega',
+    icon: 'delivery',
+    tone: 'green',
+    emptyTitle: 'Nenhum pedido para entrega',
+    emptyDescription: 'Pedidos para entrega aparecerão aqui',
+  },
+  {
+    key: 'concluido',
+    label: 'Concluídos',
+    icon: 'done',
+    tone: 'brand',
+    emptyTitle: 'Nenhum pedido concluído',
+    emptyDescription: 'Pedidos concluídos aparecerão aqui',
+  },
 ];
 
 const TIPO_LABEL = { delivery: 'Delivery', retirada: 'Retirada', balcao: 'Balcão' };
@@ -55,8 +85,18 @@ function deadlineLabel(order) {
   return `Retirar até ${order.prazo || '--:--'}`;
 }
 
+function estimateMinutes(loja) {
+  const value = Math.max(1, Number(loja?.tempoEntregaValor || 45));
+  return loja?.tempoEntregaUnidade === 'horas' ? value * 60 : value;
+}
+
+function etaFromNow(loja) {
+  return new Date(Date.now() + estimateMinutes(loja) * 60000);
+}
+
 export default function PedidosPage() {
   const { data, saveData } = useAdminData();
+  const storeSlug = data.loja?.slug || '';
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('todos');
   const [toast, setToast] = useState('');
@@ -64,8 +104,12 @@ export default function PedidosPage() {
   const [modalInitialDraft, setModalInitialDraft] = useState(null);
   const [detailOrderId, setDetailOrderId] = useState('');
   const [recentIds, setRecentIds] = useState([]);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiveDateFrom, setArchiveDateFrom] = useState('');
+  const [archiveDateTo, setArchiveDateTo] = useState('');
 
   const products = useMemo(() => (data.produtos || []).filter((p) => p.ativo !== false), [data.produtos]);
+  const categorias = useMemo(() => (data.categorias || []).filter((c) => c.ativo !== false), [data.categorias]);
   const orders = useMemo(() => (data.pedidos || []).filter((o) => !o.arquivado), [data.pedidos]);
 
   const filteredOrders = useMemo(
@@ -91,12 +135,6 @@ export default function PedidosPage() {
     }),
     [filteredOrders]
   );
-
-  const maxColumnItems = useMemo(
-    () => Math.max(...COLS.map((col) => filteredOrders.filter((o) => o.status === col.key).length), 1),
-    [filteredOrders]
-  );
-  const kanbanMinHeight = 160 + maxColumnItems * 160;
 
   function pushToast(msg) {
     setToast(msg);
@@ -152,8 +190,32 @@ export default function PedidosPage() {
     pushToast('Pedidos concluídos movidos para arquivo.');
   }
 
+  function restoreArchived(orderId) {
+    saveData((prev) => ({
+      ...prev,
+      pedidos: prev.pedidos.map((o) => (o.id === orderId ? { ...o, arquivado: false } : o)),
+    }));
+    pushToast(`Pedido #${orderId} restaurado.`);
+  }
+
+  const archivedOrders = useMemo(() => {
+    return (data.pedidos || [])
+      .filter((o) => o.arquivado)
+      .filter((o) => {
+        if (!archiveDateFrom && !archiveDateTo) return true;
+        const created = new Date(o.createdAt || 0).getTime();
+        const from = archiveDateFrom ? new Date(`${archiveDateFrom}T00:00:00`).getTime() : null;
+        const to = archiveDateTo ? new Date(`${archiveDateTo}T23:59:59`).getTime() : null;
+        if (from && created < from) return false;
+        if (to && created > to) return false;
+        return true;
+      })
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  }, [data.pedidos, archiveDateFrom, archiveDateTo]);
+
   async function saveOrder(draft, printNow = false) {
     const totals = computeOrderTotals(draft);
+    const eta = etaFromNow(data.loja);
     const newOrder = {
       id: uid(),
       status: 'novo',
@@ -161,7 +223,8 @@ export default function PedidosPage() {
       clienteNome: draft.clienteNome,
       clienteTelefone: fmtPhone(draft.telefone),
       createdAt: new Date().toISOString(),
-      prazo: '--:--',
+      prazo: eta.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      entregarAte: eta.toISOString(),
       endereco:
         draft.tipo === 'delivery'
           ? {
@@ -170,9 +233,14 @@ export default function PedidosPage() {
               numero: draft.numero,
               bairro: draft.bairro,
               cidade: draft.cidade,
+              estado: draft.estado,
               complemento: draft.complemento,
             }
           : null,
+      enderecoTexto:
+        draft.tipo === 'delivery'
+          ? `${draft.logradouro || ''}${draft.numero ? `, ${draft.numero}` : ''} - ${draft.bairro || ''} - ${draft.cidade || ''}`
+          : 'Retirada no estabelecimento',
       observacao: draft.observacao,
       itens: draft.cart.map((i) => ({
         nome: i.nome,
@@ -194,7 +262,7 @@ export default function PedidosPage() {
 
     let customerId = null;
     try {
-      const empresaId = await resolveEmpresaIdFromStore();
+      const empresaId = await resolveEmpresaIdFromStore(storeSlug);
       const customer = await ensureCustomer({
         name: draft.clienteNome,
         phone: draft.telefone,
@@ -228,10 +296,66 @@ export default function PedidosPage() {
           observacao: newOrder.observacao || null,
         });
         await updateCustomerStats({ customerId, orderValue: newOrder.total, empresaId });
+        if (newOrder.tipo === 'delivery' && newOrder.endereco) {
+          await upsertClienteEndereco({
+            clienteId: customerId,
+            empresaId,
+            patch: {
+              cep: newOrder.endereco.cep,
+              street: newOrder.endereco.logradouro,
+              number: newOrder.endereco.numero,
+              district: newOrder.endereco.bairro,
+              city: newOrder.endereco.cidade,
+              state: newOrder.endereco.estado,
+              complement: newOrder.endereco.complemento,
+              principal: true,
+            },
+          });
+        }
       }
     } catch {}
 
-    saveData((prev) => ({ ...prev, pedidos: [{ ...newOrder, customer_id: customerId }, ...(prev.pedidos || [])] }));
+    saveData((prev) => {
+      const phone = normalizePhone(newOrder.clienteTelefone);
+      const localId = customerId || `cliente-${phone || Date.now()}`;
+      const previous = (prev.clientes || []).find((cliente) => cliente.id === localId || normalizePhone(cliente.phone) === phone);
+      const address =
+        draft.tipo === 'delivery'
+          ? {
+              id: previous?.addresses?.[0]?.id || `end-${Date.now()}`,
+              cep: draft.cep,
+              street: draft.logradouro,
+              number: draft.numero,
+              district: draft.bairro,
+              city: draft.cidade,
+              state: draft.estado,
+              complement: draft.complemento,
+              principal: true,
+            }
+          : null;
+      const nextCustomer = {
+        ...(previous || {}),
+        id: previous?.id || localId,
+        name: draft.clienteNome,
+        phone,
+        total_orders: Number(previous?.total_orders || 0) + 1,
+        total_spent: Number(previous?.total_spent || 0) + totals.total,
+        last_order_at: newOrder.createdAt,
+        updated_at: newOrder.createdAt,
+        created_at: previous?.created_at || newOrder.createdAt,
+        addresses: address
+          ? [address, ...(previous?.addresses || []).filter((item) => item.id !== address.id)]
+          : previous?.addresses || [],
+      };
+      return {
+        ...prev,
+        clientes: [
+          nextCustomer,
+          ...(prev.clientes || []).filter((cliente) => cliente.id !== nextCustomer.id),
+        ],
+        pedidos: [{ ...newOrder, customer_id: nextCustomer.id }, ...(prev.pedidos || [])],
+      };
+    });
     setRecentIds((prev) => [...prev, newOrder.id]);
     setTimeout(() => setRecentIds((prev) => prev.filter((id) => id !== newOrder.id)), 2000);
     setCreateOpen(false);
@@ -245,31 +369,40 @@ export default function PedidosPage() {
     PAYMENT_LABEL[detailOrder?.pagamento?.metodo] || detailOrder?.pagamento?.metodo || '—';
 
   return (
-    <div className="admin-content admin-content-pedidos">
+    <div className="admin-content admin-content-pedidos admin-orders-page">
       {toast ? <div className="admin-store-message">{toast}</div> : null}
       <div className="admin-pedidos-search-row">
-        <input
-          className="admin-input admin-pedidos-search"
-          placeholder="Pesquisa pelo nome do cliente ou código do pedido"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+        <div className="admin-pedidos-search-wrap">
+          <AdminIcon name="search" />
+          <input
+            className="admin-input admin-pedidos-search"
+            placeholder="Pesquise pelo nome do cliente ou código do pedido"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="admin-pedidos-actions-row">
         <div className="admin-tabs admin-tabs-pedidos">
           {['todos', 'delivery', 'retirada', 'balcao'].map((t) => (
             <button key={t} type="button" className={`admin-tab ${typeFilter === t ? 'active' : ''}`} onClick={() => setTypeFilter(t)}>
-              {t === 'todos' ? 'Todos' : TIPO_LABEL[t]} {countsByType[t]}
+              <span>{t === 'todos' ? 'Todos' : TIPO_LABEL[t]}</span>
+              <span className="admin-tab-count">{countsByType[t]}</span>
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button type="button" className="admin-btn admin-btn-ghost" onClick={archiveConcluded}>
+        <div className="admin-pedidos-action-buttons">
+          <button type="button" className="admin-btn admin-btn-primary admin-pedidos-new-btn" onClick={() => openNewOrderModal(null)}>
+            <AdminIcon name="plus" />
+            Novo pedido
+          </button>
+          <button type="button" className="admin-btn admin-btn-ghost admin-pedidos-archive-btn" onClick={archiveConcluded}>
+            <AdminIcon name="archive" />
             Arquivar Concluídos
           </button>
-          <button type="button" className="admin-btn admin-btn-primary" onClick={() => openNewOrderModal(null)}>
-            + Novo pedido
+          <button type="button" className="admin-text-btn admin-pedidos-view-archived" onClick={() => setArchiveOpen(true)}>
+            Ver arquivados
           </button>
         </div>
       </div>
@@ -279,18 +412,32 @@ export default function PedidosPage() {
           {COLS.map((col) => {
             const colOrders = filteredOrders.filter((o) => o.status === col.key);
             return (
-              <div key={col.key} className="admin-kanban-col" style={{ minHeight: kanbanMinHeight }}>
-                <div className="admin-kanban-col-header" style={{ borderTop: `4px solid ${col.color}` }}>
-                  <span>{col.label}</span>
+              <div key={col.key} className="admin-kanban-col">
+                <div className="admin-kanban-col-header">
+                  <div className="admin-kanban-title">
+                    <span className={`admin-kanban-icon ${col.tone}`}>
+                      <AdminIcon name={col.icon} />
+                    </span>
+                    <span>{col.label}</span>
+                  </div>
                   <span className="admin-kanban-count">{colOrders.length}</span>
                 </div>
+                {colOrders.length === 0 ? (
+                  <div className="admin-kanban-empty">
+                    <span className="admin-kanban-empty-icon">
+                      <AdminIcon name={col.icon} />
+                    </span>
+                    <strong>{col.emptyTitle}</strong>
+                    <span>{col.emptyDescription}</span>
+                  </div>
+                ) : null}
                 {colOrders.map((order) => {
                   const flash = recentIds.includes(order.id);
                   return (
                     <div
                       key={order.id}
                       className="admin-order-card"
-                      style={flash ? { boxShadow: '0 0 0 2px #f59e0b inset' } : undefined}
+                      style={flash ? { boxShadow: '0 0 0 2px #4e48dd inset' } : undefined}
                       onClick={() => setDetailOrderId(order.id)}
                     >
                       <h4>{order.clienteNome}</h4>
@@ -305,7 +452,7 @@ export default function PedidosPage() {
                             : 'Balcão'}
                       </div>
                       <div className="admin-order-meta">{deadlineLabel(order)}</div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, alignItems: 'center', gap: 6 }}>
+                      <div className="admin-order-card-actions">
                         <div className="admin-order-price">{currency(order.total)}</div>
                         {order.status !== 'novo' ? (
                           <button
@@ -358,110 +505,123 @@ export default function PedidosPage() {
         }}
         onSave={saveOrder}
         products={products}
+        categorias={categorias}
         initialDraft={modalInitialDraft}
       />
 
-      {detailOrder ? (
-        <div className="admin-confirm-overlay" onClick={() => setDetailOrderId('')}>
-          <div className="admin-confirm-modal" style={{ width: 'min(900px, 96vw)', maxHeight: '92vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginBottom: 6 }}>{detailOrder.clienteNome}</h3>
-            <p style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px' }}>{detailOrder.clienteTelefone}</p>
-            <p style={{ marginTop: 0 }}>Pedido #{detailOrder.id}</p>
-            <p>
-              {detailOrder.tipo === 'delivery'
-                ? `${detailOrder.endereco?.logradouro || ''}, ${detailOrder.endereco?.numero || ''} - ${detailOrder.endereco?.bairro || ''} - ${detailOrder.endereco?.cidade || ''}`
-                : detailOrder.tipo === 'retirada'
-                  ? 'Retirada no balcão'
-                  : 'Balcão'}
-            </p>
-            <p>{deadlineLabel(detailOrder)}</p>
-            <div className="admin-card" style={{ marginBottom: 12 }}>
-              {(detailOrder.historico || []).map((h, idx) => (
-                <div key={`${h.status}-${idx}`} className="admin-order-meta" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span style={{ width: 8, height: 8, borderRadius: 999, background: '#94a3b8', display: 'inline-block' }} />
-                  {STATUS_LABEL[h.status]} ({new Date(h.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })})
-                </div>
-              ))}
+      <OrderDetailModal
+        order={detailOrder}
+        paymentLabel={paymentLabel}
+        onClose={() => setDetailOrderId('')}
+        canAdvance={detailOrder && detailOrder.status !== 'concluido' && detailOrder.status !== 'cancelado'}
+        advanceLabel={
+          detailOrder?.status === 'novo'
+            ? 'Avançar para preparo'
+            : detailOrder?.status === 'em_preparo'
+              ? detailOrder?.tipo === 'delivery'
+                ? 'Saiu para entrega'
+                : 'Finalizar pedido'
+              : 'Marcar como entregue'
+        }
+        onAdvance={() => {
+          if (!detailOrder) return;
+          moveStatus(detailOrder);
+        }}
+        onEdit={() => {
+          if (!detailOrder) return;
+          openNewOrderModal({
+            ...EMPTY_ORDER_DRAFT,
+            tipo: detailOrder.tipo,
+            telefone: detailOrder.clienteTelefone || '',
+            clienteNome: detailOrder.clienteNome || '',
+            cep: detailOrder.endereco?.cep || '',
+            logradouro: detailOrder.endereco?.logradouro || '',
+            numero: detailOrder.endereco?.numero || '',
+            bairro: detailOrder.endereco?.bairro || '',
+            cidade: detailOrder.endereco?.cidade || '',
+            complemento: detailOrder.endereco?.complemento || '',
+            observacao: detailOrder.observacao || '',
+            acrescimo: detailOrder.acrescimo ? String(detailOrder.acrescimo).replace('.', ',') : '',
+            desconto: detailOrder.desconto ? String(detailOrder.desconto).replace('.', ',') : '',
+            taxaEntrega: String(detailOrder.frete || 0).replace('.', ','),
+            formaPagamento: detailOrder.pagamento?.metodo || 'dinheiro',
+            cart: (detailOrder.itens || []).map((i) => ({
+              id: uid(),
+              produtoId: '',
+              nome: i.nome,
+              preco: Number(i.precoUnit || 0),
+              qtd: Number(i.qtd || 1),
+              obs: i.obs || '',
+            })),
+          });
+          setDetailOrderId('');
+        }}
+        onPrint={() => window.print()}
+        onCancel={() => {
+          if (!detailOrder || !window.confirm('Cancelar pedido?')) return;
+          saveData((prev) => ({
+            ...prev,
+            pedidos: prev.pedidos.map((p) => (p.id === detailOrder.id ? { ...p, status: 'cancelado' } : p)),
+          }));
+          setDetailOrderId('');
+        }}
+      />
+
+      {archiveOpen ? (
+        <div className="admin-confirm-overlay" onClick={() => setArchiveOpen(false)}>
+          <div className="admin-order-detail-modal admin-archive-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-order-detail-head">
+              <div>
+                <span className="admin-order-detail-kicker">Pedidos arquivados</span>
+                <h2>{archivedOrders.length} pedido(s)</h2>
+              </div>
+              <button type="button" className="admin-order-detail-close" onClick={() => setArchiveOpen(false)} aria-label="Fechar">
+                ×
+              </button>
             </div>
-            <div className="admin-card" style={{ marginBottom: 12 }}>
-              <h4 style={{ marginTop: 0 }}>Itens do pedido</h4>
-              {(detailOrder.itens || []).map((i, idx) => (
-                <div key={`${i.nome}-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
-                  <div>
-                    <strong style={{ fontSize: 16 }}>
-                      {i.qtd}x {i.nome}
-                    </strong>
-                    {i.obs ? <div className="admin-order-meta">{i.obs}</div> : null}
-                  </div>
-                  <strong style={{ fontSize: 18 }}>{currency(i.subtotal)}</strong>
-                </div>
-              ))}
-            </div>
-            <div className="admin-card" style={{ marginTop: 12 }}>
-              {detailOrder.subtotal > 0 ? <div className="admin-order-meta">Subtotal: {currency(detailOrder.subtotal)}</div> : null}
-              {detailOrder.frete > 0 ? <div className="admin-order-meta">Entrega: {currency(detailOrder.frete)}</div> : null}
-              {detailOrder.acrescimo > 0 ? <div className="admin-order-meta">Acréscimo: {currency(detailOrder.acrescimo)}</div> : null}
-              {detailOrder.desconto > 0 ? <div className="admin-order-meta">Desconto: -{currency(detailOrder.desconto)}</div> : null}
-              <div className="admin-order-price">Total: {currency(detailOrder.total)}</div>
-              <div className="admin-order-meta" style={{ marginTop: 8 }}>
-                Forma de pagamento: {paymentLabel}
+            <div className="admin-archive-filters">
+              <div className="admin-form-group">
+                <label className="admin-label">De</label>
+                <input
+                  type="date"
+                  className="admin-input"
+                  value={archiveDateFrom}
+                  onChange={(e) => setArchiveDateFrom(e.target.value)}
+                />
+              </div>
+              <div className="admin-form-group">
+                <label className="admin-label">Até</label>
+                <input
+                  type="date"
+                  className="admin-input"
+                  value={archiveDateTo}
+                  onChange={(e) => setArchiveDateTo(e.target.value)}
+                />
               </div>
             </div>
-            <div className="admin-confirm-actions">
-              <button
-                type="button"
-                className="admin-btn admin-btn-ghost"
-                onClick={() => {
-                  openNewOrderModal({
-                    ...EMPTY_ORDER_DRAFT,
-                    tipo: detailOrder.tipo,
-                    telefone: detailOrder.clienteTelefone || '',
-                    clienteNome: detailOrder.clienteNome || '',
-                    cep: detailOrder.endereco?.cep || '',
-                    logradouro: detailOrder.endereco?.logradouro || '',
-                    numero: detailOrder.endereco?.numero || '',
-                    bairro: detailOrder.endereco?.bairro || '',
-                    cidade: detailOrder.endereco?.cidade || '',
-                    complemento: detailOrder.endereco?.complemento || '',
-                    observacao: detailOrder.observacao || '',
-                    acrescimo: detailOrder.acrescimo ? String(detailOrder.acrescimo).replace('.', ',') : '',
-                    desconto: detailOrder.desconto ? String(detailOrder.desconto).replace('.', ',') : '',
-                    taxaEntrega: String(detailOrder.frete || 0).replace('.', ','),
-                    formaPagamento: detailOrder.pagamento?.metodo || 'dinheiro',
-                    cart: (detailOrder.itens || []).map((i) => ({
-                      id: uid(),
-                      produtoId: '',
-                      nome: i.nome,
-                      preco: Number(i.precoUnit || 0),
-                      qtd: Number(i.qtd || 1),
-                      obs: i.obs || '',
-                    })),
-                  });
-                  setDetailOrderId('');
-                }}
-              >
-                Editar pedido
-              </button>
-              <button type="button" className="admin-btn admin-btn-ghost" onClick={() => window.print()}>
-                Imprimir pedido
-              </button>
-              <button
-                type="button"
-                className="admin-btn admin-btn-danger"
-                onClick={() => {
-                  if (!window.confirm('Cancelar pedido?')) return;
-                  saveData((prev) => ({
-                    ...prev,
-                    pedidos: prev.pedidos.map((p) => (p.id === detailOrder.id ? { ...p, status: 'cancelado' } : p)),
-                  }));
-                  setDetailOrderId('');
-                }}
-              >
-                Cancelar pedido
-              </button>
-              <button type="button" className="admin-btn admin-btn-primary" onClick={() => setDetailOrderId('')}>
-                Fechar
-              </button>
+            <div className="admin-archive-list">
+              {archivedOrders.length === 0 ? (
+                <p className="admin-order-meta">Nenhum pedido arquivado no período.</p>
+              ) : (
+                archivedOrders.map((order) => (
+                  <div key={order.id} className="admin-archive-row">
+                    <div>
+                      <strong>#{order.id} · {order.clienteNome}</strong>
+                      <div className="admin-order-meta">
+                        {currency(order.total)} · {new Date(order.createdAt).toLocaleString('pt-BR')}
+                      </div>
+                    </div>
+                    <div className="admin-archive-row-actions">
+                      <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setDetailOrderId(order.id)}>
+                        Ver
+                      </button>
+                      <button type="button" className="admin-btn admin-btn-primary" onClick={() => restoreArchived(order.id)}>
+                        Restaurar
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

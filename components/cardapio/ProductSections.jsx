@@ -1,6 +1,7 @@
 'use client';
 
 import { useCardapio } from '@/context/CardapioContext';
+import CategoryIcon from '@/components/admin/CategoryIcon';
 import ProductCard from './ProductCard';
 
 export default function ProductSections() {
@@ -16,9 +17,12 @@ export default function ProductSections() {
 
   return (
     <>
-      {filteredProducts.map(({ category, items }) => (
+      {filteredProducts.map(({ category, items, categoryIcon }) => (
         <div className="section-block" key={category}>
-          <div className="section-title-sticky">{category}</div>
+          <div className="section-title-sticky">
+            {categoryIcon ? <CategoryIcon name={categoryIcon} size={18} className="section-title-icon" /> : null}
+            {category}
+          </div>
           <div className="product-grid">
             {items.map((p) => (
               <ProductCard key={p.id} product={p} />

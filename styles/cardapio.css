@@ -409,6 +409,13 @@ body {
   top: 0;
   z-index: 40;
   letter-spacing: 0.2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-title-icon {
+  flex-shrink: 0;
 }
 
 /* ─── PRODUCT GRID (column layout) ─── */
@@ -470,6 +477,27 @@ body {
   font-weight: 600;
   color: var(--text-dark);
 }
+
+.product-card-price.has-promo,
+.popup-header-price.has-promo {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.product-price-original {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-light);
+  text-decoration: line-through;
+}
+
+.product-price-promo {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--brand-color, #610c27);
+}
+
 
 .product-card-img-wrap {
   flex: 0 0 112px;
@@ -578,6 +606,10 @@ body {
   width: 78px;
   cursor: pointer;
   text-align: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font-family: inherit;
 }
 .also-item:hover .also-item-img { border-color: var(--brand-mid); }
 .also-item-img { width: 78px; height: 68px; border-radius: 8px; background: var(--placeholder-bg); display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 4px; border: 1px solid var(--placeholder-border); transition: border-color 0.2s; background-size: cover; background-position: center; }
@@ -1298,6 +1330,21 @@ body {
 .profile-sub-display { font-size: 13px; color: var(--text-light); font-weight: 300; }
 .profile-form { background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); padding: 20px; margin-bottom: 16px; }
 .profile-form-title { font-size: 14px; font-weight: 600; margin-bottom: 16px; color: var(--text-mid); text-transform: uppercase; letter-spacing: 0.3px; }
+.order-track-card { margin-top: 12px; }
+.order-track-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.order-track-head .profile-form-title { margin-bottom: 4px; }
+.order-track-head strong { color: var(--brand); font-size: 15px; font-weight: 600; white-space: nowrap; }
+.order-track-sub { color: var(--text-light); font-size: 13px; font-weight: 300; }
+.order-progress { margin-bottom: 16px; }
+.order-progress-bar { height: 8px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.order-progress-bar span { display: block; height: 100%; border-radius: inherit; background: var(--brand); transition: width 0.25s; }
+.order-progress-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; font-size: 11px; color: var(--text-light); }
+.order-progress-steps span.active { color: var(--brand); font-weight: 500; }
+.order-track-info { display: grid; gap: 3px; padding: 10px 12px; border-radius: 10px; background: var(--bg); margin-bottom: 10px; }
+.order-track-info strong { font-size: 13px; font-weight: 500; }
+.order-track-info span { color: var(--text-light); font-size: 12px; line-height: 1.4; }
+.order-track-item { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--border); padding: 9px 0; font-size: 13px; color: var(--text-mid); }
+.order-track-item:last-child { border-bottom: 0; padding-bottom: 0; }
 .btn-salvar {
   display: block; width: 100%;
   background: var(--brand); color: white;
@@ -1306,7 +1353,16 @@ body {
   cursor: pointer; font-family: inherit;
   transition: background 0.2s;
 }
-.btn-salvar:hover { background: var(--brand-hover); }
+.app-dialog-message {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-mid);
+  margin: 0;
+}
+
+.app-dialog-card {
+  max-width: 420px;
+}
 
 /* ─── RESPONSIVE ─── */
 @media (max-width: 767px) {

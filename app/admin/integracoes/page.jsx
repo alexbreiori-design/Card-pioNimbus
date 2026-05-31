@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { getEmpresaBySlug, mergeEmpresaIntoLoja, updateEmpresaBySlug } from '@/lib/supabase/empresa';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminIcon from '@/components/admin/AdminIcon';
 
 export default function IntegracoesPage() {
   const { data, saveData } = useAdminData();
@@ -47,15 +49,16 @@ export default function IntegracoesPage() {
   }
 
   return (
-    <div className="admin-content admin-content-pedidos">
+    <div className="admin-content admin-content-pedidos admin-low-info-page">
       {msg ? <div className="admin-store-message">{msg}</div> : null}
 
-      <div className="admin-store-actions-row">
-        <div className="admin-page-title">Integrações</div>
-      </div>
+      <AdminPageHeader title="Integrações" icon="integration" />
 
-      <div className="admin-card" style={{ maxWidth: 520, margin: '0 auto' }}>
-          <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Meta Pixel</h2>
+      <div className="admin-card admin-integration-card">
+          <h2 className="admin-section-heading admin-integration-heading">
+            <AdminIcon name="meta" className="admin-meta-icon" />
+            Meta Pixel
+          </h2>
           <p className="admin-help-text" style={{ marginBottom: 16 }}>
             O script é carregado apenas no cardápio online. Se o ID estiver vazio, nada é enviado ao Meta.
           </p>
@@ -63,7 +66,7 @@ export default function IntegracoesPage() {
             <label className="admin-label">ID do Pixel</label>
             <input
               className="admin-input"
-              placeholder="Ex: 123456789012345"
+              placeholder="Ex: 123456789012345, somente números do Pixel"
               value={pixelId}
               onChange={(e) => setPixelId(e.target.value)}
               disabled={empresaLoading || saving}
