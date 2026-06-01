@@ -8,12 +8,14 @@ import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminIcon from '@/components/admin/AdminIcon';
 import OrderDetailModal from '@/components/admin/orders/OrderDetailModal';
 import { useAdminData } from '@/hooks/useAdminData';
+import { useAdminOrders } from '@/hooks/useAdminOrders';
 import {
   createCustomer,
   deleteCliente,
   deleteClienteEndereco,
   listClienteEnderecos,
   listClientes,
+  listClientesWithDetails,
   listPedidosByCliente,
   updateCliente,
   upsertClienteEndereco,
@@ -114,6 +116,7 @@ function CepSearchButton({ onLookup, cep, disabled }) {
 export default function ClientesPage() {
   const { empresaId, loading: empresaLoading, error: empresaError } = useEmpresa();
   const { data: adminData } = useAdminData();
+  const { orders: adminOrders } = useAdminOrders();
   const { lookup: lookupCep, loading: cepLoading, error: cepError, clearError: clearCepError } = useCepLookup();
 
   const [customers, setCustomers] = useState([]);
@@ -140,12 +143,12 @@ export default function ClientesPage() {
   }, [customers, searchQuery]);
 
   const selectedOrder = useMemo(
-    () => (adminData.pedidos || []).find((p) => String(p.id) === String(selectedOrderId)),
-    [adminData.pedidos, selectedOrderId]
+    () => adminOrders.find((p) => String(p.id) === String(selectedOrderId)),
+    [adminOrders, selectedOrderId]
   );
 
   const loadAll = useCallback(async () => {
-    if (!empresaId && !(adminData.clientes || []).length && !(adminData.pedidos || []).length) return;
+    if (!empresaId && !(adminData.clientes || []).length) return;
     setLoading(true);
     try {
       let clientes = [];
@@ -153,17 +156,10 @@ export default function ClientesPage() {
       const aMap = {};
 
       if (empresaId) {
-        clientes = await listClientes(empresaId);
-        await Promise.all(
-          clientes.map(async (c) => {
-            const [pedidos, enderecos] = await Promise.all([
-              listPedidosByCliente(c.id, empresaId),
-              listClienteEnderecos(c.id, empresaId),
-            ]);
-            oMap[c.id] = pedidos;
-            aMap[c.id] = enderecos;
-          })
-        );
+        const batch = await listClientesWithDetails(empresaId);
+        clientes = batch.clientes;
+        Object.assign(aMap, batch.enderecosByCliente);
+        Object.assign(oMap, batch.pedidosByCliente);
       }
 
       const byPhone = new Map(clientes.map((cliente) => [fmtPhone(cliente.phone), cliente]));
@@ -203,10 +199,9 @@ export default function ClientesPage() {
       );
 
       clientes.forEach((customer) => {
-        oMap[customer.id] = dedupeOrders([
-          ...(oMap[customer.id] || []),
-          ...localOrdersForCustomer(customer, adminData.pedidos),
-        ]).sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+        oMap[customer.id] = dedupeOrders([...(oMap[customer.id] || [])]).sort(
+          (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+        );
       });
 
       setCustomers(clientes);
@@ -217,7 +212,7 @@ export default function ClientesPage() {
     } finally {
       setLoading(false);
     }
-  }, [empresaId, adminData.clientes, adminData.pedidos]);
+  }, [empresaId, adminData.clientes]);
 
   useEffect(() => {
     loadAll();
@@ -710,7 +705,7 @@ export default function ClientesPage() {
                   <p className="admin-order-meta">Nenhum pedido encontrado para este cliente.</p>
                 ) : null}
                 {(ordersByCustomer[detail.id] || []).map((o) => {
-                  const fullOrder = (adminData.pedidos || []).find(
+                  const fullOrder = adminOrders.find(
                     (p) => String(p.id) === String(o.rawId || o.id)
                   );
                   return (

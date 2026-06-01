@@ -45,7 +45,14 @@ export default function Page() {
         />
       </section>
 
-      <footer className={styles.footer}>www.sistemasnimbus.com.br</footer>
+      <a
+        className={styles.footer}
+        href="https://www.sistemasnimbus.com.br"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        www.sistemasnimbus.com.br
+      </a>
     </main>
   );
 }

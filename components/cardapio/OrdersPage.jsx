@@ -2,16 +2,28 @@
 
 import { useCardapio } from '@/context/CardapioContext';
 
+const STATUS_STEPS = [
+  ['novo', 'Recebido'],
+  ['em_preparo', 'Preparo'],
+  ['saiu_entrega', 'Entrega'],
+  ['concluido', 'Concluído'],
+];
+
+const STATUS_LABEL = {
+  novo: 'Recebido',
+  em_preparo: 'Em preparo',
+  saiu_entrega: 'Saiu para entrega',
+  concluido: 'Concluído',
+  cancelado: 'Cancelado',
+};
+
+function statusIndex(status) {
+  return Math.max(0, STATUS_STEPS.findIndex(([key]) => key === status));
+}
+
 export default function OrdersPage() {
   const { page, publicOrders, formatPrice } = useCardapio();
 
-  const statusSteps = [
-    ['novo', 'Recebido'],
-    ['em_preparo', 'Preparo'],
-    ['saiu_entrega', 'Entrega'],
-    ['concluido', 'Concluído'],
-  ];
-  const statusIndex = (status) => Math.max(0, statusSteps.findIndex(([key]) => key === status));
   const openOrders = publicOrders.filter((order) => !['concluido', 'cancelado'].includes(order.status));
   const historyOrders = publicOrders.filter((order) => ['concluido', 'cancelado'].includes(order.status));
 
@@ -20,9 +32,9 @@ export default function OrdersPage() {
     return `Previsão: ${new Date(order.entregarAte).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
   }
 
-  function renderOrder(order) {
+  function renderActiveOrder(order) {
     const current = statusIndex(order.status);
-    const progress = current <= 0 ? 12 : ((current + 1) / statusSteps.length) * 100;
+    const progress = current <= 0 ? 12 : ((current + 1) / STATUS_STEPS.length) * 100;
     return (
       <div key={order.id} className="profile-form order-track-card">
         <div className="order-track-head">
@@ -37,8 +49,10 @@ export default function OrdersPage() {
             <span style={{ width: `${progress}%` }} />
           </div>
           <div className="order-progress-steps">
-            {statusSteps.map(([key, label], idx) => (
-              <span key={key} className={idx <= current ? 'active' : ''}>{label}</span>
+            {STATUS_STEPS.map(([key, label], idx) => (
+              <span key={key} className={idx <= current ? 'active' : ''}>
+                {label}
+              </span>
             ))}
           </div>
         </div>
@@ -48,7 +62,45 @@ export default function OrdersPage() {
         </div>
         {(order.itens || []).map((item, idx) => (
           <div key={`${order.id}-${item.nome}-${idx}`} className="order-track-item">
-            <span>{item.qtd}x {item.nome}</span>
+            <span>
+              {item.qtd}x {item.nome}
+            </span>
+            <span>{formatPrice(item.subtotal)}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  function renderHistoryOrder(order) {
+    const isCancelled = order.status === 'cancelado';
+    return (
+      <div key={order.id} className={`profile-form order-track-card ${isCancelled ? 'order-track-cancelled' : ''}`}>
+        <div className="order-track-head">
+          <div>
+            <div className="profile-form-title">Pedido #{order.id}</div>
+            <div className={`order-track-sub ${isCancelled ? 'order-track-status-cancelled' : ''}`}>
+              {STATUS_LABEL[order.status] || order.status}
+            </div>
+          </div>
+          <strong>{formatPrice(order.total)}</strong>
+        </div>
+        {!isCancelled ? (
+          <div className="order-track-info">
+            <strong>{order.tipo === 'delivery' ? 'Entrega' : 'Retirada'}</strong>
+            <span>{order.enderecoTexto}</span>
+          </div>
+        ) : (
+          <div className="order-track-info">
+            <strong>Pedido cancelado</strong>
+            <span>Este pedido foi cancelado pela loja.</span>
+          </div>
+        )}
+        {(order.itens || []).map((item, idx) => (
+          <div key={`${order.id}-${item.nome}-${idx}`} className="order-track-item">
+            <span>
+              {item.qtd}x {item.nome}
+            </span>
             <span>{formatPrice(item.subtotal)}</span>
           </div>
         ))}
@@ -62,11 +114,9 @@ export default function OrdersPage() {
         <div className="profile-form" style={{ marginTop: 18 }}>
           <div className="profile-form-title">Pedidos em andamento</div>
           {openOrders.length === 0 ? (
-            <p style={{ color: 'var(--text-light)' }}>
-              Você ainda não tem pedidos em andamento.
-            </p>
+            <p style={{ color: 'var(--text-light)' }}>Você ainda não tem pedidos em andamento.</p>
           ) : (
-            openOrders.map(renderOrder)
+            openOrders.map(renderActiveOrder)
           )}
         </div>
         <div className="profile-form" style={{ marginTop: 14 }}>
@@ -74,7 +124,7 @@ export default function OrdersPage() {
           {historyOrders.length === 0 ? (
             <p style={{ color: 'var(--text-light)' }}>Nenhum pedido finalizado ainda.</p>
           ) : (
-            historyOrders.map(renderOrder)
+            historyOrders.map(renderHistoryOrder)
           )}
         </div>
       </div>

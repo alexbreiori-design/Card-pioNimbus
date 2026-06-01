@@ -1,27 +1,15 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-function getAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) return null;
-  return createClient(url, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
-
-function normalizePhone(phone) {
-  return String(phone || '').replace(/\D/g, '');
-}
+import { normalizePhone, normalizeSlug } from '@/lib/normalize';
+import { getServiceClient } from '@/lib/supabase/serviceRole';
 
 export async function GET(request) {
-  const supabase = getAdminClient();
+  const supabase = getServiceClient();
   if (!supabase) {
     return NextResponse.json({ ok: false, error: 'Serviço indisponível.' }, { status: 503 });
   }
 
   const { searchParams } = new URL(request.url);
-  const slug = String(searchParams.get('slug') || '').trim().toLowerCase();
+  const slug = normalizeSlug(searchParams.get('slug'));
   const phone = normalizePhone(searchParams.get('phone'));
 
   if (!slug || !phone) {
@@ -36,25 +24,28 @@ export async function GET(request) {
       .maybeSingle();
     if (empresaError) throw empresaError;
     if (!empresa?.id) {
-      return NextResponse.json({ ok: true, orders: [] });
+      return NextResponse.json({ ok: true, orders: [], latestUpdatedAt: null });
     }
 
     const { data: pedidos, error: pedidosError } = await supabase
       .from('pedidos')
       .select(
-        'id, codigo, status, tipo, created_at, entregar_ate, cliente_nome, cliente_telefone, endereco_texto, subtotal, taxa_entrega, desconto, total, forma_pagamento_codigo, cupom_codigo'
+        'id, codigo, status, tipo, created_at, updated_at, entregar_ate, cliente_nome, cliente_telefone, endereco_texto, subtotal, taxa_entrega, desconto, total, forma_pagamento_codigo, cupom_codigo'
       )
       .eq('empresa_id', empresa.id)
-      .eq('cliente_telefone', phone)
       .order('created_at', { ascending: false })
-      .limit(50);
+      .limit(100);
     if (pedidosError) throw pedidosError;
 
-    if (!pedidos?.length) {
-      return NextResponse.json({ ok: true, orders: [] });
+    const filteredPedidos = (pedidos || []).filter(
+      (row) => normalizePhone(row.cliente_telefone) === phone
+    );
+
+    if (!filteredPedidos.length) {
+      return NextResponse.json({ ok: true, orders: [], latestUpdatedAt: null });
     }
 
-    const pedidoIds = pedidos.map((row) => row.id);
+    const pedidoIds = filteredPedidos.map((row) => row.id);
     const { data: itens, error: itensError } = await supabase
       .from('pedido_itens')
       .select('pedido_id, produto_id, nome, quantidade, preco_unitario, preco_total, observacao')
@@ -67,12 +58,19 @@ export async function GET(request) {
       itensByPedido.get(item.pedido_id).push(item);
     });
 
-    const orders = pedidos.map((row) => ({
+    const orders = filteredPedidos.map((row) => ({
       ...row,
       itens: itensByPedido.get(row.id) || [],
     }));
 
-    return NextResponse.json({ ok: true, orders });
+    const latestUpdatedAt = filteredPedidos.reduce((max, row) => {
+      const ts = row.updated_at || row.created_at;
+      if (!ts) return max;
+      if (!max || new Date(ts).getTime() > new Date(max).getTime()) return ts;
+      return max;
+    }, null);
+
+    return NextResponse.json({ ok: true, orders, latestUpdatedAt });
   } catch (error) {
     return NextResponse.json(
       { ok: false, error: error?.message || 'Erro ao carregar pedidos.' },

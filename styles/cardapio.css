@@ -1348,6 +1348,8 @@ body {
 .order-track-head .profile-form-title { margin-bottom: 4px; }
 .order-track-head strong { color: var(--brand); font-size: 15px; font-weight: 600; white-space: nowrap; }
 .order-track-sub { color: var(--text-light); font-size: 13px; font-weight: 300; }
+.order-track-status-cancelled { color: #b91c1c; font-weight: 500; }
+.order-track-cancelled { opacity: 0.92; }
 .order-progress { margin-bottom: 16px; }
 .order-progress-bar { height: 8px; border-radius: 999px; background: var(--border); overflow: hidden; }
 .order-progress-bar span { display: block; height: 100%; border-radius: inherit; background: var(--brand); transition: width 0.25s; }

@@ -4,6 +4,8 @@
 
 import { useMemo, useState } from 'react';
 import { useAdminData } from '@/hooks/useAdminData';
+import { uploadMenuAssetIfNeeded } from '@/lib/upload/menuAsset';
+import { isPizzariaSegment } from '@/lib/empresaSegmentos';
 import ImagePlaceholder from './ImagePlaceholder';
 import AdminIcon from './AdminIcon';
 import CategoryIcon from './CategoryIcon';
@@ -238,12 +240,22 @@ async function compressImageFile(file) {
   return compressImageDataUrl(dataUrl);
 }
 
-async function compactAdminDataImages(data) {
-  async function compactItems(items = []) {
+async function persistImageUrl(slug, dataUrl, folder) {
+  const compressed = await compressImageDataUrl(dataUrl);
+  if (!slug) return compressed;
+  try {
+    return await uploadMenuAssetIfNeeded(slug, compressed, { folder });
+  } catch {
+    return compressed;
+  }
+}
+
+async function compactAdminDataImages(data, slug) {
+  async function compactItems(items = [], folder) {
     return Promise.all(
       items.map(async (item) => ({
         ...item,
-        imagemUrl: await compressImageDataUrl(item.imagemUrl),
+        imagemUrl: await persistImageUrl(slug, item.imagemUrl, folder),
       }))
     );
   }
@@ -252,11 +264,11 @@ async function compactAdminDataImages(data) {
     ...data,
     loja: {
       ...data.loja,
-      logoUrl: await compressImageDataUrl(data.loja?.logoUrl),
-      capaUrl: await compressImageDataUrl(data.loja?.capaUrl),
+      logoUrl: await persistImageUrl(slug, data.loja?.logoUrl, 'loja'),
+      capaUrl: await persistImageUrl(slug, data.loja?.capaUrl, 'loja'),
     },
-    produtos: await compactItems(data.produtos),
-    adicionaisItens: await compactItems(data.adicionaisItens),
+    produtos: await compactItems(data.produtos, 'produtos'),
+    adicionaisItens: await compactItems(data.adicionaisItens, 'adicionais'),
   };
 }
 
@@ -280,7 +292,12 @@ export default function CatalogManager({ mode = 'produtos' }) {
   const catKey = isProdutos ? 'categorias' : 'adicionaisCategorias';
   const itemKey = isProdutos ? 'produtos' : 'adicionaisItens';
 
-  const { data, saveData } = useAdminData();
+  const { data, saveData, activeSlug } = useAdminData();
+  const isPizzaria = isPizzariaSegment(data.loja?.segmento);
+  const productTypeOptions = useMemo(
+    () => (isPizzaria ? ['comum', 'combo', 'pizza'] : ['comum', 'combo']),
+    [isPizzaria]
+  );
   const [search, setSearch] = useState('');
   const [selectedCat, setSelectedCat] = useState(TAB_ALL);
   const [ordering, setOrdering] = useState(false);
@@ -530,7 +547,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
         }
       }
     }
-    const imagemUrl = await compressImageDataUrl(formImage);
+    const imagemUrl = await persistImageUrl(activeSlug || data.loja?.slug, formImage, isProdutos ? 'produtos' : 'adicionais');
 
     const payload = {
       categoriaId: form.categoriaId,
@@ -566,7 +583,8 @@ export default function CatalogManager({ mode = 'produtos' }) {
     };
 
     try {
-      const compactData = await compactAdminDataImages(data);
+      const storeSlug = activeSlug || data.loja?.slug || '';
+      const compactData = await compactAdminDataImages(data, storeSlug);
       let nextItems;
 
       if (editingItemId) {
@@ -953,7 +971,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
                 <div className="admin-catalog-title-row">
                   <span className="admin-section-icon">
                     {isProdutos ? (
-                      <CategoryIcon name={cat.icone || 'burger'} size={22} />
+                      <CategoryIcon name={cat.icone || 'burger'} size={22} tinted />
                     ) : (
                       <AdminIcon name="category" />
                     )}
@@ -1103,9 +1121,9 @@ export default function CatalogManager({ mode = 'produtos' }) {
               <div className="popup-body admin-item-popup-body">
                 {isProdutos ? (
                   <div className="admin-tabs admin-tabs-pedidos admin-product-type-tabs">
-                    {['comum', 'combo', 'pizza'].map((t) => (
+                    {productTypeOptions.map((t) => (
                       <button key={t} type="button" className={`admin-tab ${form.tipo === t ? 'active' : ''}`} onClick={() => setForm((p) => ({ ...p, tipo: t }))}>
-                        {t[0].toUpperCase() + t.slice(1)}
+                        {t === 'comum' ? 'Padrão' : t === 'pizza' ? 'Pizza' : 'Combo'}
                       </button>
                     ))}
                   </div>
@@ -1704,7 +1722,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
                     onClick={() => setEditingCategory((cat) => ({ ...cat, icone: icon.id }))}
                     title={icon.label}
                   >
-                    <CategoryIcon name={icon.id} size={28} />
+                    <CategoryIcon name={icon.id} size={28} tinted />
                   </button>
                 ))}
               </div>

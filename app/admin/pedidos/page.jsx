@@ -11,7 +11,8 @@ import {
   fmtPhone,
 } from '@/components/admin/orders/orderDraftUtils';
 import { useAdminData } from '@/hooks/useAdminData';
-import { createClient as createSupabaseClient } from '@/lib/supabase/client';
+import { useAdminOrders } from '@/hooks/useAdminOrders';
+import { paymentLabelForOrder } from '@/lib/orders/mapAdminOrder';
 import { ensureCustomer, normalizePhone, updateCustomerStats, upsertClienteEndereco } from '@/lib/supabase/customers';
 import { resolveEmpresaIdFromStore } from '@/lib/supabase/empresa';
 
@@ -96,6 +97,14 @@ function etaFromNow(loja) {
 
 export default function PedidosPage() {
   const { data, saveData } = useAdminData();
+  const {
+    orders: allOrders,
+    patchOrderStatus,
+    cancelOrder,
+    archiveConcluded,
+    restoreArchived,
+    createOrder,
+  } = useAdminOrders();
   const storeSlug = data.loja?.slug || '';
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('todos');
@@ -110,7 +119,7 @@ export default function PedidosPage() {
 
   const products = useMemo(() => (data.produtos || []).filter((p) => p.ativo !== false), [data.produtos]);
   const categorias = useMemo(() => (data.categorias || []).filter((c) => c.ativo !== false), [data.categorias]);
-  const orders = useMemo(() => (data.pedidos || []).filter((o) => !o.arquivado), [data.pedidos]);
+  const orders = useMemo(() => allOrders.filter((o) => !o.arquivado), [allOrders]);
 
   const filteredOrders = useMemo(
     () =>
@@ -146,60 +155,50 @@ export default function PedidosPage() {
     setCreateOpen(true);
   }
 
-  function moveStatus(order) {
+  async function moveStatus(order) {
     const next = STATUS_NEXT[order.status];
     if (!next) return;
-    saveData((prev) => ({
-      ...prev,
-      pedidos: prev.pedidos.map((o) =>
-        o.id === order.id
-          ? {
-              ...o,
-              status: next,
-              historico: [...(o.historico || []), { status: next, at: new Date().toISOString() }],
-            }
-          : o
-      ),
-    }));
-    pushToast(`Pedido #${order.id} movido para ${STATUS_LABEL[next]}.`);
+    try {
+      await patchOrderStatus(order, next);
+      pushToast(`Pedido #${order.id} movido para ${STATUS_LABEL[next]}.`);
+    } catch (error) {
+      pushToast(error?.message || 'Erro ao atualizar pedido.');
+    }
   }
 
-  function rollbackStatus(order) {
+  async function rollbackStatus(order) {
     const prevStatus = STATUS_PREV[order.status];
     if (!prevStatus) return;
-    saveData((prev) => ({
-      ...prev,
-      pedidos: prev.pedidos.map((o) =>
-        o.id === order.id
-          ? {
-              ...o,
-              status: prevStatus,
-              historico: [...(o.historico || []), { status: prevStatus, at: new Date().toISOString() }],
-            }
-          : o
-      ),
-    }));
-    pushToast(`Pedido #${order.id} voltou para ${STATUS_LABEL[prevStatus]}.`);
+    try {
+      await patchOrderStatus(order, prevStatus);
+      pushToast(`Pedido #${order.id} voltou para ${STATUS_LABEL[prevStatus]}.`);
+    } catch (error) {
+      pushToast(error?.message || 'Erro ao atualizar pedido.');
+    }
   }
 
-  function archiveConcluded() {
-    saveData((prev) => ({
-      ...prev,
-      pedidos: prev.pedidos.map((o) => (o.status === 'concluido' ? { ...o, arquivado: true } : o)),
-    }));
-    pushToast('Pedidos concluídos movidos para arquivo.');
+  async function handleArchiveConcluded() {
+    try {
+      await archiveConcluded();
+      pushToast('Pedidos concluídos movidos para arquivo.');
+    } catch (error) {
+      pushToast(error?.message || 'Erro ao arquivar pedidos.');
+    }
   }
 
-  function restoreArchived(orderId) {
-    saveData((prev) => ({
-      ...prev,
-      pedidos: prev.pedidos.map((o) => (o.id === orderId ? { ...o, arquivado: false } : o)),
-    }));
-    pushToast(`Pedido #${orderId} restaurado.`);
+  async function handleRestoreArchived(orderId) {
+    const order = allOrders.find((o) => String(o.id) === String(orderId));
+    if (!order) return;
+    try {
+      await restoreArchived(order);
+      pushToast(`Pedido #${orderId} restaurado.`);
+    } catch (error) {
+      pushToast(error?.message || 'Erro ao restaurar pedido.');
+    }
   }
 
   const archivedOrders = useMemo(() => {
-    return (data.pedidos || [])
+    return allOrders
       .filter((o) => o.arquivado)
       .filter((o) => {
         if (!archiveDateFrom && !archiveDateTo) return true;
@@ -211,56 +210,46 @@ export default function PedidosPage() {
         return true;
       })
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-  }, [data.pedidos, archiveDateFrom, archiveDateTo]);
+  }, [allOrders, archiveDateFrom, archiveDateTo]);
 
   async function saveOrder(draft, printNow = false) {
     const totals = computeOrderTotals(draft);
     const eta = etaFromNow(data.loja);
+    const phoneDigits = normalizePhone(draft.telefone);
     const newOrder = {
       id: uid(),
       status: 'novo',
       tipo: draft.tipo,
       clienteNome: draft.clienteNome,
-      clienteTelefone: fmtPhone(draft.telefone),
+      clienteTelefone: phoneDigits,
       createdAt: new Date().toISOString(),
       prazo: eta.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
       entregarAte: eta.toISOString(),
-      endereco:
-        draft.tipo === 'delivery'
-          ? {
-              cep: draft.cep,
-              logradouro: draft.logradouro,
-              numero: draft.numero,
-              bairro: draft.bairro,
-              cidade: draft.cidade,
-              estado: draft.estado,
-              complemento: draft.complemento,
-            }
-          : null,
       enderecoTexto:
         draft.tipo === 'delivery'
           ? `${draft.logradouro || ''}${draft.numero ? `, ${draft.numero}` : ''} - ${draft.bairro || ''} - ${draft.cidade || ''}`
-          : 'Retirada no estabelecimento',
+          : draft.tipo === 'retirada'
+            ? 'Retirada no balcão'
+            : 'Balcão',
       observacao: draft.observacao,
-      itens: draft.cart.map((i) => ({
-        nome: i.nome,
-        qtd: i.qtd,
-        precoUnit: i.preco,
-        subtotal: i.qtd * i.preco,
-        obs: i.obs || '',
-      })),
       subtotal: totals.subtotal,
       frete: totals.entrega,
       acrescimo: totals.acrescimo,
       desconto: totals.desconto,
       cupomCodigo: draft.cupomCodigo || '',
       total: totals.total,
-      historico: [{ status: 'novo', at: new Date().toISOString() }],
       pagamento: { metodo: draft.formaPagamento, recebido: totals.total, troco: 0 },
-      autoImported: false,
+      origem: 'admin_manual',
     };
+    const items = draft.cart.map((i) => ({
+      nome: i.nome,
+      qtd: i.qtd,
+      precoUnit: i.preco,
+      subtotal: i.qtd * i.preco,
+      obs: i.obs || '',
+      produtoId: i.produtoId || null,
+    }));
 
-    let customerId = null;
     try {
       const empresaId = await resolveEmpresaIdFromStore(storeSlug);
       const customer = await ensureCustomer({
@@ -268,61 +257,18 @@ export default function PedidosPage() {
         phone: draft.telefone,
         empresaId,
       });
-      customerId = customer?.id || null;
-      if (empresaId) {
-        const supabase = createSupabaseClient();
-        await supabase.from('pedidos').insert({
-          empresa_id: empresaId,
-          cliente_id: customerId,
-          codigo: String(newOrder.id),
-          status: 'novo',
-          tipo: newOrder.tipo,
-          origem: 'admin_manual',
-          cliente_nome: newOrder.clienteNome,
-          cliente_telefone: normalizePhone(newOrder.clienteTelefone),
-          endereco_texto:
-            newOrder.tipo === 'delivery'
-              ? `${newOrder.endereco?.logradouro || ''}, ${newOrder.endereco?.numero || ''} - ${newOrder.endereco?.bairro || ''} - ${newOrder.endereco?.cidade || ''}`
-              : newOrder.tipo === 'retirada'
-                ? 'Retirada no balcão'
-                : 'Balcão',
-          subtotal: newOrder.subtotal,
-          taxa_entrega: newOrder.frete,
-          acrescimo: newOrder.acrescimo,
-          desconto: newOrder.desconto,
-          total: newOrder.total,
-          forma_pagamento_codigo: draft.formaPagamento,
-          cupom_codigo: draft.cupomCodigo || null,
-          observacao: newOrder.observacao || null,
-        });
+      const customerId = customer?.id || null;
+      newOrder.cliente_id = customerId;
+
+      await createOrder(newOrder, items);
+
+      if (customerId && empresaId) {
         await updateCustomerStats({ customerId, orderValue: newOrder.total, empresaId });
-        if (newOrder.tipo === 'delivery' && newOrder.endereco) {
+        if (draft.tipo === 'delivery') {
           await upsertClienteEndereco({
             clienteId: customerId,
             empresaId,
             patch: {
-              cep: newOrder.endereco.cep,
-              street: newOrder.endereco.logradouro,
-              number: newOrder.endereco.numero,
-              district: newOrder.endereco.bairro,
-              city: newOrder.endereco.cidade,
-              state: newOrder.endereco.estado,
-              complement: newOrder.endereco.complemento,
-              principal: true,
-            },
-          });
-        }
-      }
-    } catch {}
-
-    saveData((prev) => {
-      const phone = normalizePhone(newOrder.clienteTelefone);
-      const localId = customerId || `cliente-${phone || Date.now()}`;
-      const previous = (prev.clientes || []).find((cliente) => cliente.id === localId || normalizePhone(cliente.phone) === phone);
-      const address =
-        draft.tipo === 'delivery'
-          ? {
-              id: previous?.addresses?.[0]?.id || `end-${Date.now()}`,
               cep: draft.cep,
               street: draft.logradouro,
               number: draft.numero,
@@ -331,31 +277,57 @@ export default function PedidosPage() {
               state: draft.estado,
               complement: draft.complemento,
               principal: true,
-            }
-          : null;
-      const nextCustomer = {
-        ...(previous || {}),
-        id: previous?.id || localId,
-        name: draft.clienteNome,
-        phone,
-        total_orders: Number(previous?.total_orders || 0) + 1,
-        total_spent: Number(previous?.total_spent || 0) + totals.total,
-        last_order_at: newOrder.createdAt,
-        updated_at: newOrder.createdAt,
-        created_at: previous?.created_at || newOrder.createdAt,
-        addresses: address
-          ? [address, ...(previous?.addresses || []).filter((item) => item.id !== address.id)]
-          : previous?.addresses || [],
-      };
-      return {
-        ...prev,
-        clientes: [
-          nextCustomer,
-          ...(prev.clientes || []).filter((cliente) => cliente.id !== nextCustomer.id),
-        ],
-        pedidos: [{ ...newOrder, customer_id: nextCustomer.id }, ...(prev.pedidos || [])],
-      };
-    });
+            },
+          });
+        }
+      }
+
+      saveData((prev) => {
+        const previous = (prev.clientes || []).find(
+          (cliente) => cliente.id === customerId || normalizePhone(cliente.phone) === phoneDigits
+        );
+        const localId = customerId || `cliente-${phoneDigits || Date.now()}`;
+        const address =
+          draft.tipo === 'delivery'
+            ? {
+                id: previous?.addresses?.[0]?.id || `end-${Date.now()}`,
+                cep: draft.cep,
+                street: draft.logradouro,
+                number: draft.numero,
+                district: draft.bairro,
+                city: draft.cidade,
+                state: draft.estado,
+                complement: draft.complemento,
+                principal: true,
+              }
+            : null;
+        const nextCustomer = {
+          ...(previous || {}),
+          id: previous?.id || localId,
+          name: draft.clienteNome,
+          phone: phoneDigits,
+          total_orders: Number(previous?.total_orders || 0) + 1,
+          total_spent: Number(previous?.total_spent || 0) + totals.total,
+          last_order_at: newOrder.createdAt,
+          updated_at: newOrder.createdAt,
+          created_at: previous?.created_at || newOrder.createdAt,
+          addresses: address
+            ? [address, ...(previous?.addresses || []).filter((item) => item.id !== address.id)]
+            : previous?.addresses || [],
+        };
+        return {
+          ...prev,
+          clientes: [
+            nextCustomer,
+            ...(prev.clientes || []).filter((cliente) => cliente.id !== nextCustomer.id),
+          ],
+        };
+      });
+    } catch (error) {
+      pushToast(error?.message || 'Erro ao criar pedido.');
+      return;
+    }
+
     setRecentIds((prev) => [...prev, newOrder.id]);
     setTimeout(() => setRecentIds((prev) => prev.filter((id) => id !== newOrder.id)), 2000);
     setCreateOpen(false);
@@ -364,9 +336,8 @@ export default function PedidosPage() {
     if (printNow) window.print();
   }
 
-  const detailOrder = (data.pedidos || []).find((o) => o.id === detailOrderId);
-  const paymentLabel =
-    PAYMENT_LABEL[detailOrder?.pagamento?.metodo] || detailOrder?.pagamento?.metodo || '—';
+  const detailOrder = allOrders.find((o) => o.id === detailOrderId);
+  const paymentLabel = paymentLabelForOrder(detailOrder);
 
   return (
     <div className="admin-content admin-content-pedidos admin-orders-page">
@@ -397,7 +368,7 @@ export default function PedidosPage() {
             <AdminIcon name="plus" />
             Novo pedido
           </button>
-          <button type="button" className="admin-btn admin-btn-ghost admin-pedidos-archive-btn" onClick={archiveConcluded}>
+          <button type="button" className="admin-btn admin-btn-ghost admin-pedidos-archive-btn" onClick={handleArchiveConcluded}>
             <AdminIcon name="archive" />
             Arquivar Concluídos
           </button>
@@ -446,7 +417,7 @@ export default function PedidosPage() {
                       </div>
                       <div className="admin-order-meta">
                         {order.tipo === 'delivery'
-                          ? `${order.endereco?.logradouro || ''}, ${order.endereco?.numero || ''} - ${order.endereco?.bairro || ''} - ${order.endereco?.cidade || ''}`
+                          ? order.enderecoTexto || 'Entrega'
                           : order.tipo === 'retirada'
                             ? 'Retirada no balcão'
                             : 'Balcão'}
@@ -559,11 +530,7 @@ export default function PedidosPage() {
         onPrint={() => window.print()}
         onCancel={() => {
           if (!detailOrder || !window.confirm('Cancelar pedido?')) return;
-          saveData((prev) => ({
-            ...prev,
-            pedidos: prev.pedidos.map((p) => (p.id === detailOrder.id ? { ...p, status: 'cancelado' } : p)),
-          }));
-          setDetailOrderId('');
+          void cancelOrder(detailOrder).then(() => setDetailOrderId(''));
         }}
       />
 
@@ -615,7 +582,7 @@ export default function PedidosPage() {
                       <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setDetailOrderId(order.id)}>
                         Ver
                       </button>
-                      <button type="button" className="admin-btn admin-btn-primary" onClick={() => restoreArchived(order.id)}>
+                      <button type="button" className="admin-btn admin-btn-primary" onClick={() => handleRestoreArchived(order.id)}>
                         Restaurar
                       </button>
                     </div>

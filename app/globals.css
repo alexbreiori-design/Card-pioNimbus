@@ -1,1 +1,40 @@
-/* Estilos do cardápio são injetados em app/layout.js para evitar conflito com PostCSS/Tailwind. */
+.slug-not-found {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #f8fafc;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.slug-not-found-card {
+  max-width: 420px;
+  text-align: center;
+  padding: 32px 28px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.slug-not-found-card h1 {
+  margin: 0 0 12px;
+  font-size: 24px;
+  color: #0f172a;
+}
+
+.slug-not-found-card p {
+  margin: 0 0 20px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.slug-not-found-card a {
+  color: #4e48dd;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.slug-not-found-card a:hover {
+  text-decoration: underline;
+}

@@ -1,10 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useCardapio } from '@/context/CardapioContext';
+import { useCardapioCart, useCardapioCatalog } from '@/context/CardapioContext';
 import { IconCheck, IconClose, IconPlus } from './icons';
 
 export default function ProductModal() {
+  const { formatPrice } = useCardapioCatalog();
   const {
     productOpen,
     closeProductPopup,
@@ -19,9 +20,8 @@ export default function ProductModal() {
     changeQty,
     addToCart,
     addToCartCustom,
-    formatPrice,
     adicionarTotal,
-  } = useCardapio();
+  } = useCardapioCart();
 
   const product = currentProduct;
   const hasImage = Boolean(product?.imageUrl);

@@ -4,7 +4,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ColorPalettePicker, { extractPaletteFromLogoUrl } from '@/components/admin/ColorPalettePicker';
+import CoverImageAdjustModal from '@/components/admin/CoverImageAdjustModal';
 import ImagePlaceholder from '@/components/admin/ImagePlaceholder';
+import SegmentCombobox from '@/components/admin/SegmentCombobox';
+import StoreSectionHead from '@/components/admin/StoreSectionHead';
 import { formatCep } from '@/lib/cep/viacep';
 import { useCepLookup } from '@/hooks/useCepLookup';
 import { useAdminData } from '@/hooks/useAdminData';
@@ -15,6 +18,8 @@ import {
   mergeEmpresaIntoLoja,
   updateEmpresaBySlug,
 } from '@/lib/supabase/empresa';
+
+const DESCRICAO_MAX = 120;
 
 const DAYS = [
   ['segunda', 'Segunda'],
@@ -38,6 +43,13 @@ function readFileAsDataUrl(file) {
 function moneyToInput(value) {
   if (value === undefined || value === null || value === '') return '';
   return String(value).replace('.', ',');
+}
+
+function moneyToDisplay(value) {
+  if (value === undefined || value === null || value === '') return 'R$ 0,00';
+  const num = Number(value);
+  if (!Number.isFinite(num)) return 'R$ 0,00';
+  return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function inputToMoney(value) {
@@ -94,6 +106,9 @@ export default function MinhaLojaPage() {
   const [pedidoMinimo, setPedidoMinimo] = useState('');
   const [msg, setMsg] = useState('');
   const [saving, setSaving] = useState(false);
+  const [coverAdjustSrc, setCoverAdjustSrc] = useState('');
+
+  const descricaoLength = String(draft?.descricao || '').length;
 
   const lojaSyncKey = useMemo(
     () =>
@@ -101,6 +116,7 @@ export default function MinhaLojaPage() {
         ? JSON.stringify({
             nome: data.loja.nome,
             slug: data.loja.slug,
+            segmento: data.loja.segmento,
             whatsapp: data.loja.whatsapp,
             documentoFiscal: data.loja.documentoFiscal,
             pedidoMinimo: data.loja.pedidoMinimo,
@@ -141,7 +157,7 @@ export default function MinhaLojaPage() {
       }
       if (!cancelled) {
         setDraft(loja);
-        setPedidoMinimo(moneyToInput(loja.pedidoMinimo));
+        setPedidoMinimo(moneyToDisplay(loja.pedidoMinimo));
       }
     }
     load();
@@ -188,16 +204,32 @@ export default function MinhaLojaPage() {
       setMsg('');
       if (file.size > maxMb * 1024 * 1024) {
         setMsg(`Arquivo excede ${maxMb}MB.`);
+        e.target.value = '';
         return;
       }
       try {
         const dataUrl = await readFileAsDataUrl(file);
+        if (field === 'capaUrl') {
+          setCoverAdjustSrc(dataUrl);
+          e.target.value = '';
+          return;
+        }
         setLojaField(field, dataUrl);
         if (field === 'logoUrl') await runPaletteExtract(dataUrl);
       } catch {
         setMsg('Não foi possível processar essa imagem. Tente outro arquivo.');
       }
+      e.target.value = '';
     };
+  }
+
+  async function applyCoverImage(dataUrl) {
+    setLojaField('capaUrl', dataUrl);
+    setCoverAdjustSrc('');
+  }
+
+  function cancelCoverAdjust() {
+    setCoverAdjustSrc('');
   }
 
   function selectBrandColor(hex) {
@@ -217,15 +249,28 @@ export default function MinhaLojaPage() {
     }));
   }
 
+  async function copyPixKey() {
+    const key = String(draft.chavePix || '').trim();
+    if (!key) return;
+    try {
+      await navigator.clipboard.writeText(key);
+      setMsg('Chave Pix copiada.');
+      setTimeout(() => setMsg(''), 2200);
+    } catch {
+      setMsg('Não foi possível copiar a chave Pix.');
+      setTimeout(() => setMsg(''), 2200);
+    }
+  }
+
   async function save() {
     setSaving(true);
     setMsg('');
     const nextLoja = {
       ...draft,
       pedidoMinimo: inputToMoney(pedidoMinimo),
+      descricao: String(draft.descricao || '').slice(0, DESCRICAO_MAX),
     };
     try {
-      // mantém o campo "endereco" (string) só como conveniência local
       const enderecoText = [
         nextLoja.enderecoLogradouro,
         nextLoja.enderecoNumero ? `, ${nextLoja.enderecoNumero}` : '',
@@ -263,10 +308,11 @@ export default function MinhaLojaPage() {
             console.warn('Geocoding da loja:', geoJson.error || geoRes.status);
           }
         } catch {
-          /* geocoding opcional se API não configurada */
+          /* geocoding opcional */
         }
       }
       setMsg('Alterações salvas com sucesso.');
+      setPedidoMinimo(moneyToDisplay(nextLoja.pedidoMinimo));
     } catch (e) {
       setMsg(e?.message || 'Erro ao salvar. Dados locais foram atualizados.');
     } finally {
@@ -276,10 +322,10 @@ export default function MinhaLojaPage() {
   }
 
   return (
-    <div className="admin-content admin-content-pedidos admin-store-page">
+    <div className="admin-content admin-content-pedidos admin-store-page admin-store-page-v2">
       {msg ? <div className="admin-card admin-store-message">{msg}</div> : null}
 
-      <div className="admin-store-actions-row">
+      <div className="admin-store-actions-row admin-store-actions-sticky">
         <div />
         <button type="button" className="admin-btn admin-btn-primary" onClick={save} disabled={saving}>
           Salvar alterações
@@ -331,12 +377,20 @@ export default function MinhaLojaPage() {
             />
           </div>
         </div>
+      </div>
 
-        <div className="admin-store-fields-center admin-store-dados-block">
-          <div className="admin-store-section-head">
-            <h2>Dados da loja</h2>
+      <div className="admin-card admin-store-section-card">
+        <StoreSectionHead icon="store" title="Dados da loja" />
+        <div className="admin-store-section-body">
+          <div className="admin-form-group admin-store-segment-field">
+            <label className="admin-label">Segmento</label>
+            <SegmentCombobox
+              value={draft.segmento || ''}
+              onChange={(segmento) => setLojaField('segmento', segmento)}
+              disabled={saving}
+            />
           </div>
-          <div className="admin-store-dados-row-1">
+          <div className="admin-store-dados-row-nome-link">
             <div className="admin-form-group">
               <label className="admin-label">Nome da loja</label>
               <input className="admin-input" value={draft.nome || ''} onChange={(e) => setLojaField('nome', e.target.value)} />
@@ -350,7 +404,7 @@ export default function MinhaLojaPage() {
               />
             </div>
           </div>
-          <div className="admin-store-dados-row-2">
+          <div className="admin-store-dados-row-2 admin-store-dados-row-2-v2">
             <div className="admin-form-group">
               <label className="admin-label">WhatsApp</label>
               <input
@@ -382,11 +436,9 @@ export default function MinhaLojaPage() {
         </div>
       </div>
 
-      <div className="admin-card admin-store-block-card">
-        <div className="admin-store-fields-center">
-          <div className="admin-store-section-head">
-            <h2>Endereço da loja</h2>
-          </div>
+      <div className="admin-card admin-store-section-card">
+        <StoreSectionHead icon="location" title="Endereço da loja" />
+        <div className="admin-store-section-body">
           <div className="admin-form-group admin-store-cep-field">
             <label className="admin-label">CEP</label>
             <div className="admin-input-icon-wrap">
@@ -455,35 +507,57 @@ export default function MinhaLojaPage() {
               />
             </div>
           </div>
+        </div>
+      </div>
 
-          <div className="admin-store-section-head admin-store-section-head-spaced">
-            <h2>Descrição curta</h2>
-          </div>
+      <div className="admin-card admin-store-section-card">
+        <StoreSectionHead icon="edit" title="Descrição curta" />
+        <div className="admin-store-section-body">
           <div className="admin-form-group admin-store-field-descricao">
             <textarea
-              className="admin-input"
+              className="admin-input admin-store-descricao-input"
               value={draft.descricao || ''}
-              onChange={(e) => setLojaField('descricao', e.target.value)}
+              maxLength={DESCRICAO_MAX}
+              onChange={(e) => setLojaField('descricao', e.target.value.slice(0, DESCRICAO_MAX))}
               placeholder="Descreva em poucas palavras o estilo da loja e seus principais produtos."
             />
+            <span className="admin-store-descricao-counter">
+              {descricaoLength}/{DESCRICAO_MAX}
+            </span>
           </div>
         </div>
       </div>
 
-      <div className="admin-card admin-store-block-card">
-        <div className="admin-store-section-head admin-store-fields-center">
-          <h2>Pagamento Pix (checkout)</h2>
-          <span>Exibido no cardápio online somente quando o cliente escolher Pix.</span>
-        </div>
-        <div className="admin-store-fields-center">
+      <div className="admin-card admin-store-section-card">
+        <StoreSectionHead
+          icon="pix"
+          title="Pagamento Pix (checkout)"
+          hint="Exibido no cardápio online somente quando o cliente escolher Pix."
+        />
+        <div className="admin-store-section-body">
           <div className="admin-form-group">
             <label className="admin-label">Chave Pix</label>
-            <input
-              className="admin-input"
-              value={draft.chavePix || ''}
-              onChange={(e) => setLojaField('chavePix', e.target.value)}
-              placeholder="E-mail, CPF, CNPJ ou telefone"
-            />
+            <div className="admin-input-icon-wrap">
+              <input
+                className="admin-input admin-input-with-icon"
+                value={draft.chavePix || ''}
+                onChange={(e) => setLojaField('chavePix', e.target.value)}
+                placeholder="E-mail, CPF, CNPJ ou telefone"
+              />
+              <button
+                type="button"
+                className="admin-input-icon-btn admin-input-icon-btn-brand"
+                onClick={copyPixKey}
+                disabled={!draft.chavePix}
+                title="Copiar chave Pix"
+                aria-label="Copiar chave Pix"
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" strokeWidth="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" fill="none" stroke="currentColor" strokeWidth="2" />
+                </svg>
+              </button>
+            </div>
           </div>
           <div className="admin-form-group">
             <label className="admin-label">Descrição da chave Pix</label>
@@ -491,19 +565,20 @@ export default function MinhaLojaPage() {
               className="admin-input"
               value={draft.descricaoChavePix || ''}
               onChange={(e) => setLojaField('descricaoChavePix', e.target.value)}
-              placeholder="Ex: Pix CNPJ — Razão social"
+              placeholder="Ex: Pix CPF — Razão social"
             />
           </div>
         </div>
       </div>
 
-      <div className="admin-card admin-store-block-card">
-        <div className="admin-store-section-head admin-store-fields-center">
-          <h2>Tempo estimado de entrega</h2>
-          <span>Usado para calcular o horário previsto mostrado ao cliente e nos pedidos novos.</span>
-        </div>
-        <div className="admin-store-fields-center">
-          <div className="admin-store-dados-row-2">
+      <div className="admin-card admin-store-section-card">
+        <StoreSectionHead
+          icon="delivery"
+          title="Tempo estimado de entrega"
+          hint="Usado para calcular o horário previsto mostrado ao cliente e nos pedidos novos."
+        />
+        <div className="admin-store-section-body">
+          <div className="admin-store-delivery-time-row">
             <div className="admin-form-group">
               <label className="admin-label">Tempo</label>
               <input
@@ -530,43 +605,54 @@ export default function MinhaLojaPage() {
         </div>
       </div>
 
-      <div className="admin-card admin-store-block-card">
-        <div className="admin-store-section-head admin-store-fields-center">
-          <h2>Horários de funcionamento</h2>
-          <span>Esses horários aparecem no cardápio público.</span>
-        </div>
-        <div className="admin-hours-list admin-store-fields-center">
-          {DAYS.map(([key, label]) => {
-            const day = draft.horarios[key];
-            return (
-              <div key={key} className="admin-hours-row">
-                <strong>{label}</strong>
-                <button
-                  type="button"
-                  className={`admin-hours-open ${!day.fechado ? 'open' : ''}`}
-                  onClick={() => setHorario(key, { fechado: !day.fechado })}
-                >
-                  {!day.fechado ? 'Aberto' : 'Fechado'}
-                </button>
-                <input
-                  className="admin-input"
-                  type="time"
-                  disabled={day.fechado}
-                  value={day.abertura}
-                  onChange={(e) => setHorario(key, { abertura: e.target.value })}
-                />
-                <input
-                  className="admin-input"
-                  type="time"
-                  disabled={day.fechado}
-                  value={day.fechamento}
-                  onChange={(e) => setHorario(key, { fechamento: e.target.value })}
-                />
-              </div>
-            );
-          })}
+      <div className="admin-card admin-store-section-card admin-store-hours-card">
+        <StoreSectionHead
+          icon="clock"
+          title="Horários de funcionamento"
+          hint="Esses horários aparecem no cardápio público."
+        />
+        <div className="admin-store-section-body">
+          <div className="admin-hours-list admin-hours-list-v2">
+            {DAYS.map(([key, label]) => {
+              const day = draft.horarios[key];
+              return (
+                <div key={key} className="admin-hours-row admin-hours-row-v2">
+                  <strong>{label}</strong>
+                  <button
+                    type="button"
+                    className={`admin-hours-open ${!day.fechado ? 'open' : ''}`}
+                    onClick={() => setHorario(key, { fechado: !day.fechado })}
+                  >
+                    {!day.fechado ? 'Aberto' : 'Fechado'}
+                  </button>
+                  <input
+                    className="admin-input admin-hours-time-input"
+                    type="time"
+                    disabled={day.fechado}
+                    value={day.abertura}
+                    onChange={(e) => setHorario(key, { abertura: e.target.value })}
+                  />
+                  <input
+                    className="admin-input admin-hours-time-input"
+                    type="time"
+                    disabled={day.fechado}
+                    value={day.fechamento}
+                    onChange={(e) => setHorario(key, { fechamento: e.target.value })}
+                  />
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
+
+      {coverAdjustSrc ? (
+        <CoverImageAdjustModal
+          src={coverAdjustSrc}
+          onConfirm={applyCoverImage}
+          onCancel={cancelCoverAdjust}
+        />
+      ) : null}
     </div>
   );
 }

@@ -45,8 +45,12 @@ export default function ProfilePage() {
             Adicionar imagem
             <input type="file" accept="image/*" style={{ display: 'none' }} onChange={onSelectImage} />
           </label>
-          <div className="profile-name-display">{profileDisplayName}</div>
-          <div className="profile-sub-display">{profileDisplayPhone}</div>
+          <div className="profile-name-display" suppressHydrationWarning>
+            {profileDisplayName}
+          </div>
+          <div className="profile-sub-display" suppressHydrationWarning>
+            {profileDisplayPhone}
+          </div>
         </div>
         <div className="profile-form">
           <div className="profile-form-title">Dados pessoais</div>

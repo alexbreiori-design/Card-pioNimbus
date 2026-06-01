@@ -1,4 +1,12 @@
+import { getAdminFileIconPath } from '@/lib/adminFileIcons';
+import AdminFileIcon from './AdminFileIcon';
+
 export default function AdminIcon({ name, className = '' }) {
+  const fileSrc = getAdminFileIconPath(name);
+  if (fileSrc) {
+    return <AdminFileIcon src={fileSrc} className={className} />;
+  }
+
   const icons = {
     search: (
       <>
@@ -143,6 +151,29 @@ export default function AdminIcon({ name, className = '' }) {
       <>
         <path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2" />
         <path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2" />
+      </>
+    ),
+    edit: (
+      <>
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+      </>
+    ),
+    pix: (
+      <>
+        <rect x="3" y="3" width="8" height="8" rx="1.5" />
+        <rect x="13" y="13" width="8" height="8" rx="1.5" />
+        <path d="M11 7h2" />
+        <path d="M7 11v2" />
+        <path d="M17 13h2" />
+        <path d="M13 17v2" />
+      </>
+    ),
+    store: (
+      <>
+        <path d="M3 10l9-6 9 6" />
+        <path d="M5 10v9h14v-9" />
+        <path d="M10 19v-5h4v5" />
       </>
     ),
     meta: (

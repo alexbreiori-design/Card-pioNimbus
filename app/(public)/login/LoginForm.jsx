@@ -22,14 +22,18 @@ export default function LoginForm() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(
     configError ? 'Autenticação indisponível. Verifique a configuração do Supabase.' : ''
   );
+  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   async function handleSubmit(event) {
     event.preventDefault();
     setError('');
+    setInfo('');
     setLoading(true);
 
     try {
@@ -44,7 +48,6 @@ export default function LoginForm() {
         return;
       }
 
-      // Navegação completa garante que cookies de sessão cheguem ao proxy.
       window.location.assign(redirect);
     } catch (submitError) {
       console.error('Erro no login:', submitError?.message || submitError);
@@ -58,6 +61,36 @@ export default function LoginForm() {
       }
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleForgotPassword(event) {
+    event.preventDefault();
+    setError('');
+    setInfo('');
+
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setError('Informe seu e-mail acima para receber o link de redefinição.');
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      const supabase = createClient();
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+        redirectTo: `${window.location.origin}/login`,
+      });
+      if (resetError) {
+        setError('Não foi possível enviar o e-mail de recuperação. Tente novamente.');
+        return;
+      }
+      setInfo('Enviamos um link para redefinir sua senha. Verifique sua caixa de entrada.');
+    } catch (resetSubmitError) {
+      console.error('Erro ao recuperar senha:', resetSubmitError?.message || resetSubmitError);
+      setError('Não foi possível enviar o e-mail de recuperação.');
+    } finally {
+      setResetLoading(false);
     }
   }
 
@@ -79,24 +112,40 @@ export default function LoginForm() {
 
       <div className={styles.field}>
         <label htmlFor="password">Senha</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          required
-        />
+        <div className={styles.passwordWrap}>
+          <input
+            id="password"
+            name="password"
+            type={showPassword ? 'text' : 'password'}
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            required
+          />
+          <button
+            type="button"
+            className={styles.passwordToggle}
+            onClick={() => setShowPassword((value) => !value)}
+            aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+          >
+            {showPassword ? 'Ocultar' : 'Mostrar'}
+          </button>
+        </div>
       </div>
 
       {error ? <p className={styles.errorMessage}>{error}</p> : null}
+      {info ? <p className={styles.infoMessage}>{info}</p> : null}
 
-      <a className={styles.forgotPassword} href="#">
-        Esqueceu a senha?
-      </a>
+      <button
+        type="button"
+        className={styles.forgotPassword}
+        onClick={handleForgotPassword}
+        disabled={resetLoading || loading}
+      >
+        {resetLoading ? 'Enviando...' : 'Esqueceu a senha?'}
+      </button>
 
-      <button className={styles.submitButton} type="submit" disabled={loading}>
+      <button className={styles.submitButton} type="submit" disabled={loading || resetLoading}>
         {loading ? 'Entrando...' : 'Entrar'}
       </button>
     </form>

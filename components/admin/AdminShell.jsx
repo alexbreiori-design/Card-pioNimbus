@@ -1,34 +1,25 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import AdminSidebar from './AdminSidebar';
 import { useAdminData } from '@/hooks/useAdminData';
+import { useAdminOrders } from '@/hooks/useAdminOrders';
 
 export default function AdminShell({ children }) {
   const [collapsed, setCollapsed] = useState(false);
-  const { data, saveData, saving, saveError, clearSaveError, refreshFromRemote } = useAdminData();
+  const { data, saveData, saving, saveError, clearSaveError, switchingStore } = useAdminData();
+  const { orders } = useAdminOrders();
   const store = useMemo(() => data.loja, [data]);
   const newOrdersCount = useMemo(
-    () => (data.pedidos || []).filter((order) => order.status === 'novo' && !order.arquivado).length,
-    [data.pedidos]
+    () => orders.filter((order) => order.status === 'novo' && !order.arquivado).length,
+    [orders]
   );
-
-  useEffect(() => {
-    const refresh = () => {
-      refreshFromRemote().catch(() => {});
-    };
-    const timer = setInterval(refresh, 10000);
-    window.addEventListener('focus', refresh);
-    return () => {
-      clearInterval(timer);
-      window.removeEventListener('focus', refresh);
-    };
-  }, [refreshFromRemote]);
 
   return (
     <div className="admin-shell">
       <AdminSidebar
         storeName={store.nome}
+        storeSlug={store.slug}
         logoUrl={store.logoUrl}
         isOpen={store.aberta}
         collapsed={collapsed}
@@ -39,6 +30,9 @@ export default function AdminShell({ children }) {
         }
       />
       <div className={`admin-main ${collapsed ? 'sidebar-collapsed' : ''}`}>
+        {switchingStore ? (
+          <div className="admin-sync-banner admin-sync-banner-saving">Trocando de loja…</div>
+        ) : null}
         {saveError ? (
           <div className="admin-sync-banner admin-sync-banner-error">
             <span>{saveError}</span>

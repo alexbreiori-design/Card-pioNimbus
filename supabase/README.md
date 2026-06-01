@@ -44,8 +44,38 @@ VALUES ('9f961ccc-08fc-47ab-8748-0821af80cdb9', '6ca6c724-3462-463e-89ad-efee5a4
 
 ## 6. Login no admin
 
-- URL: `http://localhost:3000/admin/login`
+- URL: `http://localhost:3010/login`
 - Use o e-mail e senha criados no Auth.
+- O painel carrega a loja vinculada em `empresa_membros` (não usa mais só o env).
+
+## 7. Onboarding de operadores (multi-loja)
+
+Para cada usuário admin:
+
+1. **Authentication → Users** — criar conta (marque *Auto Confirm User*).
+2. Executar `supabase/scripts/vincular_usuario_empresa.sql` (ajuste UUID/e-mail e slug).
+3. Confirmar vínculo:
+
+```sql
+SELECT e.slug, u.email, em.papel
+FROM empresa_membros em
+JOIN empresas e ON e.id = em.empresa_id
+JOIN auth.users u ON u.id = em.usuario_id;
+```
+
+Usuário **sem** linha em `empresa_membros` é redirecionado para `/admin/sem-acesso`.
+
+Com **várias lojas**, o seletor "Loja ativa" aparece na sidebar; a escolha fica salva no navegador.
+
+## 8. Migrations (ordem)
+
+1. `schema.sql`
+2. `migrations/001_prd_foundation.sql`
+3. `migrations/002_zonas_entrega_publica.sql`
+4. `migrations/003_supabase_first.sql`
+5. `migrations/004_menu_store_state_rls.sql`
+6. `migrations/005_public_store_catalog_rpc.sql`
+7. `migrations/006_pedidos_arquivado.sql`
 
 ## Tabelas principais
 

@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import AdminIcon from './AdminIcon';
 import AdminLogoutButton from './AdminLogoutButton';
+import AdminStoreSwitcher from './AdminStoreSwitcher';
 
 const NAV = [
   { href: '/admin/pedidos', label: 'Pedidos', icon: 'orders' },
@@ -17,6 +19,10 @@ const NAV = [
 ];
 
 function NavIcon({ name }) {
+  if (name === 'store') {
+    return <AdminIcon name="store" className="admin-nav-file-icon" />;
+  }
+
   const icons = {
     orders: (
       <svg viewBox="0 0 24 24">
@@ -60,11 +66,6 @@ function NavIcon({ name }) {
         <path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z" />
       </svg>
     ),
-    store: (
-      <svg viewBox="0 0 24 24">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      </svg>
-    ),
     integrations: (
       <svg viewBox="0 0 24 24">
         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -77,6 +78,7 @@ function NavIcon({ name }) {
 
 export default function AdminSidebar({
   storeName = 'Minha loja',
+  storeSlug = '',
   logoUrl = '',
   isOpen = true,
   collapsed = false,
@@ -85,21 +87,39 @@ export default function AdminSidebar({
   onToggleOpen,
 }) {
   const pathname = usePathname();
+  const cardapioHref = storeSlug ? `/${String(storeSlug).trim().toLowerCase()}` : '';
 
   return (
     <aside className={`admin-sidebar ${collapsed ? 'collapsed' : ''}`}>
       <div className="admin-sidebar-header">
-        <button type="button" className="admin-sidebar-collapse-btn" onClick={onToggleCollapse}>
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d={collapsed ? 'M9 7l6 5-6 5' : 'M15 7l-6 5 6 5'} />
-          </svg>
-        </button>
         <div className="admin-store-badge">
           <div className="admin-store-avatar">
             {logoUrl ? <img src={logoUrl} alt="Logo da loja" /> : 'N'}
           </div>
-          <div className="admin-store-name">{storeName}</div>
+          {!collapsed ? (
+            <div className="admin-store-name-block">
+              {cardapioHref ? (
+                <a
+                  href={cardapioHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="admin-store-name admin-store-name-link"
+                  title="Abrir cardápio público"
+                >
+                  {storeName}
+                </a>
+              ) : (
+                <div className="admin-store-name">{storeName}</div>
+              )}
+              {cardapioHref ? (
+                <span className="admin-store-cardapio-hint">Clique para acessar o cardápio</span>
+              ) : null}
+            </div>
+          ) : (
+            <div className="admin-store-name">{storeName}</div>
+          )}
         </div>
+        <AdminStoreSwitcher collapsed={collapsed} />
         <div className="admin-toggle-row">
           <span className={`admin-toggle-label ${isOpen ? 'open' : 'closed'}`}>
             {isOpen ? 'Loja Aberta' : 'Loja Fechada'}
@@ -109,6 +129,16 @@ export default function AdminSidebar({
             <span className="admin-switch-slider" />
           </label>
         </div>
+        <button
+          type="button"
+          className="admin-sidebar-collapse-btn"
+          onClick={onToggleCollapse}
+          aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d={collapsed ? 'M9 7l6 5-6 5' : 'M15 7l-6 5 6 5'} />
+          </svg>
+        </button>
       </div>
       <nav className="admin-nav">
         {NAV.map((item) => (

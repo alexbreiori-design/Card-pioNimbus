@@ -12,25 +12,24 @@ import {
 import { formatPrice } from '@/lib/utils/format';
 import { fetchViaCep } from '@/lib/cep/viacep';
 import { calculateCupomDiscount, findCupomByCode } from '@/lib/cupons';
-import {
-  mergePromocoesIntoCardapio,
-  prependPromoCategory,
-  PROMO_CATEGORY_NAME,
-} from '@/lib/promocoes';
+import { buildCardapioCatalog } from '@/lib/cardapio/catalogFromStore';
 import { getConfiguredDefaultSlug } from '@/lib/storeBoot';
 import { DEFAULT_ADMIN_DATA, withDerivedData } from '@/lib/adminData';
-import { fetchStoreStateRemote, saveStoreStateRemote } from '@/lib/storeStateClient';
+import { fetchStoreStateMetaRemote, fetchStoreStateRemote } from '@/lib/storeStateClient';
 import {
   fetchPublicOrdersRemote,
   mergePublicOrders,
   readCachedOrders,
+  resolveOrderPhoneDigits,
   writeCachedOrders,
 } from '@/lib/publicOrders';
-import { normalizePhone } from '@/lib/supabase/customers';
-import { trackMetaEvent } from '@/lib/meta/pixel';
+import { normalizePhone, normalizeSlug } from '@/lib/normalize';
 import { getEmpresaBySlug, mergeEmpresaIntoLoja } from '@/lib/supabase/empresa';
 
 const CardapioContext = createContext(null);
+const CardapioCatalogContext = createContext(null);
+const CardapioCartContext = createContext(null);
+const CardapioCheckoutContext = createContext(null);
 
 const STORE_ADDRESS = DEFAULT_ADMIN_DATA.loja.endereco;
 const STEP_LABELS = ['Dados', 'Entrega', 'Pagamento', 'Confirmar'];
@@ -52,6 +51,7 @@ const PAY_LABELS = {
 };
 const PROFILE_STORAGE_KEY = 'cardapio_profile_v1';
 const STORE_SYNC_MS = 10000;
+const ORDERS_SYNC_MS = 10000;
 
 function emptyProfile() {
   return {
@@ -76,10 +76,6 @@ function formatPhoneBr(value) {
   if (digits.length <= 2) return digits;
   if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-}
-
-function normalizeSlug(slug) {
-  return String(slug || '').trim().toLowerCase().replace(/\s+/g, '-');
 }
 
 function formatStoreAddress(loja) {
@@ -276,12 +272,21 @@ export function CardapioProvider({ children, slug = '' }) {
 
   const [profileName, setProfileName] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
-  const initialProfile = getInitialProfile();
-  const [profileImage, setProfileImage] = useState(initialProfile.image);
-  const [profileDisplayName, setProfileDisplayName] = useState(initialProfile.name);
-  const [profileDisplayPhone, setProfileDisplayPhone] = useState(initialProfile.phone);
-  const [profileAddress, setProfileAddress] = useState(initialProfile.address);
+  const [profileImage, setProfileImage] = useState('');
+  const [profileDisplayName, setProfileDisplayName] = useState('Seu nome');
+  const [profileDisplayPhone, setProfileDisplayPhone] = useState('(00) 00000-0000');
+  const [profileAddress, setProfileAddress] = useState(emptyProfile().address);
   const [publicOrders, setPublicOrders] = useState([]);
+
+  useEffect(() => {
+    const profile = getInitialProfile();
+    setProfileDisplayName(profile.name);
+    setProfileDisplayPhone(profile.phone);
+    setProfileImage(profile.image);
+    setProfileAddress(profile.address);
+    setProfileName(profile.name === 'Seu nome' ? '' : profile.name);
+    setProfilePhone(profile.phone === '(00) 00000-0000' ? '' : profile.phone);
+  }, []);
 
   const [showMobileSacola, setShowMobileSacola] = useState(false);
 
@@ -289,6 +294,8 @@ export function CardapioProvider({ children, slug = '' }) {
   const cepInputRef = useRef(null);
   const cupomInputRef = useRef(null);
   const storeSnapshotRef = useRef(withDerivedData(DEFAULT_ADMIN_DATA));
+  const catalogWatermarkRef = useRef(null);
+  const ordersWatermarkRef = useRef(null);
   const [dialog, setDialog] = useState(null);
 
   const showAlert = useCallback((message, { title = 'Aviso' } = {}) => {
@@ -310,7 +317,6 @@ export function CardapioProvider({ children, slug = '' }) {
         nextState.loja?.slug || storeConfig.slug || effectiveSlug || slug || DEFAULT_ADMIN_DATA.loja.slug
       );
       storeSnapshotRef.current = nextState;
-      await saveStoreStateRemote(safeSlug, nextState);
       window.dispatchEvent(new CustomEvent('admin-data-updated', { detail: nextState }));
       window.dispatchEvent(new CustomEvent('cardapio-public-orders-updated'));
       return nextState;
@@ -326,29 +332,48 @@ export function CardapioProvider({ children, slug = '' }) {
     [persistStoreSnapshot]
   );
 
-  const hydratePublicOrders = useCallback(async () => {
+  const hydratePublicOrders = useCallback(async ({ force = false } = {}) => {
     if (typeof window === 'undefined') return;
 
     const slugToUse = normalizeSlug(
       effectiveSlug || storeConfig.slug || slug || storeSnapshotRef.current?.loja?.slug || getConfiguredDefaultSlug()
     );
-    const phoneDigits = normalizePhone(profileDisplayPhone);
-    const jsonPedidos = storeSnapshotRef.current?.pedidos || [];
     const cachedOrders = readCachedOrders(slugToUse);
-    const apiOrders = phoneDigits ? await fetchPublicOrdersRemote(slugToUse, phoneDigits) : [];
+    const phoneDigits = resolveOrderPhoneDigits({
+      profileDisplayPhone,
+      profilePhone,
+      checkoutPhone: checkoutData.phone,
+      cachedOrders,
+    });
+
+    if (!phoneDigits) {
+      if (cachedOrders.length) setPublicOrders(cachedOrders);
+      return;
+    }
+
+    const { orders: apiOrders, latestUpdatedAt } = await fetchPublicOrdersRemote(slugToUse, phoneDigits);
+    if (!force && latestUpdatedAt && ordersWatermarkRef.current === latestUpdatedAt) {
+      return;
+    }
+    ordersWatermarkRef.current = latestUpdatedAt;
 
     const merged = mergePublicOrders({
-      jsonPedidos,
+      jsonPedidos: [],
       apiOrders,
       cachedOrders,
       phoneDigits,
     });
 
     setPublicOrders(merged);
-    if (phoneDigits && merged.length) {
-      writeCachedOrders(slugToUse, merged);
-    }
-  }, [effectiveSlug, profileDisplayPhone, slug, storeConfig.slug]);
+    writeCachedOrders(slugToUse, merged);
+  }, [
+    checkoutData.phone,
+    effectiveSlug,
+    profileDisplayPhone,
+    profilePhone,
+    slug,
+    storeConfig.slug,
+  ]);
 
   const modalOpen =
     productOpen || checkoutOpen || cepOpen || addressOpen || cupomOpen;
@@ -372,19 +397,32 @@ export function CardapioProvider({ children, slug = '' }) {
         ? window.location.pathname.split('/').filter(Boolean).at(-1)?.toLowerCase() || ''
         : '');
 
-    const syncFromAdmin = async () => {
+    const syncFromAdmin = async ({ force = false } = {}) => {
       try {
         const slugToFetch = targetSlug || getConfiguredDefaultSlug();
+        if (!force) {
+          const meta = await fetchStoreStateMetaRemote(slugToFetch);
+          if (meta?.updated_at && meta.updated_at === catalogWatermarkRef.current) {
+            return;
+          }
+        }
+
         let parsed = null;
+        let remoteUpdatedAt = null;
         try {
           const remote = await fetchStoreStateRemote(slugToFetch);
-          if (remote?.data) parsed = remote.data;
+          if (remote?.data) {
+            parsed = remote.data;
+            remoteUpdatedAt = remote.updated_at ?? null;
+          }
         } catch {
           /* mantém snapshot em memória */
         }
 
         if (!parsed) {
           parsed = storeSnapshotRef.current;
+        } else {
+          catalogWatermarkRef.current = remoteUpdatedAt;
         }
         storeSnapshotRef.current = parsed;
 
@@ -398,132 +436,11 @@ export function CardapioProvider({ children, slug = '' }) {
           }
         }
 
-        const cats = parsed.categorias.filter((c) => c.ativo);
-        const categoryOrder = new Map(cats.map((c, idx) => [c.id, idx]));
-        const activeAddons = parsed.adicionaisItens.filter((item) => item.ativo !== false);
-        const addonByCategory = new Map();
-        activeAddons.forEach((item) => {
-          if (!addonByCategory.has(item.categoriaId)) addonByCategory.set(item.categoriaId, []);
-          addonByCategory.get(item.categoriaId).push(item);
-        });
-
-        function normalizeSelection(selection) {
-          return {
-            categoriaIds: Array.isArray(selection?.categoriaIds) ? selection.categoriaIds : [],
-            itemIds: Array.isArray(selection?.itemIds) ? selection.itemIds : [],
-          };
-        }
-
-        function buildAddonSections(selection, sectionTitlePrefix = '', config = null) {
-          const safe = normalizeSelection(selection);
-          const sections = [];
-
-          safe.categoriaIds.forEach((categoryId) => {
-            const category = parsed.adicionaisCategorias.find((cat) => cat.id === categoryId && cat.ativo !== false);
-            if (!category) return;
-            const productRule = config?.grupos?.[categoryId] || {};
-            const rule = {
-              tipoSelecao: productRule.tipoSelecao || category.tipoSelecao || 'multipla',
-              min: productRule.min ?? category.min ?? 0,
-              max: productRule.max ?? category.max ?? 99,
-              obrigatorio: productRule.obrigatorio ?? category.obrigatorio ?? false,
-              itens: productRule.itens || {},
-            };
-            const items = (addonByCategory.get(categoryId) || []).map((item) => ({
-              id: item.id,
-              name: item.nome,
-              desc: item.descricao || '',
-              extra: Number(rule.itens?.[item.id]?.precoAdicional || item.preco || 0),
-            }));
-            if (!items.length) return;
-            sections.push({
-              section: `${sectionTitlePrefix}${category.nome}`,
-              required: rule.obrigatorio === true,
-              min: Number(rule.min || 0),
-              max: Math.max(1, Number(rule.max || items.length)),
-              items,
-            });
-          });
-
-          const singles = safe.itemIds
-            .map((id) => activeAddons.find((item) => item.id === id))
-            .filter(Boolean)
-            .map((item) => ({
-              id: item.id,
-              name: item.nome,
-              desc: item.descricao || '',
-              extra: Number(item.preco || 0),
-            }));
-
-          if (singles.length) {
-            sections.push({
-              section: `${sectionTitlePrefix}Selecionados`,
-              required: false,
-              min: 0,
-              max: singles.length,
-              items: singles,
-            });
-          }
-
-          return sections;
-        }
-
-        const sizeLookup = new Map(
-          parsed.produtos
-            .filter((item) => item.tipo === 'tamanho_pizza')
-            .map((item) => [item.id, { nome: item.nome, preco: Number(item.preco || 0) }])
-        );
-
-        const prods = [...parsed.produtos]
-          .filter((p) => p.ativo)
-          .sort((a, b) => {
-            const catCmp = (categoryOrder.get(a.categoriaId) ?? 9999) - (categoryOrder.get(b.categoriaId) ?? 9999);
-            if (catCmp !== 0) return catCmp;
-            return (a.ordem ?? 0) - (b.ordem ?? 0);
-          })
-          .map((p) => {
-            const pizzaConfig = p.pizzaConfig
-              ? {
-                  ...p.pizzaConfig,
-                  tamanhoConfig: (p.pizzaConfig.tamanhoConfig || []).map((sizeCfg) => ({
-                    ...sizeCfg,
-                    tamanhoNome: sizeLookup.get(sizeCfg.tamanhoId)?.nome || sizeCfg.tamanhoId,
-                    tamanhoPreco: sizeLookup.get(sizeCfg.tamanhoId)?.preco || 0,
-                  })),
-                }
-              : null;
-            return {
-            id: p.id,
-            category: cats.find((c) => c.id === p.categoriaId)?.nome || 'Sem categoria',
-            name: p.nome,
-            desc: p.descricao || '',
-            price: Number(p.preco || 0),
-            imageUrl: p.imagemUrl || '',
-            addons: buildAddonSections(p.adicionais, '', p.adicionaisConfig),
-            type: p.tipo || 'comum',
-            pizzaConfig,
-          };
-          });
-        const { products: mergedProducts } = mergePromocoesIntoCardapio(
-          prods,
-          parsed.promocoes,
-          parsed.produtos
-        );
-        const hasPromos = mergedProducts.some((p) => p.category === PROMO_CATEGORY_NAME);
-        const categoryNames = prependPromoCategory(
-          cats.map((c) => c.nome),
-          hasPromos
-        );
-
-        setDynamicProducts(mergedProducts);
-        setDynamicCategories(['Todos', ...categoryNames]);
-        const iconMap = {};
-        cats.forEach((c) => {
-          iconMap[c.nome] = c.icone || 'burger';
-        });
-        iconMap[PROMO_CATEGORY_NAME] = 'promo';
-        setCategoryIconsByName(iconMap);
-        setAvailableCupons((parsed.cupons || []).filter((c) => c.ativo !== false));
+        const catalog = buildCardapioCatalog(parsed);
+        setDynamicProducts(catalog.products);
+        setDynamicCategories(catalog.categories);
+        setCategoryIconsByName(catalog.categoryIconsByName);
+        setAvailableCupons(catalog.cupons);
         const lojaWithAddress = { ...loja, endereco: formatStoreAddress(loja) };
         setStoreConfig(lojaWithAddress);
         applyBrandColor(lojaWithAddress.corMarca);
@@ -533,17 +450,19 @@ export function CardapioProvider({ children, slug = '' }) {
         void hydratePublicOrders();
       }
     };
-    syncFromAdmin();
-    const interval = window.setInterval(syncFromAdmin, STORE_SYNC_MS);
+    syncFromAdmin({ force: true });
+    const interval = window.setInterval(() => syncFromAdmin(), STORE_SYNC_MS);
     const onFocus = () => syncFromAdmin();
+    const onStorage = () => syncFromAdmin({ force: true });
+    const onAdminUpdated = () => syncFromAdmin({ force: true });
     window.addEventListener('focus', onFocus);
-    window.addEventListener('storage', syncFromAdmin);
-    window.addEventListener('admin-data-updated', syncFromAdmin);
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('admin-data-updated', onAdminUpdated);
     return () => {
       window.clearInterval(interval);
       window.removeEventListener('focus', onFocus);
-      window.removeEventListener('storage', syncFromAdmin);
-      window.removeEventListener('admin-data-updated', syncFromAdmin);
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('admin-data-updated', onAdminUpdated);
     };
   }, [effectiveSlug, hydratePublicOrders]);
 
@@ -554,17 +473,26 @@ export function CardapioProvider({ children, slug = '' }) {
   }, [storeReady]);
 
   useEffect(() => {
-    void hydratePublicOrders();
-    const onOrdersUpdated = () => {
+    if (!storeReady) return undefined;
+
+    void hydratePublicOrders({ force: true });
+    const interval = window.setInterval(() => {
       void hydratePublicOrders();
-    };
+    }, ORDERS_SYNC_MS);
+    const onFocus = () => void hydratePublicOrders({ force: true });
+    const onOrdersUpdated = () => void hydratePublicOrders({ force: true });
+
+    window.addEventListener('focus', onFocus);
     window.addEventListener('admin-data-updated', onOrdersUpdated);
     window.addEventListener('cardapio-public-orders-updated', onOrdersUpdated);
+
     return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
       window.removeEventListener('admin-data-updated', onOrdersUpdated);
       window.removeEventListener('cardapio-public-orders-updated', onOrdersUpdated);
     };
-  }, [hydratePublicOrders, storeConfig.slug, slug, effectiveSlug, profileDisplayPhone, storeReady]);
+  }, [hydratePublicOrders, storeReady]);
 
   useEffect(() => {
     if (modalOpen) {
@@ -657,7 +585,8 @@ export function CardapioProvider({ children, slug = '' }) {
     setPage('orders');
     setNavActive('navPedidos');
     setMobileNavActive('mNavPedidos');
-  }, []);
+    void hydratePublicOrders({ force: true });
+  }, [hydratePublicOrders]);
 
   const showProfile = useCallback(() => {
     setProfileName((value) => value || (profileDisplayName === 'Seu nome' ? '' : profileDisplayName));
@@ -1254,28 +1183,28 @@ export function CardapioProvider({ children, slug = '' }) {
           nextCustomer,
           ...(adminState.clientes || []).filter((customer) => customer.id !== nextCustomer.id),
         ],
-        pedidos: [
-          adminOrder,
-          ...(adminState.pedidos || []).filter((pedido) => String(pedido.id) !== String(orderNumber)),
-        ],
+        pedidos: [],
       });
 
       const safeSlug = normalizeSlug(storeConfig.slug || effectiveSlug || slug || nextState.loja?.slug);
-      await persistStoreSnapshot(nextState);
-      setPublicOrders((prev) => {
-        const next = [publicOrder, ...prev.filter((order) => String(order.id) !== String(orderNumber))];
-        writeCachedOrders(safeSlug, next);
-        return next;
-      });
-      await fetch('/api/public-order', {
+      const apiRes = await fetch('/api/public-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slug: safeSlug, order: adminOrder, customer: nextCustomer }),
-      }).catch(() => {});
+      });
+      const apiJson = await apiRes.json().catch(() => ({}));
+      if (!apiRes.ok || !apiJson.ok) {
+        throw new Error(apiJson.error || 'Não foi possível registrar o pedido.');
+      }
+
+      storeSnapshotRef.current = nextState;
+      window.dispatchEvent(new CustomEvent('admin-data-updated', { detail: nextState }));
+      window.dispatchEvent(new CustomEvent('cardapio-public-orders-updated'));
+      await hydratePublicOrders({ force: true });
 
       return publicOrder;
     },
-    [PAY_LABELS, appliedCupom, cart, cartSubtotal, checkoutAddressConfirmed, checkoutData, deliveryFee, effectiveSlug, persistStoreSnapshot, savedAddress, slug, storeConfig]
+    [PAY_LABELS, appliedCupom, cart, cartSubtotal, checkoutAddressConfirmed, checkoutData, deliveryFee, effectiveSlug, hydratePublicOrders, persistStoreSnapshot, savedAddress, slug, storeConfig]
   );
 
   const checkoutNext = useCallback(async () => {
@@ -1401,151 +1330,307 @@ export function CardapioProvider({ children, slug = '' }) {
     ? (currentProduct.price + addonExtras) * currentQty
     : 0;
 
-  const value = {
-    page,
-    navActive,
-    mobileNavActive,
-    cart,
-    searchQuery,
-    setSearchQuery,
-    selectedCategory,
-    categoryMenuOpen,
-    setCategoryMenuOpen,
-    infoOpen,
-    currentDeliveryMode,
-    deliveryMiniOpen,
-    savedAddress,
-    productOpen,
-    currentProduct,
-    currentQty,
-    selectedAddons,
-    addonExtras,
-    popupHeaderCompact,
-    setPopupHeaderCompact,
-    checkoutOpen,
-    checkoutStep,
-    checkoutData,
-    checkoutSuccess,
-    checkoutOrderNumber,
-    checkoutName,
-    setCheckoutName,
-    checkoutPhone,
-    setCheckoutPhone,
-    cepOpen,
-    addressOpen,
-    cupomOpen,
-    cepValue,
-    setCepValue,
-    addrForm,
-    setAddrForm,
-    cupomValue,
-    setCupomValue,
-    appliedCupom,
-    clearAppliedCupom,
-    profileName,
-    setProfileName,
-    profilePhone,
-    setProfilePhone,
-    profileDisplayName,
-    profileDisplayPhone,
-    profileImage,
-    setProfileImage,
-    profileAddress,
-    setProfileAddress,
-    publicOrders,
-    showMobileSacola,
-    popupDetailsRef,
-    cepInputRef,
-    cupomInputRef,
-    CATEGORIES: dynamicCategories,
-    relatedItems,
-    STORE_ADDRESS,
-    storeConfig,
-    storeReady,
-    splashVisible,
-    STEP_LABELS,
-    PAYMENT_METHODS,
-    PAY_LABELS,
-    showMainPage,
-    showProfile,
-    showOrdersPage,
-    setMobileNav,
-    saveProfile,
-    filteredProducts,
-    selectCategory,
-    toggleInfo,
-    toggleDeliveryCard,
-    selectDeliveryMode,
-    openCepPopup,
-    closeCepPopup,
-    maskCep,
-    goToAddress,
-    closeAddressPopup,
-    confirmAddress,
-    openCupomPopup,
-    closeCupomPopup,
-    aplicarCupom,
-    openProduct,
-    closeProductPopup,
-    toggleAddon,
-    changeQty,
-    addToCart,
-    addToCartCustom,
-    clearCart,
-    removeCartItem,
-    editCartItem,
-    openCheckout,
-    closeCheckout,
-    checkoutAddressConfirmed,
-    openCheckoutAddressFlow,
-    selectDelivery,
-    selectPayment,
-    checkoutNext,
-    checkoutBack,
-    finalizeOrder,
-    handlePromoNav,
-    cartSubtotal,
-    cartTotal,
-    deliveryFee,
-    deliveryMeta,
-    cartCount,
-    formatPrice,
-    locStrong,
-    locSub,
-    adicionarTotal,
-    setNavActive,
-    isStoreOpen: Boolean(storeConfig.aberta),
-    formatStoreAddress,
-    getDeliveryEstimateMinutes,
-    formatTime,
-  };
+  const catalogValue = useMemo(
+    () => ({
+      storeConfig,
+      storeReady,
+      splashVisible,
+      CATEGORIES: dynamicCategories,
+      relatedItems,
+      filteredProducts,
+      searchQuery,
+      setSearchQuery,
+      selectedCategory,
+      categoryMenuOpen,
+      setCategoryMenuOpen,
+      infoOpen,
+      selectCategory,
+      toggleInfo,
+      openProduct,
+      formatPrice,
+      handlePromoNav,
+      isStoreOpen: Boolean(storeConfig.aberta),
+      formatStoreAddress,
+      STORE_ADDRESS,
+    }),
+    [
+      storeConfig,
+      storeReady,
+      splashVisible,
+      dynamicCategories,
+      relatedItems,
+      filteredProducts,
+      searchQuery,
+      selectedCategory,
+      categoryMenuOpen,
+      infoOpen,
+      selectCategory,
+      toggleInfo,
+      openProduct,
+      formatPrice,
+      handlePromoNav,
+    ]
+  );
+
+  const cartValue = useMemo(
+    () => ({
+      cart,
+      productOpen,
+      currentProduct,
+      currentQty,
+      selectedAddons,
+      addonExtras,
+      popupHeaderCompact,
+      setPopupHeaderCompact,
+      popupDetailsRef,
+      toggleAddon,
+      changeQty,
+      addToCart,
+      addToCartCustom,
+      clearCart,
+      removeCartItem,
+      editCartItem,
+      closeProductPopup,
+      adicionarTotal,
+      cartSubtotal,
+      cartTotal,
+      cartCount,
+    }),
+    [
+      cart,
+      productOpen,
+      currentProduct,
+      currentQty,
+      selectedAddons,
+      addonExtras,
+      popupHeaderCompact,
+      toggleAddon,
+      changeQty,
+      addToCart,
+      addToCartCustom,
+      clearCart,
+      removeCartItem,
+      editCartItem,
+      closeProductPopup,
+      adicionarTotal,
+      cartSubtotal,
+      cartTotal,
+      cartCount,
+    ]
+  );
+
+  const checkoutValue = useMemo(
+    () => ({
+      checkoutOpen,
+      checkoutStep,
+      checkoutData,
+      checkoutSuccess,
+      checkoutOrderNumber,
+      checkoutName,
+      setCheckoutName,
+      checkoutPhone,
+      setCheckoutPhone,
+      checkoutAddressConfirmed,
+      cepOpen,
+      addressOpen,
+      cupomOpen,
+      cepValue,
+      setCepValue,
+      addrForm,
+      setAddrForm,
+      cupomValue,
+      setCupomValue,
+      appliedCupom,
+      clearAppliedCupom,
+      availableCupons,
+      currentDeliveryMode,
+      deliveryMiniOpen,
+      savedAddress,
+      deliveryFee,
+      deliveryMeta,
+      locStrong,
+      locSub,
+      STEP_LABELS,
+      PAYMENT_METHODS,
+      PAY_LABELS,
+      openCheckout,
+      closeCheckout,
+      openCheckoutAddressFlow,
+      selectDelivery,
+      selectPayment,
+      checkoutNext,
+      checkoutBack,
+      finalizeOrder,
+      toggleDeliveryCard,
+      selectDeliveryMode,
+      openCepPopup,
+      closeCepPopup,
+      maskCep,
+      goToAddress,
+      closeAddressPopup,
+      confirmAddress,
+      openCupomPopup,
+      closeCupomPopup,
+      aplicarCupom,
+      getDeliveryEstimateMinutes,
+      formatTime,
+      cepInputRef,
+      cupomInputRef,
+    }),
+    [
+      checkoutOpen,
+      checkoutStep,
+      checkoutData,
+      checkoutSuccess,
+      checkoutOrderNumber,
+      checkoutName,
+      checkoutPhone,
+      checkoutAddressConfirmed,
+      cepOpen,
+      addressOpen,
+      cupomOpen,
+      cepValue,
+      addrForm,
+      cupomValue,
+      appliedCupom,
+      clearAppliedCupom,
+      availableCupons,
+      currentDeliveryMode,
+      deliveryMiniOpen,
+      savedAddress,
+      deliveryFee,
+      deliveryMeta,
+      locStrong,
+      locSub,
+      openCheckout,
+      closeCheckout,
+      openCheckoutAddressFlow,
+      selectDelivery,
+      selectPayment,
+      checkoutNext,
+      checkoutBack,
+      finalizeOrder,
+      toggleDeliveryCard,
+      selectDeliveryMode,
+      openCepPopup,
+      closeCepPopup,
+      maskCep,
+      goToAddress,
+      closeAddressPopup,
+      confirmAddress,
+      openCupomPopup,
+      closeCupomPopup,
+      aplicarCupom,
+      getDeliveryEstimateMinutes,
+      formatTime,
+    ]
+  );
+
+  const uiValue = useMemo(
+    () => ({
+      page,
+      navActive,
+      mobileNavActive,
+      showMobileSacola,
+      profileName,
+      setProfileName,
+      profilePhone,
+      setProfilePhone,
+      profileDisplayName,
+      profileDisplayPhone,
+      profileImage,
+      setProfileImage,
+      profileAddress,
+      setProfileAddress,
+      publicOrders,
+      showMainPage,
+      showProfile,
+      showOrdersPage,
+      setMobileNav,
+      saveProfile,
+      setNavActive,
+    }),
+    [
+      page,
+      navActive,
+      mobileNavActive,
+      showMobileSacola,
+      profileName,
+      profilePhone,
+      profileDisplayName,
+      profileDisplayPhone,
+      profileImage,
+      profileAddress,
+      publicOrders,
+      showMainPage,
+      showProfile,
+      showOrdersPage,
+      setMobileNav,
+      saveProfile,
+      setNavActive,
+    ]
+  );
+
+  const value = useMemo(
+    () => ({
+      ...catalogValue,
+      ...cartValue,
+      ...checkoutValue,
+      ...uiValue,
+    }),
+    [catalogValue, cartValue, checkoutValue, uiValue]
+  );
 
   return (
-    <CardapioContext.Provider value={value}>
-      {children}
-      {dialog ? (
-        <div className="generic-overlay open" role="presentation">
-          <div className="modal-card app-dialog-card" role="dialog" aria-modal="true">
-            <div className="modal-topbar">
-              <div style={{ width: 30 }} />
-              <div className="modal-topbar-title">{dialog.title}</div>
-              <button type="button" className="modal-close" onClick={dialog.onConfirm} aria-label="Fechar">
-                ×
-              </button>
-            </div>
-            <div className="modal-body">
-              <p className="app-dialog-message">{dialog.message}</p>
-            </div>
-            <div className="modal-footer">
-              <button type="button" className="btn-modal-confirm" onClick={dialog.onConfirm}>
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </CardapioContext.Provider>
+    <CardapioCatalogContext.Provider value={catalogValue}>
+      <CardapioCartContext.Provider value={cartValue}>
+        <CardapioCheckoutContext.Provider value={checkoutValue}>
+          <CardapioContext.Provider value={value}>
+            {children}
+            {dialog ? (
+              <div className="generic-overlay open" role="presentation">
+                <div className="modal-card app-dialog-card" role="dialog" aria-modal="true">
+                  <div className="modal-topbar">
+                    <div style={{ width: 30 }} />
+                    <div className="modal-topbar-title">{dialog.title}</div>
+                    <button type="button" className="modal-close" onClick={dialog.onConfirm} aria-label="Fechar">
+                      ×
+                    </button>
+                  </div>
+                  <div className="modal-body">
+                    <p className="app-dialog-message">{dialog.message}</p>
+                  </div>
+                  <div className="modal-footer">
+                    <button type="button" className="btn-modal-confirm" onClick={dialog.onConfirm}>
+                      OK
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </CardapioContext.Provider>
+        </CardapioCheckoutContext.Provider>
+      </CardapioCartContext.Provider>
+    </CardapioCatalogContext.Provider>
   );
+}
+
+export function useCardapioCatalog() {
+  const ctx = useContext(CardapioCatalogContext);
+  if (!ctx) throw new Error('useCardapioCatalog must be used within CardapioProvider');
+  return ctx;
+}
+
+export function useCardapioCart() {
+  const ctx = useContext(CardapioCartContext);
+  if (!ctx) throw new Error('useCardapioCart must be used within CardapioProvider');
+  return ctx;
+}
+
+export function useCardapioCheckout() {
+  const ctx = useContext(CardapioCheckoutContext);
+  if (!ctx) throw new Error('useCardapioCheckout must be used within CardapioProvider');
+  return ctx;
 }
 
 export function useCardapio() {
