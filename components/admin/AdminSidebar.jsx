@@ -84,7 +84,6 @@ export default function AdminSidebar({
   collapsed = false,
   newOrdersCount = 0,
   onToggleCollapse,
-  onToggleOpen,
 }) {
   const pathname = usePathname();
   const cardapioHref = storeSlug ? `/${String(storeSlug).trim().toLowerCase()}` : '';
@@ -121,13 +120,18 @@ export default function AdminSidebar({
         </div>
         <AdminStoreSwitcher collapsed={collapsed} />
         <div className="admin-toggle-row">
-          <span className={`admin-toggle-label ${isOpen ? 'open' : 'closed'}`}>
-            {isOpen ? 'Loja Aberta' : 'Loja Fechada'}
-          </span>
-          <label className="admin-switch">
-            <input type="checkbox" checked={isOpen} onChange={(e) => onToggleOpen?.(e.target.checked)} />
-            <span className="admin-switch-slider" />
-          </label>
+          <div className="admin-toggle-status">
+            <span className={`admin-toggle-label ${isOpen ? 'open' : 'closed'}`}>
+              {isOpen ? 'Loja Aberta' : 'Loja Fechada'}
+            </span>
+            {!collapsed ? (
+              <span className="admin-toggle-schedule-hint">Automático pelos horários</span>
+            ) : null}
+          </div>
+          <span
+            className={`admin-store-status-dot ${isOpen ? 'open' : 'closed'}`}
+            aria-hidden="true"
+          />
         </div>
         <button
           type="button"

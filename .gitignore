@@ -45,5 +45,6 @@ next-env.d.ts
 # arquivos locais
 AJUSTES DE IMPLEMENTAÇÕES.md
 IMPLEMENTAÇÕES.md
+supabase/ONBOARDING.md
 dev-err.txt
 dev-out.txt

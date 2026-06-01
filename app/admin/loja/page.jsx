@@ -12,6 +12,7 @@ import { formatCep } from '@/lib/cep/viacep';
 import { useCepLookup } from '@/hooks/useCepLookup';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useEmpresa } from '@/hooks/useEmpresa';
+import { applyScheduleOpenStatus } from '@/lib/storeHours';
 import {
   getEmpresaBySlug,
   lojaPatchToEmpresa,
@@ -265,11 +266,11 @@ export default function MinhaLojaPage() {
   async function save() {
     setSaving(true);
     setMsg('');
-    const nextLoja = {
+    const nextLoja = applyScheduleOpenStatus({
       ...draft,
       pedidoMinimo: inputToMoney(pedidoMinimo),
       descricao: String(draft.descricao || '').slice(0, DESCRICAO_MAX),
-    };
+    });
     try {
       const enderecoText = [
         nextLoja.enderecoLogradouro,
@@ -609,7 +610,7 @@ export default function MinhaLojaPage() {
         <StoreSectionHead
           icon="clock"
           title="Horários de funcionamento"
-          hint="Esses horários aparecem no cardápio público."
+          hint="Definem quando a loja abre e fecha automaticamente no cardápio e no painel."
         />
         <div className="admin-store-section-body">
           <div className="admin-hours-list admin-hours-list-v2">

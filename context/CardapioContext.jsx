@@ -14,6 +14,7 @@ import { fetchViaCep } from '@/lib/cep/viacep';
 import { calculateCupomDiscount, findCupomByCode } from '@/lib/cupons';
 import { buildCardapioCatalog } from '@/lib/cardapio/catalogFromStore';
 import { getConfiguredDefaultSlug } from '@/lib/storeBoot';
+import { applyScheduleOpenStatus } from '@/lib/storeHours';
 import { DEFAULT_ADMIN_DATA, withDerivedData } from '@/lib/adminData';
 import { fetchStoreStateMetaRemote, fetchStoreStateRemote } from '@/lib/storeStateClient';
 import {
@@ -441,7 +442,10 @@ export function CardapioProvider({ children, slug = '' }) {
         setDynamicCategories(catalog.categories);
         setCategoryIconsByName(catalog.categoryIconsByName);
         setAvailableCupons(catalog.cupons);
-        const lojaWithAddress = { ...loja, endereco: formatStoreAddress(loja) };
+        const lojaWithAddress = applyScheduleOpenStatus({
+          ...loja,
+          endereco: formatStoreAddress(loja),
+        });
         setStoreConfig(lojaWithAddress);
         applyBrandColor(lojaWithAddress.corMarca);
       } catch {
@@ -465,6 +469,16 @@ export function CardapioProvider({ children, slug = '' }) {
       window.removeEventListener('admin-data-updated', onAdminUpdated);
     };
   }, [effectiveSlug, hydratePublicOrders]);
+
+  useEffect(() => {
+    if (!storeReady) return undefined;
+    const tick = () => {
+      setStoreConfig((prev) => applyScheduleOpenStatus(prev));
+    };
+    tick();
+    const interval = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(interval);
+  }, [storeReady, storeConfig.horarios]);
 
   useEffect(() => {
     if (!storeReady) return undefined;
