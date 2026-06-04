@@ -20,16 +20,18 @@ import {
   updateCliente,
   upsertClienteEndereco,
 } from '@/lib/supabase/customers';
+import {
+  formatMobilePhoneBr,
+  isCompleteMobilePhoneBr,
+  mobilePhoneIncompleteMessage,
+} from '@/lib/phoneBr';
 
 function money(v) {
   return `R$ ${Number(v || 0).toFixed(2).replace('.', ',')}`;
 }
 
 function fmtPhone(v) {
-  const n = String(v || '').replace(/\D/g, '').slice(0, 11);
-  if (n.length <= 2) return n;
-  if (n.length <= 7) return `(${n.slice(0, 2)}) ${n.slice(2)}`;
-  return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;
+  return formatMobilePhoneBr(v);
 }
 
 function mapLocalPedido(pedido) {
@@ -71,6 +73,20 @@ function orderItemsSummary(pedido) {
     .map((item) => `${item.qtd}x ${item.nome}`)
     .join(', ');
   return itens.length > 2 ? `${preview} +${itens.length - 2}` : preview;
+}
+
+function findAdminOrderForHistory(summary, adminOrders = []) {
+  if (!summary) return null;
+  const rawId = String(summary.rawId || '');
+  const codigo = String(summary.id || '');
+  return (
+    adminOrders.find(
+      (pedido) =>
+        (rawId && String(pedido.dbId || '') === rawId) ||
+        (codigo && String(pedido.id || '') === codigo) ||
+        (rawId && String(pedido.id || '') === rawId)
+    ) || null
+  );
 }
 
 function localOrdersForCustomer(customer, adminPedidos = []) {
@@ -199,7 +215,9 @@ export default function ClientesPage() {
       );
 
       clientes.forEach((customer) => {
-        oMap[customer.id] = dedupeOrders([...(oMap[customer.id] || [])]).sort(
+        const remote = dedupeOrders([...(oMap[customer.id] || [])]);
+        const local = dedupeOrders(localOrdersForCustomer(customer, adminData.pedidos || []));
+        oMap[customer.id] = dedupeOrders([...remote, ...local]).sort(
           (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
         );
       });
@@ -212,7 +230,7 @@ export default function ClientesPage() {
     } finally {
       setLoading(false);
     }
-  }, [empresaId, adminData.clientes]);
+  }, [empresaId, adminData.clientes, adminData.pedidos]);
 
   useEffect(() => {
     loadAll();
@@ -234,6 +252,10 @@ export default function ClientesPage() {
   async function saveNew() {
     if (!newDraft.name.trim() || !newDraft.phone.trim()) {
       setMsg('Nome e telefone são obrigatórios.');
+      return;
+    }
+    if (!isCompleteMobilePhoneBr(newDraft.phone)) {
+      setMsg(mobilePhoneIncompleteMessage());
       return;
     }
     try {
@@ -261,6 +283,10 @@ export default function ClientesPage() {
 
   async function saveDetail() {
     if (!detail || !empresaId) return;
+    if (!isCompleteMobilePhoneBr(detail.phone)) {
+      setMsg(mobilePhoneIncompleteMessage());
+      return;
+    }
     try {
       await updateCliente({
         id: detail.id,
@@ -705,16 +731,17 @@ export default function ClientesPage() {
                   <p className="admin-order-meta">Nenhum pedido encontrado para este cliente.</p>
                 ) : null}
                 {(ordersByCustomer[detail.id] || []).map((o) => {
-                  const fullOrder = adminOrders.find(
-                    (p) => String(p.id) === String(o.rawId || o.id)
-                  );
+                  const fullOrder = findAdminOrderForHistory(o, adminOrders);
                   return (
                   <button
-                    key={o.rawId}
+                    key={o.rawId || o.id}
                     type="button"
                     className="admin-card admin-client-order-history-btn"
-                    onClick={() => fullOrder && setSelectedOrderId(fullOrder.id)}
+                    onClick={() => {
+                      if (fullOrder) setSelectedOrderId(fullOrder.id);
+                    }}
                     disabled={!fullOrder}
+                    title={fullOrder ? 'Ver detalhes do pedido' : 'Pedido indisponível no painel'}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <strong>Pedido #{o.id}</strong>

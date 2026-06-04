@@ -48,7 +48,7 @@ export async function POST(request) {
     });
 
     const phone = normalizePhone(customer.phone || order.clienteTelefone);
-    if (!phone || phone.length < 10) {
+    if (!phone || phone.length < 11) {
       return NextResponse.json({ ok: false, error: 'Telefone inválido.' }, { status: 400 });
     }
 

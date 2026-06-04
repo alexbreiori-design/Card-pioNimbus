@@ -14,6 +14,11 @@ import { useAdminData } from '@/hooks/useAdminData';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { applyScheduleOpenStatus } from '@/lib/storeHours';
 import {
+  formatHHMMInput,
+  parseHHMMToMinutes,
+  resolveLojaDurations,
+} from '@/lib/deliveryDuration';
+import {
   getEmpresaBySlug,
   lojaPatchToEmpresa,
   mergeEmpresaIntoLoja,
@@ -129,8 +134,8 @@ export default function MinhaLojaPage() {
             paletteLogoUrl: data.loja.paletteLogoUrl,
             chavePix: data.loja.chavePix,
             descricaoChavePix: data.loja.descricaoChavePix,
-            tempoEntregaValor: data.loja.tempoEntregaValor,
-            tempoEntregaUnidade: data.loja.tempoEntregaUnidade,
+            tempoEntregaDelivery: data.loja.tempoEntregaDelivery,
+            tempoEntregaRetirada: data.loja.tempoEntregaRetirada,
             enderecoCep: data.loja.enderecoCep,
             enderecoLogradouro: data.loja.enderecoLogradouro,
             enderecoNumero: data.loja.enderecoNumero,
@@ -157,7 +162,8 @@ export default function MinhaLojaPage() {
         }
       }
       if (!cancelled) {
-        setDraft(loja);
+        const durations = resolveLojaDurations(loja);
+        setDraft({ ...loja, ...durations });
         setPedidoMinimo(moneyToDisplay(loja.pedidoMinimo));
       }
     }
@@ -263,11 +269,29 @@ export default function MinhaLojaPage() {
     }
   }
 
+  function setDurationField(field, raw) {
+    setLojaField(field, formatHHMMInput(raw));
+  }
+
+  function blurDurationField(field) {
+    setDraft((prev) => {
+      const durations = resolveLojaDurations({ ...prev, [field]: prev[field] });
+      return { ...prev, ...durations };
+    });
+  }
+
   async function save() {
     setSaving(true);
     setMsg('');
+    const durations = resolveLojaDurations(draft);
+    if (!parseHHMMToMinutes(durations.tempoEntregaDelivery) || !parseHHMMToMinutes(durations.tempoEntregaRetirada)) {
+      setMsg('Informe tempos válidos no formato HH:MM (ex: 00:45 para 45 minutos).');
+      setSaving(false);
+      return;
+    }
     const nextLoja = applyScheduleOpenStatus({
       ...draft,
+      ...durations,
       pedidoMinimo: inputToMoney(pedidoMinimo),
       descricao: String(draft.descricao || '').slice(0, DESCRICAO_MAX),
     });
@@ -576,31 +600,39 @@ export default function MinhaLojaPage() {
         <StoreSectionHead
           icon="delivery"
           title="Tempo estimado de entrega"
-          hint="Usado para calcular o horário previsto mostrado ao cliente e nos pedidos novos."
+          hint="Duração em horas e minutos (HH:MM). O horário «até …» nos pedidos é calculado a partir da confirmação."
         />
         <div className="admin-store-section-body">
-          <div className="admin-store-delivery-time-row">
+          <div className="admin-store-delivery-time-row admin-store-delivery-duration-row">
             <div className="admin-form-group">
-              <label className="admin-label">Tempo</label>
+              <label className="admin-label">Delivery</label>
+              <p className="admin-help-text" style={{ margin: '0 0 8px' }}>
+                Cliente escolhe «Receber em seu endereço».
+              </p>
               <input
                 className="admin-input"
-                type="number"
-                min="1"
-                value={draft.tempoEntregaValor || ''}
-                onChange={(e) => setLojaField('tempoEntregaValor', Math.max(1, Number(e.target.value || 1)))}
-                placeholder="Ex: 45"
+                inputMode="numeric"
+                maxLength={5}
+                value={draft.tempoEntregaDelivery || ''}
+                onChange={(e) => setDurationField('tempoEntregaDelivery', e.target.value)}
+                onBlur={() => blurDurationField('tempoEntregaDelivery')}
+                placeholder="00:45"
               />
             </div>
             <div className="admin-form-group">
-              <label className="admin-label">Unidade</label>
-              <select
+              <label className="admin-label">Retirada</label>
+              <p className="admin-help-text" style={{ margin: '0 0 8px' }}>
+                Cliente escolhe «Retirar no estabelecimento».
+              </p>
+              <input
                 className="admin-input"
-                value={draft.tempoEntregaUnidade || 'minutos'}
-                onChange={(e) => setLojaField('tempoEntregaUnidade', e.target.value)}
-              >
-                <option value="minutos">Minutos</option>
-                <option value="horas">Horas</option>
-              </select>
+                inputMode="numeric"
+                maxLength={5}
+                value={draft.tempoEntregaRetirada || ''}
+                onChange={(e) => setDurationField('tempoEntregaRetirada', e.target.value)}
+                onBlur={() => blurDurationField('tempoEntregaRetirada')}
+                placeholder="00:30"
+              />
             </div>
           </div>
         </div>

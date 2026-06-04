@@ -10,6 +10,13 @@ import ImagePlaceholder from './ImagePlaceholder';
 import AdminIcon from './AdminIcon';
 import CategoryIcon from './CategoryIcon';
 import { CATEGORY_ICONS } from '@/lib/categoryIcons';
+import {
+  COMBO_SUGGESTED_DISCOUNT_PERCENT,
+  formatComboPriceBr,
+  MAX_PECA_TAMBEM,
+  normalizePecaTambemIds,
+  suggestedComboPrice,
+} from '@/lib/productSuggestions';
 
 const TAB_ALL = 'all';
 
@@ -41,7 +48,7 @@ const EMPTY_FORM = {
   codigoPdv: '',
   categoriaId: '',
   preco: '',
-  desconto: '',
+  pecaTambemIds: [],
   medidaQtd: '',
   medidaUn: 'un',
   servePessoas: '',
@@ -173,7 +180,7 @@ function itemToForm(item, fallbackCategoryId) {
     codigoPdv: item.codigoPdv || '',
     categoriaId: item.categoriaId || fallbackCategoryId || '',
     preco: moneyInput(item.preco),
-    desconto: moneyInput(item.desconto),
+    pecaTambemIds: normalizePecaTambemIds(item.pecaTambemIds),
     medidaQtd: measure.medidaQtd,
     medidaUn: measure.medidaUn,
     servePessoas: item.servePessoas || '',
@@ -316,6 +323,8 @@ export default function CatalogManager({ mode = 'produtos' }) {
   const [pickerSearch, setPickerSearch] = useState('');
   const [comboPickerOpen, setComboPickerOpen] = useState(false);
   const [comboSearch, setComboSearch] = useState('');
+  const [pecaTambemPickerOpen, setPecaTambemPickerOpen] = useState(false);
+  const [pecaTambemSearch, setPecaTambemSearch] = useState('');
 
   const categories = useMemo(() => data[catKey] || [], [data, catKey]);
   const items = useMemo(() => data[itemKey] || [], [data, itemKey]);
@@ -372,7 +381,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
       })
       .filter(Boolean);
   }, [form.adicionais, addonCategories, addonItems]);
-  const comboCandidates = useMemo(
+  const productPickerCandidates = useMemo(
     () =>
       (data.produtos || []).filter(
         (p) =>
@@ -382,6 +391,15 @@ export default function CatalogManager({ mode = 'produtos' }) {
           p.id !== editingItemId
       ),
     [data.produtos, editingItemId]
+  );
+  const comboCandidates = productPickerCandidates;
+  const pecaTambemCandidates = productPickerCandidates;
+  const pecaTambemSelected = useMemo(
+    () =>
+      normalizePecaTambemIds(form.pecaTambemIds)
+        .map((id) => (data.produtos || []).find((p) => p.id === id))
+        .filter(Boolean),
+    [form.pecaTambemIds, data.produtos]
   );
 
   function categoryItems(catId) {
@@ -488,6 +506,8 @@ export default function CatalogManager({ mode = 'produtos' }) {
     setSaveError('');
     setComboSearch('');
     setComboPickerOpen(false);
+    setPecaTambemSearch('');
+    setPecaTambemPickerOpen(false);
     setModalOpen(true);
   }
 
@@ -498,6 +518,8 @@ export default function CatalogManager({ mode = 'produtos' }) {
     setSaveError('');
     setComboSearch('');
     setComboPickerOpen(false);
+    setPecaTambemSearch('');
+    setPecaTambemPickerOpen(false);
     setModalOpen(true);
   }
 
@@ -507,6 +529,8 @@ export default function CatalogManager({ mode = 'produtos' }) {
     setPickerSearch('');
     setComboPickerOpen(false);
     setComboSearch('');
+    setPecaTambemPickerOpen(false);
+    setPecaTambemSearch('');
   }
 
   async function saveItem() {
@@ -559,7 +583,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
       tags: form.tipo === 'pizza' ? ['pizza'] : form.tipo === 'combo' ? ['combo'] : [],
       tipo: form.tipo,
       codigoPdv: form.codigoPdv.trim(),
-      desconto: parseMoney(form.desconto) || 0,
+      pecaTambemIds: form.tipo === 'combo' ? [] : normalizePecaTambemIds(form.pecaTambemIds),
       medida: form.tipo === 'combo' ? '' : form.medidaQtd ? `${form.medidaQtd} ${form.medidaUn}` : '',
       servePessoas: form.servePessoas || '',
       estoque: form.estoque || '',
@@ -820,10 +844,36 @@ export default function CatalogManager({ mode = 'produtos' }) {
     const cfg = normalizeComboConfig(form.comboConfig);
     const totalItens = cfg.itens.reduce((sum, item) => sum + Number(item.preco || 0) * Number(item.quantidade || 1), 0);
     const precoCombo = parseMoney(cfg.precoCombo);
-    const sugestao = totalItens * 0.9;
+    const sugestao = suggestedComboPrice(totalItens);
     const economia = Number.isNaN(precoCombo) ? totalItens - sugestao : totalItens - precoCombo;
-    return { totalItens, sugestao, economia, precoCombo };
+    const descontoPercent =
+      totalItens > 0 && !Number.isNaN(precoCombo)
+        ? Math.round((economia / totalItens) * 1000) / 10
+        : COMBO_SUGGESTED_DISCOUNT_PERCENT;
+    return { totalItens, sugestao, economia, precoCombo, descontoPercent };
   })();
+
+  function togglePecaTambem(produtoId) {
+    setForm((prev) => {
+      const current = normalizePecaTambemIds(prev.pecaTambemIds);
+      if (current.includes(produtoId)) {
+        return { ...prev, pecaTambemIds: current.filter((id) => id !== produtoId) };
+      }
+      if (current.length >= MAX_PECA_TAMBEM) {
+        setSaveError(`Selecione no máximo ${MAX_PECA_TAMBEM} produtos em Peça também.`);
+        return prev;
+      }
+      setSaveError('');
+      return { ...prev, pecaTambemIds: [...current, produtoId] };
+    });
+  }
+
+  function removePecaTambem(produtoId) {
+    setForm((prev) => ({
+      ...prev,
+      pecaTambemIds: normalizePecaTambemIds(prev.pecaTambemIds).filter((id) => id !== produtoId),
+    }));
+  }
 
   function addProdutoToCombo(product) {
     updateComboConfig((cfg) => {
@@ -843,7 +893,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
         itens: nextItens,
         precoCombo:
           cfg.precoCombo === '' || cfg.precoCombo === null || cfg.precoCombo === undefined
-            ? (total * 0.9).toFixed(2).replace('.', ',')
+            ? formatComboPriceBr(suggestedComboPrice(total))
             : cfg.precoCombo,
       };
     });
@@ -1184,10 +1234,6 @@ export default function CatalogManager({ mode = 'produtos' }) {
                     <label className="admin-label">Estoque</label>
                     <input className="admin-input" value={form.estoque} onChange={(e) => setForm((p) => ({ ...p, estoque: e.target.value }))} placeholder="Quantidade disponível" />
                   </div>
-                  <div className="admin-form-group">
-                    <label className="admin-label">Desconto</label>
-                    <input className="admin-input" value={form.desconto} onChange={(e) => setForm((p) => ({ ...p, desconto: e.target.value }))} placeholder="Ex: 10% ou R$ 5,00" />
-                  </div>
                   {form.tipo === 'pizza' ? (
                     <div className="admin-form-group admin-form-full admin-pizza-from-row">
                       <div className="admin-info-note">
@@ -1349,6 +1395,10 @@ export default function CatalogManager({ mode = 'produtos' }) {
                       <div className="admin-help-text" title="Soma de todos os produtos internos com quantidade.">
                         Valor total dos itens: R$ {comboTotals.totalItens.toFixed(2).replace('.', ',')}
                       </div>
+                      <div className="admin-help-text">
+                        Preço sugerido com {COMBO_SUGGESTED_DISCOUNT_PERCENT}% de desconto: R{' '}
+                        {formatComboPriceBr(comboTotals.sugestao)}
+                      </div>
                       <div className="admin-form-group">
                         <label className="admin-label" title="Preco final de venda do combo. Pode ser alterado livremente.">Preco do combo</label>
                         <input
@@ -1357,11 +1407,14 @@ export default function CatalogManager({ mode = 'produtos' }) {
                           onChange={(e) =>
                             updateComboConfig((cfg) => ({ ...cfg, precoCombo: e.target.value }))
                           }
-                          placeholder={comboTotals.sugestao.toFixed(2).replace('.', ',')}
+                          placeholder={formatComboPriceBr(comboTotals.sugestao)}
                         />
                       </div>
                       <div className="admin-help-text" title="Diferenca entre soma dos itens e preco final do combo.">
                         Economia: R$ {comboTotals.economia.toFixed(2).replace('.', ',')}
+                        {!Number.isNaN(comboTotals.precoCombo) && comboTotals.totalItens > 0
+                          ? ` (${comboTotals.descontoPercent}% de desconto)`
+                          : ''}
                       </div>
                     </section>
                   </div>
@@ -1381,6 +1434,45 @@ export default function CatalogManager({ mode = 'produtos' }) {
 
                 {isProdutos ? (
                   <div className="admin-product-links">
+                    {form.tipo !== 'combo' ? (
+                      <div className="admin-product-config-row">
+                        <div>
+                          <strong>Peça também (cardápio)</strong>
+                          <p>
+                            Sugestões na sacola ao adicionar este produto (máximo {MAX_PECA_TAMBEM}).
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          className="admin-select-link"
+                          onClick={() => {
+                            setSaveError('');
+                            setPecaTambemPickerOpen(true);
+                          }}
+                        >
+                          Selecionar ({pecaTambemSelected.length}/{MAX_PECA_TAMBEM})
+                        </button>
+                      </div>
+                    ) : null}
+                    {form.tipo !== 'combo' && pecaTambemSelected.length ? (
+                      <div className="admin-peca-tambem-list">
+                        {pecaTambemSelected.map((product) => (
+                          <div key={product.id} className="admin-combo-row admin-peca-tambem-row">
+                            <div>
+                              <strong>{product.nome}</strong>
+                              <p>R$ {Number(product.preco || 0).toFixed(2).replace('.', ',')}</p>
+                            </div>
+                            <button
+                              type="button"
+                              className="admin-btn admin-btn-danger"
+                              onClick={() => removePecaTambem(product.id)}
+                            >
+                              Remover
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
                     {form.tipo !== 'pizza' && form.tipo !== 'combo' ? (
                       <div className="admin-product-config-row">
                         <div>
@@ -1685,6 +1777,64 @@ export default function CatalogManager({ mode = 'produtos' }) {
               </div>
               <div className="admin-picker-footer">
                 <button type="button" className="admin-btn admin-btn-primary" onClick={() => setComboPickerOpen(false)}>Concluir</button>
+              </div>
+            </div>
+          ) : null}
+
+          {pecaTambemPickerOpen ? (
+            <div className="admin-picker-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="admin-picker-header">
+                <div>
+                  <h3>Peça também</h3>
+                  <p>
+                    Escolha até {MAX_PECA_TAMBEM} produtos sugeridos na sacola do cardápio (
+                    {pecaTambemSelected.length}/{MAX_PECA_TAMBEM} selecionados).
+                  </p>
+                </div>
+                <button type="button" className="admin-picker-close" onClick={() => setPecaTambemPickerOpen(false)}>
+                  x
+                </button>
+              </div>
+              <div className="admin-picker-search-row">
+                <input
+                  className="admin-input"
+                  placeholder="Pesquisar produto..."
+                  value={pecaTambemSearch}
+                  onChange={(e) => setPecaTambemSearch(e.target.value)}
+                />
+              </div>
+              <div className="admin-picker-content">
+                {pecaTambemCandidates
+                  .filter(
+                    (item) =>
+                      !pecaTambemSearch.trim() || item.nome.toLowerCase().includes(pecaTambemSearch.toLowerCase())
+                  )
+                  .map((item) => {
+                    const selected = normalizePecaTambemIds(form.pecaTambemIds).includes(item.id);
+                    return (
+                      <div key={item.id} className="admin-picker-item">
+                        {item.imagemUrl ? <img src={item.imagemUrl} alt="" /> : <ImagePlaceholder size={48} />}
+                        <div>
+                          <strong>{item.nome}</strong>
+                          <p>{item.descricao || 'Sem descricao'}</p>
+                        </div>
+                        <span>R$ {Number(item.preco || 0).toFixed(2).replace('.', ',')}</span>
+                        <button
+                          type="button"
+                          className={`admin-square-check ${selected ? 'checked' : ''}`}
+                          aria-label={selected ? `Remover ${item.nome}` : `Selecionar ${item.nome}`}
+                          onClick={() => togglePecaTambem(item.id)}
+                        >
+                          {selected ? '✓' : ''}
+                        </button>
+                      </div>
+                    );
+                  })}
+              </div>
+              <div className="admin-picker-footer">
+                <button type="button" className="admin-btn admin-btn-primary" onClick={() => setPecaTambemPickerOpen(false)}>
+                  Concluir
+                </button>
               </div>
             </div>
           ) : null}

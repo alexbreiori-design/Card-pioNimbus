@@ -1,6 +1,13 @@
 'use client';
 
+import { useMemo } from 'react';
 import { calculateCupomDiscount } from '@/lib/cupons';
+import {
+  formatDurationMinutes,
+  getCheckoutTipoFromDeliveryMode,
+  getEtaFromConfirmedAt,
+} from '@/lib/deliveryDuration';
+import { MOBILE_PHONE_MASK, formatMobilePhoneBr } from '@/lib/phoneBr';
 import { useCardapio } from '@/context/CardapioContext';
 import { IconBack, IconClose, IconContinue, IconStepCheck } from './icons';
 
@@ -63,14 +70,18 @@ export default function CheckoutModal() {
     formatStoreAddress,
     selectDelivery,
     selectPayment,
+    setCheckoutTrocoAnswer,
+    setCheckoutTrocoValue,
     checkoutNext,
     checkoutBack,
     finalizeOrder,
     checkoutAddressConfirmed,
     openCheckoutAddressFlow,
+    getDeliveryEstimateMinutes,
   } = useCardapio();
 
   const handleOverlayClick = (e) => {
+    if (checkoutSuccess) return;
     if (e.target.id === 'checkoutOverlay') closeCheckout();
   };
 
@@ -80,6 +91,21 @@ export default function CheckoutModal() {
   const total = Math.max(0, subtotal + taxaEntrega - cupomOff);
   const showPixInfo = checkoutData.payment === 'pix' && Boolean(storeConfig?.chavePix);
   const storeAddress = formatStoreAddress(storeConfig);
+
+  const confirmOrderTipo = getCheckoutTipoFromDeliveryMode(checkoutData.delivery);
+  const confirmEstimate = useMemo(() => {
+    const minutes = getDeliveryEstimateMinutes(confirmOrderTipo);
+    const eta = getEtaFromConfirmedAt(new Date(), storeConfig, confirmOrderTipo);
+    return {
+      minutes,
+      durationLabel: formatDurationMinutes(minutes),
+      untilLabel: eta.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      isDelivery: confirmOrderTipo === 'delivery',
+    };
+  }, [checkoutData.delivery, getDeliveryEstimateMinutes, storeConfig, confirmOrderTipo]);
+
+  const checkoutTitle =
+    checkoutSuccess ? 'Pedido enviado' : checkoutStep === 4 ? 'Confirmação' : 'Checkout';
 
   const pixInfoBlock = showPixInfo ? (
     <div className="checkout-pix-info">
@@ -127,9 +153,11 @@ export default function CheckoutModal() {
             <input
               className="form-input"
               type="tel"
-              placeholder="(00) 00000-0000"
+              inputMode="numeric"
+              autoComplete="tel"
+              placeholder={MOBILE_PHONE_MASK}
               value={checkoutPhone}
-              onChange={(e) => setCheckoutPhone(e.target.value)}
+              onChange={(e) => setCheckoutPhone(formatMobilePhoneBr(e.target.value))}
             />
           </div>
         </>
@@ -208,11 +236,13 @@ export default function CheckoutModal() {
             </div>
           ) : null;
         lastGroup = m.group;
+        const isDinheiro = m.id === 'dinheiro';
+        const isSelected = checkoutData.payment === m.id;
         return (
           <span key={m.id} style={{ display: 'contents' }}>
             {groupHeader}
             <div
-              className={`payment-option ${checkoutData.payment === m.id ? 'selected' : ''}`}
+              className={`payment-option ${isSelected ? 'selected' : ''}`}
               onClick={() => selectPayment(m.id)}
               role="button"
               tabIndex={0}
@@ -221,12 +251,43 @@ export default function CheckoutModal() {
                 <PaymentIcon id={m.id} />
               </div>
               <div className="pay-label">{m.label}</div>
-              {checkoutData.payment === m.id && (
+              {isSelected ? (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
-              )}
+              ) : null}
             </div>
+            {isDinheiro && isSelected ? (
+              <div className="checkout-troco-block">
+                <p className="checkout-troco-question">Precisa de troco?</p>
+                <div className="checkout-choice-row">
+                  <button
+                    type="button"
+                    className={`checkout-choice-btn ${checkoutData.trocoAnswer === 'sim' ? 'selected' : ''}`}
+                    onClick={() => setCheckoutTrocoAnswer('sim')}
+                  >
+                    Sim
+                  </button>
+                  <button
+                    type="button"
+                    className={`checkout-choice-btn ${checkoutData.trocoAnswer === 'nao' ? 'selected' : ''}`}
+                    onClick={() => setCheckoutTrocoAnswer('nao')}
+                  >
+                    Não
+                  </button>
+                </div>
+                {checkoutData.trocoAnswer === 'sim' ? (
+                  <input
+                    className="form-input checkout-troco-input"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="R$ 0,00"
+                    value={checkoutData.trocoValue}
+                    onChange={(e) => setCheckoutTrocoValue(e.target.value)}
+                  />
+                ) : null}
+              </div>
+            ) : null}
           </span>
         );
       });
@@ -243,64 +304,108 @@ export default function CheckoutModal() {
         checkoutData.delivery === 'retirar'
           ? 'Retirar no estabelecimento'
           : 'Receber no endereço';
+      const deliveryDetail =
+        checkoutData.delivery === 'entregar' && checkoutAddressConfirmed && savedAddress
+          ? `${savedAddress.rua}${savedAddress.num ? `, ${savedAddress.num}` : ''} — ${savedAddress.bairro}`
+          : storeAddress;
+      const etaActionLabel = confirmEstimate.isDelivery ? 'Entrega até' : 'Retirada até';
+
       return (
-        <>
-          <div style={{ background: 'var(--bg)', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
-            <strong style={{ fontSize: 14, fontWeight: 600 }}>{checkoutData.name}</strong>
-            <div style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 2, fontWeight: 300 }}>
-              {checkoutData.phone}
-            </div>
-          </div>
-          <div className="confirm-section-title">Itens do pedido</div>
-          {cart.map((item) => (
-            <div className="confirm-item-row" key={item.id}>
-              <div className="confirm-qty">{item.qty}x</div>
-              <div className="confirm-info">
-                <div className="confirm-name">{item.name}</div>
-                <div className="confirm-opts">{item.opts.join(', ')}</div>
+        <div className="checkout-confirm">
+          <section className="confirm-panel confirm-panel--l2" aria-label="Dados do cliente">
+            <h3 className="confirm-panel__label">Contato</h3>
+            <dl className="confirm-meta-list">
+              <div className="confirm-meta-row">
+                <dt>Nome</dt>
+                <dd>{checkoutData.name}</dd>
               </div>
-              <div className="confirm-price">{formatPrice(item.price * item.qty)}</div>
-            </div>
-          ))}
-          <div className="confirm-section-title">Entrega</div>
-          <div className="confirm-delivery-row">
-            <strong>{deliveryLabel}</strong>
-            <span>
-              {checkoutData.delivery === 'entregar' && checkoutAddressConfirmed && savedAddress
-                ? `${savedAddress.rua}${savedAddress.num ? `, ${savedAddress.num}` : ''} — ${savedAddress.bairro}`
-                : storeAddress}
-            </span>
-          </div>
-          <div className="confirm-section-title">Pagamento</div>
-          <div className="confirm-payment-row">
-            <strong>{PAY_LABELS[checkoutData.payment] || '—'}</strong>
-          </div>
-          {pixInfoBlock}
-          <div className="confirm-totals">
-            <div className="confirm-total-row">
-              <span>Subtotal</span>
-              <span>{formatPrice(subtotal)}</span>
-            </div>
-            <div className="confirm-total-row">
-              <span>Taxa de entrega</span>
+              <div className="confirm-meta-row">
+                <dt>Telefone</dt>
+                <dd>{checkoutData.phone}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section className="confirm-panel confirm-panel--l4" aria-label="Itens do pedido">
+            <h3 className="confirm-panel__label">Seu pedido</h3>
+            <ul className="confirm-order-list">
+              {cart.map((item) => (
+                <li className="confirm-order-line" key={item.id}>
+                  <div className="confirm-order-line-main">
+                    <span className="confirm-order-qty">{item.qty}x</span>
+                    <span className="confirm-order-name">{item.name}</span>
+                  </div>
+                  {item.opts?.length ? (
+                    <p className="confirm-order-opts">{item.opts.join(', ')}</p>
+                  ) : null}
+                  <span className="confirm-order-price">{formatPrice(item.price * item.qty)}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="confirm-panel confirm-panel--l2" aria-label="Entrega e pagamento">
+            <h3 className="confirm-panel__label">Entrega e pagamento</h3>
+            <dl className="confirm-meta-list">
+              <div className="confirm-meta-row">
+                <dt>Entrega</dt>
+                <dd>
+                  <span className="confirm-meta-primary">{deliveryLabel}</span>
+                  <span className="confirm-meta-secondary">{deliveryDetail}</span>
+                </dd>
+              </div>
+              <div className="confirm-meta-row">
+                <dt>Pagamento</dt>
+                <dd>
+                  <span className="confirm-meta-primary">{PAY_LABELS[checkoutData.payment] || '—'}</span>
+                  {checkoutData.payment === 'dinheiro' &&
+                  checkoutData.trocoAnswer === 'sim' &&
+                  checkoutData.trocoValue ? (
+                    <span className="confirm-meta-secondary">
+                      Troco para {checkoutData.trocoValue}
+                    </span>
+                  ) : null}
+                </dd>
+              </div>
+            </dl>
+            {pixInfoBlock}
+          </section>
+
+          <section className="confirm-panel confirm-panel--l3" aria-label="Tempo estimado" role="status">
+            <h3 className="confirm-panel__label">Tempo estimado</h3>
+            <p className="confirm-panel__lead">
+              <span className="confirm-eta-duration">{confirmEstimate.durationLabel}</span>
+              <span className="confirm-eta-sep">·</span>
               <span>
-                {checkoutData.delivery === 'entregar'
-                  ? formatPrice(taxaEntrega)
-                  : formatPrice(0)}
+                {etaActionLabel} <strong>{confirmEstimate.untilLabel}</strong>
               </span>
-            </div>
-            {cupomOff > 0 ? (
-              <div className="confirm-total-row">
-                <span>Cupom ({appliedCupom.codigo})</span>
-                <span>− {formatPrice(cupomOff)}</span>
+            </p>
+          </section>
+
+          <section className="confirm-panel confirm-panel--l5" aria-label="Valor a pagar">
+            <h3 className="confirm-panel__label">Valor a pagar</h3>
+            <dl className="confirm-pay-lines">
+              <div className="confirm-pay-line">
+                <dt>Subtotal</dt>
+                <dd>{formatPrice(subtotal)}</dd>
               </div>
-            ) : null}
-            <div className="confirm-total-row final">
-              <span>Total</span>
-              <span>{formatPrice(total)}</span>
+              <div className="confirm-pay-line">
+                <dt>Taxa de entrega</dt>
+                <dd>{checkoutData.delivery === 'entregar' ? formatPrice(taxaEntrega) : formatPrice(0)}</dd>
+              </div>
+              {cupomOff > 0 ? (
+                <div className="confirm-pay-line">
+                  <dt>Cupom ({appliedCupom.codigo})</dt>
+                  <dd>− {formatPrice(cupomOff)}</dd>
+                </div>
+              ) : null}
+            </dl>
+            <div className="confirm-pay-total">
+              <span className="confirm-pay-total-label">Total</span>
+              <span className="confirm-pay-total-value">{formatPrice(total)}</span>
             </div>
-          </div>
-        </>
+          </section>
+        </div>
       );
     }
 
@@ -320,8 +425,11 @@ export default function CheckoutModal() {
       id="checkoutOverlay"
       onClick={handleOverlayClick}
     >
-      <div className="checkout-modal" id="checkoutModal">
-        <div className="checkout-topbar">
+      <div
+        className={`checkout-modal ${checkoutSuccess ? 'checkout-modal--success' : ''} ${checkoutStep === 4 && !checkoutSuccess ? 'checkout-modal--confirm' : ''}`}
+        id="checkoutModal"
+      >
+        <div className="checkout-topbar" style={{ display: checkoutSuccess ? 'none' : 'flex' }}>
           <button
             type="button"
             className="checkout-back-btn"
@@ -361,7 +469,10 @@ export default function CheckoutModal() {
             );
           })}
         </div>
-        <div className="checkout-body" id="checkoutBody">
+        <div
+          className={`checkout-body ${checkoutStep === 4 && !checkoutSuccess ? 'checkout-body--confirm' : ''}`}
+          id="checkoutBody"
+        >
           {renderStepBody()}
         </div>
         {!checkoutSuccess && (

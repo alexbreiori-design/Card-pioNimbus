@@ -20,7 +20,7 @@ const NAV = [
 
 function NavIcon({ name }) {
   if (name === 'store') {
-    return <AdminIcon name="store" className="admin-nav-file-icon" />;
+    return <AdminIcon name="store" />;
   }
 
   const icons = {
@@ -120,18 +120,15 @@ export default function AdminSidebar({
         </div>
         <AdminStoreSwitcher collapsed={collapsed} />
         <div className="admin-toggle-row">
-          <div className="admin-toggle-status">
+          <div className="admin-toggle-status-inline">
+            <span
+              className={`admin-store-status-dot ${isOpen ? 'open' : 'closed'}`}
+              aria-hidden="true"
+            />
             <span className={`admin-toggle-label ${isOpen ? 'open' : 'closed'}`}>
               {isOpen ? 'Loja Aberta' : 'Loja Fechada'}
             </span>
-            {!collapsed ? (
-              <span className="admin-toggle-schedule-hint">Automático pelos horários</span>
-            ) : null}
           </div>
-          <span
-            className={`admin-store-status-dot ${isOpen ? 'open' : 'closed'}`}
-            aria-hidden="true"
-          />
         </div>
         <button
           type="button"

@@ -1,5 +1,6 @@
 'use client';
 
+import { MOBILE_PHONE_MASK, formatMobilePhoneBr } from '@/lib/phoneBr';
 import { useCardapio } from '@/context/CardapioContext';
 
 export default function ProfilePage() {
@@ -69,9 +70,11 @@ export default function ProfilePage() {
             <input
               className="form-input"
               type="tel"
-              placeholder="(00) 00000-0000"
+              inputMode="numeric"
+              autoComplete="tel"
+              placeholder={MOBILE_PHONE_MASK}
               value={profilePhone}
-              onChange={(e) => setProfilePhone(e.target.value)}
+              onChange={(e) => setProfilePhone(formatMobilePhoneBr(e.target.value))}
             />
           </div>
         </div>

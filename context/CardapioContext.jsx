@@ -20,12 +20,27 @@ import { fetchStoreStateMetaRemote, fetchStoreStateRemote } from '@/lib/storeSta
 import {
   fetchPublicOrdersRemote,
   mergePublicOrders,
+  addHiddenHistoryOrderIds,
+  clearClientOrderHistory,
+  filterOrdersForClientView,
   readCachedOrders,
   resolveOrderPhoneDigits,
   writeCachedOrders,
 } from '@/lib/publicOrders';
 import { normalizePhone, normalizeSlug } from '@/lib/normalize';
+import {
+  formatMobilePhoneBr,
+  isCompleteMobilePhoneBr,
+  mobilePhoneIncompleteMessage,
+} from '@/lib/phoneBr';
+import { formatMoneyBrInput, hasMoneyBrValue, parseMoneyBrInput } from '@/lib/moneyMask';
 import { getEmpresaBySlug, mergeEmpresaIntoLoja } from '@/lib/supabase/empresa';
+import { trackMetaEvent } from '@/lib/meta/pixel';
+import { MAX_PECA_TAMBEM } from '@/lib/productSuggestions';
+import {
+  getEtaFromConfirmedAt,
+  getEstimateMinutesForOrderTipo,
+} from '@/lib/deliveryDuration';
 
 const CardapioContext = createContext(null);
 const CardapioCatalogContext = createContext(null);
@@ -73,10 +88,7 @@ function emptyProfile() {
 }
 
 function formatPhoneBr(value) {
-  const digits = String(value || '').replace(/\D/g, '').slice(0, 11);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  return formatMobilePhoneBr(value);
 }
 
 function formatStoreAddress(loja) {
@@ -91,15 +103,6 @@ function formatStoreAddress(loja) {
     .replace(/\s+/g, ' ')
     .trim();
   return structured || loja?.endereco || STORE_ADDRESS;
-}
-
-function getDeliveryEstimateMinutes(loja) {
-  const value = Math.max(1, Number(loja?.tempoEntregaValor || 45));
-  return loja?.tempoEntregaUnidade === 'horas' ? value * 60 : value;
-}
-
-function getEtaDate(createdAt, loja) {
-  return new Date(new Date(createdAt).getTime() + getDeliveryEstimateMinutes(loja) * 60000);
 }
 
 function formatTime(date) {
@@ -176,14 +179,18 @@ function mixColors(hex, target, weight) {
   });
 }
 
-/** Aplica cor de destaque apenas no cardápio público (não altera --admin-* do painel). */
+/** Aplica cor de destaque no cardápio público (inclui diálogos fora do theme-root). */
 function applyBrandColor(hex) {
   const brand = hex || '#610C27';
-  const target = document.querySelector('.cardapio-theme-root') || document.documentElement;
-  target.style.setProperty('--brand', brand);
-  target.style.setProperty('--brand-hover', mixColors(brand, '#000000', 0.18));
-  target.style.setProperty('--brand-light', mixColors(brand, '#ffffff', 0.9));
-  target.style.setProperty('--brand-mid', mixColors(brand, '#ffffff', 0.42));
+  const targets = new Set([document.documentElement]);
+  const themeRoot = document.querySelector('.cardapio-theme-root');
+  if (themeRoot) targets.add(themeRoot);
+  targets.forEach((target) => {
+    target.style.setProperty('--brand', brand);
+    target.style.setProperty('--brand-hover', mixColors(brand, '#000000', 0.18));
+    target.style.setProperty('--brand-light', mixColors(brand, '#ffffff', 0.9));
+    target.style.setProperty('--brand-mid', mixColors(brand, '#ffffff', 0.42));
+  });
 }
 
 function getInitialProfile() {
@@ -244,6 +251,8 @@ export function CardapioProvider({ children, slug = '' }) {
     phone: '',
     delivery: 'retirar',
     payment: '',
+    trocoAnswer: '',
+    trocoValue: '',
   });
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
   const [checkoutOrderNumber, setCheckoutOrderNumber] = useState('');
@@ -297,6 +306,7 @@ export function CardapioProvider({ children, slug = '' }) {
   const storeSnapshotRef = useRef(withDerivedData(DEFAULT_ADMIN_DATA));
   const catalogWatermarkRef = useRef(null);
   const ordersWatermarkRef = useRef(null);
+  const checkoutSubmittingRef = useRef(false);
   const [dialog, setDialog] = useState(null);
 
   const showAlert = useCallback((message, { title = 'Aviso' } = {}) => {
@@ -614,11 +624,21 @@ export function CardapioProvider({ children, slug = '' }) {
     setMobileNavActive(id);
   }, []);
 
-  const saveProfile = useCallback(() => {
-    const name = profileName.trim() || 'Seu nome';
-    const phone = profilePhone.trim() || '(00) 00000-0000';
+  const saveProfile = useCallback(async () => {
+    const name = profileName.trim();
+    const phoneRaw = profilePhone.trim();
+    if (!name) {
+      await showAlert('Informe seu nome completo.');
+      return;
+    }
+    if (!isCompleteMobilePhoneBr(phoneRaw)) {
+      await showAlert(mobilePhoneIncompleteMessage());
+      return;
+    }
+    const phone = formatPhoneBr(phoneRaw);
     setProfileDisplayName(name);
     setProfileDisplayPhone(phone);
+    setProfilePhone(phone);
     try {
       window.localStorage.setItem(
         PROFILE_STORAGE_KEY,
@@ -631,7 +651,7 @@ export function CardapioProvider({ children, slug = '' }) {
       address: profileAddress?.rua ? profileAddress : null,
     });
     showMainPage();
-  }, [profileName, profilePhone, profileImage, profileAddress, showMainPage, persistClientSnapshot]);
+  }, [profileName, profilePhone, profileImage, profileAddress, showMainPage, persistClientSnapshot, showAlert]);
 
   const filteredProducts = useMemo(() => {
     const cats =
@@ -652,6 +672,29 @@ export function CardapioProvider({ children, slug = '' }) {
 
   const relatedItems = useMemo(() => {
     const cartIds = new Set(cart.map((item) => item.productId));
+    const configuredIds = [];
+
+    cart.forEach((cartItem) => {
+      const source = dynamicProducts.find((p) => p.id === cartItem.productId);
+      (source?.relatedProductIds || []).forEach((id) => {
+        if (!id || cartIds.has(id) || configuredIds.includes(id)) return;
+        configuredIds.push(id);
+      });
+    });
+
+    if (configuredIds.length) {
+      return configuredIds
+        .slice(0, MAX_PECA_TAMBEM)
+        .map((id) => dynamicProducts.find((p) => p.id === id))
+        .filter((p) => p && !cartIds.has(p.id))
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          price: p.price,
+          imageUrl: p.imageUrl || '',
+        }));
+    }
+
     const priority = ['bebidas', 'porções', 'porcoes', 'sobremesas'];
     const priorityIndex = (category) => {
       const normalized = String(category || '').toLowerCase();
@@ -661,7 +704,7 @@ export function CardapioProvider({ children, slug = '' }) {
     const pool = dynamicProducts
       .filter((p) => !cartIds.has(p.id))
       .sort((a, b) => priorityIndex(a.category) - priorityIndex(b.category));
-    return pool.slice(0, 6).map((p) => ({
+    return pool.slice(0, MAX_PECA_TAMBEM).map((p) => ({
       id: p.id,
       name: p.name,
       price: p.price,
@@ -901,6 +944,7 @@ export function CardapioProvider({ children, slug = '' }) {
   const closeProductPopup = useCallback(() => {
     setProductOpen(false);
     setPopupHeaderCompact(false);
+    setCurrentProduct(null);
   }, []);
 
   const toggleAddon = useCallback(
@@ -966,12 +1010,15 @@ export function CardapioProvider({ children, slug = '' }) {
         imageUrl: currentProduct.imageUrl || '',
       },
     ]);
+    closeProductPopup();
     trackMetaEvent('AddToCart', {
+      content_ids: [String(currentProduct.id)],
       content_name: currentProduct.name,
+      content_type: 'product',
       value: unitPrice * currentQty,
       currency: 'BRL',
+      num_items: currentQty,
     });
-    closeProductPopup();
   }, [currentProduct, selectedAddons, addonExtras, currentQty, closeProductPopup]);
 
   const addToCartCustom = useCallback(
@@ -989,12 +1036,15 @@ export function CardapioProvider({ children, slug = '' }) {
           imageUrl: product.imageUrl || '',
         },
       ]);
+      closeProductPopup();
       trackMetaEvent('AddToCart', {
+        content_ids: [String(product.id)],
         content_name: product.name,
+        content_type: 'product',
         value: unitPrice * qty,
         currency: 'BRL',
+        num_items: qty,
       });
-      closeProductPopup();
     },
     [closeProductPopup]
   );
@@ -1015,6 +1065,15 @@ export function CardapioProvider({ children, slug = '' }) {
     [cart, openProduct]
   );
 
+  const getDeliveryEstimateMinutes = useCallback(
+    (tipo) =>
+      getEstimateMinutesForOrderTipo(
+        storeConfig,
+        tipo ?? (checkoutData.delivery === 'entregar' ? 'delivery' : 'retirada')
+      ),
+    [storeConfig, checkoutData.delivery]
+  );
+
   const openCheckout = useCallback(() => {
     if (cart.length === 0 || !storeConfig.aberta) return;
     const minOrder = Number(storeConfig.pedidoMinimo || 0);
@@ -1032,15 +1091,19 @@ export function CardapioProvider({ children, slug = '' }) {
       phone: knownPhone,
       delivery: 'retirar',
       payment: '',
+      trocoAnswer: '',
+      trocoValue: '',
     });
     setCheckoutName(knownName);
     setCheckoutPhone(knownPhone);
     setCheckoutOrderNumber('');
     setCheckoutOpen(true);
     trackMetaEvent('InitiateCheckout', {
+      content_ids: cart.map((item) => String(item.productId)),
+      content_type: 'product',
       value: cartTotal(),
       currency: 'BRL',
-      num_items: cart.length,
+      num_items: cart.reduce((sum, item) => sum + item.qty, 0),
     });
   }, [cart.length, cartSubtotal, cartTotal, profileDisplayName, profileDisplayPhone, storeConfig.aberta, storeConfig.pedidoMinimo, formatPrice]);
 
@@ -1077,13 +1140,31 @@ export function CardapioProvider({ children, slug = '' }) {
   }, [savedAddress, profileAddress]);
 
   const selectPayment = useCallback((id) => {
-    setCheckoutData((d) => ({ ...d, payment: id }));
+    setCheckoutData((d) => ({
+      ...d,
+      payment: id,
+      trocoAnswer: id === 'dinheiro' ? d.trocoAnswer : '',
+      trocoValue: id === 'dinheiro' ? d.trocoValue : '',
+    }));
+  }, []);
+
+  const setCheckoutTrocoAnswer = useCallback((answer) => {
+    setCheckoutData((d) => ({
+      ...d,
+      trocoAnswer: answer,
+      trocoValue: answer === 'sim' ? d.trocoValue : '',
+    }));
+  }, []);
+
+  const setCheckoutTrocoValue = useCallback((value) => {
+    setCheckoutData((d) => ({ ...d, trocoValue: formatMoneyBrInput(value) }));
   }, []);
 
   const persistCompletedOrder = useCallback(
     async ({ orderNumber, customerName, customerPhone }) => {
       const createdAt = new Date().toISOString();
-      const eta = getEtaDate(createdAt, storeConfig);
+      const orderTipo = checkoutData.delivery === 'entregar' ? 'delivery' : 'retirada';
+      const eta = getEtaFromConfirmedAt(createdAt, storeConfig, orderTipo);
       const subtotal = cartSubtotal();
       const taxaEntrega = checkoutData.delivery === 'entregar' ? Number(deliveryFee) || 0 : 0;
       const cupomOff = calculateCupomDiscount(appliedCupom, subtotal);
@@ -1097,6 +1178,11 @@ export function CardapioProvider({ children, slug = '' }) {
       const addressText = addressSnapshot
         ? `${addressSnapshot.rua}${addressSnapshot.num ? `, ${addressSnapshot.num}` : ''} - ${addressSnapshot.bairro} - ${addressSnapshot.cidade || ''}`
         : formatStoreAddress(storeConfig);
+      let observacao = '';
+      if (checkoutData.payment === 'dinheiro' && checkoutData.trocoAnswer === 'sim') {
+        const trocoAmount = parseMoneyBrInput(checkoutData.trocoValue);
+        observacao = `Precisa de troco para ${formatPrice(trocoAmount)}`;
+      }
       const localCustomerId = `cliente-${phoneDigits || Date.now()}`;
       const adminOrder = {
         id: orderNumber,
@@ -1121,7 +1207,7 @@ export function CardapioProvider({ children, slug = '' }) {
             }
           : null,
         enderecoTexto: addressText,
-        observacao: '',
+        observacao,
         itens: cart.map((item) => ({
           nome: item.name,
           qtd: item.qty,
@@ -1225,8 +1311,12 @@ export function CardapioProvider({ children, slug = '' }) {
     if (checkoutStep === 1) {
       const name = checkoutName.trim();
       const phone = checkoutPhone.trim();
-      if (!name || !phone) {
-        void showAlert('Preencha nome e telefone.');
+      if (!name) {
+        void showAlert('Preencha seu nome.');
+        return;
+      }
+      if (!isCompleteMobilePhoneBr(phone)) {
+        void showAlert(mobilePhoneIncompleteMessage());
         return;
       }
       const formattedPhone = formatPhoneBr(phone);
@@ -1256,36 +1346,44 @@ export function CardapioProvider({ children, slug = '' }) {
         void showAlert('Selecione uma forma de pagamento.');
         return;
       }
+      if (checkoutData.payment === 'dinheiro') {
+        if (!checkoutData.trocoAnswer) {
+          void showAlert('Informe se precisa de troco.');
+          return;
+        }
+        if (checkoutData.trocoAnswer === 'sim' && !hasMoneyBrValue(checkoutData.trocoValue)) {
+          void showAlert('Informe o valor para o troco.');
+          return;
+        }
+      }
       setCheckoutStep(4);
     } else if (checkoutStep === 4) {
+      if (checkoutSubmittingRef.current) return;
+      checkoutSubmittingRef.current = true;
+      const orderNumber = String(Date.now()).slice(-10);
       try {
-        const orderNumber = String(Date.now()).slice(-10);
         await persistCompletedOrder({
           orderNumber,
           customerName: checkoutData.name,
           customerPhone: checkoutData.phone,
         });
-        setCheckoutOrderNumber(orderNumber);
         trackMetaEvent('Purchase', {
+          content_ids: cart.map((item) => String(item.productId)),
+          content_type: 'product',
           value: cartTotal(),
           currency: 'BRL',
-          num_items: cart.length,
-        });
-      } catch {
-        const orderNumber = `LOCAL-${String(Date.now()).slice(-6)}`;
-        await persistCompletedOrder({
-          orderNumber,
-          customerName: checkoutData.name,
-          customerPhone: checkoutData.phone,
+          num_items: cart.reduce((sum, item) => sum + item.qty, 0),
+          order_id: orderNumber,
         });
         setCheckoutOrderNumber(orderNumber);
-        trackMetaEvent('Purchase', {
-          value: cartTotal(),
-          currency: 'BRL',
-          num_items: cart.length,
-        });
+        setCart([]);
+        setAppliedCupom(null);
+        setCheckoutSuccess(true);
+      } catch (error) {
+        void showAlert(error?.message || 'Não foi possível enviar o pedido. Tente novamente.');
+      } finally {
+        checkoutSubmittingRef.current = false;
       }
-      setCheckoutSuccess(true);
     }
   }, [
     checkoutStep,
@@ -1293,16 +1391,14 @@ export function CardapioProvider({ children, slug = '' }) {
     checkoutPhone,
     checkoutData,
     checkoutAddressConfirmed,
-    cart,
-    cartSubtotal,
-    cartTotal,
-    deliveryFee,
-    appliedCupom,
-    deliveryMeta,
     savedAddress,
-    profileImage,
     profileAddress,
+    profileImage,
+    cart,
+    cartTotal,
     persistCompletedOrder,
+    persistClientSnapshot,
+    showAlert,
   ]);
 
   const checkoutBack = useCallback(() => {
@@ -1312,11 +1408,28 @@ export function CardapioProvider({ children, slug = '' }) {
   }, [checkoutStep, checkoutSuccess]);
 
   const finalizeOrder = useCallback(() => {
+    setCheckoutSuccess(false);
+    setCheckoutStep(1);
     setCart([]);
     setAppliedCupom(null);
     closeCheckout();
+    setNavActive('navPedidos');
+    setMobileNavActive('mNavPedidos');
     showOrdersPage();
   }, [closeCheckout, showOrdersPage]);
+
+  const clearPublicOrderHistory = useCallback(() => {
+    const slugToUse = normalizeSlug(
+      effectiveSlug || storeConfig.slug || slug || storeSnapshotRef.current?.loja?.slug || getConfiguredDefaultSlug()
+    );
+    const historyIds = publicOrders
+      .filter((order) => ['concluido', 'cancelado'].includes(order.status))
+      .map((order) => order.id);
+    addHiddenHistoryOrderIds(slugToUse, historyIds);
+    const activeOnly = clearClientOrderHistory(publicOrders);
+    writeCachedOrders(slugToUse, activeOnly);
+    setPublicOrders(activeOnly);
+  }, [publicOrders, effectiveSlug, storeConfig.slug, slug]);
 
   const handlePromoNav = useCallback(() => {
     const promoCategory =
@@ -1472,6 +1585,8 @@ export function CardapioProvider({ children, slug = '' }) {
       openCheckoutAddressFlow,
       selectDelivery,
       selectPayment,
+      setCheckoutTrocoAnswer,
+      setCheckoutTrocoValue,
       checkoutNext,
       checkoutBack,
       finalizeOrder,
@@ -1521,6 +1636,8 @@ export function CardapioProvider({ children, slug = '' }) {
       openCheckoutAddressFlow,
       selectDelivery,
       selectPayment,
+      setCheckoutTrocoAnswer,
+      setCheckoutTrocoValue,
       checkoutNext,
       checkoutBack,
       finalizeOrder,
@@ -1557,6 +1674,7 @@ export function CardapioProvider({ children, slug = '' }) {
       profileAddress,
       setProfileAddress,
       publicOrders,
+      clearPublicOrderHistory,
       showMainPage,
       showProfile,
       showOrdersPage,
@@ -1576,6 +1694,7 @@ export function CardapioProvider({ children, slug = '' }) {
       profileImage,
       profileAddress,
       publicOrders,
+      clearPublicOrderHistory,
       showMainPage,
       showProfile,
       showOrdersPage,

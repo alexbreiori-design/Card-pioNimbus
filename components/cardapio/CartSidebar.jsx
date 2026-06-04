@@ -1,8 +1,53 @@
 'use client';
 
+import { useRef } from 'react';
 import { useCardapio } from '@/context/CardapioContext';
 import { calculateCupomDiscount } from '@/lib/cupons';
 import { IconCupom, IconChevron } from './icons';
+
+function AlsoCarousel({ items, formatPrice, onOpen }) {
+  const scrollRef = useRef(null);
+
+  function scrollBy(direction) {
+    const el = scrollRef.current;
+    if (!el) return;
+    const amount = Math.max(160, Math.floor(el.clientWidth * 0.7));
+    el.scrollBy({ left: direction * amount, behavior: 'smooth' });
+  }
+
+  return (
+    <div className="sacola-also-carousel">
+      <button
+        type="button"
+        className="sacola-also-nav prev"
+        onClick={() => scrollBy(-1)}
+        aria-label="Ver sugestões anteriores"
+      >
+        <IconChevron />
+      </button>
+      <div className="sacola-also-scroll" ref={scrollRef}>
+        {items.map((a) => (
+          <button type="button" className="also-item" key={a.id} onClick={() => onOpen(a.id)}>
+            <div
+              className={`also-item-img ${a.imageUrl ? 'has-image' : 'is-placeholder'}`}
+              style={a.imageUrl ? { backgroundImage: `url(${a.imageUrl})` } : undefined}
+            />
+            <div className="also-item-name">{a.name}</div>
+            <div className="also-item-price">{formatPrice(a.price)}</div>
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        className="sacola-also-nav next"
+        onClick={() => scrollBy(1)}
+        aria-label="Ver mais sugestões"
+      >
+        <IconChevron />
+      </button>
+    </div>
+  );
+}
 
 export default function CartSidebar() {
   const {
@@ -85,18 +130,7 @@ export default function CartSidebar() {
               {relatedItems.length > 0 ? (
                 <>
                   <div className="sacola-also-title">Peça também</div>
-                  <div className="sacola-also-scroll">
-                    {relatedItems.map((a) => (
-                      <button type="button" className="also-item" key={a.id} onClick={() => openProduct(a.id)}>
-                        <div
-                          className={`also-item-img ${a.imageUrl ? 'has-image' : 'is-placeholder'}`}
-                          style={a.imageUrl ? { backgroundImage: `url(${a.imageUrl})` } : undefined}
-                        />
-                        <div className="also-item-name">{a.name}</div>
-                        <div className="also-item-price">{formatPrice(a.price)}</div>
-                      </button>
-                    ))}
-                  </div>
+                  <AlsoCarousel items={relatedItems} formatPrice={formatPrice} onOpen={openProduct} />
                 </>
               ) : null}
               <div className="sacola-totals">

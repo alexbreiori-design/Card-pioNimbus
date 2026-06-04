@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog';
 import NewOrderModal from '@/components/admin/orders/NewOrderModal';
 import OrderDetailModal from '@/components/admin/orders/OrderDetailModal';
 import AdminIcon from '@/components/admin/AdminIcon';
@@ -15,6 +16,7 @@ import { useAdminOrders } from '@/hooks/useAdminOrders';
 import { paymentLabelForOrder } from '@/lib/orders/mapAdminOrder';
 import { ensureCustomer, normalizePhone, updateCustomerStats, upsertClienteEndereco } from '@/lib/supabase/customers';
 import { resolveEmpresaIdFromStore } from '@/lib/supabase/empresa';
+import { getEtaFromConfirmedAt } from '@/lib/deliveryDuration';
 
 const COLS = [
   {
@@ -86,15 +88,6 @@ function deadlineLabel(order) {
   return `Retirar até ${order.prazo || '--:--'}`;
 }
 
-function estimateMinutes(loja) {
-  const value = Math.max(1, Number(loja?.tempoEntregaValor || 45));
-  return loja?.tempoEntregaUnidade === 'horas' ? value * 60 : value;
-}
-
-function etaFromNow(loja) {
-  return new Date(Date.now() + estimateMinutes(loja) * 60000);
-}
-
 export default function PedidosPage() {
   const { data, saveData } = useAdminData();
   const {
@@ -116,6 +109,7 @@ export default function PedidosPage() {
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archiveDateFrom, setArchiveDateFrom] = useState('');
   const [archiveDateTo, setArchiveDateTo] = useState('');
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
 
   const products = useMemo(() => (data.produtos || []).filter((p) => p.ativo !== false), [data.produtos]);
   const categorias = useMemo(() => (data.categorias || []).filter((c) => c.ativo !== false), [data.categorias]);
@@ -214,7 +208,7 @@ export default function PedidosPage() {
 
   async function saveOrder(draft, printNow = false) {
     const totals = computeOrderTotals(draft);
-    const eta = etaFromNow(data.loja);
+    const eta = getEtaFromConfirmedAt(new Date().toISOString(), data.loja, draft.tipo);
     const phoneDigits = normalizePhone(draft.telefone);
     const newOrder = {
       id: uid(),
@@ -529,7 +523,22 @@ export default function PedidosPage() {
         }}
         onPrint={() => window.print()}
         onCancel={() => {
-          if (!detailOrder || !window.confirm('Cancelar pedido?')) return;
+          if (!detailOrder) return;
+          setCancelConfirmOpen(true);
+        }}
+      />
+
+      <AdminConfirmDialog
+        open={cancelConfirmOpen && Boolean(detailOrder)}
+        title="Cancelar pedido"
+        message="Tem certeza que deseja cancelar este pedido? Essa ação não pode ser desfeita pelo cliente."
+        confirmLabel="Cancelar pedido"
+        cancelLabel="Voltar"
+        danger
+        onCancel={() => setCancelConfirmOpen(false)}
+        onConfirm={() => {
+          if (!detailOrder) return;
+          setCancelConfirmOpen(false);
           void cancelOrder(detailOrder).then(() => setDetailOrderId(''));
         }}
       />

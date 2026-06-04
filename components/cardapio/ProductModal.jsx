@@ -4,6 +4,17 @@ import { useMemo, useState } from 'react';
 import { useCardapioCart, useCardapioCatalog } from '@/context/CardapioContext';
 import { IconCheck, IconClose, IconPlus } from './icons';
 
+function AddonThumb({ imageUrl, name }) {
+  const hasImage = Boolean(imageUrl);
+  return (
+    <div
+      className={`addon-thumb ${hasImage ? 'has-image' : 'is-placeholder'}`}
+      style={hasImage ? { backgroundImage: `url(${imageUrl})` } : undefined}
+      aria-hidden="true"
+    />
+  );
+}
+
 export default function ProductModal() {
   const { formatPrice } = useCardapioCatalog();
   const {
@@ -40,7 +51,7 @@ export default function ProductModal() {
   );
   const activeSizeId = sizeOptions.some((size) => size.tamanhoId === pizzaSizeId)
     ? pizzaSizeId
-    : (sizeOptions[0]?.tamanhoId || '');
+    : sizeOptions[0]?.tamanhoId || '';
   const selectedSize = sizeOptions.find((size) => size.tamanhoId === activeSizeId) || sizeOptions[0];
   const maxFlavors = Math.max(1, Number(selectedSize?.maxSabores || 1));
   const allowDuplicate = pizzaConfig.permitirSaboresDuplicados === true;
@@ -81,7 +92,7 @@ export default function ProductModal() {
     });
   };
 
-  if (!product) return null;
+  if (!productOpen || !product) return null;
 
   return (
     <div
@@ -96,9 +107,6 @@ export default function ProductModal() {
             id="popupCoverImg"
             style={hasImage ? { backgroundImage: `url(${product.imageUrl})` } : undefined}
           />
-          <button type="button" className="popup-close" onClick={closeProductPopup}>
-            <IconClose />
-          </button>
         </div>
         <div
           className="popup-details-col"
@@ -106,6 +114,9 @@ export default function ProductModal() {
           ref={popupDetailsRef}
           onScroll={handleScroll}
         >
+          <button type="button" className="popup-close-details" onClick={closeProductPopup} aria-label="Fechar">
+            <IconClose />
+          </button>
           <div className={`popup-header ${popupHeaderCompact ? 'compact' : ''}`} id="popupHeader">
             <div className="popup-header-title">{product.name}</div>
             <div className="popup-header-desc">{product.desc}</div>
@@ -154,7 +165,7 @@ export default function ProductModal() {
                   const active = pizzaFlavors.includes(flavor.id);
                   return (
                     <div className="addon-item" key={flavor.id}>
-                      <div className="addon-thumb is-placeholder" />
+                      <AddonThumb imageUrl={flavor.imageUrl} name={flavor.name} />
                       <div className="addon-info">
                         <div className="addon-name">{flavor.name}</div>
                         <div className="addon-price">{formatPrice(pizzaFlavorPrice(flavor.id))}</div>
@@ -193,7 +204,7 @@ export default function ProductModal() {
                       const isActive = selected.includes(item.id);
                       return (
                         <div className="addon-item" key={item.id}>
-                          <div className="addon-thumb is-placeholder" />
+                          <AddonThumb imageUrl={item.imageUrl} name={item.name} />
                           <div className="addon-info">
                             <div className="addon-name">{item.name}</div>
                             {item.desc && <div className="addon-desc">{item.desc}</div>}
@@ -239,7 +250,7 @@ export default function ProductModal() {
                   `Tamanho: ${selectedSize?.tamanhoNome || selectedSize?.tamanhoId || ''}`,
                   ...pizzaFlavors.map((id) => flavorPool.find((f) => f.id === id)?.name).filter(Boolean),
                 ];
-                  addToCartCustom({
+                addToCartCustom({
                   product,
                   qty: currentQty,
                   unitPrice: pizzaUnitPrice,

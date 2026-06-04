@@ -173,19 +173,12 @@
 .admin-toggle-label.open { color: var(--admin-green); font-weight: 700; }
 .admin-toggle-label.closed { color: var(--admin-red); font-weight: 700; }
 
-.admin-toggle-status {
+.admin-toggle-status-inline {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
+  gap: 8px;
   min-width: 0;
-}
-
-.admin-toggle-schedule-hint {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--admin-text-light);
-  line-height: 1.2;
 }
 
 .admin-store-status-dot {
@@ -205,8 +198,7 @@
 .admin-sidebar.collapsed .admin-store-name,
 .admin-sidebar.collapsed .admin-store-cardapio-hint,
 .admin-sidebar.collapsed .admin-store-status,
-.admin-sidebar.collapsed .admin-toggle-status,
-.admin-sidebar.collapsed .admin-toggle-schedule-hint,
+.admin-sidebar.collapsed .admin-toggle-status-inline,
 .admin-sidebar.collapsed .admin-toggle-row,
 .admin-sidebar.collapsed .admin-nav-item span { display: none; }
 
@@ -359,7 +351,18 @@
   margin-top: 0;
 }
 
-.admin-sidebar.collapsed .admin-nav-item { justify-content: center; padding: 13px 0; }
+.admin-sidebar.collapsed .admin-nav-item {
+  justify-content: center;
+  padding: 13px 0;
+  gap: 0;
+}
+
+.admin-sidebar.collapsed .admin-nav-item svg,
+.admin-sidebar.collapsed .admin-nav-item .admin-file-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
 
 .admin-sidebar-footer {
   padding: 20px 22px;
@@ -1451,6 +1454,17 @@
   justify-content: flex-end;
   gap: 10px;
   margin-top: 18px;
+}
+
+.admin-peca-tambem-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.admin-peca-tambem-row {
+  margin-top: 0;
 }
 
 .admin-new-category-card {
@@ -3244,6 +3258,10 @@
   display: grid;
   grid-template-columns: minmax(120px, 180px) minmax(140px, 200px);
   gap: 14px;
+}
+
+.admin-store-delivery-duration-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .admin-store-field-descricao {

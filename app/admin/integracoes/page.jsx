@@ -1,93 +1,218 @@
-'use client';
-
-import Image from 'next/image';
-import { useEffect, useState } from 'react';
-import { useAdminData } from '@/hooks/useAdminData';
-import { useEmpresa } from '@/hooks/useEmpresa';
-import { getEmpresaBySlug, mergeEmpresaIntoLoja, updateEmpresaBySlug } from '@/lib/supabase/empresa';
-import AdminPageHeader from '@/components/admin/AdminPageHeader';
-
-export default function IntegracoesPage() {
-  const { data, saveData } = useAdminData();
-  const { slug, loading: empresaLoading } = useEmpresa();
-  const [pixelId, setPixelId] = useState('');
-  const [msg, setMsg] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!slug) return;
-    getEmpresaBySlug(slug)
-      .then((empresa) => {
-        const merged = mergeEmpresaIntoLoja(data.loja, empresa);
-        setPixelId(merged.metaPixelId || '');
-      })
-      .catch(() => {
-        setPixelId(data.loja?.metaPixelId || '');
-      });
-  }, [slug, data.loja]);
-
-  async function save() {
-    if (!slug) {
-      setMsg('Configure o slug da loja em Minha loja.');
-      return;
-    }
-    setSaving(true);
-    setMsg('');
-    try {
-      await updateEmpresaBySlug(slug, { meta_pixel_id: pixelId.trim() || null });
-      saveData((prev) => ({
-        ...prev,
-        loja: { ...prev.loja, metaPixelId: pixelId.trim() },
-      }));
-      setMsg('Pixel salvo com sucesso.');
-    } catch (e) {
-      setMsg(e?.message || 'Erro ao salvar pixel.');
-    } finally {
-      setSaving(false);
-      setTimeout(() => setMsg(''), 2800);
-    }
-  }
-
-  return (
-    <div className="admin-content admin-content-pedidos admin-store-page admin-low-info-page admin-compact-card-page">
-      {msg ? <div className="admin-store-message admin-compact-page-message">{msg}</div> : null}
-
-      <AdminPageHeader title="Integrações" icon="integration" />
-
-      <div className="admin-card admin-compact-page-card admin-integration-compact-card">
-        <div className="admin-integration-meta-wrap admin-integration-meta-wrap-left">
-          <Image
-            className="admin-integration-meta-logo"
-            src="/images/logo-meta.png"
-            alt="Meta"
-            width={148}
-            height={32}
-            priority
-          />
-        </div>
-        <h2 className="admin-section-heading">Meta Pixel</h2>
-        <p className="admin-help-text admin-integration-help">
-          O script é carregado apenas no cardápio online. Se o ID estiver vazio, nada é enviado ao Meta.
-        </p>
-        <div className="admin-form-group">
-          <label className="admin-label">ID do Pixel</label>
-          <input
-            className="admin-input"
-            placeholder="Ex: 123456789012345, somente números do Pixel"
-            value={pixelId}
-            onChange={(e) => setPixelId(e.target.value)}
-            disabled={empresaLoading || saving}
-          />
-        </div>
-        <button
-          type="button"
-          className="admin-btn admin-btn-primary"
-          onClick={save}
-          disabled={saving || empresaLoading}
-        >
-          Salvar
-        </button>
-      </div>
-    </div>
-  );
-}
+'use client';
+
+import Image from 'next/image';
+import { useCallback, useEffect, useState } from 'react';
+import { useAdminData } from '@/hooks/useAdminData';
+import { useEmpresa } from '@/hooks/useEmpresa';
+import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import { META_STANDARD_EVENTS } from '@/lib/meta/pixel';
+import { sanitizeMetaPixelId } from '@/lib/meta/pixel';
+import { getEmpresaBySlug, mergeEmpresaIntoLoja, updateEmpresaBySlug } from '@/lib/supabase/empresa';
+
+export default function IntegracoesPage() {
+  const { data, saveData } = useAdminData();
+  const { slug, loading: empresaLoading } = useEmpresa();
+
+  const [savedPixelId, setSavedPixelId] = useState('');
+  const [draftPixelId, setDraftPixelId] = useState('');
+  const [formOpen, setFormOpen] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
+  const [editingPixel, setEditingPixel] = useState(false);
+
+  const applyLoadedPixel = useCallback((loja) => {
+    const safe = sanitizeMetaPixelId(loja?.metaPixelId) || '';
+    setSavedPixelId(safe);
+  }, []);
+
+  useEffect(() => {
+    if (!slug) {
+      applyLoadedPixel(data.loja);
+      return;
+    }
+    getEmpresaBySlug(slug)
+      .then((empresa) => {
+        applyLoadedPixel(mergeEmpresaIntoLoja(data.loja, empresa));
+      })
+      .catch(() => {
+        applyLoadedPixel(data.loja);
+      });
+  }, [slug, data.loja, applyLoadedPixel]);
+
+  const hasPixel = Boolean(savedPixelId);
+
+  async function persistPixelId(nextRaw) {
+    if (!slug) {
+      setMsg('Configure o slug da loja em Minha loja.');
+      return false;
+    }
+    const safe = sanitizeMetaPixelId(nextRaw);
+    setSaving(true);
+    setMsg('');
+    try {
+      await updateEmpresaBySlug(slug, { meta_pixel_id: safe });
+      saveData((prev) => ({
+        ...prev,
+        loja: { ...prev.loja, metaPixelId: safe || '' },
+      }));
+      setSavedPixelId(safe || '');
+      setDraftPixelId(safe || '');
+      setFormOpen(false);
+      setMsg(safe ? 'Pixel salvo com sucesso.' : 'Pixel removido.');
+      setTimeout(() => setMsg(''), 2800);
+      return true;
+    } catch (e) {
+      setMsg(e?.message || 'Erro ao salvar pixel.');
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function openNewForm() {
+    setDraftPixelId('');
+    setEditingPixel(false);
+    setFormOpen(true);
+    setMsg('');
+  }
+
+  function openEditForm() {
+    setDraftPixelId(savedPixelId);
+    setEditingPixel(true);
+    setFormOpen(true);
+    setMsg('');
+  }
+
+  function cancelForm() {
+    setDraftPixelId(savedPixelId);
+    setFormOpen(false);
+    setMsg('');
+  }
+
+  async function handleSave() {
+    const safe = sanitizeMetaPixelId(draftPixelId);
+    if (!safe) {
+      setMsg('Informe um ID do Pixel válido (apenas números).');
+      return;
+    }
+    await persistPixelId(safe);
+  }
+
+  async function handleRemove() {
+    setRemoveConfirmOpen(false);
+    await persistPixelId('');
+  }
+
+  const eventsLabel = META_STANDARD_EVENTS.filter((e) => e !== 'PageView').join(', ');
+
+  return (
+    <div className="admin-content admin-content-pedidos admin-catalog-page admin-section-page">
+      {msg ? <div className="admin-store-message admin-compact-page-message">{msg}</div> : null}
+
+      <AdminPageHeader title="Integrações" icon="integration" />
+
+      <div className="admin-card admin-store-block-card admin-integration-card">
+        <div className="admin-integration-meta-wrap admin-integration-meta-wrap-left">
+          <Image
+            className="admin-integration-meta-logo"
+            src="/images/logo-meta.png"
+            alt="Meta"
+            width={148}
+            height={32}
+            priority
+          />
+        </div>
+
+        <div className="admin-delivery-areas-toolbar">
+          <p className="admin-help-text admin-delivery-areas-hint">
+            O script é carregado somente no cardápio online. Eventos: PageView, {eventsLabel}.
+          </p>
+          {!hasPixel && !formOpen ? (
+            <button type="button" className="admin-btn admin-btn-primary" onClick={openNewForm}>
+              + Conectar Pixel
+            </button>
+          ) : null}
+        </div>
+
+        {formOpen ? (
+          <form
+            className="admin-delivery-area-form admin-card"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void handleSave();
+            }}
+          >
+            <h3 className="admin-delivery-area-form-title">
+              {editingPixel ? 'Editar Meta Pixel' : 'Conectar Meta Pixel'}
+            </h3>
+            <div className="admin-form-group">
+              <label className="admin-label" htmlFor="meta-pixel-id">
+                ID do Pixel
+              </label>
+              <input
+                id="meta-pixel-id"
+                className="admin-input"
+                placeholder="Ex: 123456789012345"
+                inputMode="numeric"
+                value={draftPixelId}
+                onChange={(e) => setDraftPixelId(e.target.value.replace(/\D/g, ''))}
+                disabled={empresaLoading || saving}
+              />
+            </div>
+            <div className="admin-delivery-area-form-actions">
+              <button type="button" className="admin-btn" onClick={cancelForm} disabled={saving}>
+                Cancelar
+              </button>
+              <button type="submit" className="admin-btn admin-btn-primary" disabled={saving || empresaLoading}>
+                Salvar
+              </button>
+            </div>
+          </form>
+        ) : null}
+
+        {hasPixel && !formOpen ? (
+          <div className="admin-delivery-areas-list">
+            <div className="admin-catalog-item-row admin-delivery-area-row admin-integration-pixel-row">
+              <div className="admin-catalog-item-main">
+                <div className="admin-item-title">Pixel {savedPixelId}</div>
+                <div className="admin-item-desc">
+                  Rastreamento ativo no cardápio · PageView, {eventsLabel}
+                </div>
+              </div>
+              <div className="admin-item-actions-col">
+                <button type="button" className="admin-link-btn" onClick={openEditForm}>
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  className="admin-link-btn"
+                  style={{ color: 'var(--admin-danger, #dc2626)' }}
+                  onClick={() => setRemoveConfirmOpen(true)}
+                >
+                  Remover
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {!hasPixel && !formOpen ? (
+          <p className="admin-help-text admin-delivery-areas-empty">Nenhum Pixel conectado.</p>
+        ) : null}
+      </div>
+
+      <AdminConfirmDialog
+        open={removeConfirmOpen}
+        title="Remover Meta Pixel"
+        message="O rastreamento deixará de funcionar no cardápio até conectar um novo ID. Deseja remover?"
+        confirmLabel="Remover"
+        cancelLabel="Cancelar"
+        danger
+        onCancel={() => setRemoveConfirmOpen(false)}
+        onConfirm={() => void handleRemove()}
+      />
+    </div>
+  );
+}
