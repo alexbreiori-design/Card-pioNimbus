@@ -1,0 +1,171 @@
+.order-ticket-print-root {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.order-ticket-preview-root {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.order-ticket-preview-root .order-ticket {
+  border: 1px dashed #cbd5e1;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.order-ticket {
+  box-sizing: border-box;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #000;
+  background: #fff;
+  padding: 4px 6px;
+}
+
+.order-ticket--80 .order-ticket {
+  width: 80mm;
+  max-width: 80mm;
+}
+
+.order-ticket--58 .order-ticket {
+  width: 58mm;
+  max-width: 58mm;
+  font-size: 11px;
+}
+
+.order-ticket-center {
+  text-align: center;
+}
+
+.order-ticket-logo {
+  display: block;
+  margin: 0 auto 8px;
+  max-width: 48mm;
+  max-height: 18mm;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.order-ticket--58 .order-ticket-logo {
+  max-width: 36mm;
+  max-height: 14mm;
+}
+
+.order-ticket-store {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+}
+
+.order-ticket-muted {
+  color: #333;
+  font-size: 11px;
+}
+
+.order-ticket-divider {
+  border: none;
+  border-top: 1px dashed #000;
+  margin: 8px 0;
+}
+
+.order-ticket-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 2px 0;
+}
+
+.order-ticket-row strong {
+  font-weight: 700;
+}
+
+.order-ticket-block {
+  margin: 6px 0;
+}
+
+.order-ticket-block-title {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.order-ticket-item {
+  margin-bottom: 6px;
+}
+
+.order-ticket-item-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.order-ticket-item-name {
+  flex: 1;
+  font-weight: 700;
+}
+
+.order-ticket-item-price {
+  white-space: nowrap;
+}
+
+.order-ticket-item-obs {
+  margin: 2px 0 0 10px;
+  font-size: 11px;
+}
+
+.order-ticket-total-final {
+  font-size: 14px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+@media print {
+  @page {
+    margin: 2mm;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body.order-ticket-printing > *:not(.order-ticket-print-root) {
+    display: none !important;
+  }
+
+  .order-ticket-print-root {
+    display: block !important;
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    pointer-events: none !important;
+    z-index: auto !important;
+  }
+
+  .order-ticket-print-root,
+  .order-ticket-print-root * {
+    visibility: visible !important;
+    color: #000 !important;
+  }
+
+  .order-ticket-logo {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

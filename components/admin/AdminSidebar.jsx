@@ -80,12 +80,32 @@ export default function AdminSidebar({
   storeName = 'Minha loja',
   storeSlug = '',
   logoUrl = '',
-  isOpen = true,
+  openStatus = { aberta: true, fechadaManual: false, abertaPorHorario: true },
   collapsed = false,
   newOrdersCount = 0,
+  storeToggleBusy = false,
+  storeToggleError = '',
+  onCloseNow,
+  onReopen,
   onToggleCollapse,
 }) {
+  const { aberta, fechadaManual } = openStatus;
   const pathname = usePathname();
+
+  function handleStoreToggle(event) {
+    if (storeToggleBusy) {
+      event.preventDefault();
+      return;
+    }
+    if (event.target.checked) onReopen?.();
+    else onCloseNow?.();
+  }
+
+  const toggleTitle = fechadaManual
+    ? 'Fechada manualmente. Ative para reabrir.'
+    : aberta
+      ? 'Loja aberta. Desative para fechar agora.'
+      : 'Fechada pelo horário. Ative para liberar manualmente.';
   const cardapioHref = storeSlug ? `/${String(storeSlug).trim().toLowerCase()}` : '';
 
   return (
@@ -119,17 +139,29 @@ export default function AdminSidebar({
           )}
         </div>
         <AdminStoreSwitcher collapsed={collapsed} />
-        <div className="admin-toggle-row">
-          <div className="admin-toggle-status-inline">
-            <span
-              className={`admin-store-status-dot ${isOpen ? 'open' : 'closed'}`}
-              aria-hidden="true"
+        <div
+          className="admin-toggle-row admin-store-toggle-compact"
+          title={toggleTitle}
+        >
+          <span className={`admin-store-toggle-label ${aberta ? 'open' : 'closed'}`}>
+            {aberta ? 'Aberta' : 'Fechada'}
+          </span>
+          <label className="admin-switch admin-store-toggle-switch">
+            <input
+              type="checkbox"
+              checked={aberta}
+              disabled={storeToggleBusy}
+              onChange={handleStoreToggle}
+              aria-label={aberta ? 'Loja aberta' : 'Loja fechada'}
             />
-            <span className={`admin-toggle-label ${isOpen ? 'open' : 'closed'}`}>
-              {isOpen ? 'Loja Aberta' : 'Loja Fechada'}
-            </span>
-          </div>
+            <span className="admin-switch-slider" />
+          </label>
         </div>
+        {storeToggleError && !collapsed ? (
+          <p className="admin-store-open-error" role="alert">
+            {storeToggleError}
+          </p>
+        ) : null}
         <button
           type="button"
           className="admin-sidebar-collapse-btn"

@@ -75,7 +75,7 @@ export default function EntregaPage() {
   if (!ready) return null;
 
   return (
-    <div className="admin-content admin-content-pedidos admin-catalog-page admin-section-page admin-delivery-page">
+    <div className="admin-content admin-content-pedidos admin-catalog-page admin-section-page admin-delivery-page admin-compact-card-page">
       {empresaError ? (
         <div className="admin-card admin-store-message" style={{ color: 'var(--admin-red)' }}>
           {empresaError}
@@ -111,7 +111,7 @@ export default function EntregaPage() {
         </div>
       </div>
 
-      <div className="admin-card admin-store-block-card">
+      <div className="admin-card admin-store-block-card admin-compact-page-card">
         <div className="admin-store-section-head">
           <div className="admin-delivery-section-intro">
             <h2>Áreas de entrega</h2>

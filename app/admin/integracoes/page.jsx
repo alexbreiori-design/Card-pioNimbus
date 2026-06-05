@@ -108,12 +108,12 @@ export default function IntegracoesPage() {
   const eventsLabel = META_STANDARD_EVENTS.filter((e) => e !== 'PageView').join(', ');
 
   return (
-    <div className="admin-content admin-content-pedidos admin-catalog-page admin-section-page">
+    <div className="admin-content admin-content-pedidos admin-catalog-page admin-section-page admin-compact-card-page">
       {msg ? <div className="admin-store-message admin-compact-page-message">{msg}</div> : null}
 
       <AdminPageHeader title="Integrações" icon="integration" />
 
-      <div className="admin-card admin-store-block-card admin-integration-card">
+      <div className="admin-card admin-store-block-card admin-compact-page-card admin-integration-card">
         <div className="admin-integration-meta-wrap admin-integration-meta-wrap-left">
           <Image
             className="admin-integration-meta-logo"
@@ -173,22 +173,24 @@ export default function IntegracoesPage() {
         ) : null}
 
         {hasPixel && !formOpen ? (
-          <div className="admin-delivery-areas-list">
-            <div className="admin-catalog-item-row admin-delivery-area-row admin-integration-pixel-row">
-              <div className="admin-catalog-item-main">
-                <div className="admin-item-title">Pixel {savedPixelId}</div>
-                <div className="admin-item-desc">
-                  Rastreamento ativo no cardápio · PageView, {eventsLabel}
-                </div>
+          <div className="admin-sparse-list">
+            <div className="admin-sparse-row">
+              <div className="admin-sparse-row-main">
+                <span className="admin-sparse-row-code">Pixel {savedPixelId}</span>
+                <span className="admin-sparse-row-sep" aria-hidden="true">
+                  ·
+                </span>
+                <span className="admin-sparse-row-detail">
+                  Rastreamento ativo · PageView, {eventsLabel}
+                </span>
               </div>
-              <div className="admin-item-actions-col">
+              <div className="admin-sparse-row-actions">
                 <button type="button" className="admin-link-btn" onClick={openEditForm}>
                   Editar
                 </button>
                 <button
                   type="button"
-                  className="admin-link-btn"
-                  style={{ color: 'var(--admin-danger, #dc2626)' }}
+                  className="admin-link-btn admin-link-btn-danger"
                   onClick={() => setRemoveConfirmOpen(true)}
                 >
                   Remover

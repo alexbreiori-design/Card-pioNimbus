@@ -37,6 +37,8 @@ function addressText(order) {
 export default function OrderDetailModal({
   order,
   paymentLabel,
+  whatsAppNotifyUrl = null,
+  whatsAppSummaryUrl = null,
   onClose,
   onEdit,
   onPrint,
@@ -45,12 +47,13 @@ export default function OrderDetailModal({
   canAdvance,
   advanceLabel,
   readOnly = false,
+  overlayClassName = '',
 }) {
   if (!order) return null;
   const pay = paymentLabel || PAYMENT_LABEL[order.pagamento?.metodo] || order.pagamento?.metodo || '—';
 
   return (
-    <div className="admin-confirm-overlay" onClick={onClose}>
+    <div className={`admin-confirm-overlay ${overlayClassName}`.trim()} onClick={onClose}>
       <div className="admin-order-detail-modal" onClick={(e) => e.stopPropagation()}>
         <div className="admin-order-detail-head">
           <div>
@@ -156,24 +159,50 @@ export default function OrderDetailModal({
           </div>
         </div>
 
-        {readOnly ? null : (
         <div className="admin-order-detail-actions">
-          {canAdvance ? (
+          {!readOnly && canAdvance ? (
             <button type="button" className="admin-btn admin-btn-primary" onClick={onAdvance}>
               {advanceLabel}
             </button>
           ) : null}
-          <button type="button" className="admin-btn admin-btn-ghost" onClick={onEdit}>
-            Editar pedido
-          </button>
-          <button type="button" className="admin-btn admin-btn-ghost" onClick={onPrint}>
-            Imprimir
-          </button>
-          <button type="button" className="admin-btn admin-btn-danger" onClick={onCancel}>
-            Cancelar pedido
-          </button>
+          {!readOnly && whatsAppNotifyUrl ? (
+            <a
+              className="admin-btn admin-btn-whatsapp"
+              href={whatsAppNotifyUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Notificar status
+            </a>
+          ) : null}
+          {!readOnly && whatsAppSummaryUrl ? (
+            <a
+              className="admin-btn admin-btn-whatsapp admin-btn-whatsapp-outline"
+              href={whatsAppSummaryUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Enviar resumo no WhatsApp
+            </a>
+          ) : null}
+          {!readOnly ? (
+            <>
+              <button type="button" className="admin-btn admin-btn-ghost" onClick={onEdit}>
+                Editar pedido
+              </button>
+              <button type="button" className="admin-btn admin-btn-ghost" onClick={onPrint}>
+                Imprimir
+              </button>
+              <button type="button" className="admin-btn admin-btn-danger" onClick={onCancel}>
+                Cancelar pedido
+              </button>
+            </>
+          ) : (
+            <button type="button" className="admin-btn admin-btn-ghost" onClick={onPrint}>
+              Imprimir
+            </button>
+          )}
         </div>
-        )}
       </div>
     </div>
   );

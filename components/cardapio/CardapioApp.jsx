@@ -13,7 +13,9 @@ import CheckoutModal from './CheckoutModal';
 import CepModal from './CepModal';
 import AddressModal from './AddressModal';
 import CupomModal from './CupomModal';
+import CartReviewModal from './CartReviewModal';
 import CardapioSplash from './CardapioSplash';
+import { SHOW_LEGACY_NAV } from '@/lib/cardapioFeatures';
 
 export default function CardapioApp() {
   const { storeConfig, splashVisible } = useCardapio();
@@ -21,7 +23,9 @@ export default function CardapioApp() {
   return (
     <>
       <CardapioSplash visible={splashVisible} />
-      <div className="cardapio-theme-root">
+      <div
+        className={`cardapio-theme-root${SHOW_LEGACY_NAV ? '' : ' cardapio-legacy-nav-hidden'}`}
+      >
         <MetaPixel pixelId={storeConfig?.metaPixelId} />
         <TopNav />
         <MainPage />
@@ -30,6 +34,7 @@ export default function CardapioApp() {
         <MobileSacolaBar />
         <MobileBottomNav />
         <ProductModal />
+        <CartReviewModal />
         <CheckoutModal />
         <CepModal />
         <AddressModal />

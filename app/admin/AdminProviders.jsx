@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { AdminDataProvider } from '@/context/AdminDataContext';
 import { AdminOrdersProvider } from '@/context/AdminOrdersContext';
+import { OrderPrintProvider } from '@/context/OrderPrintContext';
 import AdminShell from '@/components/admin/AdminShell';
 import AdminBootGate from '@/components/admin/AdminBootGate';
 
@@ -17,9 +18,11 @@ export default function AdminProviders({ children }) {
   return (
     <AdminDataProvider>
       <AdminOrdersProvider>
-        <AdminBootGate>
-          <AdminShell>{children}</AdminShell>
-        </AdminBootGate>
+        <OrderPrintProvider>
+          <AdminBootGate>
+            <AdminShell>{children}</AdminShell>
+          </AdminBootGate>
+        </OrderPrintProvider>
       </AdminOrdersProvider>
     </AdminDataProvider>
   );

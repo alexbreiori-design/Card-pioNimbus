@@ -1,6 +1,7 @@
 'use client';
 
 import { useCardapio } from '@/context/CardapioContext';
+import { getStoreClosedBannerText } from '@/lib/storeHours';
 import { IconChevron, IconClock, IconUserPin } from './icons';
 
 export default function StoreHeader() {
@@ -15,6 +16,8 @@ export default function StoreHeader() {
     locSub,
     storeConfig,
     formatStoreAddress,
+    pickupDurationLabel,
+    deliveryDurationLabel,
   } = useCardapio();
   const weekdays = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
   const dayKey = weekdays[new Date().getDay()];
@@ -22,6 +25,7 @@ export default function StoreHeader() {
   const todaySchedule = !today || today.fechado
     ? 'Fechado hoje'
     : `${today.abertura} às ${today.fechamento}`;
+  const closedBannerText = !storeConfig.aberta ? getStoreClosedBannerText(storeConfig) : null;
 
   return (
     <div className="store-header">
@@ -46,7 +50,7 @@ export default function StoreHeader() {
           {storeConfig.aberta ? <div className="store-open">Loja Aberta</div> : null}
         </div>
       </div>
-      {!storeConfig.aberta ? <div className="store-closed-banner">Loja Fechada</div> : null}
+      {closedBannerText ? <div className="store-closed-banner">{closedBannerText}</div> : null}
 
       <div className={`info-dropdown ${infoOpen ? 'open' : ''}`}>
         <strong>WhatsApp:</strong> {storeConfig.whatsapp || storeConfig.telefone || '-'}
@@ -92,7 +96,10 @@ export default function StoreHeader() {
             tabIndex={0}
           >
             <IconClock />
-            Retirar no estabelecimento
+            <div className="delivery-mini-item-text">
+              <span className="delivery-mini-item-label">Retirar no estabelecimento</span>
+              <span className="delivery-mini-item-eta">Pronto em ~{pickupDurationLabel}</span>
+            </div>
           </div>
           <div
             className={`delivery-mini-item ${currentDeliveryMode === 'entregar' ? 'selected' : ''}`}
@@ -101,7 +108,10 @@ export default function StoreHeader() {
             tabIndex={0}
           >
             <IconUserPin />
-            Receber em casa
+            <div className="delivery-mini-item-text">
+              <span className="delivery-mini-item-label">Receber em casa</span>
+              <span className="delivery-mini-item-eta">Entrega em ~{deliveryDurationLabel}</span>
+            </div>
           </div>
         </div>
       </div>

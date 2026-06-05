@@ -1,0 +1,16 @@
+Som de novo pedido no admin
+===========================
+
+Coloque aqui um arquivo de áudio com o nome:
+
+  novo-pedido.mp3
+
+Formatos recomendados: MP3, WAV ou OGG (evite MIDI — suporte limitado nos navegadores).
+
+O arquivo será servido em /sounds/novo-pedido.mp3
+
+Para usar outro caminho ou nome, defina na Vercel / .env.local:
+
+  NEXT_PUBLIC_ADMIN_NEW_ORDER_SOUND=/sounds/seu-arquivo.mp3
+
+Se o arquivo não existir, o sistema usa um bipe sintético de fallback.

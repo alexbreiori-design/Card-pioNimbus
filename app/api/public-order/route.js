@@ -35,6 +35,9 @@ export async function POST(request) {
     if (!empresa?.id) {
       return NextResponse.json({ ok: false, error: 'Empresa não encontrada.' }, { status: 404 });
     }
+    if (empresa.aberta === false) {
+      return NextResponse.json({ ok: false, error: 'Loja fechada no momento.' }, { status: 403 });
+    }
 
     const storeRow = await fetchPublicStoreCatalogRow(slug);
     const storeData = withDerivedData(storeRow?.data || {});

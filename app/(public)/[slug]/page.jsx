@@ -2,9 +2,66 @@ import { notFound } from 'next/navigation';
 import { CardapioProvider } from '@/context/CardapioContext';
 import CardapioApp from '@/components/cardapio/CardapioApp';
 import { normalizeSlug } from '@/lib/normalize';
+import { getSiteOrigin, toAbsoluteAssetUrl } from '@/lib/siteUrl';
 import { getEmpresaBySlug } from '@/lib/supabase/empresaServer';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 import { fetchPublicStoreCatalogRow } from '@/lib/supabase/storeStateServer';
+
+export async function generateMetadata({ params }) {
+  const { slug } = await params;
+  const safeSlug = normalizeSlug(slug);
+  if (!safeSlug) {
+    return {
+      title: 'Loja não encontrada',
+      description: 'Este cardápio não está disponível.',
+    };
+  }
+
+  const supabase = getServiceClient();
+  if (!supabase) {
+    return { title: safeSlug };
+  }
+
+  const [empresa, catalog] = await Promise.all([
+    getEmpresaBySlug(supabase, safeSlug),
+    fetchPublicStoreCatalogRow(safeSlug),
+  ]);
+
+  if (!empresa?.id && !catalog?.data) {
+    return {
+      title: 'Loja não encontrada',
+      description: 'O endereço que você acessou não corresponde a nenhum cardápio ativo.',
+    };
+  }
+
+  const loja = catalog?.data?.loja || {};
+  const name = loja.nome || empresa?.nome || safeSlug;
+  const description =
+    String(loja.descricao || '').trim() ||
+    `Faça seu pedido online em ${name}. Veja o cardápio, promoções e entrega.`;
+  const origin = getSiteOrigin();
+  const imageUrl = toAbsoluteAssetUrl(loja.capaUrl || loja.logoUrl, origin);
+  const pageUrl = `${origin}/${safeSlug}`;
+
+  return {
+    title: name,
+    description,
+    openGraph: {
+      title: name,
+      description,
+      url: pageUrl,
+      type: 'website',
+      locale: 'pt_BR',
+      ...(imageUrl ? { images: [{ url: imageUrl, alt: name }] } : {}),
+    },
+    twitter: {
+      card: imageUrl ? 'summary_large_image' : 'summary',
+      title: name,
+      description,
+      ...(imageUrl ? { images: [imageUrl] } : {}),
+    },
+  };
+}
 
 export default async function LojaPublicaPage({ params }) {
   const { slug } = await params;

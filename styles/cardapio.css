@@ -285,7 +285,7 @@ body {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  width: 260px;
+  width: min(100%, 300px);
   background: var(--white);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -317,6 +317,247 @@ body {
 .delivery-mini-item:hover { background: var(--bg); }
 .delivery-mini-item.selected { color: var(--brand); }
 .delivery-mini-item svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+.delivery-mini-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.delivery-mini-item-label {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.delivery-mini-item-eta {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand);
+  line-height: 1.2;
+}
+
+.delivery-mini-item.selected .delivery-mini-item-eta {
+  color: var(--brand);
+}
+
+/* ─── PROMO CAROUSEL ─── */
+.promo-section-block {
+  margin-bottom: 20px;
+}
+
+.promo-section-block .section-title-sticky {
+  margin-bottom: 12px;
+}
+
+.cardapio-theme-root .section-title-icon.admin-category-icon-tinted {
+  background-color: var(--brand);
+  color: var(--brand);
+}
+
+.promo-carousel-wrap {
+  position: relative;
+}
+
+.promo-carousel-nav {
+  display: none;
+}
+
+.promo-carousel-track {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 2px 12px;
+  margin: 0 -2px;
+}
+
+.promo-carousel-track::-webkit-scrollbar {
+  height: 4px;
+}
+
+.promo-carousel-track::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--brand) 35%, transparent);
+  border-radius: 4px;
+}
+
+.promo-product-card {
+  flex: 0 0 calc((100% - 12px) / 2.2);
+  min-width: 0;
+  max-width: none;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  background: var(--white);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  transition: box-shadow 0.2s, transform 0.18s;
+}
+
+.promo-product-card:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.promo-product-card-img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  min-height: 128px;
+  background: var(--placeholder-bg);
+  background-size: cover;
+  background-position: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.promo-product-card-img.is-placeholder::before {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 108px;
+  background: var(--placeholder-bg);
+}
+
+.promo-product-card-body {
+  padding: 8px 11px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-height: 108px;
+}
+
+.promo-product-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dark);
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.promo-product-card-desc {
+  font-size: 11px;
+  color: var(--text-light);
+  line-height: 1.35;
+  font-weight: 300;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.promo-product-card-price {
+  margin-top: auto;
+  padding-top: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.promo-product-card-price.has-promo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.promo-product-card-price.has-promo .product-price-original {
+  font-size: 11px;
+}
+
+.promo-product-card-price.has-promo .product-price-promo {
+  font-size: 17px;
+}
+
+@media (min-width: 768px) {
+  .promo-carousel-wrap {
+    padding-right: 52px;
+  }
+
+  .promo-carousel-track {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .promo-carousel-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .promo-carousel-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--white);
+    color: var(--brand);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    z-index: 2;
+    padding: 0;
+    font-family: inherit;
+    transition: background 0.2s, border-color 0.2s;
+  }
+
+  .promo-carousel-nav:hover {
+    background: var(--brand-light);
+    border-color: color-mix(in srgb, var(--brand) 35%, var(--border));
+  }
+
+  .promo-carousel-nav svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .promo-product-card {
+    flex: 0 0 calc((100% - 24px) / 3);
+  }
+
+  .promo-product-card-img {
+    min-height: 200px;
+    aspect-ratio: 4 / 3;
+  }
+
+  .promo-product-card-body {
+    min-height: 120px;
+    padding: 10px 14px 14px;
+  }
+
+  .promo-product-card-title {
+    font-size: 15px;
+  }
+
+  .promo-product-card-desc {
+    font-size: 12px;
+  }
+
+  .promo-product-card-price.has-promo .product-price-promo {
+    font-size: 20px;
+  }
+}
 
 /* ─── INFO DROPDOWN ─── */
 .info-dropdown {
@@ -556,6 +797,14 @@ body {
   margin-bottom: 12px;
 }
 
+.sidebar-card .sacola-panel-footer {
+  padding: 0 0 4px;
+}
+
+.sidebar-card .sacola-panel-footer .cupom-row {
+  margin: 12px 16px;
+}
+
 .sacola-empty {
   display: flex;
   flex-direction: column;
@@ -689,6 +938,7 @@ body {
 
 .sacola-totals { padding: 12px 16px; border-top: 1px solid var(--border); }
 .totals-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-mid); margin-bottom: 6px; font-weight: 400; }
+.totals-row.totals-row--meta { font-size: 12px; color: var(--text-light); }
 .totals-row.total { font-size: 15px; font-weight: 600; color: var(--text-dark); margin-bottom: 0; }
 
 /* ─── CUPOM ROW ─── */
@@ -733,18 +983,28 @@ body {
 .mobile-ver-sacola {
   display: none;
   position: fixed;
-  bottom: 56px;
-  left: 0; right: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
   background: var(--brand);
   color: white;
   padding: 13px 20px;
+  padding-bottom: calc(13px + env(safe-area-inset-bottom, 0px));
+  min-height: 56px;
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  z-index: 200;
+  z-index: 201;
   font-family: inherit;
   border: none;
   width: 100%;
+  box-sizing: border-box;
+}
+
+/* Com menu legado visível, a barra fica acima do nav (56px) */
+.cardapio-theme-root:not(.cardapio-legacy-nav-hidden) .mobile-ver-sacola {
+  bottom: 56px;
+  padding-bottom: 13px;
 }
 .mobile-ver-sacola .bag-badge {
   background: white;
@@ -1367,12 +1627,13 @@ body {
   width: min(400px, calc(100% - 32px));
   max-width: 400px;
   min-height: 0;
-  max-height: min(92vh, 520px);
+  max-height: min(96vh, 720px);
+  overflow: visible;
 }
 .checkout-modal.checkout-modal--success .checkout-body {
   flex: 0 1 auto;
   display: block;
-  overflow-y: auto;
+  overflow: visible;
 }
 .checkout-modal.checkout-modal--success .success-state {
   padding: 28px 24px 32px;
@@ -1388,7 +1649,8 @@ body {
 .checkout-modal.checkout-modal--success .btn-voltar {
   margin-top: 4px;
   width: 100%;
-  max-width: 280px;
+  max-width: none;
+  box-sizing: border-box;
 }
 
 .checkout-topbar {
@@ -1609,7 +1871,80 @@ body {
 .success-icon { font-size: 56px; }
 .success-title { font-size: 22px; font-weight: 700; }
 .success-sub { font-size: 14px; color: var(--text-mid); line-height: 1.5; font-weight: 300; }
-.btn-voltar { margin-top: 8px; background: var(--brand); color: white; border: none; border-radius: 10px; padding: 12px 24px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.2s; }
+.success-state {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 8px 4px 4px;
+}
+.checkout-success-pix {
+  text-align: left;
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--brand) 8%, white);
+  border: 1px solid color-mix(in srgb, var(--brand) 22%, var(--border));
+}
+.checkout-success-pix-hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--text-mid);
+  line-height: 1.45;
+  font-weight: 400;
+}
+.btn-copy-pix {
+  margin-top: 10px;
+  width: 100%;
+  background: var(--white);
+  color: var(--brand);
+  border: 2px solid var(--brand);
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s;
+}
+.btn-copy-pix:hover { background: var(--brand-light); }
+.btn-checkout-whatsapp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  background: #25d366;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  font-family: inherit;
+  transition: filter 0.2s;
+}
+.btn-checkout-whatsapp:hover { filter: brightness(0.95); }
+.btn-voltar {
+  margin-top: 0;
+  background: var(--brand);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s;
+  width: 100%;
+}
+.btn-voltar.btn-voltar-ghost {
+  background: none;
+  color: var(--text-mid);
+  border: 1px solid var(--border);
+}
+.btn-voltar.btn-voltar-ghost:hover { background: var(--bg); }
 .btn-voltar:hover { background: var(--brand-hover); }
 
 /* ─── CEP / ADDRESS POPUP ─── */
@@ -1878,6 +2213,116 @@ body {
   max-width: 420px;
 }
 
+/* Menu legado oculto (Promoções / Pedidos / Perfil) — ver lib/cardapioFeatures.js */
+.cardapio-legacy-nav-hidden .top-nav,
+.cardapio-legacy-nav-hidden .mobile-bottom-nav {
+  display: none !important;
+  visibility: hidden;
+  pointer-events: none;
+  height: 0;
+  overflow: hidden;
+}
+
+.cardapio-legacy-nav-hidden .page-wrapper {
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  .cardapio-legacy-nav-hidden .page-wrapper {
+    padding-bottom: 32px;
+  }
+}
+
+/* ─── CART REVIEW (mobile sacola) ─── */
+.cart-review-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 250;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+}
+
+.cart-review-overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.cart-review-sheet {
+  width: 100%;
+  max-height: min(92vh, 720px);
+  background: var(--white);
+  border-radius: 16px 16px 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cart-review-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.cart-review-topbar-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.cart-review-body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.cart-review-body .sacola-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 16px;
+}
+
+.sacola-panel-footer {
+  flex-shrink: 0;
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--white);
+}
+
+.sacola-panel-footer .cupom-row {
+  margin: 12px 0;
+}
+
+.btn-sacola-secondary {
+  width: 100%;
+  background: none;
+  color: var(--brand);
+  border: 2px solid var(--brand);
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  margin-bottom: 10px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.btn-sacola-secondary:hover {
+  background: var(--brand-light);
+}
+
+.cart-review-body .btn-continuar {
+  margin-bottom: 0;
+}
+
 /* ─── RESPONSIVE ─── */
 @media (max-width: 767px) {
   .sidebar-col { display: none; }
@@ -1889,8 +2334,16 @@ body {
   .main-layout { margin-top: -32px; }
   .cover-placeholder {
     width: 100%;
-    height: 220px;
-    border-radius: 0 0 18px 18px;
+    height: 148px;
+    border-radius: 0;
+  }
+
+  .cardapio-theme-root:not(.cardapio-legacy-nav-hidden) .page-wrapper {
+    padding-bottom: 120px;
+  }
+
+  .cardapio-legacy-nav-hidden .page-wrapper {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
   }
 }
 

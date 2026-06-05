@@ -317,20 +317,23 @@ export default function PromocoesCrud() {
       {promocoes.length === 0 ? (
         <p className="admin-help-text admin-delivery-areas-empty">Nenhuma promoção cadastrada.</p>
       ) : (
-        <div className="admin-delivery-areas-list">
+        <div className="admin-sparse-list">
           {promocoes.map((promo) => {
             const product = productById(promo.produtoId);
             return (
-              <div key={promo.id} className="admin-catalog-item-row admin-delivery-area-row admin-promo-list-row">
-                <ProductThumb product={product} size={64} />
-                <div className="admin-catalog-item-main">
-                  <div className="admin-item-title">{productName(promo.produtoId)}</div>
-                  <div className="admin-item-desc">
+              <div key={promo.id} className="admin-sparse-row admin-sparse-row-media">
+                <ProductThumb product={product} size={48} />
+                <div className="admin-sparse-row-main">
+                  <span className="admin-sparse-row-code">{productName(promo.produtoId)}</span>
+                  <span className="admin-sparse-row-sep" aria-hidden="true">
+                    ·
+                  </span>
+                  <span className="admin-sparse-row-detail">
                     De {formatCurrency(promo.valorOriginal)} por{' '}
                     <strong>{formatCurrency(promo.valorPromocional)}</strong>
-                  </div>
+                  </span>
                 </div>
-                <div className="admin-item-actions-col">
+                <div className="admin-sparse-row-actions">
                   <div className="admin-availability-cell">
                     <span>Disponível</span>
                     <AdminAvailabilitySwitch
@@ -344,8 +347,7 @@ export default function PromocoesCrud() {
                   </button>
                   <button
                     type="button"
-                    className="admin-link-btn"
-                    style={{ color: 'var(--admin-danger, #dc2626)' }}
+                    className="admin-link-btn admin-link-btn-danger"
                     onClick={() => handleDelete(promo.id)}
                   >
                     Remover

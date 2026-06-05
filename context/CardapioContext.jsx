@@ -37,7 +37,9 @@ import { formatMoneyBrInput, hasMoneyBrValue, parseMoneyBrInput } from '@/lib/mo
 import { getEmpresaBySlug, mergeEmpresaIntoLoja } from '@/lib/supabase/empresa';
 import { trackMetaEvent } from '@/lib/meta/pixel';
 import { MAX_PECA_TAMBEM } from '@/lib/productSuggestions';
+import { PROMO_CATEGORY_NAME } from '@/lib/promocoes';
 import {
+  formatDurationMinutes,
   getEtaFromConfirmedAt,
   getEstimateMinutesForOrderTipo,
 } from '@/lib/deliveryDuration';
@@ -217,6 +219,7 @@ export function CardapioProvider({ children, slug = '' }) {
   const [effectiveSlug, setEffectiveSlug] = useState(() => normalizeSlug(slug));
   const [storeConfig, setStoreConfig] = useState(DEFAULT_ADMIN_DATA.loja);
   const [dynamicProducts, setDynamicProducts] = useState([]);
+  const [promoCarouselProducts, setPromoCarouselProducts] = useState([]);
   const [dynamicCategories, setDynamicCategories] = useState(['Todos']);
   const [storeReady, setStoreReady] = useState(false);
   const [splashVisible, setSplashVisible] = useState(true);
@@ -244,6 +247,7 @@ export function CardapioProvider({ children, slug = '' }) {
   const [addonExtras, setAddonExtras] = useState(0);
   const [popupHeaderCompact, setPopupHeaderCompact] = useState(false);
 
+  const [cartReviewOpen, setCartReviewOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState(1);
   const [checkoutData, setCheckoutData] = useState({
@@ -255,6 +259,7 @@ export function CardapioProvider({ children, slug = '' }) {
     trocoValue: '',
   });
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
+  const [checkoutSuccessSnapshot, setCheckoutSuccessSnapshot] = useState(null);
   const [checkoutOrderNumber, setCheckoutOrderNumber] = useState('');
   const [checkoutName, setCheckoutName] = useState('');
   const [checkoutPhone, setCheckoutPhone] = useState('');
@@ -387,7 +392,7 @@ export function CardapioProvider({ children, slug = '' }) {
   ]);
 
   const modalOpen =
-    productOpen || checkoutOpen || cepOpen || addressOpen || cupomOpen;
+    productOpen || cartReviewOpen || checkoutOpen || cepOpen || addressOpen || cupomOpen;
 
   useEffect(() => {
     if (slug) {
@@ -449,6 +454,7 @@ export function CardapioProvider({ children, slug = '' }) {
 
         const catalog = buildCardapioCatalog(parsed);
         setDynamicProducts(catalog.products);
+        setPromoCarouselProducts(catalog.promoCarouselProducts || []);
         setDynamicCategories(catalog.categories);
         setCategoryIconsByName(catalog.categoryIconsByName);
         setAvailableCupons(catalog.cupons);
@@ -488,7 +494,7 @@ export function CardapioProvider({ children, slug = '' }) {
     tick();
     const interval = window.setInterval(tick, 60_000);
     return () => window.clearInterval(interval);
-  }, [storeReady, storeConfig.horarios]);
+  }, [storeReady, storeConfig.horarios, storeConfig.fechadaManual]);
 
   useEffect(() => {
     if (!storeReady) return undefined;
@@ -653,22 +659,37 @@ export function CardapioProvider({ children, slug = '' }) {
     showMainPage();
   }, [profileName, profilePhone, profileImage, profileAddress, showMainPage, persistClientSnapshot, showAlert]);
 
+  const productMatchesSearch = useCallback(
+    (p) =>
+      searchQuery === '' ||
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.desc.toLowerCase().includes(searchQuery.toLowerCase()),
+    [searchQuery]
+  );
+
+  const promoProducts = useMemo(() => {
+    return promoCarouselProducts.filter((p) => productMatchesSearch(p));
+  }, [promoCarouselProducts, productMatchesSearch]);
+
   const filteredProducts = useMemo(() => {
     const cats =
-      selectedCategory === 'Todos' ? [...new Set(dynamicProducts.map((p) => p.category))] : [selectedCategory];
+      selectedCategory === 'Todos'
+        ? [...new Set(dynamicProducts.map((p) => p.category))].filter(
+            (cat) => cat !== PROMO_CATEGORY_NAME
+          )
+        : [selectedCategory];
     const sections = [];
     cats.forEach((cat) => {
+      if (cat === PROMO_CATEGORY_NAME) return;
       const items = dynamicProducts.filter(
-        (p) =>
-          p.category === cat &&
-          (searchQuery === '' ||
-            p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            p.desc.toLowerCase().includes(searchQuery.toLowerCase()))
+        (p) => p.category === cat && productMatchesSearch(p)
       );
-      if (items.length > 0) sections.push({ category: cat, items, categoryIcon: categoryIconsByName[cat] || 'burger' });
+      if (items.length > 0) {
+        sections.push({ category: cat, items, categoryIcon: categoryIconsByName[cat] || 'burger' });
+      }
     });
     return sections;
-  }, [searchQuery, selectedCategory, dynamicProducts, categoryIconsByName]);
+  }, [searchQuery, selectedCategory, dynamicProducts, categoryIconsByName, productMatchesSearch]);
 
   const relatedItems = useMemo(() => {
     const cartIds = new Set(cart.map((item) => item.productId));
@@ -701,8 +722,13 @@ export function CardapioProvider({ children, slug = '' }) {
       const idx = priority.findIndex((name) => normalized.includes(name));
       return idx === -1 ? 99 : idx;
     };
+    const seenPoolIds = new Set();
     const pool = dynamicProducts
-      .filter((p) => !cartIds.has(p.id))
+      .filter((p) => {
+        if (cartIds.has(p.id) || seenPoolIds.has(p.id)) return false;
+        seenPoolIds.add(p.id);
+        return true;
+      })
       .sort((a, b) => priorityIndex(a.category) - priorityIndex(b.category));
     return pool.slice(0, MAX_PECA_TAMBEM).map((p) => ({
       id: p.id,
@@ -1059,11 +1085,21 @@ export function CardapioProvider({ children, slug = '' }) {
     (id) => {
       const item = cart.find((i) => i.id === id);
       if (!item) return;
+      setCartReviewOpen(false);
       setCart((prev) => prev.filter((i) => i.id !== id));
       openProduct(item.productId);
     },
     [cart, openProduct]
   );
+
+  const openCartReview = useCallback(() => {
+    if (cart.length === 0) return;
+    setCartReviewOpen(true);
+  }, [cart.length]);
+
+  const closeCartReview = useCallback(() => {
+    setCartReviewOpen(false);
+  }, []);
 
   const getDeliveryEstimateMinutes = useCallback(
     (tipo) =>
@@ -1107,9 +1143,15 @@ export function CardapioProvider({ children, slug = '' }) {
     });
   }, [cart.length, cartSubtotal, cartTotal, profileDisplayName, profileDisplayPhone, storeConfig.aberta, storeConfig.pedidoMinimo, formatPrice]);
 
+  const finalizeFromCartReview = useCallback(() => {
+    setCartReviewOpen(false);
+    openCheckout();
+  }, [openCheckout]);
+
   const closeCheckout = useCallback(() => {
     setCheckoutOpen(false);
     setCheckoutSuccess(false);
+    setCheckoutSuccessSnapshot(null);
     setCheckoutOrderNumber('');
     setCheckoutAddressConfirmed(false);
   }, []);
@@ -1375,6 +1417,32 @@ export function CardapioProvider({ children, slug = '' }) {
           num_items: cart.reduce((sum, item) => sum + item.qty, 0),
           order_id: orderNumber,
         });
+        const subtotal = cartSubtotal();
+        const taxaEntrega = checkoutData.delivery === 'entregar' ? Number(deliveryFee) || 0 : 0;
+        const cupomOff = calculateCupomDiscount(appliedCupom, subtotal);
+        const total = Math.max(0, subtotal + taxaEntrega - cupomOff);
+        const addressText =
+          checkoutData.delivery === 'entregar' && savedAddress && checkoutAddressConfirmed
+            ? `${savedAddress.rua}${savedAddress.num ? `, ${savedAddress.num}` : ''} — ${savedAddress.bairro}`
+            : '';
+        setCheckoutSuccessSnapshot({
+          orderNumber,
+          customerName: checkoutData.name,
+          customerPhone: checkoutData.phone,
+          payment: checkoutData.payment,
+          delivery: checkoutData.delivery,
+          addressText,
+          items: cart.map((item) => ({
+            name: item.name,
+            qty: item.qty,
+            opts: item.opts || [],
+            lineTotal: formatPrice(item.price * item.qty),
+          })),
+          subtotal,
+          taxaEntrega,
+          cupomOff,
+          total,
+        });
         setCheckoutOrderNumber(orderNumber);
         setCart([]);
         setAppliedCupom(null);
@@ -1399,6 +1467,12 @@ export function CardapioProvider({ children, slug = '' }) {
     persistCompletedOrder,
     persistClientSnapshot,
     showAlert,
+    cartSubtotal,
+    deliveryFee,
+    savedAddress,
+    checkoutAddressConfirmed,
+    appliedCupom,
+    formatPrice,
   ]);
 
   const checkoutBack = useCallback(() => {
@@ -1407,16 +1481,14 @@ export function CardapioProvider({ children, slug = '' }) {
     }
   }, [checkoutStep, checkoutSuccess]);
 
-  const finalizeOrder = useCallback(() => {
+  const dismissCheckoutSuccess = useCallback(() => {
     setCheckoutSuccess(false);
+    setCheckoutSuccessSnapshot(null);
+    setCheckoutOrderNumber('');
     setCheckoutStep(1);
-    setCart([]);
-    setAppliedCupom(null);
     closeCheckout();
-    setNavActive('navPedidos');
-    setMobileNavActive('mNavPedidos');
-    showOrdersPage();
-  }, [closeCheckout, showOrdersPage]);
+    showMainPage();
+  }, [closeCheckout, showMainPage]);
 
   const clearPublicOrderHistory = useCallback(() => {
     const slugToUse = normalizeSlug(
@@ -1441,6 +1513,16 @@ export function CardapioProvider({ children, slug = '' }) {
     setMobileNavActive('mNavPromo');
   }, [dynamicCategories]);
 
+  const pickupDurationLabel = useMemo(
+    () => formatDurationMinutes(getEstimateMinutesForOrderTipo(storeConfig, 'retirada')),
+    [storeConfig]
+  );
+
+  const deliveryDurationLabel = useMemo(
+    () => formatDurationMinutes(getEstimateMinutesForOrderTipo(storeConfig, 'delivery')),
+    [storeConfig]
+  );
+
   const locStrong =
     currentDeliveryMode === 'retirar'
       ? 'Retirar no estabelecimento'
@@ -1448,10 +1530,8 @@ export function CardapioProvider({ children, slug = '' }) {
 
   const locSub =
     currentDeliveryMode === 'retirar'
-      ? formatStoreAddress(storeConfig)
-      : savedAddress
-        ? `${savedAddress.rua}${savedAddress.num ? `, ${savedAddress.num}` : ''} – ${savedAddress.bairro}`
-        : formatStoreAddress(storeConfig);
+      ? `Pronto em ~${pickupDurationLabel}`
+      : `Entrega em ~${deliveryDurationLabel}`;
 
   const adicionarTotal = currentProduct
     ? (currentProduct.price + addonExtras) * currentQty
@@ -1465,6 +1545,7 @@ export function CardapioProvider({ children, slug = '' }) {
       CATEGORIES: dynamicCategories,
       relatedItems,
       filteredProducts,
+      promoProducts,
       searchQuery,
       setSearchQuery,
       selectedCategory,
@@ -1479,6 +1560,8 @@ export function CardapioProvider({ children, slug = '' }) {
       isStoreOpen: Boolean(storeConfig.aberta),
       formatStoreAddress,
       STORE_ADDRESS,
+      pickupDurationLabel,
+      deliveryDurationLabel,
     }),
     [
       storeConfig,
@@ -1487,6 +1570,7 @@ export function CardapioProvider({ children, slug = '' }) {
       dynamicCategories,
       relatedItems,
       filteredProducts,
+      promoProducts,
       searchQuery,
       selectedCategory,
       categoryMenuOpen,
@@ -1496,6 +1580,8 @@ export function CardapioProvider({ children, slug = '' }) {
       openProduct,
       formatPrice,
       handlePromoNav,
+      pickupDurationLabel,
+      deliveryDurationLabel,
     ]
   );
 
@@ -1522,9 +1608,17 @@ export function CardapioProvider({ children, slug = '' }) {
       cartSubtotal,
       cartTotal,
       cartCount,
+      cartReviewOpen,
+      openCartReview,
+      closeCartReview,
+      finalizeFromCartReview,
     }),
     [
       cart,
+      cartReviewOpen,
+      openCartReview,
+      closeCartReview,
+      finalizeFromCartReview,
       productOpen,
       currentProduct,
       currentQty,
@@ -1552,6 +1646,7 @@ export function CardapioProvider({ children, slug = '' }) {
       checkoutStep,
       checkoutData,
       checkoutSuccess,
+      checkoutSuccessSnapshot,
       checkoutOrderNumber,
       checkoutName,
       setCheckoutName,
@@ -1589,7 +1684,7 @@ export function CardapioProvider({ children, slug = '' }) {
       setCheckoutTrocoValue,
       checkoutNext,
       checkoutBack,
-      finalizeOrder,
+      dismissCheckoutSuccess,
       toggleDeliveryCard,
       selectDeliveryMode,
       openCepPopup,
@@ -1611,6 +1706,7 @@ export function CardapioProvider({ children, slug = '' }) {
       checkoutStep,
       checkoutData,
       checkoutSuccess,
+      checkoutSuccessSnapshot,
       checkoutOrderNumber,
       checkoutName,
       checkoutPhone,
@@ -1640,7 +1736,7 @@ export function CardapioProvider({ children, slug = '' }) {
       setCheckoutTrocoValue,
       checkoutNext,
       checkoutBack,
-      finalizeOrder,
+      dismissCheckoutSuccess,
       toggleDeliveryCard,
       selectDeliveryMode,
       openCepPopup,

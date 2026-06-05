@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { requestAdminNotificationPermission } from '@/lib/adminNewOrderAlert';
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog';
 import NewOrderModal from '@/components/admin/orders/NewOrderModal';
 import OrderDetailModal from '@/components/admin/orders/OrderDetailModal';
@@ -13,10 +14,13 @@ import {
 } from '@/components/admin/orders/orderDraftUtils';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOrders } from '@/hooks/useAdminOrders';
+import { useOrderPrint } from '@/context/OrderPrintContext';
 import { paymentLabelForOrder } from '@/lib/orders/mapAdminOrder';
 import { ensureCustomer, normalizePhone, updateCustomerStats, upsertClienteEndereco } from '@/lib/supabase/customers';
 import { resolveEmpresaIdFromStore } from '@/lib/supabase/empresa';
 import { getEtaFromConfirmedAt } from '@/lib/deliveryDuration';
+import { buildOrderStatusNotifyUrl, buildOrderSummaryWhatsAppUrl } from '@/lib/orderWhatsApp';
+import { formatOrderAgePt } from '@/lib/orderTimeAgo';
 
 const COLS = [
   {
@@ -98,6 +102,11 @@ export default function PedidosPage() {
     restoreArchived,
     createOrder,
   } = useAdminOrders();
+  const { printOrder } = useOrderPrint();
+
+  useEffect(() => {
+    void requestAdminNotificationPermission();
+  }, []);
   const storeSlug = data.loja?.slug || '';
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('todos');
@@ -234,6 +243,7 @@ export default function PedidosPage() {
       total: totals.total,
       pagamento: { metodo: draft.formaPagamento, recebido: totals.total, troco: 0 },
       origem: 'admin_manual',
+      itens: [],
     };
     const items = draft.cart.map((i) => ({
       nome: i.nome,
@@ -243,6 +253,7 @@ export default function PedidosPage() {
       obs: i.obs || '',
       produtoId: i.produtoId || null,
     }));
+    newOrder.itens = items;
 
     try {
       const empresaId = await resolveEmpresaIdFromStore(storeSlug);
@@ -327,7 +338,7 @@ export default function PedidosPage() {
     setCreateOpen(false);
     setModalInitialDraft(null);
     pushToast(`Pedido #${newOrder.id} criado com sucesso.`);
-    if (printNow) window.print();
+    if (printNow) printOrder(newOrder);
   }
 
   const detailOrder = allOrders.find((o) => o.id === detailOrderId);
@@ -405,53 +416,68 @@ export default function PedidosPage() {
                       style={flash ? { boxShadow: '0 0 0 2px #4e48dd inset' } : undefined}
                       onClick={() => setDetailOrderId(order.id)}
                     >
-                      <h4>{order.clienteNome}</h4>
+                      <h4 className="admin-order-card-title">
+                        <span>{order.clienteNome}</span>
+                        {order.clienteTelefone ? (
+                          <span className="admin-order-card-phone">{fmtPhone(order.clienteTelefone)}</span>
+                        ) : null}
+                      </h4>
                       <div className="admin-order-meta">
                         #{order.id} · {TIPO_LABEL[order.tipo]}
-                      </div>
-                      <div className="admin-order-meta">
-                        {order.tipo === 'delivery'
-                          ? order.enderecoTexto || 'Entrega'
-                          : order.tipo === 'retirada'
-                            ? 'Retirada no balcão'
-                            : 'Balcão'}
+                        {order.createdAt ? (
+                          <span className="admin-order-age"> · {formatOrderAgePt(order.createdAt)}</span>
+                        ) : null}
                       </div>
                       <div className="admin-order-meta">{deadlineLabel(order)}</div>
-                      <div className="admin-order-card-actions">
-                        <div className="admin-order-price">{currency(order.total)}</div>
-                        {order.status !== 'novo' ? (
-                          <button
-                            type="button"
-                            className="admin-btn admin-btn-ghost"
-                            style={{ padding: '4px 8px', fontSize: 12 }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              rollbackStatus(order);
-                            }}
-                            title="Voltar status"
-                          >
-                            ←
-                          </button>
-                        ) : null}
-                        {order.status !== 'concluido' ? (
-                          <button
-                            type="button"
-                            className="admin-btn admin-btn-ghost"
-                            style={{ padding: '6px 8px', fontSize: 12 }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              moveStatus(order);
-                            }}
-                          >
-                            {order.status === 'novo'
-                              ? 'Avançar para preparo'
-                              : order.status === 'em_preparo'
-                                ? order.tipo === 'delivery'
-                                  ? 'Saiu para entrega'
-                                  : 'Finalizar'
-                                : 'Marcar como entregue'}
-                          </button>
-                        ) : null}
+                      <div className="admin-order-card-footer">
+                        <div className="admin-order-card-footer-left">
+                          <div className="admin-order-price">{currency(order.total)}</div>
+                          {order.status !== 'novo' ? (
+                            <button
+                              type="button"
+                              className="admin-btn admin-btn-ghost admin-order-card-rollback"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                rollbackStatus(order);
+                              }}
+                              title="Voltar status"
+                            >
+                              ←
+                            </button>
+                          ) : null}
+                        </div>
+                        <div className="admin-order-card-footer-right">
+                          {buildOrderStatusNotifyUrl(order) ? (
+                            <a
+                              className="admin-btn admin-btn-whatsapp-sm"
+                              href={buildOrderStatusNotifyUrl(order)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              title="Notificar cliente no WhatsApp"
+                            >
+                              WhatsApp
+                            </a>
+                          ) : null}
+                          {order.status !== 'concluido' ? (
+                            <button
+                              type="button"
+                              className="admin-btn admin-btn-ghost admin-order-card-advance"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                moveStatus(order);
+                              }}
+                            >
+                              {order.status === 'novo'
+                                ? 'Avançar para preparo'
+                                : order.status === 'em_preparo'
+                                  ? order.tipo === 'delivery'
+                                    ? 'Saiu para entrega'
+                                    : 'Finalizar'
+                                  : 'Marcar como entregue'}
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                   );
@@ -477,6 +503,14 @@ export default function PedidosPage() {
       <OrderDetailModal
         order={detailOrder}
         paymentLabel={paymentLabel}
+        whatsAppNotifyUrl={
+          detailOrder && !detailOrder.arquivado ? buildOrderStatusNotifyUrl(detailOrder) : null
+        }
+        whatsAppSummaryUrl={
+          detailOrder && !detailOrder.arquivado ? buildOrderSummaryWhatsAppUrl(detailOrder) : null
+        }
+        readOnly={Boolean(detailOrder?.arquivado)}
+        overlayClassName={archiveOpen ? 'admin-confirm-overlay-top' : ''}
         onClose={() => setDetailOrderId('')}
         canAdvance={detailOrder && detailOrder.status !== 'concluido' && detailOrder.status !== 'cancelado'}
         advanceLabel={
@@ -521,7 +555,7 @@ export default function PedidosPage() {
           });
           setDetailOrderId('');
         }}
-        onPrint={() => window.print()}
+        onPrint={() => detailOrder && printOrder(detailOrder)}
         onCancel={() => {
           if (!detailOrder) return;
           setCancelConfirmOpen(true);

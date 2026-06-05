@@ -24,6 +24,14 @@ import {
   mergeEmpresaIntoLoja,
   updateEmpresaBySlug,
 } from '@/lib/supabase/empresa';
+import {
+  getOrderTicketWidthMm,
+  ORDER_TICKET_WIDTH_OPTIONS,
+  setOrderTicketWidthMm,
+} from '@/lib/orderTicketPrefs';
+import OrderTicketPreviewModal from '@/components/admin/orders/OrderTicketPreviewModal';
+import { ORDER_TICKET_SAMPLE_ORDER } from '@/lib/orderTicketSample';
+import { useOrderPrint } from '@/context/OrderPrintContext';
 
 const DESCRICAO_MAX = 120;
 
@@ -107,12 +115,20 @@ export default function MinhaLojaPage() {
   const { slug } = useEmpresa();
   const { lookup: lookupCep, loading: cepLoading, clearError: clearCepError } = useCepLookup();
   const logoInputRef = useRef(null);
+  const comandaLogoInputRef = useRef(null);
   const coverInputRef = useRef(null);
+  const { printOrder } = useOrderPrint();
   const [draft, setDraft] = useState(null);
   const [pedidoMinimo, setPedidoMinimo] = useState('');
   const [msg, setMsg] = useState('');
   const [saving, setSaving] = useState(false);
   const [coverAdjustSrc, setCoverAdjustSrc] = useState('');
+  const [ticketWidthMm, setTicketWidthMm] = useState(80);
+  const [ticketPreviewOpen, setTicketPreviewOpen] = useState(false);
+
+  useEffect(() => {
+    setTicketWidthMm(getOrderTicketWidthMm());
+  }, []);
 
   const descricaoLength = String(draft?.descricao || '').length;
 
@@ -128,6 +144,7 @@ export default function MinhaLojaPage() {
             pedidoMinimo: data.loja.pedidoMinimo,
             descricao: data.loja.descricao,
             logoUrl: data.loja.logoUrl,
+            logoComandaUrl: data.loja.logoComandaUrl,
             capaUrl: data.loja.capaUrl,
             corMarca: data.loja.corMarca,
             paletteColors: data.loja.paletteColors,
@@ -202,6 +219,29 @@ export default function MinhaLojaPage() {
     } catch {
       setMsg('Não foi possível extrair cores da logo.');
     }
+  }
+
+  function onComandaLogoSelect(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setMsg('');
+    const name = file.name.toLowerCase();
+    const isPng = file.type === 'image/png' || name.endsWith('.png');
+    const isSvg = file.type === 'image/svg+xml' || name.endsWith('.svg');
+    if (!isPng && !isSvg) {
+      setMsg('Logo da comanda: envie PNG ou SVG em preto com fundo transparente.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 1024 * 1024) {
+      setMsg('Logo da comanda: máximo 1 MB.');
+      e.target.value = '';
+      return;
+    }
+    readFileAsDataUrl(file)
+      .then((dataUrl) => setLojaField('logoComandaUrl', dataUrl))
+      .catch(() => setMsg('Não foi possível processar esse arquivo.'));
+    e.target.value = '';
   }
 
   function onImageSelect(field, maxMb) {
@@ -637,6 +677,102 @@ export default function MinhaLojaPage() {
           </div>
         </div>
       </div>
+
+      <div className="admin-card admin-store-section-card admin-ticket-print-card">
+        <StoreSectionHead
+          icon="printer"
+          title="Impressão de comanda"
+          hint="Logo em preto (PNG ou SVG) só para impressora térmica — separada da logo colorida do cardápio."
+        />
+        <div className="admin-store-section-body admin-ticket-print-settings">
+          <div className="admin-ticket-print-field">
+            <span className="admin-label">Largura da bobina</span>
+            <div className="admin-ticket-width-options">
+              {ORDER_TICKET_WIDTH_OPTIONS.map((opt) => (
+                <label key={opt.value} className="admin-ticket-width-option">
+                  <input
+                    type="radio"
+                    name="ticketWidthMm"
+                    value={opt.value}
+                    checked={ticketWidthMm === opt.value}
+                    onChange={() => {
+                      setTicketWidthMm(opt.value);
+                      setOrderTicketWidthMm(opt.value);
+                    }}
+                  />
+                  <span>{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="admin-ticket-print-field">
+            <span className="admin-label">Logo da comanda</span>
+            <div className="admin-ticket-logo-upload">
+              <div className="admin-ticket-logo-thumb" aria-hidden="true">
+                {draft.logoComandaUrl ? (
+                  <img src={draft.logoComandaUrl} alt="" />
+                ) : (
+                  <span className="admin-ticket-logo-thumb-empty">—</span>
+                )}
+              </div>
+              <div className="admin-ticket-logo-upload-meta">
+                <div className="admin-ticket-logo-upload-actions">
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-ghost admin-btn-sm"
+                    onClick={() => comandaLogoInputRef.current?.click()}
+                  >
+                    Enviar PNG/SVG
+                  </button>
+                  {draft.logoComandaUrl ? (
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-ghost admin-btn-sm"
+                      onClick={() => setLojaField('logoComandaUrl', '')}
+                    >
+                      Remover
+                    </button>
+                  ) : null}
+                </div>
+                <p className="admin-help-text admin-ticket-logo-help">
+                  Preto, fundo transparente. Máx. 1 MB.
+                </p>
+                <input
+                  ref={comandaLogoInputRef}
+                  type="file"
+                  accept=".png,.svg,image/png,image/svg+xml"
+                  hidden
+                  onChange={onComandaLogoSelect}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="admin-ticket-print-field admin-ticket-print-preview-row">
+            <button
+              type="button"
+              className="admin-btn admin-btn-primary admin-btn-sm"
+              onClick={() => setTicketPreviewOpen(true)}
+            >
+              Visualizar comanda teste
+            </button>
+            <span className="admin-help-text">
+              Abre um modelo com pedido fictício para testar impressão sem criar pedido real.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <OrderTicketPreviewModal
+        open={ticketPreviewOpen}
+        store={draft}
+        widthMm={ticketWidthMm}
+        onClose={() => setTicketPreviewOpen(false)}
+        onPrintTest={() => {
+          printOrder(ORDER_TICKET_SAMPLE_ORDER, draft);
+        }}
+      />
 
       <div className="admin-card admin-store-section-card admin-store-hours-card">
         <StoreSectionHead

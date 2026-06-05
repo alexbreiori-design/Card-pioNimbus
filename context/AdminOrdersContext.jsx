@@ -21,6 +21,7 @@ import {
   updateAdminOrderStatus,
 } from '@/lib/orders/adminOrdersClient';
 import { maxOrdersUpdatedAt } from '@/lib/orders/mapAdminOrder';
+import { notifyNewOrder, playNewOrderSound } from '@/lib/adminNewOrderAlert';
 
 const POLL_MS = 10000;
 
@@ -34,6 +35,14 @@ export function AdminOrdersProvider({ children }) {
   const [refreshing, setRefreshing] = useState(false);
   const watermarkRef = useRef(null);
   const empresaIdRef = useRef(empresaId);
+  const knownNovosRef = useRef(new Set());
+  const alertsSeededRef = useRef(false);
+  const alertsActiveRef = useRef(false);
+  const [alertsActive, setAlertsActive] = useState(false);
+
+  useEffect(() => {
+    alertsActiveRef.current = alertsActive;
+  }, [alertsActive]);
 
   useEffect(() => {
     empresaIdRef.current = empresaId;
@@ -63,6 +72,20 @@ export function AdminOrdersProvider({ children }) {
           next.map((order) => ({ updated_at: order.updatedAt }))
         );
         setOrders(next);
+
+        const novos = next.filter((order) => order.status === 'novo' && !order.arquivado);
+        if (!alertsSeededRef.current) {
+          novos.forEach((order) => knownNovosRef.current.add(order.id));
+          alertsSeededRef.current = true;
+        } else if (alertsActiveRef.current) {
+          for (const order of novos) {
+            if (knownNovosRef.current.has(order.id)) continue;
+            knownNovosRef.current.add(order.id);
+            playNewOrderSound();
+            notifyNewOrder(order);
+          }
+        }
+
         return next;
       } finally {
         setLoading(false);
@@ -81,6 +104,8 @@ export function AdminOrdersProvider({ children }) {
     }
 
     watermarkRef.current = null;
+    knownNovosRef.current = new Set();
+    alertsSeededRef.current = false;
     setLoading(true);
     void refreshOrders({ force: true });
 
@@ -155,6 +180,8 @@ export function AdminOrdersProvider({ children }) {
       archiveConcluded,
       restoreArchived,
       createOrder,
+      alertsActive,
+      setAlertsActive,
     }),
     [
       orders,
@@ -166,6 +193,7 @@ export function AdminOrdersProvider({ children }) {
       archiveConcluded,
       restoreArchived,
       createOrder,
+      alertsActive,
     ]
   );
 

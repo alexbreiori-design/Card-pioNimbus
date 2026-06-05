@@ -1,20 +1,24 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import AdminSidebar from './AdminSidebar';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOrders } from '@/hooks/useAdminOrders';
-import { isStoreOpenBySchedule } from '@/lib/storeHours';
+import { persistStoreManualClose } from '@/lib/storeManualClose';
+import { resolveStoreOpenStatus } from '@/lib/storeHours';
 
 export default function AdminShell({ children }) {
   const [collapsed, setCollapsed] = useState(false);
   const [now, setNow] = useState(() => new Date());
-  const { data, saving, saveError, clearSaveError, switchingStore } = useAdminData();
-  const { orders } = useAdminOrders();
+  const [storeToggleBusy, setStoreToggleBusy] = useState(false);
+  const [storeToggleError, setStoreToggleError] = useState('');
+  const { data, saving, saveError, clearSaveError, switchingStore, saveData, activeSlug } =
+    useAdminData();
+  const { orders, setAlertsActive } = useAdminOrders();
   const store = useMemo(() => data.loja, [data]);
-  const isOpen = useMemo(
-    () => isStoreOpenBySchedule(store.horarios, now),
-    [store.horarios, now]
+  const openStatus = useMemo(
+    () => resolveStoreOpenStatus(store, now),
+    [store, now]
   );
   const newOrdersCount = useMemo(
     () => orders.filter((order) => order.status === 'novo' && !order.arquivado).length,
@@ -26,15 +30,58 @@ export default function AdminShell({ children }) {
     return () => window.clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    setAlertsActive(true);
+    return () => setAlertsActive(false);
+  }, [setAlertsActive]);
+
+  const handleCloseNow = useCallback(async () => {
+    setStoreToggleError('');
+    setStoreToggleBusy(true);
+    try {
+      await persistStoreManualClose({
+        saveData,
+        slug: activeSlug || store.slug,
+        fechadaManual: true,
+        loja: store,
+      });
+    } catch (error) {
+      setStoreToggleError(error?.message || 'Não foi possível fechar a loja.');
+    } finally {
+      setStoreToggleBusy(false);
+    }
+  }, [activeSlug, saveData, store]);
+
+  const handleReopen = useCallback(async () => {
+    setStoreToggleError('');
+    setStoreToggleBusy(true);
+    try {
+      await persistStoreManualClose({
+        saveData,
+        slug: activeSlug || store.slug,
+        fechadaManual: false,
+        loja: store,
+      });
+    } catch (error) {
+      setStoreToggleError(error?.message || 'Não foi possível reabrir a loja.');
+    } finally {
+      setStoreToggleBusy(false);
+    }
+  }, [activeSlug, saveData, store]);
+
   return (
     <div className="admin-shell">
       <AdminSidebar
         storeName={store.nome}
         storeSlug={store.slug}
         logoUrl={store.logoUrl}
-        isOpen={isOpen}
+        openStatus={openStatus}
         collapsed={collapsed}
         newOrdersCount={newOrdersCount}
+        storeToggleBusy={storeToggleBusy || saving}
+        storeToggleError={storeToggleError}
+        onCloseNow={handleCloseNow}
+        onReopen={handleReopen}
         onToggleCollapse={() => setCollapsed((v) => !v)}
       />
       <div className={`admin-main ${collapsed ? 'sidebar-collapsed' : ''}`}>

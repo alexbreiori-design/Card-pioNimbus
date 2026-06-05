@@ -9,6 +9,7 @@ import AdminIcon from '@/components/admin/AdminIcon';
 import OrderDetailModal from '@/components/admin/orders/OrderDetailModal';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOrders } from '@/hooks/useAdminOrders';
+import { useOrderPrint } from '@/context/OrderPrintContext';
 import {
   createCustomer,
   deleteCliente,
@@ -133,6 +134,7 @@ export default function ClientesPage() {
   const { empresaId, loading: empresaLoading, error: empresaError } = useEmpresa();
   const { data: adminData } = useAdminData();
   const { orders: adminOrders } = useAdminOrders();
+  const { printOrder } = useOrderPrint();
   const { lookup: lookupCep, loading: cepLoading, error: cepError, clearError: clearCepError } = useCepLookup();
 
   const [customers, setCustomers] = useState([]);
@@ -409,7 +411,7 @@ export default function ClientesPage() {
   }
 
   return (
-    <div className="admin-content admin-content-pedidos admin-catalog-page admin-section-page admin-clientes-page">
+    <div className="admin-content admin-content-pedidos admin-catalog-page admin-section-page admin-clientes-page admin-compact-card-page">
       {msg ? <div className="admin-store-message">{msg}</div> : null}
       {cepError ? <div className="admin-store-message">{cepError}</div> : null}
 
@@ -435,55 +437,56 @@ export default function ClientesPage() {
         </div>
       </div>
 
-      <div className="admin-card">
+      <div className="admin-card admin-compact-page-card admin-clientes-list-card">
         {loading ? (
           <div className="admin-order-meta">Carregando clientes...</div>
         ) : filteredCustomers.length === 0 ? (
           <div className="admin-order-meta">Nenhum cliente encontrado.</div>
         ) : (
-          <div style={{ display: 'grid', gap: 8 }}>
+          <div className="admin-sparse-list">
             {filteredCustomers.map((c) => (
-              <div key={c.id} className="admin-order-card" style={{ margin: 0 }}>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1.2fr 1fr 120px 140px 170px auto',
-                    gap: 8,
-                    alignItems: 'center',
-                  }}
-                >
-                  <span className="admin-client-name">{c.name}</span>
-                  <span className="admin-order-meta">{fmtPhone(c.phone)}</span>
-                  <span>{c.total_orders || 0} pedidos</span>
-                  <span>{money(c.total_spent)}</span>
-                  <span className="admin-order-meta">
-                    {c.last_order_at ? new Date(c.last_order_at).toLocaleDateString('pt-BR') : '-'}
-                  </span>
-                  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                    <button
-                      type="button"
-                      className="admin-btn admin-btn-ghost"
-                      onClick={() => {
-                        setDetail({ ...c });
-                        setTab('dados');
-                      }}
-                    >
-                      Ver detalhes
-                    </button>
-                    <button
-                      type="button"
-                      className="admin-btn admin-btn-ghost"
-                      onClick={() => {
-                        setDetail({ ...c });
-                        setTab('dados');
-                      }}
-                    >
-                      Editar
-                    </button>
-                    <button type="button" className="admin-btn admin-btn-danger" onClick={() => handleDeleteCustomer(c.id)}>
-                      Excluir
-                    </button>
+              <div key={c.id} className="admin-sparse-row admin-sparse-row-client">
+                <div className="admin-sparse-row-main admin-sparse-row-main-stack">
+                  <div className="admin-sparse-row-line">
+                    <span className="admin-sparse-row-code">{c.name}</span>
+                    <span className="admin-sparse-row-sep" aria-hidden="true">
+                      ·
+                    </span>
+                    <span className="admin-sparse-row-detail">{fmtPhone(c.phone)}</span>
                   </div>
+                  <div className="admin-sparse-row-sub">
+                    {c.total_orders || 0} pedidos · {money(c.total_spent)} · Último:{' '}
+                    {c.last_order_at ? new Date(c.last_order_at).toLocaleDateString('pt-BR') : '—'}
+                  </div>
+                </div>
+                <div className="admin-sparse-row-actions">
+                  <button
+                    type="button"
+                    className="admin-link-btn"
+                    onClick={() => {
+                      setDetail({ ...c });
+                      setTab('dados');
+                    }}
+                  >
+                    Ver detalhes
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-link-btn"
+                    onClick={() => {
+                      setDetail({ ...c });
+                      setTab('dados');
+                    }}
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-link-btn admin-link-btn-danger"
+                    onClick={() => handleDeleteCustomer(c.id)}
+                  >
+                    Excluir
+                  </button>
                 </div>
               </div>
             ))}
@@ -773,7 +776,7 @@ export default function ClientesPage() {
         readOnly
         onClose={() => setSelectedOrderId('')}
         onEdit={() => {}}
-        onPrint={() => window.print()}
+        onPrint={() => selectedOrder && printOrder(selectedOrder)}
         onCancel={() => {}}
         onAdvance={() => {}}
         canAdvance={false}

@@ -1,7 +1,12 @@
 import { getAdminFileIconPath } from '@/lib/adminFileIcons';
 import AdminFileIcon from './AdminFileIcon';
+import StoreIcon from './StoreIcon';
 
 export default function AdminIcon({ name, className = '' }) {
+  if (name === 'store') {
+    return <StoreIcon className={`admin-store-icon-svg ${className}`.trim()} />;
+  }
+
   const fileSrc = getAdminFileIconPath(name);
   if (fileSrc) {
     return <AdminFileIcon src={fileSrc} className={className} />;
@@ -167,13 +172,6 @@ export default function AdminIcon({ name, className = '' }) {
         <path d="M7 11v2" />
         <path d="M17 13h2" />
         <path d="M13 17v2" />
-      </>
-    ),
-    store: (
-      <>
-        <path d="M3 10l9-6 9 6" />
-        <path d="M5 10v9h14v-9" />
-        <path d="M10 19v-5h4v5" />
       </>
     ),
     meta: (

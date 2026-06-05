@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { buildOrderWhatsAppMessage, buildSendOrderToStoreUrl } from '@/lib/storeWhatsApp';
 import { calculateCupomDiscount } from '@/lib/cupons';
 import {
   formatDurationMinutes,
@@ -51,6 +52,7 @@ export default function CheckoutModal() {
     checkoutStep,
     checkoutData,
     checkoutSuccess,
+    checkoutSuccessSnapshot,
     checkoutOrderNumber,
     checkoutName,
     setCheckoutName,
@@ -74,11 +76,49 @@ export default function CheckoutModal() {
     setCheckoutTrocoValue,
     checkoutNext,
     checkoutBack,
-    finalizeOrder,
+    dismissCheckoutSuccess,
     checkoutAddressConfirmed,
     openCheckoutAddressFlow,
     getDeliveryEstimateMinutes,
   } = useCardapio();
+
+  const [pixCopied, setPixCopied] = useState(false);
+
+  const whatsAppOrderUrl = useMemo(() => {
+    if (!checkoutSuccessSnapshot) return null;
+    const snap = checkoutSuccessSnapshot;
+    const message = buildOrderWhatsAppMessage({
+      orderNumber: snap.orderNumber,
+      customerName: snap.customerName,
+      customerPhone: snap.customerPhone,
+      items: snap.items,
+      deliveryLabel:
+        snap.delivery === 'entregar' ? 'Receber em casa' : 'Retirar no estabelecimento',
+      addressText: snap.addressText || null,
+      paymentLabel: PAY_LABELS[snap.payment] || snap.payment,
+      subtotalFormatted: formatPrice(snap.subtotal),
+      deliveryFeeFormatted:
+        snap.delivery === 'entregar' && snap.taxaEntrega > 0
+          ? formatPrice(snap.taxaEntrega)
+          : null,
+      cupomOffFormatted: snap.cupomOff > 0 ? formatPrice(snap.cupomOff) : null,
+      totalFormatted: formatPrice(snap.total),
+      isPix: snap.payment === 'pix',
+    });
+    return buildSendOrderToStoreUrl(storeConfig, message);
+  }, [checkoutSuccessSnapshot, PAY_LABELS, formatPrice, storeConfig]);
+
+  async function copyPixKey() {
+    const key = storeConfig?.chavePix;
+    if (!key) return;
+    try {
+      await navigator.clipboard.writeText(key);
+      setPixCopied(true);
+      window.setTimeout(() => setPixCopied(false), 2200);
+    } catch {
+      /* fallback silencioso */
+    }
+  }
 
   const handleOverlayClick = (e) => {
     if (checkoutSuccess) return;
@@ -119,17 +159,44 @@ export default function CheckoutModal() {
 
   const renderStepBody = () => {
     if (checkoutSuccess) {
+      const isPix = checkoutSuccessSnapshot?.payment === 'pix';
+      const showPixBlock = isPix && Boolean(storeConfig?.chavePix);
       return (
         <div className="success-state">
           <div className="success-icon">🎉</div>
           <div className="success-title">Pedido enviado!</div>
           <div className="success-sub">
-            Seu pedido foi recebido com sucesso.
+            Seu pedido foi registrado com sucesso.
             <br />
-            Nº do pedido: <strong>{checkoutOrderNumber || '—'}</strong>
+            Nº do pedido: <strong>{checkoutSuccessSnapshot?.orderNumber || checkoutOrderNumber || '—'}</strong>
           </div>
-          <button type="button" className="btn-voltar" onClick={finalizeOrder}>
-            Acompanhar pedido
+          {showPixBlock ? (
+            <div className="checkout-success-pix">
+              <div className="checkout-pix-title">Pague via Pix</div>
+              <div className="checkout-pix-key">{storeConfig.chavePix}</div>
+              {storeConfig.descricaoChavePix ? (
+                <div className="checkout-pix-desc">{storeConfig.descricaoChavePix}</div>
+              ) : null}
+              <button type="button" className="btn-copy-pix" onClick={copyPixKey}>
+                {pixCopied ? 'Chave copiada!' : 'Copiar chave Pix'}
+              </button>
+              <p className="checkout-success-pix-hint">
+                Depois de pagar, envie o comprovante pelo WhatsApp da loja.
+              </p>
+            </div>
+          ) : null}
+          {whatsAppOrderUrl ? (
+            <a
+              className="btn-checkout-whatsapp"
+              href={whatsAppOrderUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {isPix ? 'Enviar pedido e comprovante no WhatsApp' : 'Enviar pedido no WhatsApp'}
+            </a>
+          ) : null}
+          <button type="button" className="btn-voltar btn-voltar-ghost" onClick={dismissCheckoutSuccess}>
+            Fechar
           </button>
         </div>
       );
@@ -291,12 +358,7 @@ export default function CheckoutModal() {
           </span>
         );
       });
-      return (
-        <>
-          {options}
-          {pixInfoBlock}
-        </>
-      );
+      return <>{options}</>;
     }
 
     if (checkoutStep === 4) {
@@ -385,14 +447,22 @@ export default function CheckoutModal() {
           <section className="confirm-panel confirm-panel--l5" aria-label="Valor a pagar">
             <h3 className="confirm-panel__label">Valor a pagar</h3>
             <dl className="confirm-pay-lines">
+              {Number(storeConfig?.pedidoMinimo || 0) > 0 ? (
+                <div className="confirm-pay-line">
+                  <dt>Pedido mínimo</dt>
+                  <dd>{formatPrice(Number(storeConfig.pedidoMinimo))}</dd>
+                </div>
+              ) : null}
               <div className="confirm-pay-line">
                 <dt>Subtotal</dt>
                 <dd>{formatPrice(subtotal)}</dd>
               </div>
-              <div className="confirm-pay-line">
-                <dt>Taxa de entrega</dt>
-                <dd>{checkoutData.delivery === 'entregar' ? formatPrice(taxaEntrega) : formatPrice(0)}</dd>
-              </div>
+              {checkoutData.delivery === 'entregar' ? (
+                <div className="confirm-pay-line">
+                  <dt>Taxa de entrega</dt>
+                  <dd>{taxaEntrega > 0 ? formatPrice(taxaEntrega) : 'Grátis'}</dd>
+                </div>
+              ) : null}
               {cupomOff > 0 ? (
                 <div className="confirm-pay-line">
                   <dt>Cupom ({appliedCupom.codigo})</dt>

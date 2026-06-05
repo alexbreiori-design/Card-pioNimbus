@@ -3,7 +3,7 @@
 import { useCardapio } from '@/context/CardapioContext';
 
 export default function MobileSacolaBar() {
-  const { showMobileSacola, cartCount, cartTotal, formatPrice, openCheckout } = useCardapio();
+  const { showMobileSacola, cartCount, cartTotal, formatPrice, openCartReview } = useCardapio();
 
   if (!showMobileSacola) return null;
 
@@ -12,7 +12,7 @@ export default function MobileSacolaBar() {
       type="button"
       className="mobile-ver-sacola"
       style={{ display: 'flex' }}
-      onClick={openCheckout}
+      onClick={openCartReview}
     >
       <div className="bag-badge">{cartCount()}</div>
       <span className="ver-label">Ver sacola</span>

@@ -74,6 +74,22 @@ function uid(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+function duplicateCopyLabel(nome) {
+  const base = String(nome || '').trim() || 'Item';
+  return `${base} (cópia)`;
+}
+
+function cloneItemForDuplicate(item, { newCategoryId, ordem, isProdutos }) {
+  const copy = JSON.parse(JSON.stringify(item));
+  return {
+    ...copy,
+    id: uid(isProdutos ? 'prod' : 'add-item'),
+    categoriaId: newCategoryId,
+    nome: duplicateCopyLabel(item.nome),
+    ordem,
+  };
+}
+
 function reorderByDrag(list, fromId, toId) {
   const fromIdx = list.findIndex((x) => x.id === fromId);
   const toIdx = list.findIndex((x) => x.id === toId);
@@ -316,6 +332,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
   const [editingCategory, setEditingCategory] = useState(null);
   const [removingCategory, setRemovingCategory] = useState(null);
   const [removingProduct, setRemovingProduct] = useState(null);
+  const [duplicateCategoryTarget, setDuplicateCategoryTarget] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [formImage, setFormImage] = useState('');
   const [saveError, setSaveError] = useState('');
@@ -497,6 +514,46 @@ export default function CatalogManager({ mode = 'produtos' }) {
       [itemKey]: prev[itemKey].filter((item) => item.id !== removingProduct.id),
     }));
     setRemovingProduct(null);
+  }
+
+  function duplicateItem(item, catId) {
+    const catGroup = items.filter((x) => x.categoriaId === catId);
+    const copy = cloneItemForDuplicate(item, {
+      newCategoryId: catId,
+      ordem: catGroup.length,
+      isProdutos,
+    });
+    saveData((prev) => ({
+      ...prev,
+      [itemKey]: [...prev[itemKey], copy],
+    }));
+  }
+
+  function confirmDuplicateCategory(includeProducts) {
+    if (!duplicateCategoryTarget) return;
+    const source = duplicateCategoryTarget;
+    const newCatId = uid(isProdutos ? 'cat' : 'add-cat');
+    saveData((prev) => {
+      const nextCategory = {
+        ...source,
+        id: newCatId,
+        nome: duplicateCopyLabel(source.nome),
+        ordem: prev[catKey].length,
+      };
+      const sourceItems = prev[itemKey].filter((item) => item.categoriaId === source.id);
+      const copiedItems = includeProducts
+        ? sourceItems.map((item, idx) =>
+            cloneItemForDuplicate(item, { newCategoryId: newCatId, ordem: idx, isProdutos })
+          )
+        : [];
+      return {
+        ...prev,
+        [catKey]: [...prev[catKey], nextCategory],
+        [itemKey]: includeProducts ? [...prev[itemKey], ...copiedItems] : prev[itemKey],
+      };
+    });
+    setDuplicateCategoryTarget(null);
+    setCategoryMenuId('');
   }
 
   function openNewItemModal(catId) {
@@ -1072,6 +1129,15 @@ export default function CatalogManager({ mode = 'produtos' }) {
                         <button type="button" onClick={() => openEditCategory(cat)}>Editar categoria</button>
                         <button
                           type="button"
+                          onClick={() => {
+                            setDuplicateCategoryTarget(cat);
+                            setCategoryMenuId('');
+                          }}
+                        >
+                          Duplicar categoria
+                        </button>
+                        <button
+                          type="button"
                           className="danger"
                           onClick={() => {
                             setRemovingCategory(cat);
@@ -1119,17 +1185,9 @@ export default function CatalogManager({ mode = 'produtos' }) {
                         />
                       </div>
                       <button type="button" className="admin-link-btn" onClick={() => openEditItemModal(item)}>Editar</button>
-                      <button type="button" className="admin-link-btn" onClick={() => saveData((prev) => {
-                        const catGroup = prev[itemKey].filter((x) => x.categoriaId === cat.id);
-                        const src = prev[itemKey].find((x) => x.id === item.id);
-                        return {
-                          ...prev,
-                          [itemKey]: [
-                            ...prev[itemKey],
-                            { ...src, id: uid(isProdutos ? 'prod' : 'add-item'), nome: `${src.nome} (copia)`, ordem: catGroup.length },
-                          ],
-                        };
-                      })}>Duplicar</button>
+                      <button type="button" className="admin-link-btn" onClick={() => duplicateItem(item, cat.id)}>
+                        Duplicar
+                      </button>
                       <button
                         type="button"
                         className="admin-link-btn"
@@ -1950,11 +2008,43 @@ export default function CatalogManager({ mode = 'produtos' }) {
         </div>
       ) : null}
 
+      {duplicateCategoryTarget ? (
+        <div className="admin-confirm-overlay" onClick={() => setDuplicateCategoryTarget(null)}>
+          <div className="admin-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Duplicar categoria</h3>
+            <p>
+              Como deseja duplicar <strong>{duplicateCategoryTarget.nome}</strong>?
+            </p>
+            <div className="admin-confirm-actions admin-confirm-actions-stack">
+              <button
+                type="button"
+                className="admin-btn admin-btn-primary"
+                onClick={() => confirmDuplicateCategory(true)}
+              >
+                {isProdutos ? 'Com produtos' : 'Com itens'}
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn-ghost"
+                onClick={() => confirmDuplicateCategory(false)}
+              >
+                Só categoria (vazia)
+              </button>
+              <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setDuplicateCategoryTarget(null)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {removingCategory ? (
         <div className="admin-confirm-overlay" onClick={() => setRemovingCategory(null)}>
           <div className="admin-confirm-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Remover categoria</h3>
-            <p>Remover essa categoria apagará todos os produtos nela cadastrados!</p>
+            <p>
+              Remover essa categoria apagará todos os {isProdutos ? 'produtos' : 'itens'} nela cadastrados!
+            </p>
             <div className="admin-confirm-actions">
               <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setRemovingCategory(null)}>Cancelar</button>
               <button type="button" className="admin-btn admin-btn-danger" onClick={confirmRemoveCategory}>Remover Categoria</button>

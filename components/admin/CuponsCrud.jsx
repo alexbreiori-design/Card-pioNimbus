@@ -223,14 +223,17 @@ export default function CuponsCrud() {
       {cupons.length === 0 ? (
         <p className="admin-help-text admin-delivery-areas-empty">Nenhum cupom cadastrado.</p>
       ) : (
-        <div className="admin-delivery-areas-list">
+        <div className="admin-sparse-list">
           {cupons.map((cupom) => (
-            <div key={cupom.id} className="admin-catalog-item-row admin-delivery-area-row">
-              <div className="admin-catalog-item-main">
-                <div className="admin-item-title">{cupom.codigo}</div>
-                <div className="admin-item-desc">Desconto: {formatCupomLabel(cupom)}</div>
+            <div key={cupom.id} className="admin-sparse-row">
+              <div className="admin-sparse-row-main">
+                <span className="admin-sparse-row-code">{cupom.codigo}</span>
+                <span className="admin-sparse-row-sep" aria-hidden="true">
+                  ·
+                </span>
+                <span className="admin-sparse-row-detail">{formatCupomLabel(cupom)}</span>
               </div>
-              <div className="admin-item-actions-col">
+              <div className="admin-sparse-row-actions">
                 <div className="admin-availability-cell">
                   <span>Disponível</span>
                   <AdminAvailabilitySwitch
@@ -244,8 +247,7 @@ export default function CuponsCrud() {
                 </button>
                 <button
                   type="button"
-                  className="admin-link-btn"
-                  style={{ color: 'var(--admin-danger, #dc2626)' }}
+                  className="admin-link-btn admin-link-btn-danger"
                   onClick={() => handleDelete(cupom.id)}
                 >
                   Remover

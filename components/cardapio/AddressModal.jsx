@@ -1,9 +1,11 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { useCardapio } from '@/context/CardapioContext';
 import { IconClose } from './icons';
 
 export default function AddressModal() {
+  const numInputRef = useRef(null);
   const {
     addressOpen,
     closeAddressPopup,
@@ -19,6 +21,14 @@ export default function AddressModal() {
 
   const update = (field) => (e) =>
     setAddrForm((f) => ({ ...f, [field]: e.target.value }));
+
+  useEffect(() => {
+    if (!addressOpen) return undefined;
+    const id = window.requestAnimationFrame(() => {
+      numInputRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [addressOpen]);
 
   return (
     <div
@@ -44,6 +54,7 @@ export default function AddressModal() {
               onChange={update('rua')}
             />
             <input
+              ref={numInputRef}
               className="form-input"
               type="text"
               placeholder="Nº"
@@ -75,7 +86,7 @@ export default function AddressModal() {
             <input
               className="form-input"
               type="text"
-              placeholder="Ponto de referência *"
+              placeholder="Ponto de referência"
               style={{ width: '100%' }}
               value={addrForm.ref}
               onChange={update('ref')}

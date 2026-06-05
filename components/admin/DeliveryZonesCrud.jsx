@@ -217,16 +217,19 @@ export default function DeliveryZonesCrud({ empresaId }) {
       ) : areas.length === 0 ? (
         <p className="admin-help-text admin-delivery-areas-empty">Nenhuma área cadastrada.</p>
       ) : (
-        <div className="admin-delivery-areas-list">
+        <div className="admin-sparse-list">
           {areas.map((area) => (
-            <div key={area.id} className="admin-catalog-item-row admin-delivery-area-row">
-              <div className="admin-catalog-item-main">
-                <div className="admin-item-title">{area.nome}</div>
-                <div className="admin-item-desc">
-                  Raio máximo: {Number(area.raio_km)} km · Taxa: {formatCurrency(area.taxa_entrega)}
-                </div>
+            <div key={area.id} className="admin-sparse-row">
+              <div className="admin-sparse-row-main">
+                <span className="admin-sparse-row-code">{area.nome}</span>
+                <span className="admin-sparse-row-sep" aria-hidden="true">
+                  ·
+                </span>
+                <span className="admin-sparse-row-detail">
+                  Raio {Number(area.raio_km)} km · Taxa {formatCurrency(area.taxa_entrega)}
+                </span>
               </div>
-              <div className="admin-item-actions-col">
+              <div className="admin-sparse-row-actions">
                 <div className="admin-availability-cell">
                   <span>Disponível</span>
                   <AdminAvailabilitySwitch
@@ -240,8 +243,7 @@ export default function DeliveryZonesCrud({ empresaId }) {
                 </button>
                 <button
                   type="button"
-                  className="admin-link-btn"
-                  style={{ color: 'var(--admin-danger, #dc2626)' }}
+                  className="admin-link-btn admin-link-btn-danger"
                   onClick={() => handleDelete(area.id)}
                 >
                   Remover
