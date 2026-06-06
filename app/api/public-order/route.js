@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { toDbUuidOrNull } from '@/lib/dbIds';
+import { checkPublicOrderRateLimit } from '@/lib/rateLimit';
 import { normalizePhone } from '@/lib/normalize';
 import { withDerivedData } from '@/lib/adminData';
 import { validatePublicOrder } from '@/lib/orderValidation';
@@ -25,15 +26,29 @@ export async function POST(request) {
     return NextResponse.json({ ok: false, error: 'Payload inválido.' }, { status: 400 });
   }
 
+  const rateLimit = checkPublicOrderRateLimit(request, slug);
+  if (!rateLimit.ok) {
+    return NextResponse.json(
+      { ok: false, error: 'Muitas tentativas. Aguarde um momento e tente novamente.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(rateLimit.retryAfterSec) },
+      }
+    );
+  }
+
   try {
     const { data: empresa, error: empresaError } = await supabase
       .from('empresas')
-      .select('id, slug, aberta')
+      .select('id, slug, aberta, suspensa')
       .eq('slug', slug)
       .maybeSingle();
     if (empresaError) throw empresaError;
     if (!empresa?.id) {
       return NextResponse.json({ ok: false, error: 'Empresa não encontrada.' }, { status: 404 });
+    }
+    if (empresa.suspensa === true) {
+      return NextResponse.json({ ok: false, error: 'Loja indisponível no momento.' }, { status: 403 });
     }
     if (empresa.aberta === false) {
       return NextResponse.json({ ok: false, error: 'Loja fechada no momento.' }, { status: 403 });

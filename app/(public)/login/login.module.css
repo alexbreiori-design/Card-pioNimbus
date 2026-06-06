@@ -223,10 +223,37 @@
   animation: loginMascotHero 5.5s ease-in-out infinite;
 }
 
-.footer {
+.legalFooter {
   position: relative;
   z-index: 1;
   margin-top: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.legalLinks {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.legalLinks a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.legalLinks a:hover {
+  text-decoration: underline;
+}
+
+.footer {
+  position: relative;
+  z-index: 1;
+  margin-top: 0;
   color: #4e48dd;
   font-size: 14px;
   line-height: 1;

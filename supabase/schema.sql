@@ -410,4 +410,4 @@ CREATE POLICY produtos_publica ON produtos FOR SELECT
 -- SEED opcional (descomente após criar um usuário no Auth)
 -- -----------------------------------------------------------------------------
 -- INSERT INTO empresas (slug, nome, cor_marca, telefone, endereco_cidade)
--- VALUES ('acai-da-serra', 'Açaí da Serra', '#8B2FC9', '(11) 98888-1234', 'São Paulo');
+-- VALUES ('nome-loja', 'Nome da Loja', '#8B2FC9', '(11) 98888-1234', 'São Paulo');

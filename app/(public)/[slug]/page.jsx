@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { CardapioProvider } from '@/context/CardapioContext';
 import CardapioApp from '@/components/cardapio/CardapioApp';
+import StoreUnavailable from '@/components/cardapio/StoreUnavailable';
 import { normalizeSlug } from '@/lib/normalize';
 import { getSiteOrigin, toAbsoluteAssetUrl } from '@/lib/siteUrl';
 import { getEmpresaBySlug } from '@/lib/supabase/empresaServer';
@@ -69,13 +70,20 @@ export default async function LojaPublicaPage({ params }) {
   if (!safeSlug) notFound();
 
   const supabase = getServiceClient();
+  let empresa = null;
+  let catalog = null;
+
   if (supabase) {
-    const [empresa, catalog] = await Promise.all([
+    [empresa, catalog] = await Promise.all([
       getEmpresaBySlug(supabase, safeSlug),
       fetchPublicStoreCatalogRow(safeSlug),
     ]);
     if (!empresa?.id && !catalog?.data) {
       notFound();
+    }
+    if (empresa?.suspensa) {
+      const nome = catalog?.data?.loja?.nome || empresa.nome || safeSlug;
+      return <StoreUnavailable nome={nome} />;
     }
   }
 

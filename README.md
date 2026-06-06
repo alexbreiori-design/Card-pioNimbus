@@ -1,39 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Cardápio Nimbus
 
-## Getting Started
+Cardápio digital multi-loja — pedidos online, painel admin e super-admin Nimbus.
 
-First, run the development server:
+**Domínio:** [cardapionimbus.com.br](https://cardapionimbus.com.br)
+
+---
+
+## Stack
+
+- Next.js 16 (App Router)
+- React 19
+- Supabase (Auth, Postgres, RLS)
+
+---
+
+## Desenvolvimento local
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+App em **http://localhost:3010** (ver `package.json`).
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+Crie `.env.local` conforme `docs/ENV.md`. Mínimo:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+NEXT_PUBLIC_DEFAULT_STORE_SLUG=nome-loja
+```
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Rotas principais
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| URL | Uso |
+|-----|-----|
+| `/home` | Landing comercial (placeholder) |
+| `/login` | Login lojistas |
+| `/{slug}` | Cardápio público da loja |
+| `/admin/pedidos` | Painel da loja |
+| `/admin/sistema` | Super-admin Nimbus |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Detalhes: `docs/DOMINIO.md`
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Documentação
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-# Card-pioNimbus
-# Card-pioNimbus
-# Card-pioNimbus
+| Arquivo | Conteúdo |
+|---------|----------|
+| `docs/ENV.md` | Variáveis de ambiente |
+| `docs/DOMINIO.md` | Domínio e rotas |
+| `docs/OPS.md` | Operações e incidentes |
+| `docs/GO_LIVE.md` | Checklist go-live |
+| `supabase/README.md` | Schema, migrations, onboarding |
+
+---
+
+## Migrations Supabase
+
+Execute na ordem listada em `supabase/README.md` (até `012_super_admin_system.sql` para suspensão, CRM e perfil do sistema).
+
+---
+
+## Health
+
+```bash
+curl -s http://localhost:3010/api/health/ready
+```

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { checkPublicOrdersReadRateLimit } from '@/lib/rateLimit';
 import { normalizePhone, normalizeSlug } from '@/lib/normalize';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 
@@ -14,6 +15,17 @@ export async function GET(request) {
 
   if (!slug || !phone) {
     return NextResponse.json({ ok: false, error: 'Slug e telefone são obrigatórios.' }, { status: 400 });
+  }
+
+  const rateLimit = checkPublicOrdersReadRateLimit(request, slug);
+  if (!rateLimit.ok) {
+    return NextResponse.json(
+      { ok: false, error: 'Muitas consultas. Aguarde um momento.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(rateLimit.retryAfterSec) },
+      }
+    );
   }
 
   try {

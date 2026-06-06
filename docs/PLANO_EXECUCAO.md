@@ -200,9 +200,9 @@ Alinhar telas que hoje ficam “pequenas e centralizadas” ao padrão **Produto
 
 | ID | Prioridade | Tarefa | Arquivos / notas |
 |----|------------|--------|------------------|
-| A2-50 | P0 | **Mini manual in-app** (5 tópicos): receber pedido, status, fechar loja, Pix, entrega | modal ou `/admin/ajuda` |
-| A2-51 | P0 | **Contato de suporte** Nimbus visível (footer admin ou ajuda) | `admin/layout.jsx` |
-| A2-52 | P1 | Link “Ajuda” na sidebar | `AdminSidebar` |
+| A2-50 | — | **Mini manual in-app** — **postergado** (fora do escopo agora; outro canal depois) | — |
+| A2-51 | — | Contato suporte → **S3-08** (Etapa 3) | `AdminSidebar`, `lib/nimbusSupport.js` |
+| A2-52 | — | Link “Ajuda” na sidebar — **postergado** junto com A2-50 | — |
 
 ---
 
@@ -228,7 +228,7 @@ Alinhar telas que hoje ficam “pequenas e centralizadas” ao padrão **Produto
 | **2C** | A2-20–A2-25 | Comanda 80 mm; imprimir do kanban e do novo pedido; teste térmica |
 | **2D** | A2-30, A2-31 | Duplicar produto e categoria |
 | **2E** | A2-40–A2-43 | Promoções, Clientes, Entrega (e demais) visuais alinhados |
-| **2F** | A2-50–A2-52 | Manual + suporte no admin |
+| **2F** | A2-50–A2-52 | **Adiado** — manual/tour fora do escopo; suporte → S3-08 |
 
 ---
 
@@ -243,6 +243,7 @@ Alinhar telas que hoje ficam “pequenas e centralizadas” ao padrão **Produto
 | S3-05 | P1 | `GET /api/health/ready` (query leve Supabase) | nova route |
 | S3-06 | P1 | Páginas Privacidade + Termos + links no cardápio/login | `app/(public)/...` |
 | S3-07 | P2 | `docs/ENV.md` variáveis Vercel | DOC |
+| S3-08 | P0 | **Link suporte Nimbus** discreto na sidebar do admin | `AdminSidebar`, `lib/nimbusSupport.js`; opcional `NEXT_PUBLIC_NIMBUS_SUPPORT_URL` |
 
 **Dependência:** S3-01 antes de divulgar link amplamente (pode ser paralelo ao fim da Fase 1).
 
@@ -321,8 +322,8 @@ flowchart LR
 # Critério “piloto pronto” (resumo)
 
 1. **Cardápio:** lotes 1A–1E concluídos.  
-2. **Admin:** lotes 2A–2F concluídos (operação, kanban/WhatsApp, comanda térmica, catálogo, UI, ajuda).  
-3. **Segurança:** Etapa 3 mínima (rate limit + RLS revisado).  
+2. **Admin:** lotes 2A–2E concluídos (operação, kanban/WhatsApp, comanda, catálogo, UI). Manual in-app (2F) postergado.  
+3. **Segurança:** Etapa 3 mínima (rate limit + RLS + link suporte S3-08).  
 4. **Processo:** `GO_LIVE.md` bloco A assinado por você.  
 
 O 1º cliente entra **depois** disso; feedback dele não substitui itens já listados acima.
@@ -343,6 +344,23 @@ O 1º cliente entra **depois** disso; feedback dele não substitui itens já lis
 | 2C | concluído | 2026-05-31 |
 | 2D | concluído | 2026-05-31 |
 | 2E | concluído | 2026-05-31 |
-| 2F | pendente | |
-| S3 | pendente | |
-| G4 | pendente | |
+| 2F | adiado | manual/tour fora do escopo |
+| S3-01 | concluído | 2026-05-31 |
+| S3-02 | concluído | 2026-05-31 — migration 009 + RPC público |
+| S3-03 | concluído | 2026-05-31 — docs/OPS.md |
+| S3-05 | concluído | 2026-05-31 |
+| S3-06 | concluído | 2026-05-31 |
+| S3-07 | concluído | 2026-05-31 — docs/ENV.md |
+| S3-08 | concluído | 2026-05-31 |
+| S3-04 | pendente | OPS manual — backup no painel Supabase |
+| S3 | quase concluído | falta S3-04 (ops) |
+| SA-1 | concluído | 2026-05-31 — /admin/sistema + lista |
+| SA-2 | concluído | 2026-05-31 — criar loja + senha temp |
+| SA-3 | concluído | 2026-05-31 — 2ª unidade no modal |
+| SA-4 | concluído | 2026-05-31 — métricas no drawer (contrato) |
+| SA-D | concluído | 2026-05-31 — equipe + busca por e-mail dono |
+| SA-E | concluído | 2026-05-31 — comparativo go-live, gráfico, ranking CSV |
+| SA-F | parcial | notas Nimbus (011); loja modelo na lista |
+| SA-5 | adiado | dark mode — depois de ajustes visuais no light |
+| SA-G | concluído | 2026-05-31 — clonar modelo, reset senha, abrir/fechar, modo apresentação |
+| G4 | parcial | super-admin operacional |

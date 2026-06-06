@@ -2412,3 +2412,23 @@ body {
     display: none;
   }
 }
+
+.cardapio-legal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  font-size: 0.75rem;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.cardapio-legal-footer a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.cardapio-legal-footer a:hover {
+  color: rgba(0, 0, 0, 0.7);
+}

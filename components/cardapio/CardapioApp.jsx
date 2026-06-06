@@ -15,6 +15,7 @@ import AddressModal from './AddressModal';
 import CupomModal from './CupomModal';
 import CartReviewModal from './CartReviewModal';
 import CardapioSplash from './CardapioSplash';
+import CardapioLegalFooter from './CardapioLegalFooter';
 import { SHOW_LEGACY_NAV } from '@/lib/cardapioFeatures';
 
 export default function CardapioApp() {
@@ -39,6 +40,7 @@ export default function CardapioApp() {
         <CepModal />
         <AddressModal />
         <CupomModal />
+        <CardapioLegalFooter />
       </div>
     </>
   );

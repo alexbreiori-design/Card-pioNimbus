@@ -32,7 +32,7 @@ Substitua `SEU_USER_ID` pelo UUID do passo 4:
 
 ```sql
 INSERT INTO empresas (slug, nome, cor_marca, telefone, endereco_cidade)
-VALUES ('acai-da-nimbus', 'Açaí da Nimbus', '#8B2FC9', '(11) 98888-1234', 'São Paulo')
+VALUES ('nome-loja', 'Nome da Loja', '#8B2FC9', '(11) 98888-1234', 'São Paulo')
 RETURNING id;
 
 -- Use o id retornado:
@@ -63,7 +63,7 @@ JOIN empresas e ON e.id = em.empresa_id
 JOIN auth.users u ON u.id = em.usuario_id;
 ```
 
-Usuário **sem** linha em `empresa_membros` é redirecionado para `/admin/sem-acesso`.
+Usuário **sem** linha em `empresa_membros` é redirecionado para `/admin/sem-acesso`. Se todas as lojas vinculadas estiverem **suspensas** (`empresas.suspensa`), o login leva a `/admin/loja-suspensa`.
 
 Com **várias lojas**, o seletor "Loja ativa" aparece na sidebar; a escolha fica salva no navegador.
 
@@ -76,6 +76,12 @@ Com **várias lojas**, o seletor "Loja ativa" aparece na sidebar; a escolha fica
 5. `migrations/004_menu_store_state_rls.sql`
 6. `migrations/005_public_store_catalog_rpc.sql`
 7. `migrations/006_pedidos_arquivado.sql`
+8. `migrations/007_storage_menu_assets.sql`
+9. `migrations/008_empresa_segmento.sql`
+10. `migrations/009_rls_audit_hardening.sql` — segurança Etapa 3 (RLS + RPC público + health_ping)
+11. `migrations/010_super_admin_empresa_fields.sql` — métricas com consentimento + data go-live
+12. `migrations/011_super_admin_notas.sql` — notas internas Nimbus por loja
+13. `migrations/012_super_admin_system.sql` — suspensão de lojas, CRM (contrato/responsável) e perfil do sistema
 
 ## Tabelas principais
 
@@ -92,3 +98,9 @@ Com **várias lojas**, o seletor "Loja ativa" aparece na sidebar; a escolha fica
 
 Cardápio público: `cor_marca` em `empresas` (customizável).  
 Admin: identidade fixa Nimbus (CSS em `styles/admin.css`).
+
+## Super-admin Nimbus
+
+- URL: `/admin/sistema` (apenas e-mails em `NIMBUS_SUPER_ADMIN_EMAILS`).
+- Migration `012`: suspensão de lojas, CRM, perfil (`nimbus_perfil_sistema`) e WhatsApp de suporte no admin dos lojistas.
+- Domínio e rotas: `docs/DOMINIO.md`

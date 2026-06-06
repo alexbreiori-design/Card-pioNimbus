@@ -1,10 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import AdminIcon from './AdminIcon';
 import AdminLogoutButton from './AdminLogoutButton';
 import AdminStoreSwitcher from './AdminStoreSwitcher';
+import { NIMBUS_SUPPORT_LABEL, NIMBUS_SUPPORT_URL } from '@/lib/nimbusSupport';
 
 const NAV = [
   { href: '/admin/pedidos', label: 'Pedidos', icon: 'orders' },
@@ -91,6 +93,36 @@ export default function AdminSidebar({
 }) {
   const { aberta, fechadaManual } = openStatus;
   const pathname = usePathname();
+  const [superAdmin, setSuperAdmin] = useState(false);
+  const [supportUrl, setSupportUrl] = useState(NIMBUS_SUPPORT_URL);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/nimbus-support')
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (!cancelled && payload?.url) setSupportUrl(payload.url);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/super-admin/me')
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (!cancelled) setSuperAdmin(Boolean(payload?.superAdmin));
+      })
+      .catch(() => {
+        if (!cancelled) setSuperAdmin(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function handleStoreToggle(event) {
     if (storeToggleBusy) {
@@ -190,6 +222,43 @@ export default function AdminSidebar({
         ))}
       </nav>
       <div className="admin-sidebar-footer">
+        {superAdmin ? (
+          <Link
+            href="/admin/sistema"
+            className={`admin-sidebar-sistema-link${pathname.startsWith('/admin/sistema') ? ' is-current' : ''}`}
+            title={collapsed ? 'Sistema Nimbus' : undefined}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
+            <span>Sistema</span>
+          </Link>
+        ) : null}
+        <a
+          className="admin-sidebar-support"
+          href={supportUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={NIMBUS_SUPPORT_LABEL}
+        >
+          {collapsed ? (
+            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+              <path
+                d="M18 13v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6M10 11l4-4 4 4M14 7v12"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          ) : (
+            NIMBUS_SUPPORT_LABEL
+          )}
+        </a>
         <AdminLogoutButton />
       </div>
     </aside>

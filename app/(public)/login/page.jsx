@@ -45,14 +45,21 @@ export default function Page() {
         />
       </section>
 
-      <a
-        className={styles.footer}
-        href="https://www.sistemasnimbus.com.br"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        www.sistemasnimbus.com.br
-      </a>
+      <footer className={styles.legalFooter}>
+        <a
+          className={styles.footer}
+          href="https://cardapionimbus.com.br"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          cardapionimbus.com.br
+        </a>
+        <nav className={styles.legalLinks} aria-label="Informações legais">
+          <a href="/privacidade">Privacidade</a>
+          <span aria-hidden="true">·</span>
+          <a href="/termos">Termos</a>
+        </nav>
+      </footer>
     </main>
   );
 }

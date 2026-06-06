@@ -2,7 +2,7 @@
 -- Substitua os UUIDs abaixo
 
 -- INSERT INTO empresas (slug, nome, cor_marca, telefone, endereco_cidade, aberta)
--- VALUES ('acai-da-serra', 'Açaí da Serra', '#8B2FC9', '(11) 98888-1234', 'São Paulo', true)
+-- VALUES ('nome-loja', 'Nome da Loja', '#8B2FC9', '(11) 98888-1234', 'São Paulo', true)
 -- RETURNING id;
 
 -- INSERT INTO perfis (id, nome) VALUES ('00000000-0000-0000-0000-000000000000', 'Admin');

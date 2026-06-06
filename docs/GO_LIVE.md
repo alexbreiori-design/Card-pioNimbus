@@ -29,8 +29,9 @@ Ao final de cada bloco há **critério de pronto**.
 
 ## A1 — Infraestrutura e domínio
 
-- [ ] `[OPS]` Domínio adquirido e apontando para a Vercel (apex e/ou `www`).
-- [ ] `[OPS]` Definir modelo de URL divulgada (ex.: `https://cardapio.seudominio.com.br/{slug}`).
+- [ ] `[OPS]` Domínio **cardapionimbus.com.br** apontando para a Vercel (apex e/ou `www`).
+- [ ] `[OPS]` `NEXT_PUBLIC_SITE_URL=https://cardapionimbus.com.br` na Vercel (Production).
+- [ ] `[OPS]` URLs divulgadas: cardápio `https://cardapionimbus.com.br/{slug}`, login `/login`, vitrine `/home` (ver `docs/DOMINIO.md`).
 - [ ] `[OPS]` Certificado HTTPS ativo (Vercel) e teste em celular 4G.
 - [ ] `[OPS]` Redirect consistente (`www` ↔ apex), sem link quebrado.
 - [ ] `[OPS]` Variáveis na Vercel (Production): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, APIs de geocoding se usar entrega.
@@ -90,7 +91,7 @@ Implementação: ver **`docs/PLANO_EXECUCAO.md` Etapa 2 (lotes 2A–2F)**. Este 
 - [ ] `[CÓDIGO]` **Comanda térmica** 80 mm: imprimir do kanban e do novo pedido manual (A2-20–A2-25). Largura 58/80 mm em Minha loja → Impressão de comanda.
 - [ ] `[CÓDIGO]` **Duplicar** produto/categoria (A2-30–A2-31).
 - [ ] `[CÓDIGO]` **UI admin** Promoções/Clientes/Entrega alinhadas a Produtos (A2-40–A2-43).
-- [ ] `[CÓDIGO]` **Ajuda** in-app + contato suporte (A2-50–A2-52).
+- [x] `[CÓDIGO]` **Link suporte** discreto no admin (S3-08). Manual in-app (A2-50/52) postergado.
 - [ ] `[TESTE]` Loja fechada: sacola/checkout bloqueados; mensagem clara no header.
 - [ ] `[TESTE]` Pedido **delivery** e **retirada** completos.
 - [ ] `[TESTE]` Pedido no kanban **Novos** em até ~15s (polling).

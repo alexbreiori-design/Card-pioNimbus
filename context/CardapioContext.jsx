@@ -34,7 +34,8 @@ import {
   mobilePhoneIncompleteMessage,
 } from '@/lib/phoneBr';
 import { formatMoneyBrInput, hasMoneyBrValue, parseMoneyBrInput } from '@/lib/moneyMask';
-import { getEmpresaBySlug, mergeEmpresaIntoLoja } from '@/lib/supabase/empresa';
+import { mergeEmpresaIntoLoja } from '@/lib/supabase/empresa';
+import { fetchPublicEmpresaCardapio } from '@/lib/supabase/publicEmpresa';
 import { trackMetaEvent } from '@/lib/meta/pixel';
 import { MAX_PECA_TAMBEM } from '@/lib/productSuggestions';
 import { PROMO_CATEGORY_NAME } from '@/lib/promocoes';
@@ -445,7 +446,7 @@ export function CardapioProvider({ children, slug = '' }) {
         let loja = parsed.loja;
         if (targetSlug) {
           try {
-            const empresa = await getEmpresaBySlug(targetSlug);
+            const empresa = await fetchPublicEmpresaCardapio(targetSlug);
             loja = mergeEmpresaIntoLoja(loja, empresa);
           } catch {
             /* mantém loja do estado remoto/local */
