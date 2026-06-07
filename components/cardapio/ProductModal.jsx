@@ -1,7 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useCardapioCart, useCardapioCatalog } from '@/context/CardapioContext';
+import {
+  buildMarmitaCartOpts,
+  findFirstIncompleteMarmitaStep,
+  isMarmitaStepComplete,
+} from '@/lib/marmita/marmitaWizard';
+import MarmitaWizardSteps from './MarmitaWizardSteps';
 import { IconCheck, IconClose, IconPlus } from './icons';
 
 function AddonThumb({ imageUrl, name }) {
@@ -37,8 +43,14 @@ export default function ProductModal() {
   const product = currentProduct;
   const hasImage = Boolean(product?.imageUrl);
   const isPizza = product?.type === 'pizza' && product?.pizzaConfig;
+  const isMarmita = product?.type === 'marmita';
+  const marmitaSteps = product?.addons || [];
+  const hasMarmitaWizard = isMarmita && marmitaSteps.length > 0;
+
   const [pizzaSizeId, setPizzaSizeId] = useState('');
   const [pizzaFlavors, setPizzaFlavors] = useState([]);
+  const [marmitaStep, setMarmitaStep] = useState(0);
+
   const pizzaConfig = product?.pizzaConfig || {};
   const sizeOptions = pizzaConfig.tamanhoConfig || [];
   const flavorPool = useMemo(
@@ -55,6 +67,10 @@ export default function ProductModal() {
   const selectedSize = sizeOptions.find((size) => size.tamanhoId === activeSizeId) || sizeOptions[0];
   const maxFlavors = Math.max(1, Number(selectedSize?.maxSabores || 1));
   const allowDuplicate = pizzaConfig.permitirSaboresDuplicados === true;
+
+  useEffect(() => {
+    setMarmitaStep(0);
+  }, [product?.id]);
 
   function pizzaFlavorPrice(flavorId) {
     const key = `${flavorId}:${selectedSize?.tamanhoId || ''}`;
@@ -75,6 +91,14 @@ export default function ProductModal() {
   const pizzaUnitPrice = pizzaBaseSizePrice + pizzaFlavorTotal + addonExtras;
   const canAddPizza = !isPizza || (selectedSize && pizzaFlavors.length >= 1 && pizzaFlavors.length <= maxFlavors);
 
+  const marmitaUnitTotal = product ? (product.price + addonExtras) * currentQty : 0;
+  const currentMarmitaSection = hasMarmitaWizard ? marmitaSteps[marmitaStep] : null;
+  const currentMarmitaSelected = selectedAddons[marmitaStep] || [];
+  const canMarmitaAdvance = currentMarmitaSection
+    ? isMarmitaStepComplete(currentMarmitaSection, currentMarmitaSelected)
+    : true;
+  const isLastMarmitaStep = hasMarmitaWizard && marmitaStep >= marmitaSteps.length - 1;
+
   const handleOverlayClick = (e) => {
     if (e.target.id === 'productOverlay') closeProductPopup();
   };
@@ -92,7 +116,33 @@ export default function ProductModal() {
     });
   };
 
+  function handleMarmitaAdd() {
+    const incompleteStep = findFirstIncompleteMarmitaStep(marmitaSteps, selectedAddons);
+    if (incompleteStep >= 0) {
+      setMarmitaStep(incompleteStep);
+      return;
+    }
+    addToCartCustom({
+      product,
+      qty: currentQty,
+      unitPrice: product.price + addonExtras,
+      opts: buildMarmitaCartOpts(product, selectedAddons),
+    });
+  }
+
+  function handleMarmitaPrimaryAction() {
+    if (!canMarmitaAdvance) return;
+    if (isLastMarmitaStep) {
+      handleMarmitaAdd();
+      return;
+    }
+    setMarmitaStep((value) => Math.min(value + 1, marmitaSteps.length - 1));
+  }
+
   if (!productOpen || !product) return null;
+
+  const showGenericAddons = !isPizza && !isMarmita;
+  const showEmptyAddonsMessage = showGenericAddons && product.addons.length === 0;
 
   return (
     <div
@@ -100,7 +150,7 @@ export default function ProductModal() {
       id="productOverlay"
       onClick={handleOverlayClick}
     >
-      <div className="product-popup" id="productPopup">
+      <div className={`product-popup ${hasMarmitaWizard ? 'product-popup-marmita-wizard' : ''}`} id="productPopup">
         <div className="popup-img-col">
           <div
             className={`popup-img-frame ${hasImage ? 'has-image' : 'is-placeholder'}`}
@@ -119,6 +169,11 @@ export default function ProductModal() {
           </button>
           <div className={`popup-header ${popupHeaderCompact ? 'compact' : ''}`} id="popupHeader">
             <div className="popup-header-title">{product.name}</div>
+            {isMarmita && product.tamanhoSelecionado ? (
+              <div className="popup-marmita-size-pill">
+                Tamanho: {product.tamanhoSelecionado.nome}
+              </div>
+            ) : null}
             <div className="popup-header-desc">{product.desc}</div>
             <div className={`popup-header-price ${product.isPromocao && product.promoOriginalPrice > product.price ? 'has-promo' : ''}`}>
               {product.isPromocao && product.promoOriginalPrice > product.price ? (
@@ -127,7 +182,7 @@ export default function ProductModal() {
                   <span className="product-price-promo">{formatPrice(isPizza ? pizzaUnitPrice : product.price)}</span>
                 </>
               ) : (
-                formatPrice(isPizza ? pizzaUnitPrice : product.price)
+                formatPrice(isPizza ? pizzaUnitPrice : product.price + (hasMarmitaWizard ? addonExtras : 0))
               )}
             </div>
           </div>
@@ -178,18 +233,30 @@ export default function ProductModal() {
                 })}
               </div>
             ) : null}
-            {product.addons.length === 0 ? (
+
+            {hasMarmitaWizard ? (
+              <MarmitaWizardSteps
+                steps={marmitaSteps}
+                stepIndex={marmitaStep}
+                selectedAddons={selectedAddons}
+                toggleAddon={toggleAddon}
+                formatPrice={formatPrice}
+              />
+            ) : null}
+
+            {showEmptyAddonsMessage ? (
               <p style={{ padding: '20px 0', fontSize: 13, color: 'var(--text-light)', fontWeight: 300 }}>
                 Sem opções adicionais para este produto.
               </p>
-            ) : (
+            ) : null}
+
+            {showGenericAddons ? (
               product.addons.map((sec, si) => {
-                if (isPizza && String(sec.section || '').toLowerCase().includes('sabor')) return null;
                 const selected = selectedAddons[si] || [];
                 return (
                   <div className="addon-section" key={sec.section}>
                     <div className="addon-section-header">
-                      <div className="addon-section-title">{sec.section}</div>
+                      <div className="addon-section-title">{sec.stepTitle || sec.section}</div>
                     </div>
                     <div className="addon-section-meta">
                       <span className="addon-count-badge">
@@ -225,9 +292,9 @@ export default function ProductModal() {
                   </div>
                 );
               })
-            )}
+            ) : null}
           </div>
-          <div className="popup-footer">
+          <div className={`popup-footer ${hasMarmitaWizard ? 'popup-footer-marmita-wizard' : ''}`}>
             <div className="qty-controls">
               <button type="button" className="qty-btn minus" onClick={() => changeQty(-1)}>
                 −
@@ -237,30 +304,54 @@ export default function ProductModal() {
                 +
               </button>
             </div>
-            <button
-              type="button"
-              className="btn-adicionar"
-              disabled={!canAddPizza}
-              onClick={() => {
-                if (!isPizza) {
-                  addToCart();
-                  return;
-                }
-                const labels = [
-                  `Tamanho: ${selectedSize?.tamanhoNome || selectedSize?.tamanhoId || ''}`,
-                  ...pizzaFlavors.map((id) => flavorPool.find((f) => f.id === id)?.name).filter(Boolean),
-                ];
-                addToCartCustom({
-                  product,
-                  qty: currentQty,
-                  unitPrice: pizzaUnitPrice,
-                  opts: labels,
-                });
-              }}
-            >
-              <span>Adicionar</span>
-              <span>{formatPrice(isPizza ? pizzaUnitPrice * currentQty : adicionarTotal)}</span>
-            </button>
+
+            {hasMarmitaWizard ? (
+              <div className="marmita-wizard-footer-actions">
+                {marmitaStep > 0 ? (
+                  <button
+                    type="button"
+                    className="marmita-wizard-nav-btn"
+                    onClick={() => setMarmitaStep((value) => Math.max(0, value - 1))}
+                  >
+                    Anterior
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn-adicionar marmita-wizard-primary-btn"
+                  disabled={!canMarmitaAdvance}
+                  onClick={handleMarmitaPrimaryAction}
+                >
+                  <span>{isLastMarmitaStep ? 'Adicionar' : 'Próximo'}</span>
+                  <span>{formatPrice(marmitaUnitTotal)}</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="btn-adicionar"
+                disabled={!canAddPizza}
+                onClick={() => {
+                  if (!isPizza) {
+                    addToCart();
+                    return;
+                  }
+                  const labels = [
+                    `Tamanho: ${selectedSize?.tamanhoNome || selectedSize?.tamanhoId || ''}`,
+                    ...pizzaFlavors.map((id) => flavorPool.find((f) => f.id === id)?.name).filter(Boolean),
+                  ];
+                  addToCartCustom({
+                    product,
+                    qty: currentQty,
+                    unitPrice: pizzaUnitPrice,
+                    opts: labels,
+                  });
+                }}
+              >
+                <span>Adicionar</span>
+                <span>{formatPrice(isPizza ? pizzaUnitPrice * currentQty : adicionarTotal)}</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

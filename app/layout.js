@@ -25,7 +25,7 @@ export default function RootLayout({ children }) {
   const supabase = getSupabasePublicEnv();
 
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" suppressHydrationWarning>
       <head>
         {cardapioCss ? (
           <style dangerouslySetInnerHTML={{ __html: cardapioCss }} />

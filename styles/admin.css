@@ -268,14 +268,14 @@
 .admin-nav-item {
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 14px 24px;
+  gap: 16px;
+  padding: 11px 20px;
   border-radius: 10px;
   font-size: 15px;
   font-weight: 700;
   color: #283044;
   text-decoration: none;
-  margin-bottom: 15px;
+  margin-bottom: 8px;
   border: 1px solid transparent;
 }
 
@@ -429,18 +429,27 @@
 }
 
 .admin-sidebar-footer {
-  padding: 14px 22px 18px;
+  padding: 14px 20px 18px;
   border-top: 1px solid #e4e7ef;
+  min-height: 58px;
+}
+
+.admin-sidebar-footer-row {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
-  min-height: 82px;
+  width: 100%;
+}
+
+.admin-sidebar-footer-spacer {
+  width: 1px;
+  flex-shrink: 0;
 }
 
 .admin-sidebar-support {
-  align-self: stretch;
-  text-align: right;
+  flex: 1;
+  text-align: center;
   font-size: 11px;
   font-weight: 500;
   color: #94a3b8;
@@ -454,13 +463,26 @@
   text-decoration: underline;
 }
 
+.admin-sidebar-footer .admin-logout-icon-btn.is-minimal {
+  flex-shrink: 0;
+  color: #64748b;
+}
+
+.admin-sidebar-footer .admin-logout-icon-btn.is-minimal:hover {
+  color: var(--admin-brand);
+  background: #f4f4ff;
+}
+
 .admin-sidebar.collapsed .admin-sidebar-footer {
   padding: 10px 8px;
-  align-items: center;
+}
+
+.admin-sidebar.collapsed .admin-sidebar-footer-row {
+  flex-direction: column;
+  gap: 8px;
 }
 
 .admin-sidebar.collapsed .admin-sidebar-support {
-  align-self: center;
   text-align: center;
   width: 28px;
   height: 28px;
@@ -1134,9 +1156,192 @@
 
 .admin-catalog-top-actions {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+}
+
+.admin-marmita-top-row .admin-catalog-top-actions {
+  justify-content: flex-start;
+}
+
+.admin-move-select {
+  min-width: 140px;
+  max-width: 180px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.admin-marmita-settings-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+  align-items: stretch;
+}
+
+.admin-marmita-settings-row .admin-marmita-cardapio-card,
+.admin-marmita-settings-row .admin-marmita-preview-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.admin-marmita-cardapio-body,
+.admin-marmita-settings-row .admin-marmita-preview-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  gap: 0;
+  padding-bottom: 0;
+}
+
+.admin-marmita-settings-row .admin-marmita-cardapio-summary {
+  flex: 1;
+}
+
+@media (max-width: 960px) {
+  .admin-marmita-settings-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.admin-marmita-cardapio-card {
+  margin-bottom: 14px;
+  padding: 16px 18px;
+}
+
+.admin-marmita-cardapio-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.admin-marmita-cardapio-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.admin-marmita-cardapio-row .admin-form-group {
+  margin-bottom: 0;
+}
+
+.admin-marmita-cardapio-row .admin-label {
+  min-height: 18px;
+  line-height: 1.3;
+}
+
+.admin-marmita-cardapio-row .admin-input,
+.admin-marmita-cardapio-row .admin-time-input {
+  min-height: 42px;
+  box-sizing: border-box;
+}
+
+.admin-marmita-cardapio-saved-msg {
+  margin: 0 0 10px;
+  color: var(--admin-green);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-marmita-cardapio-field {
+  min-width: 200px;
+  flex: 0 1 200px;
+}
+
+.admin-marmita-cardapio-field-wide {
+  min-width: 220px;
+  flex: 1 1 240px;
+  max-width: 360px;
+}
+
+.admin-marmita-cardapio-field-time {
+  min-width: 132px;
+  flex: 0 0 auto;
+}
+
+.admin-marmita-cardapio-field-time .admin-form-group,
+.admin-marmita-cardapio-field-time.admin-form-group {
+  margin-bottom: 0;
+}
+
+.admin-time-field {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+}
+
+.admin-time-input {
+  min-width: 128px;
+  width: 100%;
+  padding: 10px 40px 10px 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-time-icon {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--admin-text-mid, #6b7280);
+  pointer-events: none;
+}
+
+.admin-time-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.admin-marmita-cardapio-save {
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+.admin-marmita-cardapio-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  margin-top: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--admin-border, #e5e7eb);
+  border-radius: 10px;
+  background: var(--admin-surface-soft, #f9fafb);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.admin-marmita-cardapio-summary:hover {
+  border-color: var(--admin-brand, #7c3aed);
+  background: #fff;
+}
+
+.admin-marmita-cardapio-summary-headline {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--admin-text, #111827);
+  line-height: 1.35;
+}
+
+.admin-marmita-cardapio-summary-detail {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--admin-text-mid, #6b7280);
+  line-height: 1.45;
 }
 
 .admin-catalog-order-link {
@@ -1612,6 +1817,218 @@
 }
 
 .admin-order-child-row:first-child { border-top: none; }
+
+.admin-sortable-panel {
+  padding: 16px;
+}
+
+.admin-sortable-panel-hint {
+  margin: 0 0 12px;
+}
+
+.admin-sortable-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-sortable-slot {
+  position: relative;
+}
+
+.admin-sortable-placeholder {
+  border: 2px dashed rgba(78, 72, 221, 0.35);
+  border-radius: 12px;
+  background: rgba(78, 72, 221, 0.06);
+  margin-bottom: 10px;
+  transition: height 0.12s ease;
+}
+
+.admin-sortable-row,
+.admin-order-row,
+.admin-order-child-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-sortable-row.is-dragging,
+.admin-order-row.is-dragging,
+.admin-order-child-row.is-dragging {
+  opacity: 0.96;
+  cursor: grabbing;
+}
+
+.admin-sortable-handle {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: #eef0f6;
+  color: #64748b;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: grab;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.admin-sortable-handle span {
+  display: block;
+  width: 12px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.admin-sortable-handle:active {
+  cursor: grabbing;
+}
+
+.admin-grouped-sortable-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-grouped-sort-group-slot {
+  position: relative;
+}
+
+.admin-grouped-sort-group-card {
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
+.admin-grouped-sort-group-header {
+  margin: 0 !important;
+  border-radius: 14px 14px 0 0;
+  gap: 10px;
+}
+
+.admin-grouped-sort-group-header.is-dragging {
+  border-radius: 14px;
+}
+
+.admin-grouped-sort-group-toggle {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-grouped-sort-title-row {
+  width: 100%;
+}
+
+.admin-grouped-sort-title-row h3 {
+  margin: 0;
+}
+
+.admin-grouped-sort-count {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--admin-text-mid);
+}
+
+.admin-grouped-sort-handle-spacer {
+  width: 28px;
+  flex-shrink: 0;
+}
+
+.admin-grouped-sort-items {
+  padding: 8px 12px 12px;
+}
+
+.admin-grouped-sort-items-flat {
+  padding: 0;
+}
+
+.admin-grouped-sort-item-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #e1e4ea;
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: #fff;
+}
+
+.admin-grouped-sort-item-row.is-dragging {
+  opacity: 0.96;
+  cursor: grabbing;
+}
+
+.admin-grouped-sort-item-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.admin-grouped-sort-item-img,
+.admin-grouped-sort-item-preview .admin-img-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.admin-grouped-sort-item-preview .admin-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-grouped-sort-empty {
+  padding: 10px 4px;
+  font-size: 13px;
+  color: var(--admin-text-mid);
+}
+
+.admin-catalog-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.admin-catalog-collapse-btn h3 {
+  margin: 0;
+}
+
+.admin-collapse-chevron {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--admin-text-mid);
+  transform: rotate(90deg);
+  transition: transform 0.15s ease;
+}
+
+.admin-collapse-chevron.is-collapsed {
+  transform: rotate(0deg);
+}
 
 .admin-catalog-form-grid {
   display: grid;
@@ -6093,11 +6510,13 @@ textarea.admin-input::placeholder {
 }
 
 .admin-sidebar-sistema-link {
-  align-self: stretch;
-  display: flex;
+  flex-shrink: 0;
+  width: auto;
+  max-width: max-content;
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
+  gap: 10px;
+  padding: 10px 16px;
   border-radius: 10px;
   background: var(--admin-brand);
   color: #fff;
@@ -6126,6 +6545,7 @@ textarea.admin-input::placeholder {
 }
 
 .admin-sidebar.collapsed .admin-sidebar-sistema-link {
+  align-self: center;
   justify-content: center;
   padding: 12px 0;
   gap: 0;
@@ -6908,5 +7328,559 @@ textarea.admin-input::placeholder {
   .admin-sistema-detail-modal {
     width: 100%;
     max-height: 95vh;
+  }
+}
+
+.admin-marmita-info-note {
+  margin: 0 0 16px;
+}
+
+.admin-marmita-preview-card {
+  margin-bottom: 14px;
+  padding: 16px 18px;
+}
+
+.admin-marmita-preview-headline {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--admin-text);
+}
+
+.admin-marmita-preview-detail {
+  margin: 0 0 12px;
+}
+
+.admin-marmita-preview-sizes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.admin-marmita-preview-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-marmita-preview-steps li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.admin-marmita-preview-steps li span {
+  color: var(--admin-text-mid);
+}
+
+.admin-marmita-excecoes-block {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--admin-border);
+}
+
+.admin-marmita-excecoes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.admin-marmita-new-grupo-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-marmita-grupo-suggest-label {
+  margin: 0;
+}
+
+.admin-marmita-grupo-suggest-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-marmita-vitrine-field {
+  grid-column: 1 / -1;
+}
+
+.admin-marmita-list-card {
+  margin-bottom: 14px;
+  padding: 12px 16px 16px;
+}
+
+.admin-marmita-item-row:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.admin-marmita-item-media-btn,
+.admin-marmita-item-title-btn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.admin-marmita-item-media-btn {
+  flex-shrink: 0;
+  border-radius: 10px;
+  transition: opacity 0.15s ease;
+}
+
+.admin-marmita-item-media-btn:hover {
+  opacity: 0.88;
+}
+
+.admin-marmita-item-title-btn {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+  width: 100%;
+}
+
+.admin-marmita-item-title-btn:hover .admin-item-title,
+.admin-marmita-item-title-btn:hover .admin-marmita-weekday {
+  color: var(--admin-brand);
+}
+
+.admin-marmita-weekday {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--admin-brand);
+  line-height: 1.2;
+}
+
+.admin-marmita-title-sep {
+  font-size: 16px;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.admin-marmita-item-title-btn .admin-item-title {
+  margin-bottom: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--admin-text-mid);
+}
+
+.admin-marmita-size-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 7px;
+  padding: 0;
+}
+
+.admin-marmita-size-preview .admin-marmita-size-chip,
+.admin-marmita-preview-sizes .admin-marmita-size-chip {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--admin-brand);
+  background: var(--admin-brand-soft);
+  border: 1px solid rgba(78, 72, 221, 0.18);
+  border-radius: 999px;
+  padding: 5px 12px;
+}
+
+.admin-marmita-passos-count {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+
+.admin-marmita-size-chip {
+  display: inline-flex;
+  align-items: center;
+}
+
+.admin-marmita-popup {
+  max-width: 1180px;
+  width: min(1180px, calc(100vw - 32px));
+}
+
+.admin-marmita-popup .admin-item-form-col {
+  flex: 2;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.admin-marmita-popup .admin-marmita-preview-col {
+  flex: 1;
+  min-width: 0;
+  overflow-y: visible;
+}
+
+.admin-marmita-preview-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 20px;
+  overflow: visible;
+}
+
+.admin-marmita-preview-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-marmita-preview-public-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.3;
+}
+
+.admin-marmita-preview-admin-tag {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--admin-text-mid);
+}
+
+.admin-marmita-preview-weekday {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--admin-brand);
+}
+
+.admin-marmita-preview-desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--admin-text-mid);
+}
+
+.admin-marmita-preview-sizes {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+.admin-marmita-preview-sizes .admin-marmita-size-chip {
+  flex: 1 1 0;
+  min-width: 0;
+  justify-content: center;
+  font-size: 11px;
+  padding: 4px 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-marmita-order-item-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.admin-marmita-order-item-title .admin-marmita-weekday {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--admin-brand);
+}
+
+.admin-marmita-order-item-title .admin-marmita-title-sep {
+  flex-shrink: 0;
+  color: var(--admin-text-mid);
+}
+
+.admin-marmita-order-item-title > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-marmita-popup .admin-item-popup-body {
+  overflow: visible;
+  padding-top: 28px;
+}
+
+.admin-marmita-preview-col .admin-upload-box {
+  width: 100%;
+  max-width: none;
+}
+
+@media (max-width: 767px) {
+  .admin-marmita-popup.admin-product-popup {
+    flex-direction: column;
+  }
+
+  .admin-marmita-preview-col {
+    order: -1;
+    border-bottom: 1px solid #d5dae2;
+  }
+
+  .admin-marmita-preview-col .admin-upload-box {
+    min-height: 180px;
+  }
+}
+
+.admin-marmita-form-section {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--admin-border);
+}
+
+.admin-marmita-form-section h4 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.admin-marmita-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.admin-marmita-section-head h4 {
+  margin: 0;
+}
+
+.admin-marmita-size-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.admin-marmita-size-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: #fafbff;
+}
+
+.admin-marmita-size-name,
+.admin-marmita-size-price {
+  min-width: 0;
+  width: 100%;
+}
+
+.admin-marmita-size-card .admin-marmita-check {
+  justify-content: flex-start;
+  min-width: 0;
+  width: 100%;
+}
+
+.admin-marmita-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--admin-text-mid);
+  user-select: none;
+}
+
+.admin-marmita-check input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-marmita-check-box {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 1.5px solid #cbd5e1;
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.admin-marmita-check input:checked + .admin-marmita-check-box {
+  border-color: var(--admin-brand);
+  background: var(--admin-brand);
+}
+
+.admin-marmita-check-box svg {
+  width: 14px;
+  height: 14px;
+}
+
+.admin-marmita-passos-note {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.admin-marmita-passos-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-marmita-passo-card {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-border);
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-marmita-passo-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.admin-marmita-passo-index {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--admin-text-mid);
+}
+
+.admin-marmita-passo-row1 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+}
+
+.admin-marmita-passo-field {
+  margin: 0;
+  min-width: 0;
+}
+
+.admin-marmita-passo-field .admin-label {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.admin-marmita-passo-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.admin-marmita-passo-remove {
+  width: 32px;
+  min-width: 32px;
+  padding: 0;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: var(--admin-red);
+  font-size: 18px;
+  line-height: 1;
+  font-weight: 500;
+}
+
+.admin-marmita-passo-remove:hover {
+  background: var(--admin-red);
+  border-color: var(--admin-red);
+  color: #fff;
+}
+
+.admin-marmita-passo-row2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-height: 28px;
+}
+
+.admin-marmita-passo-items-inline {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  min-width: 0;
+  overflow: visible;
+}
+
+.admin-marmita-passo-items-inline .admin-label {
+  font-size: 12px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.admin-marmita-passo-item-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  min-width: 0;
+  overflow: visible;
+}
+
+.admin-marmita-passo-empty-items {
+  flex: 1;
+  margin: 0;
+  font-size: 12px;
+}
+
+.admin-marmita-passo-limits {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.admin-marmita-passo-limits .admin-label {
+  margin: 0;
+  font-size: 12px;
+}
+
+.admin-marmita-passo-limit-input {
+  width: 52px;
+  min-width: 52px;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.admin-marmita-passo-limits-sep {
+  font-size: 12px;
+  color: var(--admin-text-mid);
+}
+
+.admin-marmita-passo-limits-hint {
+  margin: 0;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.admin-marmita-passo-row2 > .admin-marmita-check {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+@media (max-width: 900px) {
+  .admin-marmita-size-card {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-marmita-passo-row1 {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-marmita-passo-row2 > .admin-marmita-check {
+    margin-left: 0;
   }
 }

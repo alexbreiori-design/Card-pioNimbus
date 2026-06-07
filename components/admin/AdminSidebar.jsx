@@ -1,14 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import AdminIcon from './AdminIcon';
 import AdminLogoutButton from './AdminLogoutButton';
 import AdminStoreSwitcher from './AdminStoreSwitcher';
+import { useAdminData } from '@/hooks/useAdminData';
+import { isMarmitaSegment } from '@/lib/empresaSegmentos';
 import { NIMBUS_SUPPORT_LABEL, NIMBUS_SUPPORT_URL } from '@/lib/nimbusSupport';
 
-const NAV = [
+const BASE_NAV = [
   { href: '/admin/pedidos', label: 'Pedidos', icon: 'orders' },
   { href: '/admin/produtos', label: 'Produtos', icon: 'products' },
   { href: '/admin/adicionais', label: 'Adicionais', icon: 'addons' },
@@ -41,6 +43,13 @@ function NavIcon({ name }) {
       <svg viewBox="0 0 24 24">
         <line x1="12" y1="5" x2="12" y2="19" />
         <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+    ),
+    marmitas: (
+      <svg viewBox="0 0 24 24">
+        <rect x="4" y="7" width="16" height="12" rx="2" />
+        <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+        <line x1="4" y1="12" x2="20" y2="12" />
       </svg>
     ),
     promos: (
@@ -93,8 +102,22 @@ export default function AdminSidebar({
 }) {
   const { aberta, fechadaManual } = openStatus;
   const pathname = usePathname();
+  const { data } = useAdminData();
   const [superAdmin, setSuperAdmin] = useState(false);
   const [supportUrl, setSupportUrl] = useState(NIMBUS_SUPPORT_URL);
+
+  const navItems = useMemo(() => {
+    const items = [...BASE_NAV];
+    if (isMarmitaSegment(data?.loja?.segmento)) {
+      const produtosIndex = items.findIndex((item) => item.href === '/admin/produtos');
+      items.splice(produtosIndex, 0, {
+        href: '/admin/marmitas',
+        label: 'Marmitas',
+        icon: 'marmitas',
+      });
+    }
+    return items;
+  }, [data?.loja?.segmento]);
 
   useEffect(() => {
     let cancelled = false;
@@ -206,7 +229,7 @@ export default function AdminSidebar({
         </button>
       </div>
       <nav className="admin-nav">
-        {NAV.map((item) => (
+        {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -222,44 +245,48 @@ export default function AdminSidebar({
         ))}
       </nav>
       <div className="admin-sidebar-footer">
-        {superAdmin ? (
-          <Link
-            href="/admin/sistema"
-            className={`admin-sidebar-sistema-link${pathname.startsWith('/admin/sistema') ? ' is-current' : ''}`}
-            title={collapsed ? 'Sistema Nimbus' : undefined}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-            </svg>
-            <span>Sistema</span>
-          </Link>
-        ) : null}
-        <a
-          className="admin-sidebar-support"
-          href={supportUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={NIMBUS_SUPPORT_LABEL}
-        >
-          {collapsed ? (
-            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-              <path
-                d="M18 13v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6M10 11l4-4 4 4M14 7v12"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+        <div className="admin-sidebar-footer-row">
+          {superAdmin ? (
+            <Link
+              href="/admin/sistema"
+              className={`admin-sidebar-sistema-link${pathname.startsWith('/admin/sistema') ? ' is-current' : ''}`}
+              title={collapsed ? 'Sistema Nimbus' : undefined}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
+              </svg>
+              <span>Sistema</span>
+            </Link>
           ) : (
-            NIMBUS_SUPPORT_LABEL
+            <span className="admin-sidebar-footer-spacer" aria-hidden="true" />
           )}
-        </a>
-        <AdminLogoutButton />
+          <a
+            className="admin-sidebar-support"
+            href={supportUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={NIMBUS_SUPPORT_LABEL}
+          >
+            {collapsed ? (
+              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                <path
+                  d="M18 13v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6M10 11l4-4 4 4M14 7v12"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            ) : (
+              NIMBUS_SUPPORT_LABEL
+            )}
+          </a>
+          <AdminLogoutButton variant="minimal" />
+        </div>
       </div>
     </aside>
   );

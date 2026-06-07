@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 import { useAdminData } from '@/hooks/useAdminData';
 import { uploadMenuAssetIfNeeded } from '@/lib/upload/menuAsset';
 import { isPizzariaSegment } from '@/lib/empresaSegmentos';
+import AdminGroupedSortablePanel from './AdminGroupedSortablePanel';
 import ImagePlaceholder from './ImagePlaceholder';
 import AdminIcon from './AdminIcon';
 import CategoryIcon from './CategoryIcon';
@@ -90,15 +91,6 @@ function cloneItemForDuplicate(item, { newCategoryId, ordem, isProdutos }) {
   };
 }
 
-function reorderByDrag(list, fromId, toId) {
-  const fromIdx = list.findIndex((x) => x.id === fromId);
-  const toIdx = list.findIndex((x) => x.id === toId);
-  if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return list;
-  const next = [...list];
-  const [moved] = next.splice(fromIdx, 1);
-  next.splice(toIdx, 0, moved);
-  return next.map((item, idx) => ({ ...item, ordem: idx }));
-}
 
 function parseMoney(value) {
   if (typeof value === 'number') return value;
@@ -324,7 +316,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
   const [search, setSearch] = useState('');
   const [selectedCat, setSelectedCat] = useState(TAB_ALL);
   const [ordering, setOrdering] = useState(false);
-  const [orderOpenCat, setOrderOpenCat] = useState('');
+  const [collapsedCats, setCollapsedCats] = useState(() => new Set());
   const [newCatName, setNewCatName] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState('');
@@ -429,6 +421,15 @@ export default function CatalogManager({ mode = 'produtos' }) {
       });
   }
 
+  function toggleCategoryCollapse(catId) {
+    setCollapsedCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(catId)) next.delete(catId);
+      else next.add(catId);
+      return next;
+    });
+  }
+
   function addCategory() {
     const nome = newCatName.trim();
     if (!nome) return;
@@ -509,10 +510,16 @@ export default function CatalogManager({ mode = 'produtos' }) {
 
   function confirmRemoveProduct() {
     if (!removingProduct) return;
-    saveData((prev) => ({
-      ...prev,
-      [itemKey]: prev[itemKey].filter((item) => item.id !== removingProduct.id),
-    }));
+    saveData((prev) => {
+      const next = {
+        ...prev,
+        [itemKey]: prev[itemKey].filter((item) => item.id !== removingProduct.id),
+      };
+      if (isProdutos) {
+        next.promocoes = (prev.promocoes || []).filter((p) => p.produtoId !== removingProduct.id);
+      }
+      return next;
+    });
     setRemovingProduct(null);
   }
 
@@ -1023,51 +1030,40 @@ export default function CatalogManager({ mode = 'produtos' }) {
       ) : null}
 
       {ordering ? (
-        <div className="admin-card">
-          {categories.map((cat) => (
-            <div
-              key={cat.id}
-              className="admin-order-row"
-              draggable
-              onDragStart={(e) => e.dataTransfer.setData('text/plain', cat.id)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                const fromId = e.dataTransfer.getData('text/plain');
-                saveData((prev) => ({ ...prev, [catKey]: reorderByDrag(prev[catKey], fromId, cat.id) }));
-              }}
-            >
-              <button type="button" className="admin-order-row-title" onClick={() => setOrderOpenCat((v) => (v === cat.id ? '' : cat.id))}>{cat.nome}</button>
-              <span className="admin-order-hint">Arraste para ordenar</span>
-            </div>
-          ))}
-          {orderOpenCat ? (
-            <div className="admin-order-child-wrap">
-              {categoryItems(orderOpenCat).map((item) => (
-                <div
-                  key={item.id}
-                  className="admin-order-child-row"
-                  draggable
-                  onDragStart={(e) => e.dataTransfer.setData('text/plain', item.id)}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const fromId = e.dataTransfer.getData('text/plain');
-                    saveData((prev) => ({
-                      ...prev,
-                      [itemKey]: (() => {
-                        const same = prev[itemKey].filter((x) => x.categoriaId === orderOpenCat);
-                        const other = prev[itemKey].filter((x) => x.categoriaId !== orderOpenCat);
-                        return [...other, ...reorderByDrag(same, fromId, item.id)];
-                      })(),
-                    }));
-                  }}
-                >
-                  <span>{item.nome}</span>
-                </div>
-              ))}
-            </div>
-          ) : null}
+        <div className="admin-card admin-sortable-panel">
+          <AdminGroupedSortablePanel
+            groups={categories}
+            items={items}
+            groupIdKey="categoriaId"
+            onGroupsReorder={(next) => saveData((prev) => ({ ...prev, [catKey]: next }))}
+            onItemsChange={(next) => saveData((prev) => ({ ...prev, [itemKey]: next }))}
+            renderGroupHeader={(cat, { isExpanded, itemCount }) => (
+              <div className="admin-catalog-title-row admin-grouped-sort-title-row">
+                <span className={`admin-collapse-chevron ${isExpanded ? '' : 'is-collapsed'}`} aria-hidden>
+                  ›
+                </span>
+                <span className="admin-section-icon">
+                  {isProdutos ? (
+                    <CategoryIcon name={cat.icone || 'burger'} size={22} tinted />
+                  ) : (
+                    <AdminIcon name="category" />
+                  )}
+                </span>
+                <h3>{cat.nome}</h3>
+                <span className="admin-grouped-sort-count">{itemCount}</span>
+              </div>
+            )}
+            renderItemPreview={(item) => (
+              <div className="admin-grouped-sort-item-preview">
+                {item.imagemUrl ? (
+                  <img className="admin-grouped-sort-item-img" src={item.imagemUrl} alt="" />
+                ) : (
+                  <ImagePlaceholder size={48} />
+                )}
+                <span className="admin-item-title">{item.nome}</span>
+              </div>
+            )}
+          />
         </div>
       ) : (
         visibleCategories.map((cat) => {
@@ -1083,7 +1079,17 @@ export default function CatalogManager({ mode = 'produtos' }) {
                       <AdminIcon name="category" />
                     )}
                   </span>
-                  <h3>{cat.nome}</h3>
+                  <button
+                    type="button"
+                    className="admin-catalog-collapse-btn"
+                    onClick={() => toggleCategoryCollapse(cat.id)}
+                    aria-expanded={!collapsedCats.has(cat.id)}
+                  >
+                    <span className={`admin-collapse-chevron ${collapsedCats.has(cat.id) ? 'is-collapsed' : ''}`} aria-hidden>
+                      ›
+                    </span>
+                    <h3>{cat.nome}</h3>
+                  </button>
                   <span>Disponivel</span>
                   <Switch
                     checked={Boolean(cat.ativo)}
@@ -1152,7 +1158,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
                 </div>
               </div>
 
-              {catItems.length ? (
+              {!collapsedCats.has(cat.id) && catItems.length ? (
                 catItems.map((item) => (
                   <div key={item.id} className="admin-catalog-item-row">
                     {item.imagemUrl ? (
@@ -1199,9 +1205,9 @@ export default function CatalogManager({ mode = 'produtos' }) {
                     </div>
                   </div>
                 ))
-              ) : (
+              ) : !collapsedCats.has(cat.id) ? (
                 <div className="admin-empty-catalog">Nenhum item nesta categoria.</div>
-              )}
+              ) : null}
             </div>
           );
         })

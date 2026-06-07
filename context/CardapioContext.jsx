@@ -675,9 +675,7 @@ export function CardapioProvider({ children, slug = '' }) {
   const filteredProducts = useMemo(() => {
     const cats =
       selectedCategory === 'Todos'
-        ? [...new Set(dynamicProducts.map((p) => p.category))].filter(
-            (cat) => cat !== PROMO_CATEGORY_NAME
-          )
+        ? dynamicCategories.filter((cat) => cat !== 'Todos' && cat !== PROMO_CATEGORY_NAME)
         : [selectedCategory];
     const sections = [];
     cats.forEach((cat) => {
@@ -686,11 +684,24 @@ export function CardapioProvider({ children, slug = '' }) {
         (p) => p.category === cat && productMatchesSearch(p)
       );
       if (items.length > 0) {
-        sections.push({ category: cat, items, categoryIcon: categoryIconsByName[cat] || 'burger' });
+        const isMarmitaSection = items.every((p) => p.type === 'marmita');
+        sections.push({
+          category: cat,
+          items,
+          categoryIcon: categoryIconsByName[cat] || 'burger',
+          isMarmitaSection,
+        });
       }
     });
     return sections;
-  }, [searchQuery, selectedCategory, dynamicProducts, categoryIconsByName, productMatchesSearch]);
+  }, [
+    searchQuery,
+    selectedCategory,
+    dynamicProducts,
+    dynamicCategories,
+    categoryIconsByName,
+    productMatchesSearch,
+  ]);
 
   const relatedItems = useMemo(() => {
     const cartIds = new Set(cart.map((item) => item.productId));

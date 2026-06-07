@@ -1,5 +1,7 @@
 'use client';
 
+import { formatCartOptsList } from '@/lib/cardapio/formatCartOpts';
+
 import { useRef } from 'react';
 import { useCardapio } from '@/context/CardapioContext';
 import { calculateCupomDiscount } from '@/lib/cupons';
@@ -103,7 +105,7 @@ export default function SacolaPanel({ onFinalize, finalizeLabel = 'Finalizar ped
                 <div className="sacola-item-info">
                   <div className="sacola-item-qty">{item.qty}x</div>
                   <div className="sacola-item-name">{item.name}</div>
-                  <div className="sacola-item-opts">{item.opts.join(', ')}</div>
+                  <div className="sacola-item-opts">{formatCartOptsList(item.opts)}</div>
                   <div className="sacola-item-actions">
                     <button type="button" onClick={() => editCartItem(item.id)}>
                       Editar
