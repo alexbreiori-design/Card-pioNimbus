@@ -1,1 +1,1 @@
-export { default } from './(cardapio)/page';
+export { default, metadata } from './(public)/home/page';
