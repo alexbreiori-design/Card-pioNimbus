@@ -19,7 +19,10 @@ export default function ProductCard({ product }) {
               <span className="product-price-promo">{formatPrice(product.price)}</span>
             </>
           ) : (
-            formatPrice(product.price)
+            <>
+              {product.priceLabel ? <span className="product-price-from">{product.priceLabel} </span> : null}
+              {formatPrice(product.price)}
+            </>
           )}
         </div>
       </div>

@@ -1,9 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 
 export default function CreateStoreSuccess({ result, onClose }) {
   const [copied, setCopied] = useState('');
+  const { overlayPointerDown, overlayClick } = useAdminOverlayClose({
+    onClose,
+    isDirty: false,
+  });
 
   if (!result?.store) return null;
 
@@ -27,7 +32,12 @@ export default function CreateStoreSuccess({ result, onClose }) {
   }
 
   return (
-    <div className="admin-sistema-modal-backdrop" role="presentation" onClick={onClose}>
+    <div
+      className="admin-sistema-modal-backdrop"
+      role="presentation"
+      onPointerDown={overlayPointerDown}
+      onClick={overlayClick}
+    >
       <div
         className="admin-sistema-modal admin-sistema-success"
         role="dialog"

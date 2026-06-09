@@ -10,9 +10,10 @@
   --landing-pink: #db2777;
   --landing-blue: #2563eb;
   --landing-emerald: #059669;
-  --landing-glass-bg: rgba(255, 255, 255, 0.15);
-  --landing-glass-border: rgba(255, 255, 255, 0.42);
-  --landing-glass-blur: 15px;
+  --landing-glass-bg: rgba(255, 255, 255, 0.12);
+  --landing-glass-border: rgba(255, 255, 255, 0.52);
+  --landing-glass-blur: 24px;
+  --landing-glass-filter: blur(24px) saturate(1.8) contrast(0.94) brightness(1.04);
   --landing-shadow: 0 20px 50px rgba(76, 29, 149, 0.1);
   --landing-radius: 22px;
   --mx: 0;
@@ -32,6 +33,8 @@
   background: var(--landing-bg);
   color: var(--landing-text);
   font-family: Inter, system-ui, sans-serif;
+  overflow-x: clip;
+  scroll-behavior: smooth;
 }
 
 .landing-container {
@@ -47,54 +50,67 @@
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
-  background: var(--landing-bg);
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.86), rgba(246, 248, 255, 0.58)),
+    var(--landing-bg);
 }
 
 .landing-aurora {
   position: absolute;
-  inset: -30%;
-  filter: blur(42px) saturate(1.35);
-  will-change: transform;
-  animation: landingAuroraShift 14s ease-in-out infinite alternate;
+  inset: -34%;
+  filter: blur(28px) saturate(1.85);
+  mix-blend-mode: multiply;
+  will-change: transform, translate, rotate, scale;
+  animation: landingAuroraShift 12s ease-in-out infinite alternate;
 }
 
 .landing-aurora--blue {
-  opacity: 0.58;
+  opacity: 0.86;
   background:
-    radial-gradient(ellipse 52% 40% at 28% 12%, rgba(147, 197, 253, 0.82), transparent 70%),
-    radial-gradient(ellipse 44% 34% at 78% 18%, rgba(96, 165, 250, 0.62), transparent 72%);
-  transform: translate(calc(var(--mx) * 95px), calc(var(--my) * -70px));
-  animation-duration: 16s;
+    radial-gradient(ellipse 48% 34% at 22% 18%, rgba(125, 211, 252, 0.9), transparent 66%),
+    radial-gradient(ellipse 36% 30% at 78% 22%, rgba(96, 165, 250, 0.78), transparent 70%),
+    radial-gradient(ellipse 34% 28% at 48% 72%, rgba(186, 230, 253, 0.82), transparent 68%);
+  translate: calc(var(--mx) * 230px) calc(var(--my) * -170px);
+  animation-duration: 9s;
 }
 
 .landing-aurora--lilac {
-  opacity: 0.7;
+  opacity: 0.88;
   background:
-    radial-gradient(ellipse 56% 44% at 50% 50%, rgba(192, 132, 252, 0.8), transparent 68%),
-    radial-gradient(ellipse 42% 36% at 22% 54%, rgba(167, 139, 250, 0.56), transparent 72%);
-  transform: translate(calc(var(--mx) * -70px), calc(var(--my) * 40px));
-  animation-duration: 17s;
+    radial-gradient(ellipse 50% 38% at 50% 46%, rgba(196, 181, 253, 0.94), transparent 66%),
+    radial-gradient(ellipse 34% 30% at 22% 58%, rgba(167, 139, 250, 0.7), transparent 70%),
+    radial-gradient(ellipse 34% 26% at 76% 72%, rgba(216, 180, 254, 0.68), transparent 70%);
+  translate: calc(var(--mx) * -210px) calc(var(--my) * 150px);
+  animation-duration: 10s;
   animation-delay: -2s;
 }
 
 .landing-aurora--pink {
-  opacity: 0.54;
+  opacity: 0.82;
   background:
-    radial-gradient(ellipse 50% 42% at 62% 86%, rgba(244, 114, 182, 0.76), transparent 68%),
-    radial-gradient(ellipse 38% 32% at 24% 92%, rgba(236, 72, 153, 0.52), transparent 74%);
-  transform: translate(calc(var(--mx) * -110px), calc(var(--my) * 90px));
-  animation-duration: 18s;
+    radial-gradient(ellipse 46% 36% at 62% 82%, rgba(244, 114, 182, 0.86), transparent 66%),
+    radial-gradient(ellipse 34% 30% at 26% 90%, rgba(236, 72, 153, 0.66), transparent 72%),
+    radial-gradient(ellipse 36% 28% at 82% 50%, rgba(251, 207, 232, 0.82), transparent 70%);
+  translate: calc(var(--mx) * -260px) calc(var(--my) * 220px);
+  animation-duration: 11s;
   animation-delay: -4s;
 }
 
 @keyframes landingAuroraShift {
   0% {
+    transform: translate3d(-5%, -3%, 0);
     rotate: 0deg;
-    scale: 1;
+    scale: 1.04;
+  }
+  45% {
+    transform: translate3d(7%, 5%, 0);
+    rotate: -10deg;
+    scale: 1.16;
   }
   100% {
-    rotate: 8deg;
-    scale: 1.12;
+    transform: translate3d(-4%, 8%, 0);
+    rotate: 16deg;
+    scale: 1.26;
   }
 }
 
@@ -116,6 +132,10 @@
   border: none;
   box-shadow: none;
   border-radius: 20px;
+  isolation: isolate;
+  background: rgba(255, 255, 255, 0.04);
+  -webkit-backdrop-filter: var(--landing-glass-filter);
+  backdrop-filter: var(--landing-glass-filter);
 }
 
 .landing-glass-card::before,
@@ -125,26 +145,30 @@
   inset: 0;
   z-index: 0;
   border-radius: inherit;
-  background: var(--landing-glass-bg);
-  backdrop-filter: blur(var(--landing-glass-blur)) saturate(1.35);
-  -webkit-backdrop-filter: blur(var(--landing-glass-blur)) saturate(1.35);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.06) 52%, rgba(255, 255, 255, 0.18)),
+    var(--landing-glass-bg);
+  -webkit-backdrop-filter: var(--landing-glass-filter);
+  backdrop-filter: var(--landing-glass-filter);
   border: 1px solid var(--landing-glass-border);
   box-shadow:
-    0 8px 28px rgba(76, 29, 149, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.55),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+    0 16px 42px rgba(76, 29, 149, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.74),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 28px rgba(255, 255, 255, 0.1);
   pointer-events: none;
 }
 
 .landing-glass-card::after {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
+  inset: 1px;
   border-radius: inherit;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.46), transparent 34%),
+    radial-gradient(circle at 18% 10%, rgba(255, 255, 255, 0.7), transparent 28%),
+    radial-gradient(circle at 80% 96%, rgba(167, 139, 250, 0.16), transparent 36%);
+  opacity: 0.72;
   pointer-events: none;
   z-index: 1;
 }
@@ -199,10 +223,12 @@
   border-radius: 999px;
   transform: translateZ(0);
   transition:
-    width 0.38s cubic-bezier(0.22, 1, 0.36, 1),
-    max-width 0.38s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.38s ease,
-    box-shadow 0.38s ease;
+    width 0.52s cubic-bezier(0.16, 1, 0.3, 1),
+    max-width 0.52s cubic-bezier(0.16, 1, 0.3, 1),
+    border-radius 0.52s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.42s ease,
+    box-shadow 0.42s ease,
+    transform 0.42s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .landing-header--transitioning .landing-header__dock {
@@ -217,10 +243,10 @@
   min-height: 72px;
   padding: 10px 24px;
   transition:
-    min-height 0.38s ease,
-    padding 0.38s ease,
-    gap 0.38s ease,
-    justify-content 0.38s ease;
+    min-height 0.52s cubic-bezier(0.16, 1, 0.3, 1),
+    padding 0.52s cubic-bezier(0.16, 1, 0.3, 1),
+    gap 0.52s cubic-bezier(0.16, 1, 0.3, 1),
+    justify-content 0.52s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .landing-header__group {
@@ -292,11 +318,20 @@
   font-size: 14px;
   font-weight: 600;
   background: transparent;
-  transition: color 0.2s ease;
+  transition:
+    color 0.22s ease,
+    background 0.22s ease,
+    box-shadow 0.22s ease,
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .landing-nav__link:hover {
   color: var(--landing-primary);
+  background: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.68),
+    0 8px 18px rgba(109, 40, 217, 0.08);
+  transform: translateY(-1px);
 }
 
 .landing-nav__icon {
@@ -356,12 +391,26 @@
   gap: 8px;
 }
 
+.landing-header:not(.landing-header--compact) .landing-header__login:hover,
+.landing-header:not(.landing-header--compact) .landing-header__cta:hover {
+  transform: translateY(-2px);
+}
+
+.landing-header:not(.landing-header--compact) .landing-header__login:hover {
+  color: var(--landing-primary-dark);
+  background: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 10px 22px rgba(109, 40, 217, 0.1);
+}
+
 /* Compact dock */
 
 .landing-header--compact .landing-header__dock {
   width: fit-content;
   max-width: calc(100% - 20px);
   box-shadow: 0 14px 34px rgba(76, 29, 149, 0.14);
+  transform: translateY(-1px);
 }
 
 .landing-header--compact .landing-header__inner {
@@ -502,16 +551,16 @@
   background: var(--landing-glass-bg);
   color: var(--landing-text-mid);
   border-color: var(--landing-glass-border);
-  backdrop-filter: blur(var(--landing-glass-blur)) saturate(1.35);
-  -webkit-backdrop-filter: blur(var(--landing-glass-blur)) saturate(1.35);
+  -webkit-backdrop-filter: var(--landing-glass-filter);
+  backdrop-filter: var(--landing-glass-filter);
 }
 
 .landing-btn--soft {
   background: var(--landing-glass-bg);
   color: var(--landing-primary-dark);
   border-color: var(--landing-glass-border);
-  backdrop-filter: blur(var(--landing-glass-blur)) saturate(1.35);
-  -webkit-backdrop-filter: blur(var(--landing-glass-blur)) saturate(1.35);
+  -webkit-backdrop-filter: var(--landing-glass-filter);
+  backdrop-filter: var(--landing-glass-filter);
   box-shadow: 0 8px 22px rgba(88, 28, 135, 0.06);
 }
 
@@ -521,16 +570,16 @@
 }
 
 .landing-btn--light {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.14);
   color: var(--landing-primary-dark);
   border: 1px solid rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(var(--landing-glass-blur)) saturate(1.35);
-  -webkit-backdrop-filter: blur(var(--landing-glass-blur)) saturate(1.35);
+  -webkit-backdrop-filter: var(--landing-glass-filter);
+  backdrop-filter: var(--landing-glass-filter);
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
 }
 
 .landing-btn--light:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .landing-icon {
@@ -566,13 +615,18 @@
 .landing-scene__inner {
   opacity: var(--scene-opacity, 1);
   filter: blur(var(--scene-blur, 0));
-  will-change: opacity, filter;
+  transform: translate3d(0, var(--scene-y, 0), 0) scale(var(--scene-scale, 1));
+  transform-origin: center;
+  will-change: opacity, filter, transform;
 }
 
 .landing-reveal {
   opacity: 1;
-  transform: translateY(0);
-  filter: none;
+  transform: translate3d(0, var(--scene-child-y, 0), 0);
+  filter: blur(var(--scene-child-blur, 0));
+  transition:
+    transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.24s ease;
 }
 
 /* Hero */
@@ -637,8 +691,8 @@
   border-radius: 999px;
   background: var(--landing-glass-bg);
   border: 1px solid var(--landing-glass-border);
-  backdrop-filter: blur(var(--landing-glass-blur)) saturate(1.45);
-  -webkit-backdrop-filter: blur(var(--landing-glass-blur)) saturate(1.45);
+  -webkit-backdrop-filter: var(--landing-glass-filter);
+  backdrop-filter: var(--landing-glass-filter);
   font-size: 12px;
   font-weight: 600;
   color: var(--landing-text-mid);
@@ -646,7 +700,7 @@
 
 .landing-chip:hover {
   color: var(--landing-primary-dark);
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .landing-hero__visual {
@@ -798,10 +852,10 @@
   animation: landingFloat 6s ease-in-out infinite alternate;
 }
 
-.landing-pain-float--1 { top: 6%; right: 2%; }
-.landing-pain-float--2 { top: 34%; left: -4%; animation-delay: 0.8s; }
-.landing-pain-float--3 { bottom: 28%; right: 6%; animation-delay: 1.4s; }
-.landing-pain-float--4 { bottom: 6%; left: 8%; animation-delay: 2s; }
+.landing-pain-float--1 { top: 5%; right: -6%; }
+.landing-pain-float--2 { top: 34%; left: -9%; animation-delay: 0.8s; }
+.landing-pain-float--3 { bottom: 28%; right: -5%; animation-delay: 1.4s; }
+.landing-pain-float--4 { bottom: 3%; left: -2%; animation-delay: 2s; }
 
 .landing-pain-float__icon {
   width: 22px;
@@ -1009,7 +1063,20 @@
 }
 
 .landing-stat-magnet.landing-interactive:hover {
-  transform: none;
+  transform: translateY(-6px) scale(1.035);
+}
+
+.landing-stat-card.landing-interactive:hover::before {
+  border-color: rgba(255, 255, 255, 0.88);
+  box-shadow:
+    0 24px 54px rgba(109, 40, 217, 0.16),
+    0 0 34px rgba(167, 139, 250, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    inset 0 0 38px rgba(255, 255, 255, 0.16);
+}
+
+.landing-stat-card.landing-interactive:hover strong {
+  filter: drop-shadow(0 0 12px rgba(167, 139, 250, 0.32));
 }
 
 .landing-stat-card strong {
@@ -1073,11 +1140,11 @@
 
 .landing-pricing__list {
   list-style: none;
-  margin: 24px 0 0;
+  margin: 18px 0 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 18px;
+  gap: 7px 18px;
   flex: 1;
 }
 
@@ -1085,9 +1152,9 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--landing-text-mid);
-  line-height: 1.4;
+  line-height: 1.22;
 }
 
 .landing-pricing__card {
@@ -1101,7 +1168,7 @@
   border-radius: 28px;
   background: linear-gradient(165deg, #4c1d95 0%, #6d28d9 48%, #7c3aed 100%);
   border: 1px solid rgba(255, 255, 255, 0.22);
-  box-shadow: 0 28px 56px rgba(76, 29, 149, 0.34);
+  box-shadow: 0 20px 38px rgba(76, 29, 149, 0.26);
   color: #f5f3ff;
 }
 
@@ -1114,9 +1181,9 @@
 .landing-pricing__card--neon.landing-interactive:hover {
   transform: translateY(-6px);
   box-shadow:
-    0 34px 68px rgba(109, 40, 217, 0.48),
-    0 0 42px rgba(139, 92, 246, 0.42),
-    0 0 88px rgba(124, 58, 237, 0.28);
+    0 26px 48px rgba(109, 40, 217, 0.34),
+    0 0 24px rgba(139, 92, 246, 0.26),
+    0 0 46px rgba(124, 58, 237, 0.16);
 }
 
 .landing-pricing__plan {
@@ -1130,14 +1197,15 @@
 
 .landing-pricing__price {
   margin: 14px 0 0;
-  font-size: clamp(2.4rem, 4.2vw, 3.2rem);
+  font-size: clamp(2.1rem, 3.5vw, 2.75rem);
   font-weight: 700;
   line-height: 1;
   color: #fff;
+  white-space: nowrap;
 }
 
 .landing-pricing__price span {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.78);
 }
@@ -1162,6 +1230,14 @@
 .landing-pricing__cta {
   width: 100%;
   margin-top: 24px;
+  background: #fff;
+  color: var(--landing-primary-dark);
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.14);
+}
+
+.landing-pricing__cta:hover {
+  background: rgba(255, 255, 255, 0.94);
 }
 
 /* Testimonials */
@@ -1448,8 +1524,8 @@
   inset: 0;
   z-index: 0;
   background: var(--landing-glass-bg);
-  backdrop-filter: blur(var(--landing-glass-blur)) saturate(1.35);
-  -webkit-backdrop-filter: blur(var(--landing-glass-blur)) saturate(1.35);
+  -webkit-backdrop-filter: var(--landing-glass-filter);
+  backdrop-filter: var(--landing-glass-filter);
   border-top: 1px solid var(--landing-glass-border);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
   pointer-events: none;
@@ -1611,7 +1687,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .landing-ambient__blob,
+  .landing-aurora,
   .landing-float-card,
   .landing-pain-float {
     animation: none;

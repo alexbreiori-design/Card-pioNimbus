@@ -3,7 +3,7 @@ import { getSiteOrigin } from '@/lib/siteUrl';
 import '@/styles/landing.css';
 
 export const metadata = {
-  title: 'Cardápio Nimbus | Cardápio digital para restaurantes e delivery',
+  title: 'Nimbus | Cardápio digital',
   description:
     'A Nimbus é a plataforma de cardápio digital com tudo incluso por R$ 149,90/mês. Ativação em 48h, suporte humano e ferramentas feitas para quem vive de delivery.',
   openGraph: {

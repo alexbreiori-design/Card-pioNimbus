@@ -12,6 +12,7 @@ import {
   EMPTY_ORDER_DRAFT,
   fmtPhone,
 } from '@/components/admin/orders/orderDraftUtils';
+import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOrders } from '@/hooks/useAdminOrders';
 import { useOrderPrint } from '@/context/OrderPrintContext';
@@ -21,6 +22,10 @@ import { resolveEmpresaIdFromStore } from '@/lib/supabase/empresa';
 import { getEtaFromConfirmedAt } from '@/lib/deliveryDuration';
 import { buildOrderStatusNotifyUrl, buildOrderSummaryWhatsAppUrl } from '@/lib/orderWhatsApp';
 import { formatOrderAgePt } from '@/lib/orderTimeAgo';
+import {
+  buildAdminOrderCatalogProducts,
+  buildAdminOrderCategories,
+} from '@/lib/admin/buildAdminCatalogProducts';
 
 const COLS = [
   {
@@ -110,7 +115,7 @@ export default function PedidosPage() {
   const storeSlug = data.loja?.slug || '';
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('todos');
-  const [toast, setToast] = useState('');
+  const toast = useAdminToast();
   const [createOpen, setCreateOpen] = useState(false);
   const [modalInitialDraft, setModalInitialDraft] = useState(null);
   const [detailOrderId, setDetailOrderId] = useState('');
@@ -120,8 +125,11 @@ export default function PedidosPage() {
   const [archiveDateTo, setArchiveDateTo] = useState('');
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
 
-  const products = useMemo(() => (data.produtos || []).filter((p) => p.ativo !== false), [data.produtos]);
-  const categorias = useMemo(() => (data.categorias || []).filter((c) => c.ativo !== false), [data.categorias]);
+  const products = useMemo(() => buildAdminOrderCatalogProducts(data), [data]);
+  const categorias = useMemo(
+    () => buildAdminOrderCategories(data, products),
+    [data, products]
+  );
   const orders = useMemo(() => allOrders.filter((o) => !o.arquivado), [allOrders]);
 
   const filteredOrders = useMemo(
@@ -148,11 +156,6 @@ export default function PedidosPage() {
     [filteredOrders]
   );
 
-  function pushToast(msg) {
-    setToast(msg);
-    setTimeout(() => setToast(''), 2600);
-  }
-
   function openNewOrderModal(initialDraft = null) {
     setModalInitialDraft(initialDraft);
     setCreateOpen(true);
@@ -163,9 +166,9 @@ export default function PedidosPage() {
     if (!next) return;
     try {
       await patchOrderStatus(order, next);
-      pushToast(`Pedido #${order.id} movido para ${STATUS_LABEL[next]}.`);
+      toast.success(`Pedido #${order.id} movido para ${STATUS_LABEL[next]}.`);
     } catch (error) {
-      pushToast(error?.message || 'Erro ao atualizar pedido.');
+      toast.error(error?.message || 'Erro ao atualizar pedido.');
     }
   }
 
@@ -174,18 +177,18 @@ export default function PedidosPage() {
     if (!prevStatus) return;
     try {
       await patchOrderStatus(order, prevStatus);
-      pushToast(`Pedido #${order.id} voltou para ${STATUS_LABEL[prevStatus]}.`);
+      toast.success(`Pedido #${order.id} voltou para ${STATUS_LABEL[prevStatus]}.`);
     } catch (error) {
-      pushToast(error?.message || 'Erro ao atualizar pedido.');
+      toast.error(error?.message || 'Erro ao atualizar pedido.');
     }
   }
 
   async function handleArchiveConcluded() {
     try {
       await archiveConcluded();
-      pushToast('Pedidos concluídos movidos para arquivo.');
+      toast.success('Pedidos concluídos movidos para arquivo.');
     } catch (error) {
-      pushToast(error?.message || 'Erro ao arquivar pedidos.');
+      toast.error(error?.message || 'Erro ao arquivar pedidos.');
     }
   }
 
@@ -194,9 +197,9 @@ export default function PedidosPage() {
     if (!order) return;
     try {
       await restoreArchived(order);
-      pushToast(`Pedido #${orderId} restaurado.`);
+      toast.success(`Pedido #${orderId} restaurado.`);
     } catch (error) {
-      pushToast(error?.message || 'Erro ao restaurar pedido.');
+      toast.error(error?.message || 'Erro ao restaurar pedido.');
     }
   }
 
@@ -329,7 +332,7 @@ export default function PedidosPage() {
         };
       });
     } catch (error) {
-      pushToast(error?.message || 'Erro ao criar pedido.');
+      toast.error(error?.message || 'Erro ao criar pedido.');
       return;
     }
 
@@ -337,7 +340,7 @@ export default function PedidosPage() {
     setTimeout(() => setRecentIds((prev) => prev.filter((id) => id !== newOrder.id)), 2000);
     setCreateOpen(false);
     setModalInitialDraft(null);
-    pushToast(`Pedido #${newOrder.id} criado com sucesso.`);
+    toast.success(`Pedido #${newOrder.id} criado com sucesso.`);
     if (printNow) printOrder(newOrder);
   }
 
@@ -346,7 +349,6 @@ export default function PedidosPage() {
 
   return (
     <div className="admin-content admin-content-pedidos admin-orders-page">
-      {toast ? <div className="admin-store-message">{toast}</div> : null}
       <div className="admin-pedidos-search-row">
         <div className="admin-pedidos-search-wrap">
           <AdminIcon name="search" />

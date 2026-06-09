@@ -785,6 +785,99 @@
   line-height: 1.55;
 }
 
+.catalogImport {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.catalogImportActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.catalogImportField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.catalogFileInput {
+  font-size: 14px;
+}
+
+.catalogTextarea {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  border-radius: 14px;
+  border: 1px solid rgba(78, 72, 221, 0.18);
+  background: #fff;
+  padding: 12px 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #1e293b;
+}
+
+.catalogImportModes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.catalogModeOption {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(78, 72, 221, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+}
+
+.catalogModeOption strong {
+  display: block;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.catalogModeOption small {
+  display: block;
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.catalogImportButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.catalogPreviewLine {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 8px;
+}
+
+.catalogMessageList {
+  margin: 10px 0 0;
+  padding-left: 18px;
+}
+
+.catalogWarning {
+  color: #b45309;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 @media (max-width: 720px) {
   .heroMain {
     flex-direction: column;

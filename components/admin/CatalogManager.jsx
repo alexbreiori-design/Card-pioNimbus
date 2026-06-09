@@ -3,9 +3,11 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useMemo, useState } from 'react';
+import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
 import { useAdminData } from '@/hooks/useAdminData';
+import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
+import { isJsonDirty } from '@/lib/admin/isFormDirty';
 import { uploadMenuAssetIfNeeded } from '@/lib/upload/menuAsset';
-import { isPizzariaSegment } from '@/lib/empresaSegmentos';
 import AdminGroupedSortablePanel from './AdminGroupedSortablePanel';
 import ImagePlaceholder from './ImagePlaceholder';
 import AdminIcon from './AdminIcon';
@@ -24,14 +26,6 @@ const TAB_ALL = 'all';
 const EMPTY_SELECTION = {
   categoriaIds: [],
   itemIds: [],
-};
-
-const EMPTY_PIZZA_CONFIG = {
-  tamanhoConfig: [],
-  saboresSelecionados: [],
-  precoPorTamanhoSabor: {},
-  regraPreco: 'mais_caro',
-  permitirSaboresDuplicados: false,
 };
 
 const EMPTY_COMBO_CONFIG = {
@@ -63,7 +57,6 @@ const EMPTY_FORM = {
   remocoes: EMPTY_SELECTION,
   adicionais: EMPTY_SELECTION,
   adicionaisConfig: EMPTY_ADDON_RULES,
-  pizzaConfig: EMPTY_PIZZA_CONFIG,
   comboConfig: EMPTY_COMBO_CONFIG,
 };
 
@@ -115,19 +108,6 @@ function selectionFrom(value) {
   };
 }
 
-function normalizePizzaConfig(value) {
-  return {
-    tamanhoConfig: Array.isArray(value?.tamanhoConfig) ? value.tamanhoConfig : [],
-    saboresSelecionados: Array.isArray(value?.saboresSelecionados) ? value.saboresSelecionados : [],
-    precoPorTamanhoSabor:
-      value?.precoPorTamanhoSabor && typeof value.precoPorTamanhoSabor === 'object'
-        ? value.precoPorTamanhoSabor
-        : {},
-    regraPreco: value?.regraPreco === 'media' ? 'media' : 'mais_caro',
-    permitirSaboresDuplicados: value?.permitirSaboresDuplicados === true,
-  };
-}
-
 function normalizeComboConfig(value) {
   return {
     itens: Array.isArray(value?.itens) ? value.itens : [],
@@ -139,36 +119,6 @@ function normalizeAddonRules(value) {
   return {
     grupos: value?.grupos && typeof value.grupos === 'object' ? value.grupos : {},
   };
-}
-
-function isFlavorCategory(category) {
-  const nome = String(category?.nome || '')
-    .trim()
-    .toLowerCase();
-  return nome === 'sabor' || nome.includes('sabor');
-}
-
-function getPizzaFromPrice(form, tamanhoProdutos, sabores) {
-  if (form.tipo !== 'pizza') return parseMoney(form.preco);
-  const config = normalizePizzaConfig(form.pizzaConfig);
-  const enabledSizes = config.tamanhoConfig.filter((t) => t.ativo !== false);
-  if (!enabledSizes.length || !config.saboresSelecionados.length) return NaN;
-
-  const minSizePrice = Math.min(
-    ...enabledSizes.map((sizeCfg) => {
-      const size = tamanhoProdutos.find((item) => item.id === sizeCfg.tamanhoId);
-      return Number(size?.preco || 0);
-    })
-  );
-
-  const minFlavorPrice = Math.min(
-    ...config.saboresSelecionados.map((saborId) => {
-      const sabor = sabores.find((item) => item.id === saborId);
-      return Number(sabor?.preco || 0);
-    })
-  );
-
-  return minSizePrice + minFlavorPrice;
 }
 
 function splitMeasure(measure = '') {
@@ -183,7 +133,7 @@ function itemToForm(item, fallbackCategoryId) {
   const measure = splitMeasure(item.medida);
   return {
     ...EMPTY_FORM,
-    tipo: item.tipo || (item.tags?.includes('pizza') ? 'pizza' : item.tags?.includes('combo') ? 'combo' : 'comum'),
+    tipo: item.tipo || (item.tags?.includes('combo') ? 'combo' : 'comum'),
     nome: item.nome || '',
     codigoPdv: item.codigoPdv || '',
     categoriaId: item.categoriaId || fallbackCategoryId || '',
@@ -202,7 +152,6 @@ function itemToForm(item, fallbackCategoryId) {
     remocoes: selectionFrom(item.remocoes),
     adicionais: selectionFrom(item.adicionais),
     adicionaisConfig: normalizeAddonRules(item.adicionaisConfig),
-    pizzaConfig: normalizePizzaConfig(item.pizzaConfig),
     comboConfig: normalizeComboConfig(item.comboConfig),
   };
 }
@@ -308,11 +257,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
   const itemKey = isProdutos ? 'produtos' : 'adicionaisItens';
 
   const { data, saveData, activeSlug } = useAdminData();
-  const isPizzaria = isPizzariaSegment(data.loja?.segmento);
-  const productTypeOptions = useMemo(
-    () => (isPizzaria ? ['comum', 'combo', 'pizza'] : ['comum', 'combo']),
-    [isPizzaria]
-  );
+  const productTypeOptions = useMemo(() => ['comum', 'combo'], []);
   const [search, setSearch] = useState('');
   const [selectedCat, setSelectedCat] = useState(TAB_ALL);
   const [ordering, setOrdering] = useState(false);
@@ -326,7 +271,9 @@ export default function CatalogManager({ mode = 'produtos' }) {
   const [removingProduct, setRemovingProduct] = useState(null);
   const [duplicateCategoryTarget, setDuplicateCategoryTarget] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [formBaseline, setFormBaseline] = useState(null);
   const [formImage, setFormImage] = useState('');
+  const [formImageBaseline, setFormImageBaseline] = useState('');
   const [saveError, setSaveError] = useState('');
   const [pickerType, setPickerType] = useState('');
   const [pickerSearch, setPickerSearch] = useState('');
@@ -339,23 +286,6 @@ export default function CatalogManager({ mode = 'produtos' }) {
   const items = useMemo(() => data[itemKey] || [], [data, itemKey]);
   const addonCategories = useMemo(() => data.adicionaisCategorias || [], [data.adicionaisCategorias]);
   const addonItems = useMemo(() => data.adicionaisItens || [], [data.adicionaisItens]);
-  const pizzaSizeProducts = useMemo(
-    () => (data.produtos || []).filter((p) => p.tipo === 'tamanho_pizza' && p.ativo !== false),
-    [data.produtos]
-  );
-  const flavorCategories = useMemo(
-    () => addonCategories.filter((category) => isFlavorCategory(category) && category.ativo !== false),
-    [addonCategories]
-  );
-  const flavorCategoryIds = useMemo(
-    () => new Set(flavorCategories.map((category) => category.id)),
-    [flavorCategories]
-  );
-  const flavorItems = useMemo(
-    () => addonItems.filter((item) => flavorCategoryIds.has(item.categoriaId) && item.ativo !== false),
-    [addonItems, flavorCategoryIds]
-  );
-
   const filteredCategories = useMemo(() => {
     if (!search.trim()) return categories;
     const q = search.toLowerCase();
@@ -369,7 +299,6 @@ export default function CatalogManager({ mode = 'produtos' }) {
 
   const pickerSelection = pickerType ? form[pickerType] : EMPTY_SELECTION;
   const pickerTitle = pickerType === 'remocoes' ? 'Remocao de ingredientes' : 'Selecao de adicionais';
-  const pizzaFromPrice = getPizzaFromPrice(form, pizzaSizeProducts, flavorItems);
   const selectedAddonGroups = useMemo(() => {
     const selected = selectionFrom(form.adicionais);
     const explicitCatIds = new Set(selected.categoriaIds);
@@ -396,7 +325,6 @@ export default function CatalogManager({ mode = 'produtos' }) {
         (p) =>
           p.ativo !== false &&
           p.tipo !== 'combo' &&
-          p.tipo !== 'tamanho_pizza' &&
           p.id !== editingItemId
       ),
     [data.produtos, editingItemId]
@@ -565,8 +493,11 @@ export default function CatalogManager({ mode = 'produtos' }) {
 
   function openNewItemModal(catId) {
     setEditingItemId('');
-    setForm({ ...EMPTY_FORM, categoriaId: catId });
+    const initial = { ...EMPTY_FORM, categoriaId: catId };
+    setForm(initial);
+    setFormBaseline(initial);
     setFormImage('');
+    setFormImageBaseline('');
     setSaveError('');
     setComboSearch('');
     setComboPickerOpen(false);
@@ -577,8 +508,12 @@ export default function CatalogManager({ mode = 'produtos' }) {
 
   function openEditItemModal(item) {
     setEditingItemId(item.id);
-    setForm(itemToForm(item, item.categoriaId));
-    setFormImage(item.imagemUrl || '');
+    const initial = itemToForm(item, item.categoriaId);
+    setForm(initial);
+    setFormBaseline(initial);
+    const image = item.imagemUrl || '';
+    setFormImage(image);
+    setFormImageBaseline(image);
     setSaveError('');
     setComboSearch('');
     setComboPickerOpen(false);
@@ -589,6 +524,8 @@ export default function CatalogManager({ mode = 'produtos' }) {
 
   function closeItemModal() {
     setModalOpen(false);
+    setFormBaseline(null);
+    setFormImageBaseline('');
     setPickerType('');
     setPickerSearch('');
     setComboPickerOpen(false);
@@ -597,22 +534,32 @@ export default function CatalogManager({ mode = 'produtos' }) {
     setPecaTambemSearch('');
   }
 
+  const isItemFormDirty = useMemo(() => {
+    if (!modalOpen) return false;
+    if (formImage !== formImageBaseline) return true;
+    if (!formBaseline) return false;
+    return isJsonDirty(form, formBaseline);
+  }, [modalOpen, form, formBaseline, formImage, formImageBaseline]);
+
+  const {
+    overlayPointerDown,
+    overlayClick,
+    requestClose: requestCloseItemModal,
+    discardOpen: itemDiscardOpen,
+    confirmDiscard: confirmDiscardItemModal,
+    cancelDiscard: cancelDiscardItemModal,
+  } = useAdminOverlayClose({
+    onClose: closeItemModal,
+    isDirty: isItemFormDirty,
+  });
+
   async function saveItem() {
     setSaveError('');
     const nome = form.nome.trim();
     const comboConfig = normalizeComboConfig(form.comboConfig);
     const comboPrice = parseMoney(comboConfig.precoCombo);
-    const preco =
-      form.tipo === 'combo'
-        ? comboPrice
-        : getPizzaFromPrice(form, pizzaSizeProducts, flavorItems);
-    const pizzaConfig = normalizePizzaConfig(form.pizzaConfig);
-    const enabledSizes = pizzaConfig.tamanhoConfig.filter((item) => item.ativo !== false);
+    const preco = form.tipo === 'combo' ? comboPrice : parseMoney(form.preco);
     if (!nome || !form.categoriaId || Number.isNaN(preco)) return;
-    if (form.tipo === 'pizza' && (!enabledSizes.length || !pizzaConfig.saboresSelecionados.length)) {
-      setSaveError('Pizza precisa de ao menos 1 tamanho e 1 sabor selecionado.');
-      return;
-    }
     if (form.tipo === 'combo' && comboConfig.itens.length < 2) {
       setSaveError('Combo precisa ter pelo menos 2 produtos.');
       return;
@@ -644,7 +591,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
       preco,
       imagemUrl,
       ativo: form.disponivel,
-      tags: form.tipo === 'pizza' ? ['pizza'] : form.tipo === 'combo' ? ['combo'] : [],
+      tags: form.tipo === 'combo' ? ['combo'] : [],
       tipo: form.tipo,
       codigoPdv: form.codigoPdv.trim(),
       pecaTambemIds: form.tipo === 'combo' ? [] : normalizePecaTambemIds(form.pecaTambemIds),
@@ -653,13 +600,11 @@ export default function CatalogManager({ mode = 'produtos' }) {
       estoque: form.estoque || '',
       entregaRetirada: form.entregaRetirada,
       mesaBalcao: form.mesaBalcao,
-      ingredientesRemoviveis: form.tipo === 'pizza' || form.tipo === 'combo' ? false : form.ingredientesRemoviveis,
+      ingredientesRemoviveis: form.tipo === 'combo' ? false : form.ingredientesRemoviveis,
       adicionaisHabilitados: form.tipo === 'combo' ? false : form.adicionaisHabilitados,
-      remocoes: form.tipo === 'pizza' || form.tipo === 'combo' ? EMPTY_SELECTION : selectionFrom(form.remocoes),
+      remocoes: form.tipo === 'combo' ? EMPTY_SELECTION : selectionFrom(form.remocoes),
       adicionais: form.tipo === 'combo' ? EMPTY_SELECTION : selectionFrom(form.adicionais),
       adicionaisConfig: form.tipo === 'combo' ? EMPTY_ADDON_RULES : addonRules,
-      pizzaConfig: form.tipo === 'pizza' ? pizzaConfig : undefined,
-      precoDesde: form.tipo === 'pizza' ? preco : undefined,
       comboConfig:
         form.tipo === 'combo'
           ? {
@@ -731,67 +676,6 @@ export default function CatalogManager({ mode = 'produtos' }) {
         if (!q) return true;
         return item.nome.toLowerCase().includes(q) || (item.descricao || '').toLowerCase().includes(q);
       });
-  }
-
-  function updatePizzaConfig(updater) {
-    setForm((prev) => ({
-      ...prev,
-      pizzaConfig: updater(normalizePizzaConfig(prev.pizzaConfig)),
-    }));
-  }
-
-  function togglePizzaSize(tamanhoId) {
-    updatePizzaConfig((config) => {
-      const exists = config.tamanhoConfig.find((item) => item.tamanhoId === tamanhoId);
-      if (exists) {
-        return {
-          ...config,
-          tamanhoConfig: config.tamanhoConfig.filter((item) => item.tamanhoId !== tamanhoId),
-        };
-      }
-      return {
-        ...config,
-        tamanhoConfig: [...config.tamanhoConfig, { tamanhoId, maxSabores: 1, ativo: true }],
-      };
-    });
-  }
-
-  function setPizzaSizeMaxSabores(tamanhoId, maxSabores) {
-    updatePizzaConfig((config) => ({
-      ...config,
-      tamanhoConfig: config.tamanhoConfig.map((item) =>
-        item.tamanhoId === tamanhoId ? { ...item, maxSabores: Number(maxSabores) } : item
-      ),
-    }));
-  }
-
-  function togglePizzaFlavor(saborId) {
-    updatePizzaConfig((config) => {
-      const selected = config.saboresSelecionados.includes(saborId);
-      return {
-        ...config,
-        saboresSelecionados: selected
-          ? config.saboresSelecionados.filter((id) => id !== saborId)
-          : [...config.saboresSelecionados, saborId],
-      };
-    });
-  }
-
-  function setAllPizzaFlavors(checked) {
-    updatePizzaConfig((config) => ({
-      ...config,
-      saboresSelecionados: checked ? flavorItems.map((item) => item.id) : [],
-    }));
-  }
-
-  function setPizzaFlavorSizePrice(saborId, tamanhoId, value) {
-    updatePizzaConfig((config) => ({
-      ...config,
-      precoPorTamanhoSabor: {
-        ...config.precoPorTamanhoSabor,
-        [`${saborId}:${tamanhoId}`]: value,
-      },
-    }));
   }
 
   function updateAddonRules(updater) {
@@ -886,15 +770,6 @@ export default function CatalogManager({ mode = 'produtos' }) {
         },
       };
     });
-  }
-
-  function flavorPricePreview(saborId, tamanhoId) {
-    const config = normalizePizzaConfig(form.pizzaConfig);
-    const overrideRaw = config.precoPorTamanhoSabor[`${saborId}:${tamanhoId}`];
-    const override = parseMoney(overrideRaw);
-    if (!Number.isNaN(override)) return override;
-    const flavor = flavorItems.find((item) => item.id === saborId);
-    return Number(flavor?.preco || 0);
   }
 
   function updateComboConfig(updater) {
@@ -1214,7 +1089,13 @@ export default function CatalogManager({ mode = 'produtos' }) {
       )}
 
       {modalOpen ? (
-        <div className="overlay open admin-item-overlay" onClick={closeItemModal}>
+        <>
+        <div
+          className="overlay open admin-item-overlay"
+          role="presentation"
+          onPointerDown={overlayPointerDown}
+          onClick={overlayClick}
+        >
           <div className="product-popup admin-product-popup" onClick={(e) => e.stopPropagation()}>
             <div className="popup-details-col admin-item-form-col">
               <div className="popup-header admin-item-popup-header">
@@ -1237,18 +1118,12 @@ export default function CatalogManager({ mode = 'produtos' }) {
                   <div className="admin-tabs admin-tabs-pedidos admin-product-type-tabs">
                     {productTypeOptions.map((t) => (
                       <button key={t} type="button" className={`admin-tab ${form.tipo === t ? 'active' : ''}`} onClick={() => setForm((p) => ({ ...p, tipo: t }))}>
-                        {t === 'comum' ? 'Padrão' : t === 'pizza' ? 'Pizza' : 'Combo'}
+                        {t === 'comum' ? 'Padrão' : 'Combo'}
                       </button>
                     ))}
                   </div>
                 ) : null}
 
-                {form.tipo === 'pizza' && isProdutos ? (
-                  <div className="admin-info-note">
-                    <span aria-hidden>i</span>
-                    Este modo libera configuracoes avancadas para pizzas, como grupos de sabores e complementos.
-                  </div>
-                ) : null}
                 {saveError ? <div className="admin-error">{saveError}</div> : null}
 
                 <div className="admin-catalog-form-grid">
@@ -1268,16 +1143,12 @@ export default function CatalogManager({ mode = 'produtos' }) {
                     <input className="admin-input" value={form.nome} onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))} placeholder={isProdutos ? 'Ex: Burger artesanal da casa' : 'Ex: Bacon crocante'} />
                   </div>
                   <div className="admin-form-group">
-                    <label className="admin-label">{form.tipo === 'pizza' ? 'Preco a partir de' : 'Preco'}</label>
-                    {form.tipo === 'pizza' ? (
-                      <input className="admin-input" disabled value={Number.isNaN(pizzaFromPrice) ? '' : `R$ ${pizzaFromPrice.toFixed(2).replace('.', ',')}`} placeholder="Configure tamanhos e sabores" />
-                    ) : (
-                      <input className="admin-input" value={form.preco} onChange={(e) => setForm((p) => ({ ...p, preco: e.target.value }))} placeholder="Ex: 32,90" />
-                    )}
+                    <label className="admin-label">Preco</label>
+                    <input className="admin-input" value={form.preco} onChange={(e) => setForm((p) => ({ ...p, preco: e.target.value }))} placeholder="Ex: 32,90" />
                   </div>
                   {form.tipo !== 'combo' ? (
                     <div className="admin-form-group">
-                      <label className="admin-label">{form.tipo === 'pizza' ? 'Configuracao de tamanhos' : 'Medida'}</label>
+                      <label className="admin-label">Medida</label>
                       <div className="admin-measure-grid">
                         <input className="admin-input" value={form.medidaQtd} onChange={(e) => setForm((p) => ({ ...p, medidaQtd: e.target.value }))} placeholder="Ex: 180" />
                         <select className="admin-input" value={form.medidaUn} onChange={(e) => setForm((p) => ({ ...p, medidaUn: e.target.value }))}>
@@ -1298,14 +1169,6 @@ export default function CatalogManager({ mode = 'produtos' }) {
                     <label className="admin-label">Estoque</label>
                     <input className="admin-input" value={form.estoque} onChange={(e) => setForm((p) => ({ ...p, estoque: e.target.value }))} placeholder="Quantidade disponível" />
                   </div>
-                  {form.tipo === 'pizza' ? (
-                    <div className="admin-form-group admin-form-full admin-pizza-from-row">
-                      <div className="admin-info-note">
-                        <span aria-hidden>i</span>
-                        Preco a partir de = menor tamanho + menor sabor selecionado.
-                      </div>
-                    </div>
-                  ) : null}
                   <div className="admin-form-group admin-form-full">
                     <label className="admin-label">Descricao</label>
                     <textarea
@@ -1318,103 +1181,6 @@ export default function CatalogManager({ mode = 'produtos' }) {
                     <div className="admin-help-text">Maximo 400 caracteres</div>
                   </div>
                 </div>
-
-                {isProdutos && form.tipo === 'pizza' ? (
-                  <div className="admin-pizza-sections">
-                    <section className="admin-pizza-block">
-                      <div className="admin-form-section-title">Tamanhos disponiveis</div>
-                      {pizzaSizeProducts.length ? pizzaSizeProducts.map((sizeProduct) => {
-                        const currentCfg = normalizePizzaConfig(form.pizzaConfig).tamanhoConfig.find((item) => item.tamanhoId === sizeProduct.id);
-                        const enabled = Boolean(currentCfg);
-                        return (
-                          <div key={sizeProduct.id} className="admin-pizza-size-row">
-                            <label>
-                              <input type="checkbox" checked={enabled} onChange={() => togglePizzaSize(sizeProduct.id)} />
-                              <span>{sizeProduct.nome} (R$ {Number(sizeProduct.preco || 0).toFixed(2).replace('.', ',')})</span>
-                            </label>
-                            <select
-                              className="admin-input"
-                              value={currentCfg?.maxSabores || 1}
-                              disabled={!enabled}
-                              onChange={(e) => setPizzaSizeMaxSabores(sizeProduct.id, e.target.value)}
-                            >
-                              <option value="1">1 sabor</option>
-                              <option value="2">2 sabores</option>
-                              <option value="3">3 sabores</option>
-                              <option value="4">4 sabores</option>
-                            </select>
-                          </div>
-                        );
-                      }) : <p className="admin-help-text">Cadastre os tamanhos como produtos com tipo `tamanho_pizza`.</p>}
-                    </section>
-
-                    <section className="admin-pizza-block">
-                      <div className="admin-form-section-title">Selecionar sabores</div>
-                      <p className="admin-help-text">Os sabores devem estar em Adicionais com categoria sabor.</p>
-                      <div className="admin-pizza-flavor-actions">
-                        <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setAllPizzaFlavors(true)}>Marcar todos</button>
-                        <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setAllPizzaFlavors(false)}>Desmarcar todos</button>
-                      </div>
-                      <input className="admin-input" placeholder="Buscar sabor..." value={pickerSearch} onChange={(e) => setPickerSearch(e.target.value)} />
-                      <div className="admin-pizza-flavor-grid">
-                        {flavorItems
-                          .filter((item) => !pickerSearch.trim() || item.nome.toLowerCase().includes(pickerSearch.toLowerCase()))
-                          .map((flavor) => {
-                            const selected = normalizePizzaConfig(form.pizzaConfig).saboresSelecionados.includes(flavor.id);
-                            return (
-                              <div key={flavor.id} className="admin-pizza-flavor-card">
-                                <label>
-                                  <input type="checkbox" checked={selected} onChange={() => togglePizzaFlavor(flavor.id)} />
-                                  <span>{flavor.nome} (base: R$ {Number(flavor.preco || 0).toFixed(2).replace('.', ',')})</span>
-                                </label>
-                                {selected ? (
-                                  <div className="admin-pizza-override-grid">
-                                    {normalizePizzaConfig(form.pizzaConfig).tamanhoConfig.map((sizeCfg) => {
-                                      const size = pizzaSizeProducts.find((item) => item.id === sizeCfg.tamanhoId);
-                                      if (!size) return null;
-                                      const key = `${flavor.id}:${size.id}`;
-                                      return (
-                                        <div key={key} className="admin-pizza-override-item">
-                                          <span>{size.nome}</span>
-                                          <input
-                                            className="admin-input"
-                                            value={normalizePizzaConfig(form.pizzaConfig).precoPorTamanhoSabor[key] || ''}
-                                            placeholder={flavorPricePreview(flavor.id, size.id).toFixed(2).replace('.', ',')}
-                                            onChange={(e) => setPizzaFlavorSizePrice(flavor.id, size.id, e.target.value)}
-                                          />
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                ) : null}
-                              </div>
-                            );
-                          })}
-                      </div>
-                    </section>
-
-                    <section className="admin-pizza-block">
-                      <div className="admin-form-section-title">Regras de precificacao</div>
-                      <select
-                        className="admin-input"
-                        value={normalizePizzaConfig(form.pizzaConfig).regraPreco}
-                        onChange={(e) => updatePizzaConfig((cfg) => ({ ...cfg, regraPreco: e.target.value }))}
-                      >
-                        <option value="media">Media dos sabores escolhidos</option>
-                        <option value="mais_caro">Valor do sabor mais caro</option>
-                      </select>
-                      <p className="admin-help-text">Exemplo: Calabresa R$40, Mussarela R$35, Portuguesa R$45. Media = R$40,00. Mais caro = R$45,00.</p>
-                      <label className="admin-option-row">
-                        <span>Permitir sabores duplicados</span>
-                        <Switch
-                          checked={normalizePizzaConfig(form.pizzaConfig).permitirSaboresDuplicados}
-                          label="Permitir sabores duplicados"
-                          onChange={(checked) => updatePizzaConfig((cfg) => ({ ...cfg, permitirSaboresDuplicados: checked }))}
-                        />
-                      </label>
-                    </section>
-                  </div>
-                ) : null}
 
                 {isProdutos && form.tipo === 'combo' ? (
                   <div className="admin-pizza-sections">
@@ -1537,7 +1303,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
                         ))}
                       </div>
                     ) : null}
-                    {form.tipo !== 'pizza' && form.tipo !== 'combo' ? (
+                    {form.tipo !== 'combo' ? (
                       <div className="admin-product-config-row">
                         <div>
                           <strong>Remocao de ingredientes</strong>
@@ -1690,7 +1456,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
                 ) : null}
               </div>
               <div className="popup-footer">
-                <button type="button" className="admin-btn admin-btn-ghost" onClick={closeItemModal}>Cancelar</button>
+                <button type="button" className="admin-btn admin-btn-ghost" onClick={requestCloseItemModal}>Cancelar</button>
                 <button type="button" className="admin-btn admin-btn-primary" onClick={saveItem}>Salvar</button>
               </div>
             </div>
@@ -1724,7 +1490,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
                     R$ {(
                       form.tipo === 'combo'
                         ? (Number.isNaN(comboTotals.precoCombo) ? comboTotals.sugestao : comboTotals.precoCombo)
-                        : (Number.isNaN(pizzaFromPrice) ? 0 : pizzaFromPrice)
+                        : (Number.isNaN(parseMoney(form.preco)) ? 0 : parseMoney(form.preco))
                     ).toFixed(2).replace('.', ',')}
                   </div>
                 </div>
@@ -1903,6 +1669,12 @@ export default function CatalogManager({ mode = 'produtos' }) {
             </div>
           ) : null}
         </div>
+        <AdminDiscardDialog
+          open={itemDiscardOpen}
+          onConfirm={confirmDiscardItemModal}
+          onCancel={cancelDiscardItemModal}
+        />
+        </>
       ) : null}
 
       {editingCategory ? (

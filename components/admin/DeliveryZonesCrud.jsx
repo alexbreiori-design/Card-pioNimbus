@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import AdminAvailabilitySwitch from '@/components/admin/AdminAvailabilitySwitch';
+import { useAdminToast } from '@/context/AdminToastContext';
 import {
   createZona,
   deleteZona,
@@ -43,7 +44,7 @@ function emptyDraft() {
 export default function DeliveryZonesCrud({ empresaId }) {
   const [areas, setAreas] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [msg, setMsg] = useState('');
+  const toast = useAdminToast();
   const [draft, setDraft] = useState(emptyDraft());
   const [editingId, setEditingId] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -59,7 +60,7 @@ export default function DeliveryZonesCrud({ empresaId }) {
       const rows = await listZonasByEmpresaId(empresaId);
       setAreas(rows);
     } catch (e) {
-      setMsg(e?.message || 'Erro ao carregar áreas.');
+      toast.error(e?.message || 'Erro ao carregar áreas.');
     } finally {
       setLoading(false);
     }
@@ -84,7 +85,6 @@ export default function DeliveryZonesCrud({ empresaId }) {
   async function handleSave(e) {
     e.preventDefault();
     if (!empresaId) return;
-    setMsg('');
     const payload = {
       nome: draft.nome.trim(),
       raio_km: inputToRaio(draft.raio_km),
@@ -93,7 +93,7 @@ export default function DeliveryZonesCrud({ empresaId }) {
       ordem: areas.length,
     };
     if (!payload.nome || payload.raio_km <= 0) {
-      setMsg('Informe nome e raio (km) válidos.');
+      toast.error('Informe nome e raio (km) válidos.');
       return;
     }
     try {
@@ -109,11 +109,10 @@ export default function DeliveryZonesCrud({ empresaId }) {
       }
       resetForm();
       await load();
-      setMsg(editingId ? 'Área atualizada.' : 'Área cadastrada.');
+      toast.success(editingId ? 'Área atualizada.' : 'Área cadastrada.');
     } catch (err) {
-      setMsg(err?.message || 'Erro ao salvar área.');
+      toast.error(err?.message || 'Erro ao salvar área.');
     }
-    setTimeout(() => setMsg(''), 2500);
   }
 
   async function handleToggle(area) {
@@ -121,7 +120,7 @@ export default function DeliveryZonesCrud({ empresaId }) {
       await updateZona(area.id, { ...area, ativo: !area.ativo });
       await load();
     } catch (e) {
-      setMsg(e?.message || 'Erro ao atualizar disponibilidade.');
+      toast.error(e?.message || 'Erro ao atualizar disponibilidade.');
     }
   }
 
@@ -132,7 +131,7 @@ export default function DeliveryZonesCrud({ empresaId }) {
       if (editingId === id) resetForm();
       await load();
     } catch (e) {
-      setMsg(e?.message || 'Erro ao remover área.');
+      toast.error(e?.message || 'Erro ao remover área.');
     }
   }
 
@@ -164,8 +163,6 @@ export default function DeliveryZonesCrud({ empresaId }) {
           + Nova área
         </button>
       </div>
-
-      {msg ? <p className="admin-store-message admin-delivery-areas-msg">{msg}</p> : null}
 
       {formOpen ? (
         <form className="admin-delivery-area-form admin-card" onSubmit={handleSave}>
@@ -219,17 +216,14 @@ export default function DeliveryZonesCrud({ empresaId }) {
       ) : (
         <div className="admin-sparse-list">
           {areas.map((area) => (
-            <div key={area.id} className="admin-sparse-row">
-              <div className="admin-sparse-row-main">
+            <div key={area.id} className="admin-sparse-row admin-crud-list-row">
+              <div className="admin-sparse-row-main admin-sparse-row-main-stack">
                 <span className="admin-sparse-row-code">{area.nome}</span>
-                <span className="admin-sparse-row-sep" aria-hidden="true">
-                  ·
-                </span>
                 <span className="admin-sparse-row-detail">
                   Raio {Number(area.raio_km)} km · Taxa {formatCurrency(area.taxa_entrega)}
                 </span>
               </div>
-              <div className="admin-sparse-row-actions">
+              <div className="admin-sparse-row-actions admin-item-actions-col">
                 <div className="admin-availability-cell">
                   <span>Disponível</span>
                   <AdminAvailabilitySwitch

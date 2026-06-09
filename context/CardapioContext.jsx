@@ -967,16 +967,21 @@ export function CardapioProvider({ children, slug = '' }) {
 
   const openProduct = useCallback(
     (id) => {
-      const product = dynamicProducts.find((p) => p.id === id);
+      const product =
+        dynamicProducts.find((p) => p.id === id) ||
+        promoCarouselProducts.find((p) => p.id === id);
       if (!product) return;
-      setCurrentProduct(product);
+      setCurrentProduct({
+        ...product,
+        addons: Array.isArray(product.addons) ? product.addons : [],
+      });
       setCurrentQty(1);
       setSelectedAddons({});
       setAddonExtras(0);
       setPopupHeaderCompact(false);
       setProductOpen(true);
     },
-    [dynamicProducts]
+    [dynamicProducts, promoCarouselProducts]
   );
 
   const closeProductPopup = useCallback(() => {

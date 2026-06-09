@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import AdminDatePicker from '@/components/admin/AdminDatePicker';
+import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
+import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
+import { isJsonDirty } from '@/lib/admin/isFormDirty';
 import SegmentCombobox from '@/components/admin/SegmentCombobox';
 import { generateTempPassword, isValidStoreSlug } from '@/lib/superAdmin';
 import { getSiteOrigin } from '@/lib/siteUrl';
@@ -24,15 +27,32 @@ function emptyForm() {
 
 export default function CreateStoreModal({ open, onClose, onCreated }) {
   const [form, setForm] = useState(emptyForm);
+  const [formBaseline, setFormBaseline] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (open) {
-      setForm(emptyForm());
+      const initial = emptyForm();
+      setForm(initial);
+      setFormBaseline(initial);
       setError('');
     }
   }, [open]);
+
+  const isDirty = useMemo(() => {
+    if (!open || !formBaseline) return false;
+    return isJsonDirty(form, formBaseline);
+  }, [open, form, formBaseline]);
+
+  const {
+    overlayPointerDown,
+    overlayClick,
+    requestClose,
+    discardOpen,
+    confirmDiscard,
+    cancelDiscard,
+  } = useAdminOverlayClose({ onClose, isDirty });
 
   const previewUrl = useMemo(() => {
     const slug = String(form.slug || '').trim().toLowerCase();
@@ -87,7 +107,12 @@ export default function CreateStoreModal({ open, onClose, onCreated }) {
   if (!open) return null;
 
   return (
-    <div className="admin-sistema-modal-backdrop" role="presentation" onClick={onClose}>
+    <div
+      className="admin-sistema-modal-backdrop"
+      role="presentation"
+      onPointerDown={overlayPointerDown}
+      onClick={overlayClick}
+    >
       <div
         className="admin-sistema-modal admin-sistema-create-modal"
         role="dialog"
@@ -97,7 +122,7 @@ export default function CreateStoreModal({ open, onClose, onCreated }) {
       >
         <header className="admin-sistema-modal-header">
           <h2 id="create-store-title">Nova loja</h2>
-          <button type="button" className="admin-sistema-modal-close" onClick={onClose} aria-label="Fechar">
+          <button type="button" className="admin-sistema-modal-close" onClick={requestClose} aria-label="Fechar">
             ×
           </button>
         </header>
@@ -234,7 +259,7 @@ export default function CreateStoreModal({ open, onClose, onCreated }) {
           {error ? <p className="admin-sistema-error">{error}</p> : null}
 
           <footer className="admin-sistema-modal-footer">
-            <button type="button" className="admin-btn admin-btn-ghost" onClick={onClose} disabled={busy}>
+            <button type="button" className="admin-btn admin-btn-ghost" onClick={requestClose} disabled={busy}>
               Cancelar
             </button>
             <button type="submit" className="admin-btn admin-btn-primary" disabled={busy}>
@@ -243,6 +268,11 @@ export default function CreateStoreModal({ open, onClose, onCreated }) {
           </footer>
         </form>
       </div>
+      <AdminDiscardDialog
+        open={discardOpen}
+        onConfirm={confirmDiscard}
+        onCancel={cancelDiscard}
+      />
     </div>
   );
 }

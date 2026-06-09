@@ -1,6 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
+import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import {
   COVER_FRAME_HEIGHT,
   COVER_FRAME_WIDTH,
@@ -77,6 +79,20 @@ export default function CoverImageAdjustModal({ src, onConfirm, onCancel }) {
     }
   }, []);
 
+  const isDirty = useMemo(
+    () => offsetX !== 0 || offsetY !== 0 || zoom !== 1,
+    [offsetX, offsetY, zoom]
+  );
+
+  const {
+    overlayPointerDown,
+    overlayClick,
+    requestClose,
+    discardOpen,
+    confirmDiscard,
+    cancelDiscard,
+  } = useAdminOverlayClose({ onClose: onCancel, isDirty });
+
   async function handleConfirm() {
     if (!image) return;
     setSaving(true);
@@ -98,14 +114,20 @@ export default function CoverImageAdjustModal({ src, onConfirm, onCancel }) {
   }
 
   return (
-    <div className="admin-confirm-overlay" onClick={onCancel}>
+    <>
+    <div
+      className="admin-confirm-overlay"
+      role="presentation"
+      onPointerDown={overlayPointerDown}
+      onClick={overlayClick}
+    >
       <div className="admin-cover-adjust-modal" onClick={(e) => e.stopPropagation()}>
         <div className="admin-cover-adjust-head">
           <div>
             <h3>Ajustar capa do cardápio</h3>
             <p>Arraste para posicionar e use o zoom para ajustar o enquadramento. Proporção 5:1.</p>
           </div>
-          <button type="button" className="admin-order-detail-close" onClick={onCancel} aria-label="Fechar">
+          <button type="button" className="admin-order-detail-close" onClick={requestClose} aria-label="Fechar">
             ×
           </button>
         </div>
@@ -155,7 +177,7 @@ export default function CoverImageAdjustModal({ src, onConfirm, onCancel }) {
         </div>
 
         <div className="admin-confirm-actions">
-          <button type="button" className="admin-btn" onClick={onCancel} disabled={saving}>
+          <button type="button" className="admin-btn" onClick={requestClose} disabled={saving}>
             Cancelar
           </button>
           <button type="button" className="admin-btn admin-btn-primary" onClick={handleConfirm} disabled={!image || saving}>
@@ -164,5 +186,11 @@ export default function CoverImageAdjustModal({ src, onConfirm, onCancel }) {
         </div>
       </div>
     </div>
+    <AdminDiscardDialog
+      open={discardOpen}
+      onConfirm={confirmDiscard}
+      onCancel={cancelDiscard}
+    />
+    </>
   );
 }

@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useCallback, useEffect, useState } from 'react';
+import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog';
@@ -17,7 +18,7 @@ export default function IntegracoesPage() {
   const [savedPixelId, setSavedPixelId] = useState('');
   const [draftPixelId, setDraftPixelId] = useState('');
   const [formOpen, setFormOpen] = useState(false);
-  const [msg, setMsg] = useState('');
+  const toast = useAdminToast();
   const [saving, setSaving] = useState(false);
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const [editingPixel, setEditingPixel] = useState(false);
@@ -45,12 +46,11 @@ export default function IntegracoesPage() {
 
   async function persistPixelId(nextRaw) {
     if (!slug) {
-      setMsg('Configure o slug da loja em Minha loja.');
+      toast.error('Configure o slug da loja em Minha loja.');
       return false;
     }
     const safe = sanitizeMetaPixelId(nextRaw);
     setSaving(true);
-    setMsg('');
     try {
       await updateEmpresaBySlug(slug, { meta_pixel_id: safe });
       saveData((prev) => ({
@@ -60,11 +60,10 @@ export default function IntegracoesPage() {
       setSavedPixelId(safe || '');
       setDraftPixelId(safe || '');
       setFormOpen(false);
-      setMsg(safe ? 'Pixel salvo com sucesso.' : 'Pixel removido.');
-      setTimeout(() => setMsg(''), 2800);
+      toast.success(safe ? 'Pixel salvo com sucesso.' : 'Pixel removido.');
       return true;
     } catch (e) {
-      setMsg(e?.message || 'Erro ao salvar pixel.');
+      toast.error(e?.message || 'Erro ao salvar pixel.');
       return false;
     } finally {
       setSaving(false);
@@ -75,26 +74,23 @@ export default function IntegracoesPage() {
     setDraftPixelId('');
     setEditingPixel(false);
     setFormOpen(true);
-    setMsg('');
   }
 
   function openEditForm() {
     setDraftPixelId(savedPixelId);
     setEditingPixel(true);
     setFormOpen(true);
-    setMsg('');
   }
 
   function cancelForm() {
     setDraftPixelId(savedPixelId);
     setFormOpen(false);
-    setMsg('');
   }
 
   async function handleSave() {
     const safe = sanitizeMetaPixelId(draftPixelId);
     if (!safe) {
-      setMsg('Informe um ID do Pixel válido (apenas números).');
+      toast.error('Informe um ID do Pixel válido (apenas números).');
       return;
     }
     await persistPixelId(safe);
@@ -109,8 +105,6 @@ export default function IntegracoesPage() {
 
   return (
     <div className="admin-content admin-content-pedidos admin-catalog-page admin-section-page admin-compact-card-page">
-      {msg ? <div className="admin-store-message admin-compact-page-message">{msg}</div> : null}
-
       <AdminPageHeader title="Integrações" icon="integration" />
 
       <div className="admin-card admin-store-block-card admin-compact-page-card admin-integration-card">

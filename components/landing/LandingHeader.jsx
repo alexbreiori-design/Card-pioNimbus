@@ -40,7 +40,7 @@ export default function LandingHeader() {
       }
       transitionTimerRef.current = window.setTimeout(() => {
         setTransitioning(false);
-      }, 380);
+      }, 540);
     };
 
     const update = () => {
@@ -120,7 +120,7 @@ export default function LandingHeader() {
       >
         <div className="landing-header__inner">
           <div className="landing-header__group landing-header__group--brand">
-            <Link href="/" className="landing-brand landing-dock-magnet" aria-label="Cardápio Nimbus, início">
+            <a href="#topo" className="landing-brand landing-dock-magnet" aria-label="Cardápio Nimbus, início">
               <Image
                 src="/images/logo-horizontal.png"
                 alt="Cardápio Nimbus"
@@ -138,7 +138,7 @@ export default function LandingHeader() {
                 priority
                 aria-hidden="true"
               />
-            </Link>
+            </a>
           </div>
 
           <nav className="landing-header__group landing-header__group--nav landing-nav" aria-label="Navegação principal">

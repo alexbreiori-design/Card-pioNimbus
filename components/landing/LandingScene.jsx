@@ -1,27 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-function getVisibleRatio(rect, viewHeight) {
-  const visibleTop = Math.max(0, rect.top);
-  const visibleBottom = Math.min(viewHeight, rect.bottom);
-  const visibleHeight = Math.max(0, visibleBottom - visibleTop);
-  return visibleHeight / Math.max(rect.height, 1);
-}
-
 export default function LandingScene({ id, className = '', children }) {
   const ref = useRef(null);
-  const [visibility, setVisibility] = useState(0);
-  const scrollStateRef = useRef({
-    wasAboveThreshold: false,
-    needsUnblurOnScroll: false,
-    bootstrapped: false,
-  });
-  const lastScrollYRef = useRef(0);
 
   useEffect(() => {
     const node = ref.current;
@@ -30,105 +16,62 @@ export default function LandingScene({ id, className = '', children }) {
     const inner = node.querySelector('.landing-scene__inner');
     if (!inner) return undefined;
 
-    const EXIT_BLUR = 12;
-    const ENTER_BLUR = 12;
-    const THRESHOLD = 0.3;
+    let frame = 0;
+    const MAX_BLUR = 4;
+    const MAX_SHIFT = 6;
+    const EDGE_PX = 72;
 
     const updateVisibility = () => {
       const rect = node.getBoundingClientRect();
       const viewHeight = window.innerHeight;
-      const visibleRatio = getVisibleRatio(rect, viewHeight);
-      const state = scrollStateRef.current;
-      const currentScrollY = window.scrollY;
-      const didScroll = currentScrollY !== lastScrollYRef.current;
-      const isAboveThreshold = visibleRatio >= THRESHOLD;
-      const crossedThisFrame = isAboveThreshold && !state.wasAboveThreshold;
+      const visibleTop = Math.max(rect.top, 0);
+      const visibleBottom = Math.min(rect.bottom, viewHeight);
+      const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+      const visibleRatio = clamp(visibleHeight / Math.min(rect.height, viewHeight), 0, 1);
+      const entryProgress = clamp((viewHeight - rect.top) / EDGE_PX, 0, 1);
+      const exitProgress = clamp(rect.bottom / EDGE_PX, 0, 1);
+      const edgeProgress = Math.min(entryProgress, exitProgress, visibleRatio);
+      const eased = edgeProgress * edgeProgress * (3 - 2 * edgeProgress);
+      const blur = (1 - eased) * MAX_BLUR;
+      const center = rect.top + rect.height / 2;
+      const shift = (1 - eased) * MAX_SHIFT * (center < viewHeight / 2 ? -1 : 1);
 
-      if (didScroll && state.needsUnblurOnScroll && !crossedThisFrame) {
-        state.needsUnblurOnScroll = false;
-      }
-
-      lastScrollYRef.current = currentScrollY;
-
-      if (rect.bottom <= 0 || rect.top >= viewHeight) {
-        state.wasAboveThreshold = false;
-        state.needsUnblurOnScroll = false;
-        setVisibility(0);
-        inner.style.setProperty('--scene-opacity', '0');
-        inner.style.setProperty('--scene-blur', '0px');
-        return;
-      }
-
-      const leavingThroughTop = rect.top < 0;
-
-      if (leavingThroughTop) {
-        state.wasAboveThreshold = false;
-        state.needsUnblurOnScroll = false;
-
-        if (visibleRatio > THRESHOLD) {
-          setVisibility(1);
-          inner.style.setProperty('--scene-opacity', '1');
-          inner.style.setProperty('--scene-blur', '0px');
-          return;
-        }
-
-        const progress = clamp(visibleRatio / THRESHOLD, 0, 1);
-        setVisibility(progress);
-        inner.style.setProperty('--scene-opacity', String(progress));
-        inner.style.setProperty('--scene-blur', `${(1 - progress) * EXIT_BLUR}px`);
-        return;
-      }
-
-      if (!state.bootstrapped && isAboveThreshold) {
-        state.bootstrapped = true;
-        state.wasAboveThreshold = true;
-        state.needsUnblurOnScroll = false;
-        setVisibility(1);
-        inner.style.setProperty('--scene-opacity', '1');
-        inner.style.setProperty('--scene-blur', '0px');
-        return;
-      }
-
-      if (isAboveThreshold) {
-        if (crossedThisFrame) {
-          state.needsUnblurOnScroll = true;
-        }
-
-        state.wasAboveThreshold = true;
-        const blur = state.needsUnblurOnScroll ? ENTER_BLUR : 0;
-        setVisibility(1);
-        inner.style.setProperty('--scene-opacity', '1');
-        inner.style.setProperty('--scene-blur', `${blur}px`);
-        return;
-      }
-
-      state.wasAboveThreshold = false;
-      state.needsUnblurOnScroll = false;
-      setVisibility(0);
-      inner.style.setProperty('--scene-opacity', '0');
-      inner.style.setProperty('--scene-blur', '0px');
+      inner.style.setProperty('--scene-opacity', String(0.9 + eased * 0.1));
+      inner.style.setProperty('--scene-blur', `${blur.toFixed(2)}px`);
+      inner.style.setProperty('--scene-y', `${shift.toFixed(2)}px`);
+      inner.style.setProperty('--scene-child-blur', '0px');
+      inner.style.setProperty('--scene-child-y', '0px');
+      inner.style.setProperty('--scene-scale', '1');
+      node.style.setProperty('--scene-visibility', eased.toFixed(4));
+      node.dataset.scenePhase = visibleRatio > 0 ? 'visible' : 'hidden';
+      frame = 0;
     };
 
-    lastScrollYRef.current = window.scrollY;
+    const requestUpdate = () => {
+      if (!frame) {
+        frame = window.requestAnimationFrame(updateVisibility);
+      }
+    };
+
     updateVisibility();
-    window.addEventListener('scroll', updateVisibility, { passive: true });
-    window.addEventListener('resize', updateVisibility);
+    window.addEventListener('scroll', requestUpdate, { passive: true });
+    window.addEventListener('resize', requestUpdate);
 
     return () => {
-      window.removeEventListener('scroll', updateVisibility);
-      window.removeEventListener('resize', updateVisibility);
+      window.removeEventListener('scroll', requestUpdate);
+      window.removeEventListener('resize', requestUpdate);
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+      }
     };
   }, []);
-
-  const phase =
-    visibility >= 0.98 ? 'active' : visibility <= 0.02 ? 'hidden' : 'transition';
 
   return (
     <section
       ref={ref}
       id={id}
-      className={`landing-scene landing-scene--${phase}${className ? ` ${className}` : ''}`}
-      style={{ '--scene-visibility': visibility }}
+      className={`landing-scene${className ? ` ${className}` : ''}`}
+      data-scene-phase="hidden"
     >
       <div className="landing-scene__inner">{children}</div>
     </section>

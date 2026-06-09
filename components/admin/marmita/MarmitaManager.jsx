@@ -2,12 +2,16 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
 import AdminIcon from '@/components/admin/AdminIcon';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminGroupedSortablePanel from '@/components/admin/AdminGroupedSortablePanel';
 import ImagePlaceholder from '@/components/admin/ImagePlaceholder';
+import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
+import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
+import { isJsonDirty } from '@/lib/admin/isFormDirty';
 import { formatMoneyBrInput, hasMoneyBrValue, parseMoneyBrInput } from '@/lib/moneyMask';
 import { buildMarmitaProductId } from '@/lib/marmita/marmitaIds';
 import { getMarmitaWeekdayLabel, MARMITA_WEEKDAYS } from '@/lib/marmita/marmitaWeekdays';
@@ -148,11 +152,13 @@ export default function MarmitaManager() {
   const addonItems = (data.adicionaisItens || []).filter((item) => item.ativo !== false);
 
   const [search, setSearch] = useState('');
-  const [msg, setMsg] = useState('');
+  const toast = useAdminToast();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyMarmita());
+  const [formBaseline, setFormBaseline] = useState(null);
   const [formImage, setFormImage] = useState('');
+  const [formImageBaseline, setFormImageBaseline] = useState('');
   const [saveError, setSaveError] = useState('');
   const [ordering, setOrdering] = useState(false);
   const [newGrupoName, setNewGrupoName] = useState('');
@@ -182,12 +188,6 @@ export default function MarmitaManager() {
       }),
     [data.adicionaisCategorias, data.adicionaisItens, marmitas]
   );
-
-  useEffect(() => {
-    if (!msg) return undefined;
-    const timer = setTimeout(() => setMsg(''), 2500);
-    return () => clearTimeout(timer);
-  }, [msg]);
 
   function getActivationConflict(marmitaId, diaSemana, ativo) {
     return findActiveMarmitaDayConflict(marmitas, { marmitaId, diaSemana, ativo });
@@ -227,11 +227,32 @@ export default function MarmitaManager() {
 
   function resetForm() {
     setForm(emptyMarmita());
+    setFormBaseline(null);
     setFormImage('');
+    setFormImageBaseline('');
     setEditingId(null);
     setModalOpen(false);
     setSaveError('');
   }
+
+  const isItemFormDirty = useMemo(() => {
+    if (!modalOpen) return false;
+    if (formImage !== formImageBaseline) return true;
+    if (!formBaseline) return false;
+    return isJsonDirty(form, formBaseline);
+  }, [modalOpen, form, formBaseline, formImage, formImageBaseline]);
+
+  const {
+    overlayPointerDown,
+    overlayClick,
+    requestClose: requestCloseItemModal,
+    discardOpen: itemDiscardOpen,
+    confirmDiscard: confirmDiscardItemModal,
+    cancelDiscard: cancelDiscardItemModal,
+  } = useAdminOverlayClose({
+    onClose: resetForm,
+    isDirty: isItemFormDirty,
+  });
 
   function toggleGrupoCollapse(grupoId) {
     setCollapsedGrupos((prev) => {
@@ -253,7 +274,7 @@ export default function MarmitaManager() {
       ],
     }));
     setNewGrupoName('');
-    setMsg('Grupo criado.');
+    toast.success('Grupo criado.');
   }
 
   async function toggleGrupoAtivo(grupo) {
@@ -295,7 +316,7 @@ export default function MarmitaManager() {
       ),
     }));
     setEditingGrupo(null);
-    setMsg('Grupo atualizado.');
+    toast.success('Grupo atualizado.');
   }
 
   async function duplicateGrupo(grupo) {
@@ -330,7 +351,7 @@ export default function MarmitaManager() {
       ],
     }));
     setGrupoMenuId('');
-    setMsg('Grupo duplicado com suas marmitas.');
+    toast.success('Grupo duplicado com suas marmitas.');
   }
 
   function openCardapioEdit() {
@@ -345,12 +366,12 @@ export default function MarmitaManager() {
       payload.continuarModo === 'depois' &&
       !payload.depoisCategoriaId
     ) {
-      setMsg('Escolha a categoria para exibir as marmitas depois do horário.');
+      toast.error('Escolha a categoria para exibir as marmitas depois do horário.');
       return;
     }
     await saveData((prev) => ({ ...prev, marmitaCardapio: payload }));
     setCardapioEditing(false);
-    setMsg('Exibição de marmitas no cardápio salva.');
+    toast.success('Exibição de marmitas no cardápio salva.');
   }
 
   function renderMarmitaRow(item) {
@@ -417,32 +438,37 @@ export default function MarmitaManager() {
   function openNew(grupoId = '') {
     const grupo = grupos.find((row) => row.id === grupoId);
     const suggestedDay = grupo ? inferDiaSemanaFromGrupoNome(grupo.nome) : '';
-    setForm({
+    const initial = {
       ...emptyMarmita(),
       grupoId: grupoId || '',
       diaSemana: suggestedDay || emptyMarmita().diaSemana,
-    });
+    };
+    setForm(initial);
+    setFormBaseline(initial);
     setFormImage('');
+    setFormImageBaseline('');
     setEditingId(null);
     setModalOpen(true);
     setSaveError('');
-    setMsg('');
   }
 
   function openEdit(item) {
     const normalized = normalizeMarmita(item);
-    setForm({
+    const initial = {
       ...normalized,
       tamanhos: normalized.tamanhos.map((tam) => ({
         ...tam,
         preco: precoToFormInput(tam.preco),
       })),
-    });
-    setFormImage(normalized.imagemUrl || '');
+    };
+    setForm(initial);
+    setFormBaseline(initial);
+    const image = normalized.imagemUrl || '';
+    setFormImage(image);
+    setFormImageBaseline(image);
     setEditingId(item.id);
     setModalOpen(true);
     setSaveError('');
-    setMsg('');
   }
 
   function updateForm(patch) {
@@ -519,7 +545,6 @@ export default function MarmitaManager() {
   async function handleSave(event) {
     event.preventDefault();
     setSaveError('');
-    setMsg('');
 
     const tagAdmin = String(form.tagAdmin || '').trim();
     const nomePublico = String(form.nomePublico || '').trim();
@@ -610,7 +635,7 @@ export default function MarmitaManager() {
         return { ...prev, marmitas: sortByOrdem(list) };
       });
       resetForm();
-      setMsg('Marmita salva com sucesso.');
+      toast.success('Marmita salva com sucesso.');
     } catch (error) {
       setSaveError(error?.message || 'Não foi possível salvar.');
     }
@@ -637,7 +662,7 @@ export default function MarmitaManager() {
       ...prev,
       marmitas: sortByOrdem([...(prev.marmitas || []), copy]),
     }));
-    setMsg('Marmita duplicada.');
+    toast.success('Marmita duplicada.');
   }
 
   async function handleDelete(item) {
@@ -676,8 +701,6 @@ export default function MarmitaManager() {
           />
         </div>
       </div>
-
-      {msg ? <div className="admin-store-message">{msg}</div> : null}
 
       <p className="admin-help-text admin-marmita-info-note">
         Cadastre várias opções por dia da semana e mantenha <strong>apenas uma ativa por dia</strong>. A categoria{' '}
@@ -1037,7 +1060,13 @@ export default function MarmitaManager() {
       )}
 
       {modalOpen ? (
-        <div className="overlay open admin-item-overlay" onClick={resetForm}>
+        <>
+        <div
+          className="overlay open admin-item-overlay"
+          role="presentation"
+          onPointerDown={overlayPointerDown}
+          onClick={overlayClick}
+        >
           <div className="product-popup admin-product-popup admin-marmita-popup" onClick={(e) => e.stopPropagation()}>
             <div className="popup-details-col admin-item-form-col">
               <div className="popup-header admin-item-popup-header">
@@ -1379,7 +1408,7 @@ export default function MarmitaManager() {
                 </section>
 
                 <div className="popup-footer">
-                  <button type="button" className="admin-btn admin-btn-ghost" onClick={resetForm}>
+                  <button type="button" className="admin-btn admin-btn-ghost" onClick={requestCloseItemModal}>
                     Cancelar
                   </button>
                   <button type="submit" className="admin-btn admin-btn-primary">
@@ -1434,6 +1463,12 @@ export default function MarmitaManager() {
             </div>
           </div>
         </div>
+        <AdminDiscardDialog
+          open={itemDiscardOpen}
+          onConfirm={confirmDiscardItemModal}
+          onCancel={cancelDiscardItemModal}
+        />
+        </>
       ) : null}
     </div>
   );

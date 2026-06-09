@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import AdminAvailabilitySwitch from '@/components/admin/AdminAvailabilitySwitch';
+import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import AdminDatePicker from '@/components/admin/AdminDatePicker';
 import { activityStatusLabel } from '@/lib/superAdmin/storeActivity';
 import { generateTempPassword } from '@/lib/superAdmin';
+import StoreCatalogImportPanel from './StoreCatalogImportPanel';
 import styles from './StoreDetailModal.module.css';
 
 const TABS = [
@@ -12,6 +14,7 @@ const TABS = [
   { id: 'metricas', label: 'Métricas' },
   { id: 'equipe', label: 'Equipe' },
   { id: 'notas', label: 'Notas' },
+  { id: 'cardapio', label: 'Cardápio' },
 ];
 
 function formatDate(value) {
@@ -97,6 +100,10 @@ function StatusPills({ store }) {
 }
 
 export default function StoreDetailDrawer({ slug, onClose }) {
+  const { overlayPointerDown, overlayClick } = useAdminOverlayClose({
+    onClose,
+    isDirty: false,
+  });
   const [store, setStore] = useState(null);
   const [tab, setTab] = useState('resumo');
   const [loading, setLoading] = useState(false);
@@ -330,7 +337,12 @@ export default function StoreDetailDrawer({ slug, onClose }) {
   const compare = store?.goLiveComparison;
 
   return (
-    <div className={styles.backdrop} role="presentation" onClick={onClose}>
+    <div
+      className={styles.backdrop}
+      role="presentation"
+      onPointerDown={overlayPointerDown}
+      onClick={overlayClick}
+    >
       <div
         className={styles.modal}
         role="dialog"
@@ -753,6 +765,16 @@ export default function StoreDetailDrawer({ slug, onClose }) {
                 {saving ? 'Salvando...' : 'Salvar notas e CRM'}
               </button>
             </div>
+          ) : null}
+
+          {store && tab === 'cardapio' ? (
+            <StoreCatalogImportPanel
+              slug={slug}
+              onImported={() => {
+                loadStore(slug);
+                setActionMessage('Cardápio importado. Revise fotos e detalhes no admin da loja.');
+              }}
+            />
           ) : null}
         </div>
       </div>

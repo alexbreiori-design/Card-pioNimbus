@@ -7,7 +7,7 @@ import AdminIcon from './AdminIcon';
 import AdminLogoutButton from './AdminLogoutButton';
 import AdminStoreSwitcher from './AdminStoreSwitcher';
 import { useAdminData } from '@/hooks/useAdminData';
-import { isMarmitaSegment } from '@/lib/empresaSegmentos';
+import { isMarmitaSegment, isPizzariaSegment } from '@/lib/empresaSegmentos';
 import { NIMBUS_SUPPORT_LABEL, NIMBUS_SUPPORT_URL } from '@/lib/nimbusSupport';
 
 const BASE_NAV = [
@@ -50,6 +50,14 @@ function NavIcon({ name }) {
         <rect x="4" y="7" width="16" height="12" rx="2" />
         <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
         <line x1="4" y1="12" x2="20" y2="12" />
+      </svg>
+    ),
+    pizzas: (
+      <svg viewBox="0 0 24 24">
+        <path d="M12 2C8 2 4 5 4 9c0 5 4 9 8 13 4-4 8-8 8-13 0-4-4-7-8-7z" />
+        <circle cx="9" cy="9" r="1" />
+        <circle cx="14" cy="8" r="1" />
+        <circle cx="12" cy="12" r="1" />
       </svg>
     ),
     promos: (
@@ -108,9 +116,17 @@ export default function AdminSidebar({
 
   const navItems = useMemo(() => {
     const items = [...BASE_NAV];
-    if (isMarmitaSegment(data?.loja?.segmento)) {
-      const produtosIndex = items.findIndex((item) => item.href === '/admin/produtos');
+    const produtosIndex = items.findIndex((item) => item.href === '/admin/produtos');
+    if (isPizzariaSegment(data?.loja?.segmento)) {
       items.splice(produtosIndex, 0, {
+        href: '/admin/pizzas',
+        label: 'Pizzas',
+        icon: 'pizzas',
+      });
+    }
+    if (isMarmitaSegment(data?.loja?.segmento)) {
+      const insertAt = items.findIndex((item) => item.href === '/admin/produtos');
+      items.splice(insertAt, 0, {
         href: '/admin/marmitas',
         label: 'Marmitas',
         icon: 'marmitas',
@@ -186,7 +202,7 @@ export default function AdminSidebar({
                 <div className="admin-store-name">{storeName}</div>
               )}
               {cardapioHref ? (
-                <span className="admin-store-cardapio-hint">Clique para acessar o cardápio</span>
+                <span className="admin-store-cardapio-hint">Clique no nome para acessar o cardápio.</span>
               ) : null}
             </div>
           ) : (
@@ -263,29 +279,28 @@ export default function AdminSidebar({
           ) : (
             <span className="admin-sidebar-footer-spacer" aria-hidden="true" />
           )}
-          <a
-            className="admin-sidebar-support"
-            href={supportUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={NIMBUS_SUPPORT_LABEL}
-          >
-            {collapsed ? (
-              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+          <div className="admin-sidebar-footer-actions">
+            <a
+              className="admin-sidebar-support-icon-btn"
+              href={supportUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={NIMBUS_SUPPORT_LABEL}
+              aria-label={NIMBUS_SUPPORT_LABEL}
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.8" />
                 <path
-                  d="M18 13v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6M10 11l4-4 4 4M14 7v12"
+                  d="M9.5 9.25a2.5 2.5 0 0 1 4.8 1c0 1.5-2.3 1.75-2.3 3.25M12 16.5h.01"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="1.8"
                   strokeLinecap="round"
-                  strokeLinejoin="round"
                 />
               </svg>
-            ) : (
-              NIMBUS_SUPPORT_LABEL
-            )}
-          </a>
-          <AdminLogoutButton variant="minimal" />
+            </a>
+            <AdminLogoutButton variant="minimal" />
+          </div>
         </div>
       </div>
     </aside>

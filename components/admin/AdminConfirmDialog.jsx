@@ -1,5 +1,7 @@
 'use client';
 
+import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
+
 export default function AdminConfirmDialog({
   open,
   title,
@@ -10,10 +12,20 @@ export default function AdminConfirmDialog({
   onConfirm,
   onCancel,
 }) {
+  const { overlayPointerDown, overlayClick } = useAdminOverlayClose({
+    onClose: onCancel,
+    isDirty: false,
+  });
+
   if (!open) return null;
 
   return (
-    <div className="admin-confirm-overlay" role="presentation" onClick={onCancel}>
+    <div
+      className="admin-confirm-overlay"
+      role="presentation"
+      onPointerDown={overlayPointerDown}
+      onClick={overlayClick}
+    >
       <div
         className="admin-confirm-modal"
         role="dialog"

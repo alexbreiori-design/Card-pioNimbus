@@ -2,6 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+function toRowSelector(rowClassName) {
+  return rowClassName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((className) => `.${className}`)
+    .join('');
+}
+
 function getInsertIndex(items, getId, pointerY, listEl, rowSelector) {
   const rows = [...listEl.querySelectorAll(rowSelector)].filter(
     (row) => !row.classList.contains('is-dragging')
@@ -71,7 +80,7 @@ export default function AdminSortableList({
         getId,
         event.clientY,
         listRef.current,
-        `.${rowClassName}`
+        toRowSelector(rowClassName)
       );
       setInsertIndex(nextIndex);
     }
@@ -92,7 +101,7 @@ export default function AdminSortableList({
 
   function startDrag(event, id) {
     if (event.button !== 0) return;
-    const row = event.currentTarget.closest(`.${rowClassName}`);
+    const row = event.currentTarget.closest(toRowSelector(rowClassName));
     if (!row) return;
     event.preventDefault();
     const rect = row.getBoundingClientRect();

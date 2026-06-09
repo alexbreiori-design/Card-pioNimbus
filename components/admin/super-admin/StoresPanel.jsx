@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useAdminToast } from '@/context/AdminToastContext';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminIcon from '@/components/admin/AdminIcon';
 import { getSegmentoLabel } from '@/lib/empresaSegmentos';
@@ -46,7 +47,6 @@ export default function StoresPanel({ initialSelectedSlug = null, onSelectedSlug
 
   const loadStores = useCallback(async (searchQuery = '', { silent = false } = {}) => {
     if (!silent) setLoading(true);
-    if (!silent) setError('');
     try {
       const params = new URLSearchParams();
       const needle = String(searchQuery || '').trim();
@@ -60,7 +60,7 @@ export default function StoresPanel({ initialSelectedSlug = null, onSelectedSlug
       setStores(payload.stores || []);
     } catch (loadError) {
       if (!silent) {
-        setError(loadError?.message || 'Erro ao carregar lojas.');
+        toast.error(loadError?.message || 'Erro ao carregar lojas.');
         setStores([]);
       }
     } finally {
@@ -130,7 +130,6 @@ export default function StoresPanel({ initialSelectedSlug = null, onSelectedSlug
             </label>
           </div>
 
-          {error ? <p className="admin-sistema-error">{error}</p> : null}
           {loading ? <p className="admin-sistema-muted">Carregando lojas...</p> : null}
 
           {!loading && !stores.length ? (

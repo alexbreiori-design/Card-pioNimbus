@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import DeliveryZonesCrud from '@/components/admin/DeliveryZonesCrud';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import { formatCep } from '@/lib/cep/viacep';
+import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useEmpresa } from '@/hooks/useEmpresa';
 
@@ -37,7 +38,7 @@ export default function EntregaPage() {
   const { data, ready } = useAdminData();
   const { empresa, slug, loading: empresaLoading, error: empresaError } = useEmpresa();
   const loja = data?.loja;
-  const [msg, setMsg] = useState('');
+  const toast = useAdminToast();
   const [geocoding, setGeocoding] = useState(false);
 
   const addressLines = formatStoreAddressLines(loja);
@@ -45,7 +46,6 @@ export default function EntregaPage() {
   const recalcularCoordenadas = useCallback(async () => {
     if (!slug || !loja) return;
     setGeocoding(true);
-    setMsg('');
     try {
       const res = await fetch('/api/geocode', {
         method: 'POST',
@@ -63,14 +63,13 @@ export default function EntregaPage() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Falha no geocoding.');
-      setMsg('Coordenadas da loja atualizadas com sucesso.');
+      toast.success('Coordenadas da loja atualizadas com sucesso.');
     } catch (e) {
-      setMsg(e?.message || 'Não foi possível recalcular as coordenadas.');
+      toast.error(e?.message || 'Não foi possível recalcular as coordenadas.');
     } finally {
       setGeocoding(false);
-      setTimeout(() => setMsg(''), 3200);
     }
-  }, [slug, loja]);
+  }, [slug, loja, toast]);
 
   if (!ready) return null;
 
@@ -81,8 +80,6 @@ export default function EntregaPage() {
           {empresaError}
         </div>
       ) : null}
-      {msg ? <div className="admin-card admin-store-message">{msg}</div> : null}
-
       <AdminPageHeader title="Entrega" icon="delivery" />
 
       <div className="admin-card admin-store-block-card">

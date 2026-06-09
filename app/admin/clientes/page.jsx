@@ -4,9 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { formatCep } from '@/lib/cep/viacep';
 import { useCepLookup } from '@/hooks/useCepLookup';
 import { useEmpresa } from '@/hooks/useEmpresa';
+import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminIcon from '@/components/admin/AdminIcon';
 import OrderDetailModal from '@/components/admin/orders/OrderDetailModal';
+import { useAdminToast } from '@/context/AdminToastContext';
+import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
+import { isJsonDirty } from '@/lib/admin/isFormDirty';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOrders } from '@/hooks/useAdminOrders';
 import { useOrderPrint } from '@/context/OrderPrintContext';
@@ -145,9 +149,69 @@ export default function ClientesPage() {
   const [detail, setDetail] = useState(null);
   const [tab, setTab] = useState('dados');
   const [newDraft, setNewDraft] = useState(EMPTY_NEW);
-  const [msg, setMsg] = useState('');
+  const [detailBaseline, setDetailBaseline] = useState(null);
+  const [addressesBaseline, setAddressesBaseline] = useState('');
+  const toast = useAdminToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState('');
+
+  const isNewDirty = useMemo(
+    () => newOpen && isJsonDirty(newDraft, EMPTY_NEW),
+    [newOpen, newDraft]
+  );
+
+  const isDetailDirty = useMemo(() => {
+    if (!detail || !detailBaseline) return false;
+    if ((detail.name || '') !== detailBaseline.name) return true;
+    if ((detail.phone || '') !== detailBaseline.phone) return true;
+    return JSON.stringify(addressesByCustomer[detail.id] || []) !== addressesBaseline;
+  }, [detail, detailBaseline, addressesBaseline, addressesByCustomer]);
+
+  function closeNewModal() {
+    setNewOpen(false);
+    setNewDraft(EMPTY_NEW);
+  }
+
+  function openCustomerDetail(customer) {
+    setDetail({ ...customer });
+    setDetailBaseline({ name: customer.name || '', phone: customer.phone || '' });
+    setAddressesBaseline(JSON.stringify(addressesByCustomer[customer.id] || []));
+    setTab('dados');
+  }
+
+  function closeCustomerDetail() {
+    setDetail(null);
+    setDetailBaseline(null);
+    setAddressesBaseline('');
+  }
+
+  const {
+    overlayPointerDown: newOverlayPointerDown,
+    overlayClick: newOverlayClick,
+    requestClose: requestCloseNew,
+    discardOpen: newDiscardOpen,
+    confirmDiscard: confirmDiscardNew,
+    cancelDiscard: cancelDiscardNew,
+  } = useAdminOverlayClose({
+    onClose: closeNewModal,
+    isDirty: isNewDirty,
+  });
+
+  const {
+    overlayPointerDown: detailOverlayPointerDown,
+    overlayClick: detailOverlayClick,
+    requestClose: requestCloseDetail,
+    discardOpen: detailDiscardOpen,
+    confirmDiscard: confirmDiscardDetail,
+    cancelDiscard: cancelDiscardDetail,
+  } = useAdminOverlayClose({
+    onClose: closeCustomerDetail,
+    isDirty: isDetailDirty,
+  });
+
+  useEffect(() => {
+    if (cepError) toast.error(cepError);
+  }, [cepError, toast]);
 
   const filteredCustomers = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -228,7 +292,7 @@ export default function ClientesPage() {
       setOrdersByCustomer(oMap);
       setAddressesByCustomer(aMap);
     } catch (e) {
-      setMsg(e?.message || 'Erro ao carregar clientes.');
+      toast.error(e?.message || 'Erro ao carregar clientes.');
     } finally {
       setLoading(false);
     }
@@ -253,11 +317,11 @@ export default function ClientesPage() {
 
   async function saveNew() {
     if (!newDraft.name.trim() || !newDraft.phone.trim()) {
-      setMsg('Nome e telefone são obrigatórios.');
+      toast.error('Nome e telefone são obrigatórios.');
       return;
     }
     if (!isCompleteMobilePhoneBr(newDraft.phone)) {
-      setMsg(mobilePhoneIncompleteMessage());
+      toast.error(mobilePhoneIncompleteMessage());
       return;
     }
     try {
@@ -274,19 +338,18 @@ export default function ClientesPage() {
           state: newDraft.state,
         },
       });
-      setMsg('Cliente criado com sucesso.');
-      setNewOpen(false);
-      setNewDraft(EMPTY_NEW);
+      toast.success('Cliente criado com sucesso.');
+      closeNewModal();
       loadAll();
     } catch (e) {
-      setMsg(`Erro ao criar cliente: ${e.message}`);
+      toast.error(`Erro ao criar cliente: ${e.message}`);
     }
   }
 
   async function saveDetail() {
     if (!detail || !empresaId) return;
     if (!isCompleteMobilePhoneBr(detail.phone)) {
-      setMsg(mobilePhoneIncompleteMessage());
+      toast.error(mobilePhoneIncompleteMessage());
       return;
     }
     try {
@@ -296,10 +359,10 @@ export default function ClientesPage() {
         phone: detail.phone,
         empresaId,
       });
-      setMsg('Cliente atualizado.');
+      toast.success('Cliente atualizado.');
       loadAll();
     } catch (e) {
-      setMsg(`Erro ao salvar: ${e.message}`);
+      toast.error(`Erro ao salvar: ${e.message}`);
     }
   }
 
@@ -307,11 +370,11 @@ export default function ClientesPage() {
     if (!window.confirm('Excluir cliente?')) return;
     try {
       await deleteCliente(id, empresaId);
-      setMsg('Cliente excluído.');
-      if (detail?.id === id) setDetail(null);
+      toast.success('Cliente excluído.');
+      if (detail?.id === id) closeCustomerDetail();
       loadAll();
     } catch (e) {
-      setMsg(`Erro ao excluir: ${e.message}`);
+      toast.error(`Erro ao excluir: ${e.message}`);
     }
   }
 
@@ -333,9 +396,9 @@ export default function ClientesPage() {
       });
       const enderecos = await listClienteEnderecos(detail.id, empresaId);
       setAddressesByCustomer((prev) => ({ ...prev, [detail.id]: enderecos }));
-      setMsg('Endereço adicionado. Preencha os campos e salve.');
+      toast.success('Endereço adicionado. Preencha os campos e salve.');
     } catch (e) {
-      setMsg(`Erro ao adicionar endereço: ${e.message}`);
+      toast.error(`Erro ao adicionar endereço: ${e.message}`);
     }
   }
 
@@ -355,11 +418,11 @@ export default function ClientesPage() {
         empresaId,
         patch: address,
       });
-      setMsg('Endereço salvo.');
+      toast.success('Endereço salvo.');
       const enderecos = await listClienteEnderecos(clienteId, empresaId);
       setAddressesByCustomer((prev) => ({ ...prev, [clienteId]: enderecos }));
     } catch (e) {
-      setMsg(`Erro ao salvar endereço: ${e.message}`);
+      toast.error(`Erro ao salvar endereço: ${e.message}`);
     }
   }
 
@@ -388,9 +451,9 @@ export default function ClientesPage() {
         ...prev,
         [clienteId]: (prev[clienteId] || []).filter((a) => a.id !== addressId),
       }));
-      setMsg('Endereço removido.');
+      toast.success('Endereço removido.');
     } catch (e) {
-      setMsg(`Erro ao remover endereço: ${e.message}`);
+      toast.error(`Erro ao remover endereço: ${e.message}`);
     }
   }
 
@@ -412,14 +475,18 @@ export default function ClientesPage() {
 
   return (
     <div className="admin-content admin-content-pedidos admin-catalog-page admin-section-page admin-clientes-page admin-compact-card-page">
-      {msg ? <div className="admin-store-message">{msg}</div> : null}
-      {cepError ? <div className="admin-store-message">{cepError}</div> : null}
-
       <AdminPageHeader
         title="Clientes"
         icon="customers"
         actions={
-          <button type="button" className="admin-btn admin-btn-primary" onClick={() => setNewOpen(true)}>
+          <button
+            type="button"
+            className="admin-btn admin-btn-primary"
+            onClick={() => {
+              setNewDraft(EMPTY_NEW);
+              setNewOpen(true);
+            }}
+          >
             + Novo cliente
           </button>
         }
@@ -445,26 +512,21 @@ export default function ClientesPage() {
         ) : (
           <div className="admin-sparse-list">
             {filteredCustomers.map((c) => (
-              <div key={c.id} className="admin-sparse-row admin-sparse-row-client">
+              <div key={c.id} className="admin-sparse-row admin-sparse-row-client admin-crud-list-row">
                 <div className="admin-sparse-row-main admin-sparse-row-main-stack">
-                  <div className="admin-sparse-row-line">
-                    <span className="admin-sparse-row-code">{c.name}</span>
-                    <span className="admin-sparse-row-sep" aria-hidden="true">
-                      ·
-                    </span>
-                    <span className="admin-sparse-row-detail">{fmtPhone(c.phone)}</span>
-                  </div>
+                  <span className="admin-sparse-row-code">{c.name}</span>
+                  <span className="admin-sparse-row-detail">{fmtPhone(c.phone)}</span>
                   <div className="admin-sparse-row-sub">
                     {c.total_orders || 0} pedidos · {money(c.total_spent)} · Último:{' '}
                     {c.last_order_at ? new Date(c.last_order_at).toLocaleDateString('pt-BR') : '—'}
                   </div>
                 </div>
-                <div className="admin-sparse-row-actions">
+                <div className="admin-sparse-row-actions admin-item-actions-col">
                   <button
                     type="button"
                     className="admin-link-btn"
                     onClick={() => {
-                      setDetail({ ...c });
+                      openCustomerDetail(c);
                       setTab('dados');
                     }}
                   >
@@ -474,7 +536,7 @@ export default function ClientesPage() {
                     type="button"
                     className="admin-link-btn"
                     onClick={() => {
-                      setDetail({ ...c });
+                      openCustomerDetail(c);
                       setTab('dados');
                     }}
                   >
@@ -495,7 +557,13 @@ export default function ClientesPage() {
       </div>
 
       {newOpen ? (
-        <div className="admin-confirm-overlay" onClick={() => setNewOpen(false)}>
+        <>
+        <div
+          className="admin-confirm-overlay"
+          role="presentation"
+          onPointerDown={newOverlayPointerDown}
+          onClick={newOverlayClick}
+        >
           <div className="admin-confirm-modal" style={{ width: 'min(560px, 96vw)' }} onClick={(e) => e.stopPropagation()}>
             <h3>Novo cliente</h3>
             <div className="admin-form-group">
@@ -580,7 +648,7 @@ export default function ClientesPage() {
               />
             </div>
             <div className="admin-confirm-actions">
-              <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setNewOpen(false)}>
+              <button type="button" className="admin-btn admin-btn-ghost" onClick={requestCloseNew}>
                 Cancelar
               </button>
               <button type="button" className="admin-btn admin-btn-primary" onClick={saveNew}>
@@ -589,10 +657,22 @@ export default function ClientesPage() {
             </div>
           </div>
         </div>
+        <AdminDiscardDialog
+          open={newDiscardOpen}
+          onConfirm={confirmDiscardNew}
+          onCancel={cancelDiscardNew}
+        />
+        </>
       ) : null}
 
       {detail ? (
-        <div className="admin-confirm-overlay" onClick={() => setDetail(null)}>
+        <>
+        <div
+          className="admin-confirm-overlay"
+          role="presentation"
+          onPointerDown={detailOverlayPointerDown}
+          onClick={detailOverlayClick}
+        >
           <div
             className="admin-confirm-modal"
             style={{ width: 'min(900px, 96vw)', maxHeight: '90vh', overflowY: 'auto' }}
@@ -763,12 +843,18 @@ export default function ClientesPage() {
             ) : null}
 
             <div className="admin-confirm-actions">
-              <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setDetail(null)}>
+              <button type="button" className="admin-btn admin-btn-ghost" onClick={requestCloseDetail}>
                 Fechar
               </button>
             </div>
           </div>
         </div>
+        <AdminDiscardDialog
+          open={detailDiscardOpen}
+          onConfirm={confirmDiscardDetail}
+          onCancel={cancelDiscardDetail}
+        />
+        </>
       ) : null}
 
       <OrderDetailModal

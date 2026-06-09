@@ -2,8 +2,12 @@
 
 import { useMemo, useState } from 'react';
 import AdminAvailabilitySwitch from '@/components/admin/AdminAvailabilitySwitch';
+import AdminProductPickerModal from '@/components/admin/AdminProductPickerModal';
 import ImagePlaceholder from '@/components/admin/ImagePlaceholder';
+import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
+import { buildAdminPromoProducts } from '@/lib/admin/buildAdminCatalogProducts';
+import { PIZZA_CATEGORY_NAME, PIZZA_VIRTUAL_CATEGORY_ID } from '@/lib/pizza/pizzaIds';
 
 function uid() {
   return `promo-${Date.now()}${Math.floor(Math.random() * 1000)}`;
@@ -53,12 +57,11 @@ function ProductThumb({ product, size = 52 }) {
 export default function PromocoesCrud() {
   const { data, saveData } = useAdminData();
   const promocoes = data.promocoes || [];
-  const produtos = (data.produtos || []).filter((p) => p.ativo !== false);
-  const [msg, setMsg] = useState('');
+  const produtos = useMemo(() => buildAdminPromoProducts(data), [data]);
+  const toast = useAdminToast();
   const [draft, setDraft] = useState(emptyDraft());
   const [editingId, setEditingId] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
-  const [productSearch, setProductSearch] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const selectedProduct = useMemo(
@@ -66,21 +69,19 @@ export default function PromocoesCrud() {
     [produtos, draft.produtoId]
   );
 
-  const filteredProducts = useMemo(() => {
-    const q = productSearch.trim().toLowerCase();
-    if (!q) return produtos;
-    return produtos.filter(
-      (p) =>
-        String(p.nome || '').toLowerCase().includes(q) ||
-        String(p.descricao || '').toLowerCase().includes(q)
-    );
-  }, [produtos, productSearch]);
+  const promoCategories = useMemo(() => {
+    const cats = (data.categorias || []).filter((item) => item.ativo !== false);
+    const extras = [];
+    if (produtos.some((item) => item.categoriaId === PIZZA_VIRTUAL_CATEGORY_ID)) {
+      extras.push({ id: PIZZA_VIRTUAL_CATEGORY_ID, nome: PIZZA_CATEGORY_NAME });
+    }
+    return [...extras, ...cats];
+  }, [data.categorias, produtos]);
 
   function resetForm() {
     setDraft(emptyDraft());
     setEditingId(null);
     setFormOpen(false);
-    setProductSearch('');
     setPickerOpen(false);
   }
 
@@ -88,7 +89,6 @@ export default function PromocoesCrud() {
     setDraft(emptyDraft());
     setEditingId(null);
     setFormOpen(true);
-    setProductSearch('');
     setPickerOpen(false);
   }
 
@@ -100,12 +100,10 @@ export default function PromocoesCrud() {
       valorOriginal: product ? moneyToInput(product.preco) : d.valorOriginal,
     }));
     setPickerOpen(false);
-    setProductSearch('');
   }
 
   function handleSave(e) {
     e.preventDefault();
-    setMsg('');
     const payload = {
       produtoId: draft.produtoId,
       valorOriginal: inputToMoney(draft.valorOriginal),
@@ -113,15 +111,15 @@ export default function PromocoesCrud() {
       ativo: true,
     };
     if (!payload.produtoId) {
-      setMsg('Selecione um produto.');
+      toast.error('Selecione um produto.');
       return;
     }
     if (payload.valorPromocional <= 0) {
-      setMsg('Informe um valor promocional válido.');
+      toast.error('Informe um valor promocional válido.');
       return;
     }
     if (payload.valorPromocional >= payload.valorOriginal) {
-      setMsg('O valor promocional deve ser menor que o original.');
+      toast.error('O valor promocional deve ser menor que o original.');
       return;
     }
 
@@ -154,8 +152,7 @@ export default function PromocoesCrud() {
     });
 
     resetForm();
-    setMsg(editingId ? 'Promoção atualizada.' : 'Promoção cadastrada.');
-    setTimeout(() => setMsg(''), 2500);
+    toast.success(editingId ? 'Promoção atualizada.' : 'Promoção cadastrada.');
   }
 
   function handleToggle(promo) {
@@ -184,7 +181,6 @@ export default function PromocoesCrud() {
       valorPromocional: moneyToInput(promo.valorPromocional),
     });
     setFormOpen(true);
-    setProductSearch('');
     setPickerOpen(false);
   }
 
@@ -207,8 +203,6 @@ export default function PromocoesCrud() {
         </button>
       </div>
 
-      {msg ? <p className="admin-store-message admin-delivery-areas-msg">{msg}</p> : null}
-
       {formOpen ? (
         <form className="admin-delivery-area-form admin-card" onSubmit={handleSave}>
           <h3 className="admin-delivery-area-form-title">
@@ -224,65 +218,15 @@ export default function PromocoesCrud() {
                     <strong>{selectedProduct.nome}</strong>
                     <span>{formatCurrency(selectedProduct.preco)}</span>
                   </div>
-                  <button
-                    type="button"
-                    className="admin-link-btn"
-                    onClick={() => {
-                      setPickerOpen(true);
-                      setProductSearch('');
-                    }}
-                  >
+                  <button type="button" className="admin-btn admin-btn-ghost admin-btn-sm" onClick={() => setPickerOpen(true)}>
                     Trocar
                   </button>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  className="admin-input admin-promo-product-trigger"
-                  onClick={() => setPickerOpen(true)}
-                >
-                  Selecionar produto…
+                <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setPickerOpen(true)}>
+                  Selecionar produto
                 </button>
               )}
-              {pickerOpen ? (
-                <div className="admin-promo-product-picker">
-                  <input
-                    className="admin-input"
-                    placeholder="Buscar produto..."
-                    value={productSearch}
-                    onChange={(e) => setProductSearch(e.target.value)}
-                    autoFocus
-                  />
-                  <div className="admin-promo-product-picker-list">
-                    {filteredProducts.length === 0 ? (
-                      <p className="admin-help-text">Nenhum produto encontrado.</p>
-                    ) : (
-                      filteredProducts.map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          className={`admin-promo-product-option ${draft.produtoId === p.id ? 'active' : ''}`}
-                          onClick={() => onSelectProduct(p.id)}
-                        >
-                          <ProductThumb product={p} size={48} />
-                          <div>
-                            <strong>{p.nome}</strong>
-                            {p.descricao ? <p>{p.descricao}</p> : null}
-                          </div>
-                          <span>{formatCurrency(p.preco)}</span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    className="admin-text-btn admin-promo-picker-close"
-                    onClick={() => setPickerOpen(false)}
-                  >
-                    Fechar
-                  </button>
-                </div>
-              ) : null}
             </div>
             <div className="admin-form-group">
               <label className="admin-label">Valor original</label>
@@ -314,6 +258,18 @@ export default function PromocoesCrud() {
         </form>
       ) : null}
 
+      {pickerOpen ? (
+        <AdminProductPickerModal
+          title="Selecionar produto"
+          subtitle="Busque e filtre por categoria para escolher o item da promoção."
+          products={produtos}
+          categories={promoCategories}
+          selectedId={draft.produtoId}
+          onSelect={onSelectProduct}
+          onClose={() => setPickerOpen(false)}
+        />
+      ) : null}
+
       {promocoes.length === 0 ? (
         <p className="admin-help-text admin-delivery-areas-empty">Nenhuma promoção cadastrada.</p>
       ) : (
@@ -321,19 +277,16 @@ export default function PromocoesCrud() {
           {promocoes.map((promo) => {
             const product = productById(promo.produtoId);
             return (
-              <div key={promo.id} className="admin-sparse-row admin-sparse-row-media">
+              <div key={promo.id} className="admin-sparse-row admin-sparse-row-media admin-crud-list-row">
                 <ProductThumb product={product} size={48} />
-                <div className="admin-sparse-row-main">
+                <div className="admin-sparse-row-main admin-sparse-row-main-stack">
                   <span className="admin-sparse-row-code">{productName(promo.produtoId)}</span>
-                  <span className="admin-sparse-row-sep" aria-hidden="true">
-                    ·
-                  </span>
-                  <span className="admin-sparse-row-detail">
-                    De {formatCurrency(promo.valorOriginal)} por{' '}
-                    <strong>{formatCurrency(promo.valorPromocional)}</strong>
+                  <span className="admin-promo-price-row">
+                    <span className="admin-promo-price-old">{formatCurrency(promo.valorOriginal)}</span>
+                    <span className="admin-promo-price-new">{formatCurrency(promo.valorPromocional)}</span>
                   </span>
                 </div>
-                <div className="admin-sparse-row-actions">
+                <div className="admin-sparse-row-actions admin-item-actions-col">
                   <div className="admin-availability-cell">
                     <span>Disponível</span>
                     <AdminAvailabilitySwitch

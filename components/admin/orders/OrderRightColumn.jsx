@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import ImagePlaceholder from '@/components/admin/ImagePlaceholder';
 import AdminIcon from '@/components/admin/AdminIcon';
+import { productNeedsConfiguration } from '@/lib/admin/orderProductUtils';
 import { currency } from './orderDraftUtils';
 
 export default function OrderRightColumn({
@@ -104,6 +105,9 @@ export default function OrderRightColumn({
               <div key={p.id} className="admin-order-product-row">
                 <div className="admin-order-product-info">
                   <span className="admin-order-product-name">{p.nome}</span>
+                  {productNeedsConfiguration(p) ? (
+                    <div className="admin-order-meta">Montar antes de adicionar</div>
+                  ) : null}
                   {p.medida ? <div className="admin-order-meta">{p.medida}</div> : null}
                   <div className="admin-order-product-price">{currency(p.preco)}</div>
                 </div>
@@ -135,9 +139,11 @@ export default function OrderRightColumn({
                 <div className="admin-order-cart-item-head">
                   <strong>
                     {item.qtd}x {item.nome}
+                    {item.medida ? ` (${item.medida})` : ''}
                   </strong>
                   <span>{currency(item.qtd * item.preco)}</span>
                 </div>
+                {item.obs ? <p className="admin-order-cart-item-obs">{item.obs}</p> : null}
                 <div className="admin-order-cart-item-actions">
                   <button
                     type="button"

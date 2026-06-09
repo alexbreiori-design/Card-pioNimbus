@@ -1,13 +1,24 @@
 'use client';
 
 import OrderTicket from './OrderTicket';
+import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import { ORDER_TICKET_SAMPLE_ORDER } from '@/lib/orderTicketSample';
 
 export default function OrderTicketPreviewModal({ open, store, widthMm = 80, onClose, onPrintTest }) {
+  const { overlayPointerDown, overlayClick } = useAdminOverlayClose({
+    onClose,
+    isDirty: false,
+  });
+
   if (!open) return null;
 
   return (
-    <div className="admin-confirm-overlay admin-confirm-overlay-top" onClick={onClose}>
+    <div
+      className="admin-confirm-overlay admin-confirm-overlay-top"
+      role="presentation"
+      onPointerDown={overlayPointerDown}
+      onClick={overlayClick}
+    >
       <div className="admin-order-ticket-preview-modal" onClick={(e) => e.stopPropagation()}>
         <div className="admin-order-ticket-preview-head">
           <div>

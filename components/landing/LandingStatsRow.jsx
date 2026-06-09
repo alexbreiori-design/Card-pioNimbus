@@ -3,7 +3,7 @@
 import { useCallback, useRef } from 'react';
 
 const MAGNET_RANGE = 96;
-const MAGNET_BOOST = 0.16;
+const MAGNET_BOOST = 0.24;
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -31,7 +31,7 @@ export default function LandingStatsRow({ children }) {
       const distance = Math.abs(pointerX - centerX);
       const influence = clamp(1 - distance / MAGNET_RANGE, 0, 1);
       const scale = 1 + influence * MAGNET_BOOST;
-      const shiftY = (scale - 1) * 8;
+      const shiftY = (scale - 1) * 14;
       item.style.transform = `scale(${scale.toFixed(3)}) translateY(${shiftY.toFixed(2)}px)`;
     });
   }, []);

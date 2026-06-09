@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAdminToast } from '@/context/AdminToastContext';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import { buildNimbusWhatsAppUrl } from '@/lib/nimbusSupport';
 import { getSiteOrigin } from '@/lib/siteUrl';
@@ -29,8 +30,7 @@ export default function ConfiguracoesPanel() {
   const [updatedAt, setUpdatedAt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const toast = useAdminToast();
 
   const siteOrigin = useMemo(() => getSiteOrigin(), []);
   const canonicalHost = useMemo(() => {
@@ -48,7 +48,6 @@ export default function ConfiguracoesPanel() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError('');
     try {
       const response = await fetch('/api/super-admin/profile');
       const payload = await response.json().catch(() => ({}));
@@ -63,7 +62,7 @@ export default function ConfiguracoesPanel() {
       });
       setUpdatedAt(profile.updated_at || null);
     } catch (loadError) {
-      setError(loadError?.message || 'Erro ao carregar.');
+      toast.error(loadError?.message || 'Erro ao carregar.');
     } finally {
       setLoading(false);
     }
@@ -75,14 +74,11 @@ export default function ConfiguracoesPanel() {
 
   function updateField(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
-    setSuccess('');
   }
 
   async function handleSave(event) {
     event.preventDefault();
     setSaving(true);
-    setError('');
-    setSuccess('');
     try {
       const response = await fetch('/api/super-admin/profile', {
         method: 'PATCH',
@@ -100,9 +96,9 @@ export default function ConfiguracoesPanel() {
         email: profile.email || '',
       });
       setUpdatedAt(profile.updated_at || null);
-      setSuccess('Perfil atualizado. O link de suporte no admin dos lojistas usa o WhatsApp salvo aqui.');
+      toast.success('Perfil atualizado. O link de suporte no admin dos lojistas usa o WhatsApp salvo aqui.');
     } catch (saveError) {
-      setError(saveError?.message || 'Erro ao salvar.');
+      toast.error(saveError?.message || 'Erro ao salvar.');
     } finally {
       setSaving(false);
     }
@@ -117,7 +113,6 @@ export default function ConfiguracoesPanel() {
         admin.
       </p>
 
-      {error ? <p className="admin-sistema-error">{error}</p> : null}
       {loading ? <p className="admin-sistema-muted">Carregando...</p> : null}
 
       <div className="admin-sistema-config-grid">
@@ -178,7 +173,6 @@ export default function ConfiguracoesPanel() {
               </p>
             ) : null}
 
-            {success ? <p className="admin-sistema-success-hint">{success}</p> : null}
 
             <div className="admin-sistema-config-actions">
               <button type="submit" className="admin-btn admin-btn-primary" disabled={saving || loading}>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function LandingScreenshot({
   src,
@@ -10,6 +10,26 @@ export default function LandingScreenshot({
   className = '',
 }) {
   const [failed, setFailed] = useState(!src);
+
+  useEffect(() => {
+    if (!src) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const image = new Image();
+    image.onload = () => {
+      if (!cancelled) setFailed(false);
+    };
+    image.onerror = () => {
+      if (!cancelled) setFailed(true);
+    };
+    image.src = src;
+
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
 
   return (
     <div className={`landing-shot${className ? ` ${className}` : ''}`}>

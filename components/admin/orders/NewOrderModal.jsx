@@ -1,13 +1,18 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAdminData } from '@/hooks/useAdminData';
 import { findCustomerByPhone, listClienteEnderecos } from '@/lib/supabase/customers';
 import { resolveEmpresaIdFromStore } from '@/lib/supabase/empresa';
 import OrderLeftColumn from './OrderLeftColumn';
 import OrderRightColumn from './OrderRightColumn';
+import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
 import AdminIcon from '@/components/admin/AdminIcon';
+import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import { useOrderDeliveryFee } from '@/hooks/useOrderDeliveryFee';
+import AdminOrderItemConfigurator from './AdminOrderItemConfigurator';
+import { productNeedsConfiguration } from '@/lib/admin/orderProductUtils';
 import {
   computeOrderTotals,
   EMPTY_ORDER_DRAFT,
@@ -32,6 +37,7 @@ export default function NewOrderModal({
   const [productSearch, setProductSearch] = useState('');
   const [discardOpen, setDiscardOpen] = useState(false);
   const [searchingCustomer, setSearchingCustomer] = useState(false);
+  const [configProduct, setConfigProduct] = useState(null);
 
   useEffect(() => {
     if (!open) return;
@@ -52,6 +58,15 @@ export default function NewOrderModal({
     }
     onClose();
   }, [draft, onClose]);
+
+  const {
+    overlayPointerDown,
+    overlayClick,
+    requestClose: requestOverlayClose,
+  } = useAdminOverlayClose({
+    onClose: requestClose,
+    isDirty: false,
+  });
 
   async function searchCustomer() {
     setSearchingCustomer(true);
@@ -85,29 +100,36 @@ export default function NewOrderModal({
     }
   }
 
+  function addCartLine(cartLine) {
+    setDraft((d) => ({
+      ...d,
+      cart: [
+        ...d.cart,
+        {
+          id: uid(),
+          produtoId: cartLine.produtoId,
+          nome: cartLine.nome,
+          preco: cartLine.preco,
+          medida: cartLine.medida || '',
+          qtd: cartLine.qtd || 1,
+          obs: cartLine.obs || '',
+        },
+      ],
+    }));
+  }
+
   function addProduct(product) {
-    setDraft((d) => {
-      const idx = d.cart.findIndex((x) => x.produtoId === product.id);
-      if (idx > -1) {
-        const next = [...d.cart];
-        next[idx] = { ...next[idx], qtd: next[idx].qtd + 1 };
-        return { ...d, cart: next };
-      }
-      return {
-        ...d,
-        cart: [
-          ...d.cart,
-          {
-            id: uid(),
-            produtoId: product.id,
-            nome: product.nome,
-            preco: product.preco,
-            medida: product.medida || '',
-            qtd: 1,
-            obs: '',
-          },
-        ],
-      };
+    if (productNeedsConfiguration(product)) {
+      setConfigProduct(product);
+      return;
+    }
+    addCartLine({
+      produtoId: product.id,
+      nome: product.nome,
+      preco: product.preco,
+      medida: product.medida || '',
+      qtd: 1,
+      obs: '',
     });
   }
 
@@ -154,29 +176,30 @@ export default function NewOrderModal({
         </div>
       </div>
 
-      {discardOpen ? (
-        <div className="admin-confirm-overlay" style={{ zIndex: 1200 }} onClick={() => setDiscardOpen(false)}>
-          <div className="admin-confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Descartar pedido?</h3>
-            <p>As informações preenchidas serão perdidas.</p>
-            <div className="admin-confirm-actions">
-              <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setDiscardOpen(false)}>
-                Continuar editando
-              </button>
-              <button
-                type="button"
-                className="admin-btn admin-btn-danger"
-                onClick={() => {
-                  setDiscardOpen(false);
-                  onClose();
-                }}
-              >
-                Descartar pedido
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <AdminDiscardDialog
+        open={discardOpen}
+        title="Descartar pedido?"
+        message="As informações preenchidas serão perdidas."
+        confirmLabel="Descartar pedido"
+        onCancel={() => setDiscardOpen(false)}
+        onConfirm={() => {
+          setDiscardOpen(false);
+          onClose();
+        }}
+      />
+
+      {typeof document !== 'undefined' && configProduct
+        ? createPortal(
+            <AdminOrderItemConfigurator
+              open
+              product={configProduct}
+              catalogProducts={products.map((item) => item.catalogProduct).filter(Boolean)}
+              onClose={() => setConfigProduct(null)}
+              onConfirm={addCartLine}
+            />,
+            document.body
+          )
+        : null}
     </>
   );
 }

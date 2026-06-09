@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import AdminAvailabilitySwitch from '@/components/admin/AdminAvailabilitySwitch';
+import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
 import { formatCupomLabel, getCupomTipo } from '@/lib/cupons';
 
@@ -38,7 +39,7 @@ function formatCurrency(value) {
 export default function CuponsCrud() {
   const { data, saveData } = useAdminData();
   const cupons = data.cupons || [];
-  const [msg, setMsg] = useState('');
+  const toast = useAdminToast();
   const [draft, setDraft] = useState(emptyDraft());
   const [editingId, setEditingId] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -57,7 +58,6 @@ export default function CuponsCrud() {
 
   async function handleSave(e) {
     e.preventDefault();
-    setMsg('');
     const codigo = String(draft.codigo || '').trim().toUpperCase();
     const tipoDesconto = draft.tipoDesconto === 'percentual' ? 'percentual' : 'valor';
     const valorDesconto = tipoDesconto === 'valor' ? inputToMoney(draft.valorDesconto) : 0;
@@ -65,22 +65,22 @@ export default function CuponsCrud() {
       tipoDesconto === 'percentual' ? Number(String(draft.percentualDesconto || '').replace(',', '.')) : 0;
 
     if (!codigo) {
-      setMsg('Informe o código do cupom.');
+      toast.error('Informe o código do cupom.');
       return;
     }
     if (tipoDesconto === 'valor' && valorDesconto <= 0) {
-      setMsg('Informe um valor de desconto válido.');
+      toast.error('Informe um valor de desconto válido.');
       return;
     }
     if (tipoDesconto === 'percentual' && (percentualDesconto <= 0 || percentualDesconto > 100)) {
-      setMsg('Informe um percentual entre 1 e 100.');
+      toast.error('Informe um percentual entre 1 e 100.');
       return;
     }
     const duplicate = cupons.some(
       (c) => c.id !== editingId && String(c.codigo || '').trim().toUpperCase() === codigo
     );
     if (duplicate) {
-      setMsg('Já existe um cupom com este código.');
+      toast.error('Já existe um cupom com este código.');
       return;
     }
 
@@ -114,10 +114,9 @@ export default function CuponsCrud() {
         };
       });
       resetForm();
-      setMsg(editingId ? 'Cupom atualizado.' : 'Cupom cadastrado.');
-      setTimeout(() => setMsg(''), 2500);
+      toast.success(editingId ? 'Cupom atualizado.' : 'Cupom cadastrado.');
     } catch {
-      setMsg('Erro ao salvar cupom no Supabase.');
+      toast.error('Erro ao salvar cupom no Supabase.');
     }
   }
 
@@ -160,8 +159,6 @@ export default function CuponsCrud() {
           + Novo cupom
         </button>
       </div>
-
-      {msg ? <p className="admin-store-message admin-delivery-areas-msg">{msg}</p> : null}
 
       {formOpen ? (
         <form className="admin-delivery-area-form admin-card" onSubmit={handleSave}>
@@ -225,15 +222,12 @@ export default function CuponsCrud() {
       ) : (
         <div className="admin-sparse-list">
           {cupons.map((cupom) => (
-            <div key={cupom.id} className="admin-sparse-row">
-              <div className="admin-sparse-row-main">
+            <div key={cupom.id} className="admin-sparse-row admin-crud-list-row">
+              <div className="admin-sparse-row-main admin-sparse-row-main-stack">
                 <span className="admin-sparse-row-code">{cupom.codigo}</span>
-                <span className="admin-sparse-row-sep" aria-hidden="true">
-                  ·
-                </span>
                 <span className="admin-sparse-row-detail">{formatCupomLabel(cupom)}</span>
               </div>
-              <div className="admin-sparse-row-actions">
+              <div className="admin-sparse-row-actions admin-item-actions-col">
                 <div className="admin-availability-cell">
                   <span>Disponível</span>
                   <AdminAvailabilitySwitch

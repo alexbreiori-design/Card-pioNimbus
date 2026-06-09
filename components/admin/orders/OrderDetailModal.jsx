@@ -1,6 +1,7 @@
 'use client';
 
 import AdminIcon from '@/components/admin/AdminIcon';
+import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import OrderStatusTimeline from './OrderStatusTimeline';
 import { currency } from './orderDraftUtils';
 
@@ -49,11 +50,21 @@ export default function OrderDetailModal({
   readOnly = false,
   overlayClassName = '',
 }) {
+  const { overlayPointerDown, overlayClick } = useAdminOverlayClose({
+    onClose,
+    isDirty: false,
+  });
+
   if (!order) return null;
   const pay = paymentLabel || PAYMENT_LABEL[order.pagamento?.metodo] || order.pagamento?.metodo || '—';
 
   return (
-    <div className={`admin-confirm-overlay ${overlayClassName}`.trim()} onClick={onClose}>
+    <div
+      className={`admin-confirm-overlay ${overlayClassName}`.trim()}
+      role="presentation"
+      onPointerDown={overlayPointerDown}
+      onClick={overlayClick}
+    >
       <div className="admin-order-detail-modal" onClick={(e) => e.stopPropagation()}>
         <div className="admin-order-detail-head">
           <div>

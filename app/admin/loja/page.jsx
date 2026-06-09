@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { isModeloSegment, MODELO_SEGMENTO_ID } from '@/lib/empresaSegmentos';
 import ColorPalettePicker, { extractPaletteFromLogoUrl } from '@/components/admin/ColorPalettePicker';
 import CoverImageAdjustModal from '@/components/admin/CoverImageAdjustModal';
 import ImagePlaceholder from '@/components/admin/ImagePlaceholder';
@@ -32,6 +33,7 @@ import {
 import OrderTicketPreviewModal from '@/components/admin/orders/OrderTicketPreviewModal';
 import { ORDER_TICKET_SAMPLE_ORDER } from '@/lib/orderTicketSample';
 import { useOrderPrint } from '@/context/OrderPrintContext';
+import { useAdminToast } from '@/context/AdminToastContext';
 
 const DESCRICAO_MAX = 120;
 
@@ -120,14 +122,29 @@ export default function MinhaLojaPage() {
   const { printOrder } = useOrderPrint();
   const [draft, setDraft] = useState(null);
   const [pedidoMinimo, setPedidoMinimo] = useState('');
-  const [msg, setMsg] = useState('');
+  const toast = useAdminToast();
   const [saving, setSaving] = useState(false);
   const [coverAdjustSrc, setCoverAdjustSrc] = useState('');
   const [ticketWidthMm, setTicketWidthMm] = useState(80);
   const [ticketPreviewOpen, setTicketPreviewOpen] = useState(false);
+  const [superAdmin, setSuperAdmin] = useState(false);
+  const segmentBeforeModeloRef = useRef('restaurante');
 
   useEffect(() => {
     setTicketWidthMm(getOrderTicketWidthMm());
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/super-admin/me')
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (!cancelled) setSuperAdmin(Boolean(payload?.superAdmin));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const descricaoLength = String(draft?.descricao || '').length;
@@ -196,6 +213,17 @@ export default function MinhaLojaPage() {
     setDraft((prev) => ({ ...prev, [field]: value }));
   }
 
+  function handleModeloToggle(enabled) {
+    if (enabled) {
+      if (!isModeloSegment(draft.segmento)) {
+        segmentBeforeModeloRef.current = draft.segmento || 'restaurante';
+      }
+      setLojaField('segmento', MODELO_SEGMENTO_ID);
+      return;
+    }
+    setLojaField('segmento', segmentBeforeModeloRef.current || 'restaurante');
+  }
+
   function setHorario(day, patch) {
     setDraft((prev) => ({
       ...prev,
@@ -217,30 +245,29 @@ export default function MinhaLojaPage() {
         corMarca: extracted[0] || prev.corMarca,
       }));
     } catch {
-      setMsg('Não foi possível extrair cores da logo.');
+      toast.error('Não foi possível extrair cores da logo.');
     }
   }
 
   function onComandaLogoSelect(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setMsg('');
     const name = file.name.toLowerCase();
     const isPng = file.type === 'image/png' || name.endsWith('.png');
     const isSvg = file.type === 'image/svg+xml' || name.endsWith('.svg');
     if (!isPng && !isSvg) {
-      setMsg('Logo da comanda: envie PNG ou SVG em preto com fundo transparente.');
+      toast.error('Logo da comanda: envie PNG ou SVG em preto com fundo transparente.');
       e.target.value = '';
       return;
     }
     if (file.size > 1024 * 1024) {
-      setMsg('Logo da comanda: máximo 1 MB.');
+      toast.error('Logo da comanda: máximo 1 MB.');
       e.target.value = '';
       return;
     }
     readFileAsDataUrl(file)
       .then((dataUrl) => setLojaField('logoComandaUrl', dataUrl))
-      .catch(() => setMsg('Não foi possível processar esse arquivo.'));
+      .catch(() => toast.error('Não foi possível processar esse arquivo.'));
     e.target.value = '';
   }
 
@@ -248,9 +275,8 @@ export default function MinhaLojaPage() {
     return async (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      setMsg('');
       if (file.size > maxMb * 1024 * 1024) {
-        setMsg(`Arquivo excede ${maxMb}MB.`);
+        toast.error(`Arquivo excede ${maxMb}MB.`);
         e.target.value = '';
         return;
       }
@@ -264,7 +290,7 @@ export default function MinhaLojaPage() {
         setLojaField(field, dataUrl);
         if (field === 'logoUrl') await runPaletteExtract(dataUrl);
       } catch {
-        setMsg('Não foi possível processar essa imagem. Tente outro arquivo.');
+        toast.error('Não foi possível processar essa imagem. Tente outro arquivo.');
       }
       e.target.value = '';
     };
@@ -301,11 +327,9 @@ export default function MinhaLojaPage() {
     if (!key) return;
     try {
       await navigator.clipboard.writeText(key);
-      setMsg('Chave Pix copiada.');
-      setTimeout(() => setMsg(''), 2200);
+      toast.success('Chave Pix copiada.');
     } catch {
-      setMsg('Não foi possível copiar a chave Pix.');
-      setTimeout(() => setMsg(''), 2200);
+      toast.error('Não foi possível copiar a chave Pix.');
     }
   }
 
@@ -322,10 +346,9 @@ export default function MinhaLojaPage() {
 
   async function save() {
     setSaving(true);
-    setMsg('');
     const durations = resolveLojaDurations(draft);
     if (!parseHHMMToMinutes(durations.tempoEntregaDelivery) || !parseHHMMToMinutes(durations.tempoEntregaRetirada)) {
-      setMsg('Informe tempos válidos no formato HH:MM (ex: 00:45 para 45 minutos).');
+      toast.error('Informe tempos válidos no formato HH:MM (ex: 00:45 para 45 minutos).');
       setSaving(false);
       return;
     }
@@ -376,19 +399,17 @@ export default function MinhaLojaPage() {
           /* geocoding opcional */
         }
       }
-      setMsg('Alterações salvas com sucesso.');
+      toast.success('Alterações salvas com sucesso.');
       setPedidoMinimo(moneyToDisplay(nextLoja.pedidoMinimo));
     } catch (e) {
-      setMsg(e?.message || 'Erro ao salvar. Dados locais foram atualizados.');
+      toast.error(e?.message || 'Erro ao salvar. Dados locais foram atualizados.');
     } finally {
       setSaving(false);
-      setTimeout(() => setMsg(''), 2800);
     }
   }
 
   return (
     <div className="admin-content admin-content-pedidos admin-store-page admin-store-page-v2">
-      {msg ? <div className="admin-card admin-store-message">{msg}</div> : null}
 
       <div className="admin-store-actions-row admin-store-actions-sticky">
         <div />
@@ -447,13 +468,40 @@ export default function MinhaLojaPage() {
       <div className="admin-card admin-store-section-card">
         <StoreSectionHead icon="store" title="Dados da loja" />
         <div className="admin-store-section-body">
-          <div className="admin-form-group admin-store-segment-field">
-            <label className="admin-label">Segmento</label>
-            <SegmentCombobox
-              value={draft.segmento || ''}
-              onChange={(segmento) => setLojaField('segmento', segmento)}
-              disabled={saving}
-            />
+          <div className="admin-store-segment-row">
+            <div className="admin-form-group admin-store-segment-field">
+              <label className="admin-label">Segmento</label>
+              {superAdmin && isModeloSegment(draft.segmento) ? (
+                <div className="admin-store-modelo-active">Modelo (testes Nimbus)</div>
+              ) : (
+                <SegmentCombobox
+                  value={draft.segmento || ''}
+                  onChange={(segmento) => {
+                    segmentBeforeModeloRef.current = segmento || 'restaurante';
+                    setLojaField('segmento', segmento);
+                  }}
+                  disabled={saving}
+                />
+              )}
+            </div>
+            {superAdmin ? (
+              <label
+                className="admin-store-modelo-inline"
+                title="Libera Pizzas e Marmitas para testar todos os módulos"
+              >
+                <span>Modo modelo</span>
+                <span className="admin-switch">
+                  <input
+                    type="checkbox"
+                    checked={isModeloSegment(draft.segmento)}
+                    disabled={saving}
+                    onChange={(event) => handleModeloToggle(event.target.checked)}
+                    aria-label="Ativar modo modelo"
+                  />
+                  <span className="admin-switch-slider" />
+                </span>
+              </label>
+            ) : null}
           </div>
           <div className="admin-store-dados-row-nome-link">
             <div className="admin-form-group">
