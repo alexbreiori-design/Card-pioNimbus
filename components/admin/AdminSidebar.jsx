@@ -20,6 +20,7 @@ const BASE_NAV = [
   { href: '/admin/entrega', label: 'Entrega', icon: 'delivery' },
   { href: '/admin/loja', label: 'Minha loja', icon: 'store' },
   { href: '/admin/integracoes', label: 'Integrações', icon: 'integrations' },
+  { href: '/admin/relatorios', label: 'Relatórios', icon: 'reports' },
 ];
 
 function NavIcon({ name }) {
@@ -32,6 +33,14 @@ function NavIcon({ name }) {
       <svg viewBox="0 0 24 24">
         <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
         <line x1="3" y1="6" x2="21" y2="6" />
+      </svg>
+    ),
+    reports: (
+      <svg viewBox="0 0 24 24">
+        <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+        <path d="M18 17V9" />
+        <path d="M13 17V5" />
+        <path d="M8 17v-3" />
       </svg>
     ),
     products: (
