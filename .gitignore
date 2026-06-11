@@ -42,9 +42,10 @@ next-env.d.ts
 
 .vercel
 
+# documentação e notas locais (não versionar)
+/docs/
+
 # arquivos locais
-AJUSTES DE IMPLEMENTAÇÕES.md
-IMPLEMENTAÇÕES.md
 supabase/ONBOARDING.md
 dev-err.txt
 dev-out.txt
