@@ -1,73 +1,26 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { sanitizeMetaPixelId, trackMetaPageView } from '@/lib/meta/pixel';
-
-const SCRIPT_ID = 'meta-pixel-fbevents';
-const SCRIPT_SRC = 'https://connect.facebook.net/en_US/fbevents.js';
-
-function ensureFbeventsScript() {
-  return new Promise((resolve) => {
-    if (typeof window.fbq === 'function') {
-      resolve();
-      return;
-    }
-
-    const existing = document.getElementById(SCRIPT_ID);
-    if (existing) {
-      existing.addEventListener('load', () => resolve(), { once: true });
-      const poll = window.setInterval(() => {
-        if (typeof window.fbq === 'function') {
-          window.clearInterval(poll);
-          resolve();
-        }
-      }, 80);
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.id = SCRIPT_ID;
-    script.async = true;
-    script.src = SCRIPT_SRC;
-    script.onload = () => resolve();
-    document.head.appendChild(script);
-  });
-}
+import { initMetaPixel, sanitizeMetaPixelId, trackMetaPageView } from '@/lib/meta/pixel';
 
 export default function MetaPixel({ pixelId }) {
   const pathname = usePathname();
   const safePixelId = sanitizeMetaPixelId(pixelId);
-  const initializedIdRef = useRef(null);
 
   useEffect(() => {
-    if (!safePixelId) {
-      initializedIdRef.current = null;
-      return undefined;
-    }
-
-    let cancelled = false;
-
-    (async () => {
-      await ensureFbeventsScript();
-      if (cancelled || typeof window.fbq !== 'function') return;
-
-      if (initializedIdRef.current !== safePixelId) {
-        window.fbq('init', safePixelId);
-        initializedIdRef.current = safePixelId;
-      }
-      trackMetaPageView();
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+    if (!safePixelId) return undefined;
+    initMetaPixel(safePixelId);
+    trackMetaPageView();
+    return undefined;
   }, [safePixelId]);
 
   useEffect(() => {
-    if (!safePixelId || initializedIdRef.current !== safePixelId) return;
-    if (typeof window.fbq !== 'function') return;
-    trackMetaPageView();
+    if (!safePixelId) return undefined;
+    if (initMetaPixel(safePixelId)) {
+      trackMetaPageView();
+    }
+    return undefined;
   }, [pathname, safePixelId]);
 
   if (!safePixelId) return null;

@@ -8979,6 +8979,12 @@ textarea.admin-input::placeholder {
   gap: 6px;
 }
 
+.admin-marmita-grupo-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .admin-marmita-vitrine-field {
   grid-column: 1 / -1;
 }

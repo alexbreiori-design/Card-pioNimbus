@@ -14,7 +14,11 @@ import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import { isJsonDirty } from '@/lib/admin/isFormDirty';
 import { formatMoneyBrInput, hasMoneyBrValue, parseMoneyBrInput } from '@/lib/moneyMask';
 import { buildMarmitaProductId } from '@/lib/marmita/marmitaIds';
-import { getMarmitaWeekdayLabel, MARMITA_WEEKDAYS } from '@/lib/marmita/marmitaWeekdays';
+import {
+  getMarmitaWeekdayLabel,
+  MARMITA_DAY_OPTIONS,
+  MARMITA_WEEKDAYS,
+} from '@/lib/marmita/marmitaWeekdays';
 import {
   defaultMarmitaCardapio,
   describeMarmitaCardapioForAdmin,
@@ -22,10 +26,10 @@ import {
 } from '@/lib/marmita/marmitaCardapio';
 import {
   buildMarmitaAdminPreview,
+  enforceSingleActiveMarmitaPerGrupo,
   findActiveMarmitaDayConflict,
   formatMarmitaDayConflictMessage,
   inferDiaSemanaFromGrupoNome,
-  toggleItemHiddenOnDate,
 } from '@/lib/marmita/marmitaPublic';
 import { emptyMarmita, emptyMarmitaGrupo, marmitaUid, normalizeMarmita } from '@/lib/marmita/marmitaModel';
 import { uploadMenuAssetIfNeeded } from '@/lib/upload/menuAsset';
@@ -75,7 +79,6 @@ function loadImage(src) {
 
 async function compressImageDataUrl(dataUrl) {
   if (!dataUrl?.startsWith('data:image/')) return dataUrl || '';
-  if (dataUrl.length <= MAX_STORED_IMAGE_LENGTH) return dataUrl;
 
   const image = await loadImage(dataUrl);
   const scale = Math.min(1, MAX_IMAGE_SIZE / Math.max(image.width, image.height));
@@ -103,13 +106,9 @@ async function compressImageFile(file) {
 }
 
 async function persistImageUrl(slug, dataUrl) {
+  if (!dataUrl?.startsWith('data:image/')) return dataUrl || '';
   const compressed = await compressImageDataUrl(dataUrl);
-  if (!slug) return compressed;
-  try {
-    return await uploadMenuAssetIfNeeded(slug, compressed, { folder: 'marmitas' });
-  } catch {
-    return compressed;
-  }
+  return uploadMenuAssetIfNeeded(slug, compressed, { folder: 'marmitas' });
 }
 
 function Switch({ checked, onChange, label }) {
@@ -161,7 +160,7 @@ export default function MarmitaManager() {
   const [formImageBaseline, setFormImageBaseline] = useState('');
   const [saveError, setSaveError] = useState('');
   const [ordering, setOrdering] = useState(false);
-  const [newGrupoName, setNewGrupoName] = useState('');
+  const [newGrupoDraft, setNewGrupoDraft] = useState(null);
   const [collapsedGrupos, setCollapsedGrupos] = useState(() => new Set());
   const [grupoMenuId, setGrupoMenuId] = useState('');
   const [editingGrupo, setEditingGrupo] = useState(null);
@@ -189,8 +188,14 @@ export default function MarmitaManager() {
     [data.adicionaisCategorias, data.adicionaisItens, marmitas]
   );
 
-  function getActivationConflict(marmitaId, diaSemana, ativo) {
-    return findActiveMarmitaDayConflict(marmitas, { marmitaId, diaSemana, ativo });
+  function getActivationConflict(marmitaId, diaSemana, ativo, grupoId) {
+    return findActiveMarmitaDayConflict(marmitas, {
+      marmitaId,
+      diaSemana,
+      ativo,
+      grupoId,
+      marmitaGrupos,
+    });
   }
 
   const filteredMarmitas = useMemo(() => {
@@ -264,16 +269,21 @@ export default function MarmitaManager() {
   }
 
   function addGrupo() {
-    const nome = newGrupoName.trim();
+    const nome = String(newGrupoDraft?.nome || '').trim();
     if (!nome) return;
     saveData((prev) => ({
       ...prev,
       marmitaGrupos: [
         ...(prev.marmitaGrupos || []),
-        { ...emptyMarmitaGrupo(), nome, ordem: (prev.marmitaGrupos || []).length },
+        {
+          ...emptyMarmitaGrupo(),
+          nome,
+          ordem: (prev.marmitaGrupos || []).length,
+          permitirDiasDuplicados: newGrupoDraft?.permitirDiasDuplicados === true,
+        },
       ],
     }));
-    setNewGrupoName('');
+    setNewGrupoDraft(null);
     toast.success('Grupo criado.');
   }
 
@@ -302,21 +312,43 @@ export default function MarmitaManager() {
   }
 
   function openEditGrupo(grupo) {
-    setEditingGrupo({ id: grupo.id, nome: grupo.nome });
+    setEditingGrupo({
+      id: grupo.id,
+      nome: grupo.nome,
+      permitirDiasDuplicados: grupo.permitirDiasDuplicados === true,
+    });
     setGrupoMenuId('');
   }
 
-  function saveGrupoName() {
+  async function saveGrupoEdit() {
     const nome = String(editingGrupo?.nome || '').trim();
     if (!nome || !editingGrupo?.id) return;
-    saveData((prev) => ({
-      ...prev,
-      marmitaGrupos: (prev.marmitaGrupos || []).map((row) =>
-        row.id === editingGrupo.id ? { ...row, nome } : row
-      ),
-    }));
+
+    const previous = marmitaGrupos.find((row) => row.id === editingGrupo.id);
+    const permitirDiasDuplicados = editingGrupo?.permitirDiasDuplicados === true;
+    const disablingDuplicates =
+      previous?.permitirDiasDuplicados === true && !permitirDiasDuplicados;
+
+    await saveData((prev) => {
+      let nextMarmitas = prev.marmitas || [];
+      if (disablingDuplicates) {
+        nextMarmitas = enforceSingleActiveMarmitaPerGrupo(nextMarmitas, editingGrupo.id);
+      }
+      return {
+        ...prev,
+        marmitaGrupos: (prev.marmitaGrupos || []).map((row) =>
+          row.id === editingGrupo.id ? { ...row, nome, permitirDiasDuplicados } : row
+        ),
+        marmitas: nextMarmitas,
+      };
+    });
+
     setEditingGrupo(null);
-    toast.success('Grupo atualizado.');
+    toast.success(
+      disablingDuplicates
+        ? 'Grupo atualizado. Mantivemos apenas a primeira marmita ativa neste grupo.'
+        : 'Grupo atualizado.'
+    );
   }
 
   async function duplicateGrupo(grupo) {
@@ -472,7 +504,13 @@ export default function MarmitaManager() {
   }
 
   function updateForm(patch) {
-    setForm((prev) => ({ ...prev, ...patch }));
+    setForm((prev) => {
+      const next = { ...prev, ...patch };
+      if (editingId && 'grupoId' in patch && patch.grupoId !== prev.grupoId) {
+        next.ativo = false;
+      }
+      return next;
+    });
   }
 
   function updateTamanho(index, patch) {
@@ -593,9 +631,14 @@ export default function MarmitaManager() {
     const imagemUrl = await persistImageUrl(activeSlug || data.loja?.slug, formImage);
 
     if (form.ativo !== false) {
-      const conflict = getActivationConflict(editingId || form.id, form.diaSemana, true);
+      const conflict = getActivationConflict(
+        editingId || form.id,
+        form.diaSemana,
+        true,
+        form.grupoId
+      );
       if (conflict) {
-        setSaveError(formatMarmitaDayConflictMessage(conflict));
+        setSaveError(formatMarmitaDayConflictMessage(conflict, form.diaSemana));
         return;
       }
     }
@@ -642,6 +685,13 @@ export default function MarmitaManager() {
   }
 
   async function setAtivo(item, ativo) {
+    if (ativo !== false) {
+      const conflict = getActivationConflict(item.id, item.diaSemana, true, item.grupoId);
+      if (conflict) {
+        toast.error(formatMarmitaDayConflictMessage(conflict, item.diaSemana));
+        return;
+      }
+    }
     await saveData((prev) => ({
       ...prev,
       marmitas: (prev.marmitas || []).map((row) => (row.id === item.id ? { ...row, ativo } : row)),
@@ -677,6 +727,21 @@ export default function MarmitaManager() {
     if (editingId === item.id) resetForm();
   }
 
+  function handleMarmitasReorder(next) {
+    const prevGrupoById = new Map(
+      marmitas.map((item) => [item.id, item.grupoId || ''])
+    );
+    const updated = next.map((item) => {
+      const prevGrupo = prevGrupoById.get(item.id) || '';
+      const nextGrupo = item.grupoId || '';
+      if (prevGrupo !== nextGrupo) {
+        return { ...item, ativo: false };
+      }
+      return item;
+    });
+    saveData((prev) => ({ ...prev, marmitas: updated }));
+  }
+
   return (
     <div className="admin-content admin-content-pedidos admin-catalog-page">
       <AdminPageHeader
@@ -703,9 +768,9 @@ export default function MarmitaManager() {
       </div>
 
       <p className="admin-help-text admin-marmita-info-note">
-        Cadastre várias opções por dia da semana e mantenha <strong>apenas uma ativa por dia</strong>. A categoria{' '}
-        <strong>Marmitas</strong> aparece automaticamente no cardápio público. Use <strong>vitrine de preços</strong> para
-        exibir referência nos dias sem cardápio do dia.
+        Organize marmitas em <strong>grupos</strong> e defina se cada grupo permite mais de uma opção ativa no mesmo dia.
+        A categoria <strong>Marmitas</strong> aparece automaticamente no cardápio público. Use{' '}
+        <strong>vitrine de preços</strong> para exibir referência nos dias sem cardápio do dia.
       </p>
 
       <div className="admin-marmita-settings-row">
@@ -848,33 +913,14 @@ export default function MarmitaManager() {
             <p className="admin-help-text admin-marmita-preview-detail">{publicPreview.detail}</p>
 
             {publicPreview.marmita ? (
-              <>
-                <div className="admin-marmita-preview-sizes">
-                  {publicPreview.sizes.map((tam) => (
-                    <span key={tam.id} className="admin-marmita-size-chip">
-                      {tam.nome}: {formatCurrency(tam.preco)}
-                    </span>
-                  ))}
-                </div>
-                {publicPreview.exceptionItems.length ? (
-                  <div className="admin-marmita-excecoes-block">
-                    <p className="admin-label">Exceções de hoje</p>
-                    <p className="admin-help-text">Oculte itens só para hoje, sem desativar a marmita inteira.</p>
-                    <div className="admin-marmita-excecoes-list">
-                      {publicPreview.exceptionItems.map((item) => (
-                        <MarmitaCheck
-                          key={item.id}
-                          checked={item.hidden}
-                          label={`Ocultar hoje: ${item.nome} (${item.passo})`}
-                          onChange={(checked) =>
-                            toggleExcecaoItem(publicPreview.marmita.id, item.id, checked)
-                          }
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </>
+              <div className="admin-marmita-preview-sizes">
+                <p className="admin-label">{publicPreview.marmita.nomePublico || publicPreview.marmita.tagAdmin}</p>
+                {publicPreview.sizes.map((tam) => (
+                  <span key={tam.id} className="admin-marmita-size-chip">
+                    {tam.nome}: {formatCurrency(tam.preco)}
+                  </span>
+                ))}
+              </div>
             ) : null}
           </div>
         </div>
@@ -885,7 +931,11 @@ export default function MarmitaManager() {
           <button
             type="button"
             className="admin-btn admin-btn-ghost"
-            onClick={() => setNewGrupoName((value) => (value ? '' : ' '))}
+            onClick={() =>
+              setNewGrupoDraft((draft) =>
+                draft ? null : { nome: '', permitirDiasDuplicados: false }
+              )
+            }
           >
             <AdminIcon name="plus" />
             Novo grupo
@@ -897,7 +947,7 @@ export default function MarmitaManager() {
         </div>
       </div>
 
-      {newGrupoName !== '' ? (
+      {newGrupoDraft ? (
         <div className="admin-card admin-new-category-card admin-marmita-new-grupo-card">
           <p className="admin-help-text admin-marmita-grupo-suggest-label">
             Sugestão por dia (ou digite outro nome):
@@ -908,38 +958,97 @@ export default function MarmitaManager() {
                 key={day.id}
                 type="button"
                 className="admin-btn admin-btn-ghost admin-btn-sm"
-                onClick={() => setNewGrupoName(day.label)}
+                onClick={() => setNewGrupoDraft((prev) => ({ ...prev, nome: day.label }))}
               >
                 {day.label}
               </button>
             ))}
           </div>
-          <input
-            className="admin-input"
-            placeholder="Ex.: Segunda-feira"
-            value={newGrupoName === ' ' ? '' : newGrupoName}
-            onChange={(e) => setNewGrupoName(e.target.value)}
-          />
-          <button type="button" className="admin-btn admin-btn-primary" onClick={addGrupo}>
-            Salvar
-          </button>
+          <div className="admin-catalog-form-grid">
+            <div className="admin-form-group">
+              <label className="admin-label">Nome do grupo</label>
+              <input
+                className="admin-input"
+                placeholder="Ex.: Segunda-feira"
+                value={newGrupoDraft.nome}
+                onChange={(e) =>
+                  setNewGrupoDraft((prev) => ({ ...prev, nome: e.target.value }))
+                }
+              />
+            </div>
+            <div className="admin-form-group">
+              <label className="admin-label">Permitir dias duplicados?</label>
+              <select
+                className="admin-input"
+                value={newGrupoDraft.permitirDiasDuplicados ? 'sim' : 'nao'}
+                onChange={(e) =>
+                  setNewGrupoDraft((prev) => ({
+                    ...prev,
+                    permitirDiasDuplicados: e.target.value === 'sim',
+                  }))
+                }
+              >
+                <option value="nao">Não</option>
+                <option value="sim">Sim</option>
+              </select>
+            </div>
+          </div>
+          <p className="admin-help-text">
+            Com <strong>Não</strong>, apenas uma marmita ativa por dia dentro deste grupo. Com <strong>Sim</strong>,
+            várias marmitas podem rodar no mesmo dia (ex.: cardápio fixo + feijoada no sábado em grupos diferentes).
+          </p>
+          <div className="admin-marmita-grupo-form-actions">
+            <button type="button" className="admin-btn admin-btn-primary" onClick={addGrupo}>
+              Salvar
+            </button>
+            <button
+              type="button"
+              className="admin-btn admin-btn-ghost"
+              onClick={() => setNewGrupoDraft(null)}
+            >
+              Cancelar
+            </button>
+          </div>
         </div>
       ) : null}
 
       {editingGrupo ? (
-        <div className="admin-card admin-new-category-card">
-          <input
-            className="admin-input"
-            value={editingGrupo.nome}
-            onChange={(e) => setEditingGrupo((prev) => ({ ...prev, nome: e.target.value }))}
-            placeholder="Nome do grupo"
-          />
-          <button type="button" className="admin-btn admin-btn-primary" onClick={saveGrupoName}>
-            Salvar
-          </button>
-          <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setEditingGrupo(null)}>
-            Cancelar
-          </button>
+        <div className="admin-card admin-new-category-card admin-marmita-edit-grupo-card">
+          <div className="admin-catalog-form-grid">
+            <div className="admin-form-group">
+              <label className="admin-label">Nome do grupo</label>
+              <input
+                className="admin-input"
+                value={editingGrupo.nome}
+                onChange={(e) => setEditingGrupo((prev) => ({ ...prev, nome: e.target.value }))}
+                placeholder="Nome do grupo"
+              />
+            </div>
+            <div className="admin-form-group">
+              <label className="admin-label">Permitir dias duplicados?</label>
+              <select
+                className="admin-input"
+                value={editingGrupo.permitirDiasDuplicados ? 'sim' : 'nao'}
+                onChange={(e) =>
+                  setEditingGrupo((prev) => ({
+                    ...prev,
+                    permitirDiasDuplicados: e.target.value === 'sim',
+                  }))
+                }
+              >
+                <option value="nao">Não</option>
+                <option value="sim">Sim</option>
+              </select>
+            </div>
+          </div>
+          <div className="admin-marmita-grupo-form-actions">
+            <button type="button" className="admin-btn admin-btn-primary" onClick={saveGrupoEdit}>
+              Salvar
+            </button>
+            <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setEditingGrupo(null)}>
+              Cancelar
+            </button>
+          </div>
         </div>
       ) : null}
 
@@ -952,7 +1061,7 @@ export default function MarmitaManager() {
             includeUngroupedSection={grupos.length > 0 && filteredMarmitas.some((item) => !item.grupoId)}
             ungroupedLabel="Sem grupo"
             onGroupsReorder={(next) => saveData((prev) => ({ ...prev, marmitaGrupos: next }))}
-            onItemsChange={(next) => saveData((prev) => ({ ...prev, marmitas: next }))}
+            onItemsChange={handleMarmitasReorder}
             renderGroupHeader={(grupo, { isExpanded, itemCount }) => (
               <div className="admin-catalog-title-row admin-grouped-sort-title-row">
                 <span className={`admin-collapse-chevron ${isExpanded ? '' : 'is-collapsed'}`} aria-hidden>
@@ -1124,7 +1233,7 @@ export default function MarmitaManager() {
                       value={form.diaSemana}
                       onChange={(e) => updateForm({ diaSemana: e.target.value })}
                     >
-                      {MARMITA_WEEKDAYS.map((day) => (
+                      {MARMITA_DAY_OPTIONS.map((day) => (
                         <option key={day.id} value={day.id}>
                           {day.label}
                         </option>

@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { withDerivedData } from '@/lib/adminData';
 import { requireStoreAdmin, getAuthenticatedUser, userHasStoreMembership } from '@/lib/supabase/membership';
+import { normalizeStoreStateImages } from '@/lib/storage/normalizeStoreImages';
+import { uploadMenuAssetFromDataUrl } from '@/lib/storage/uploadMenuAssetServer';
 import { stampStoreMeta } from '@/lib/storeStateMerge';
 import { sanitizePublicStoreState } from '@/lib/storeStatePublic';
+import { getServiceClient } from '@/lib/supabase/serviceRole';
 import {
   fetchPublicStoreCatalogMeta,
   fetchPublicStoreCatalogRow,
@@ -99,7 +102,15 @@ export async function POST(request) {
 
   try {
     await requireStoreAdmin(slug);
-    const stamped = stampStoreMeta(withDerivedData(incoming));
+    const supabase = getServiceClient();
+    if (!supabase) {
+      return NextResponse.json({ ok: false, error: 'Serviço indisponível.' }, { status: 503 });
+    }
+
+    const withStorageUrls = await normalizeStoreStateImages(incoming, slug, (storeSlug, dataUrl, folder) =>
+      uploadMenuAssetFromDataUrl(supabase, storeSlug, dataUrl, { folder })
+    );
+    const stamped = stampStoreMeta(withDerivedData(withStorageUrls));
     const saved = await upsertStoreStateServer(slug, stamped);
     return NextResponse.json({
       ok: true,

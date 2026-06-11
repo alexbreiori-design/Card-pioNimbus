@@ -14,7 +14,9 @@ import { pickActiveStoreSlug, writeActiveStoreSlug } from '@/lib/adminStoreSessi
 import { mergeStoreStates, stampStoreMeta } from '@/lib/storeStateMerge';
 import { createEmptyStoreSeed, readLegacyLocalStorageState } from '@/lib/storeBoot';
 import { fetchUserMembershipsClient } from '@/lib/supabase/membershipsClient';
+import { normalizeStoreStateImages, storeHasEmbeddedImages } from '@/lib/storage/normalizeStoreImages';
 import { fetchStoreStateBySlug, upsertStoreState } from '@/lib/supabase/storeState';
+import { uploadMenuAssetIfNeeded } from '@/lib/upload/menuAsset';
 
 const AdminDataContext = createContext(null);
 
@@ -64,25 +66,48 @@ export function AdminDataProvider({ children }) {
     return derived;
   }, []);
 
+  const uploadStoreImage = useCallback(
+    (storeSlug, dataUrl, folder) => uploadMenuAssetIfNeeded(storeSlug, dataUrl, { folder }),
+    []
+  );
+
+  const persistStoreImages = useCallback(
+    async (state, storeSlug) => {
+      if (!storeSlug || !storeHasEmbeddedImages(state)) return state;
+      return normalizeStoreStateImages(state, storeSlug, uploadStoreImage);
+    },
+    [uploadStoreImage]
+  );
+
   const loadStoreForSlug = useCallback(
     async (slug, { legacyLocal = null } = {}) => {
       const remote = await fetchStoreStateBySlug(slug);
 
       if (remote?.data) {
-        return applyState(
-          mergeStoreStates({
-            local: legacyLocal,
-            remote: withDerivedData(remote.data),
-            remoteUpdatedAt: remote.updated_at,
-          })
-        );
+        let merged = mergeStoreStates({
+          local: legacyLocal,
+          remote: withDerivedData(remote.data),
+          remoteUpdatedAt: remote.updated_at,
+        });
+
+        try {
+          const withStorageUrls = await persistStoreImages(merged, slug);
+          if (withStorageUrls !== merged) {
+            merged = stampStoreMeta(withDerivedData({ ...withStorageUrls, pedidos: [] }));
+            await upsertStoreState(slug, merged);
+          }
+        } catch (error) {
+          console.error('Falha ao migrar imagens para o Storage:', error?.message || error);
+        }
+
+        return applyState(merged);
       }
 
       const seeded = stampStoreMeta(createEmptyStoreSeed(slug));
       await upsertStoreState(slug, seeded);
       return applyState(seeded);
     },
-    [applyState]
+    [applyState, persistStoreImages]
   );
 
   const refreshFromRemote = useCallback(
@@ -181,13 +206,16 @@ export function AdminDataProvider({ children }) {
           throw new Error('Sem permissão para salvar nesta loja.');
         }
 
-        const next = stampStoreMeta(
+        let next = stampStoreMeta(
           withDerivedData({
             ...rawNext,
             loja: { ...rawNext.loja, slug: bootSlug },
             pedidos: [],
           })
         );
+
+        next = await persistStoreImages(next, bootSlug);
+        next = stampStoreMeta(withDerivedData({ ...next, pedidos: [] }));
 
         applyState(next);
         setSaving(true);
@@ -212,7 +240,7 @@ export function AdminDataProvider({ children }) {
       saveQueueRef.current = saveQueueRef.current.then(run, run);
       return saveQueueRef.current;
     },
-    [applyState]
+    [applyState, persistStoreImages]
   );
 
   const value = useMemo(

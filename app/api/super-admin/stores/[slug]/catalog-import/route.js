@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { applyCatalogImport } from '@/lib/catalogImport/nimbusCatalogImport';
 import { normalizeSlug } from '@/lib/normalize';
 import { requireSuperAdmin } from '@/lib/superAdminServer';
+import { normalizeStoreStateImages } from '@/lib/storage/normalizeStoreImages';
+import { uploadMenuAssetFromDataUrl } from '@/lib/storage/uploadMenuAssetServer';
 import { fetchStoreStateBySlugServer, upsertStoreStateServer } from '@/lib/supabase/storeStateServer';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 
@@ -52,7 +54,10 @@ export async function POST(request, { params }) {
       });
     }
 
-    const saved = await upsertStoreStateServer(safeSlug, result.data);
+    const withStorageUrls = await normalizeStoreStateImages(result.data, safeSlug, (storeSlug, dataUrl, folder) =>
+      uploadMenuAssetFromDataUrl(supabase, storeSlug, dataUrl, { folder })
+    );
+    const saved = await upsertStoreStateServer(safeSlug, withStorageUrls);
     return NextResponse.json({
       ok: true,
       dryRun: false,

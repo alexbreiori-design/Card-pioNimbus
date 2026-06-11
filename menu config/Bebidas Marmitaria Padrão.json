@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "slug": "marmitaria-padrao",
+  "notas": "Bebidas padrão para marmitaria — ajuste o slug antes de importar na loja desejada.",
+  "modules": {
+    "produtos": {
+      "categorias": [
+        {
+          "nome": "Bebidas",
+          "icone": "drink",
+          "itens": [
+            {
+              "nome": "Coca-Cola 2L",
+              "preco": 15,
+              "descricao": "Refrigerante Coca-Cola tradicional 2 litros.",
+              "codigoPdv": "",
+              "tipo": "comum"
+            },
+            {
+              "nome": "Coca-Cola Zero 2L",
+              "preco": 15,
+              "descricao": "Refrigerante Coca-Cola Zero Açúcar 2 litros.",
+              "codigoPdv": "",
+              "tipo": "comum"
+            },
+            {
+              "nome": "Coca-Cola 600ml",
+              "preco": 9,
+              "descricao": "Refrigerante Coca-Cola tradicional 600ml.",
+              "codigoPdv": "",
+              "tipo": "comum"
+            },
+            {
+              "nome": "Coca-Cola Zero 600ml",
+              "preco": 9,
+              "descricao": "Refrigerante Coca-Cola Zero Açúcar 600ml.",
+              "codigoPdv": "",
+              "tipo": "comum"
+            },
+            {
+              "nome": "Refriko",
+              "preco": 10,
+              "descricao": "Refrigerante Refriko.",
+              "codigoPdv": "",
+              "tipo": "comum"
+            },
+            {
+              "nome": "Água Mineral",
+              "preco": 3,
+              "descricao": "Água mineral sem gás.",
+              "codigoPdv": "",
+              "tipo": "comum"
+            },
+            {
+              "nome": "Água com Gás",
+              "preco": 3.5,
+              "descricao": "Água mineral gaseificada.",
+              "codigoPdv": "",
+              "tipo": "comum"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

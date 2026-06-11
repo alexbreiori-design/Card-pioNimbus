@@ -36,7 +36,7 @@ import {
 import { formatMoneyBrInput, hasMoneyBrValue, parseMoneyBrInput } from '@/lib/moneyMask';
 import { mergeEmpresaIntoLoja } from '@/lib/supabase/empresa';
 import { fetchPublicEmpresaCardapio } from '@/lib/supabase/publicEmpresa';
-import { trackMetaEvent } from '@/lib/meta/pixel';
+import { initMetaPixel, sanitizeMetaPixelId, trackMetaEvent } from '@/lib/meta/pixel';
 import { MAX_PECA_TAMBEM } from '@/lib/productSuggestions';
 import { PROMO_CATEGORY_NAME } from '@/lib/promocoes';
 import {
@@ -69,7 +69,7 @@ const PAY_LABELS = {
   vale: 'Vale refeição',
 };
 const PROFILE_STORAGE_KEY = 'cardapio_profile_v1';
-const STORE_SYNC_MS = 10000;
+const STORE_SYNC_MS = 30000;
 const ORDERS_SYNC_MS = 10000;
 
 function emptyProfile() {
@@ -451,6 +451,15 @@ export function CardapioProvider({ children, slug = '' }) {
           } catch {
             /* mantém loja do estado remoto/local */
           }
+        }
+
+        const resolvedPixelId =
+          sanitizeMetaPixelId(loja?.metaPixelId) ||
+          sanitizeMetaPixelId(parsed?.loja?.metaPixelId) ||
+          '';
+        if (resolvedPixelId) {
+          loja = { ...loja, metaPixelId: resolvedPixelId };
+          initMetaPixel(resolvedPixelId);
         }
 
         const catalog = buildCardapioCatalog(parsed);

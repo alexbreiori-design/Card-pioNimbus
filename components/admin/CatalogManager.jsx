@@ -176,7 +176,6 @@ function loadImage(src) {
 
 async function compressImageDataUrl(dataUrl) {
   if (!dataUrl?.startsWith('data:image/')) return dataUrl || '';
-  if (dataUrl.length <= MAX_STORED_IMAGE_LENGTH) return dataUrl;
 
   const image = await loadImage(dataUrl);
   const scale = Math.min(1, MAX_IMAGE_SIZE / Math.max(image.width, image.height));
@@ -205,13 +204,9 @@ async function compressImageFile(file) {
 }
 
 async function persistImageUrl(slug, dataUrl, folder) {
+  if (!dataUrl?.startsWith('data:image/')) return dataUrl || '';
   const compressed = await compressImageDataUrl(dataUrl);
-  if (!slug) return compressed;
-  try {
-    return await uploadMenuAssetIfNeeded(slug, compressed, { folder });
-  } catch {
-    return compressed;
-  }
+  return uploadMenuAssetIfNeeded(slug, compressed, { folder });
 }
 
 async function compactAdminDataImages(data, slug) {
