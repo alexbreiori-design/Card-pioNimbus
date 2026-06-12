@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { buildStoreReport } from '@/lib/admin/reports/buildStoreReport';
+import { normalizeReportPeriodDays } from '@/lib/admin/reports/reportPeriod';
 import { normalizeSlug } from '@/lib/normalize';
 import { requireStoreAdmin } from '@/lib/supabase/membership';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
@@ -59,7 +60,7 @@ export async function GET(request) {
       itemRows = itens || [];
     }
 
-    const periodDays = period === 30 ? 30 : 7;
+    const periodDays = normalizeReportPeriodDays(period);
 
     const report = buildStoreReport({
       pedidos: pedidoRows,

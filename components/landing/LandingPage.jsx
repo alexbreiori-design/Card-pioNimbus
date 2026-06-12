@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
+import LandingFeaturesGrid from '@/components/landing/LandingFeaturesGrid';
 import LandingAmbient from '@/components/landing/LandingAmbient';
 import LandingFaq from '@/components/landing/LandingFaq';
 import LandingHeader from '@/components/landing/LandingHeader';
@@ -10,6 +11,7 @@ import LandingIcon from '@/components/landing/LandingIcons';
 import LandingReveal from '@/components/landing/LandingReveal';
 import LandingScene from '@/components/landing/LandingScene';
 import LandingScreenshot from '@/components/landing/LandingScreenshot';
+import LandingPricingSection from '@/components/landing/LandingPricingSection';
 import LandingStatsRow from '@/components/landing/LandingStatsRow';
 import { NIMBUS_DEMO_SLUG, whatsappUrl } from '@/lib/landing/constants';
 import {
@@ -20,7 +22,6 @@ import {
   landingFooter,
   landingHero,
   landingPains,
-  landingPricing,
   landingStats,
   landingSteps,
   landingTestimonials,
@@ -64,19 +65,19 @@ export default function LandingPage() {
           <div className="landing-container">
             <div className="landing-hero">
               <div className="landing-hero__copy">
-                <LandingReveal delay={0}>
+                <LandingReveal onLoad delay={0}>
                   <p className="landing-kicker">{landingHero.kicker}</p>
                 </LandingReveal>
-                <LandingReveal delay={80}>
+                <LandingReveal onLoad delay={90}>
                   <h1 className="landing-title">
                     {landingHero.titleBefore}
                     <span className="landing-title__highlight">{landingHero.titleHighlight}</span>
                   </h1>
                 </LandingReveal>
-                <LandingReveal delay={160}>
+                <LandingReveal onLoad delay={180}>
                   <p className="landing-lead">{landingHero.lead}</p>
                 </LandingReveal>
-                <LandingReveal delay={240} className="landing-hero__actions">
+                <LandingReveal onLoad delay={270} className="landing-hero__actions">
                   <WhatsAppButton className="landing-btn landing-btn--primary landing-btn--lg landing-interactive">
                     Quero meu cardápio
                   </WhatsAppButton>
@@ -86,7 +87,7 @@ export default function LandingPage() {
                 </LandingReveal>
               </div>
 
-              <LandingReveal delay={180} className="landing-hero__visual">
+              <LandingReveal onLoad delay={220} className="landing-hero__visual">
                 <LandingScreenshot
                   src="/images/landing/hero/cardapio-mobile.webp"
                   alt="Cardápio Nimbus"
@@ -111,7 +112,7 @@ export default function LandingPage() {
               </LandingReveal>
             </div>
 
-            <LandingReveal delay={300} className="landing-chip-row landing-chip-row--hero">
+            <LandingReveal onLoad delay={380} className="landing-chip-row landing-chip-row--hero">
               {landingHero.chips.map((chip) => (
                 <span key={chip} className="landing-chip landing-interactive">
                   {chip}
@@ -185,7 +186,7 @@ export default function LandingPage() {
               {landingSteps.items.map((item, index) => (
                 <LandingReveal
                   key={item.title}
-                  delay={160 + index * 80}
+                  delay={index * 110}
                   className="landing-glass-card landing-step-card landing-interactive"
                 >
                   <LandingIcon name={item.icon} className="landing-step-card__icon" />
@@ -204,43 +205,9 @@ export default function LandingPage() {
               <p className="landing-section-lead">Recursos que quem vive de delivery usa de verdade.</p>
             </LandingReveal>
 
-            <div className="landing-features">
-              {landingFeaturesMain.map((feature, index) => {
-                const reverse = index % 2 === 1;
-                return (
-                  <div
-                    key={feature.id}
-                    className={`landing-feature${reverse ? ' landing-feature--reverse' : ''}`}
-                  >
-                    <LandingReveal delay={80} className="landing-feature__visual">
-                      <LandingScreenshot
-                        src={feature.image}
-                        alt={feature.imageAlt}
-                        placeholder={feature.placeholder}
-                      />
-                    </LandingReveal>
-                    <div className="landing-feature__copy">
-                      <LandingReveal delay={0}>
-                        <h3 className="landing-feature__title">{feature.title}</h3>
-                      </LandingReveal>
-                      <LandingReveal delay={60}>
-                        <p className="landing-feature__text">{feature.text}</p>
-                      </LandingReveal>
-                      <ul className="landing-feature__list">
-                        {feature.bullets.map((bullet, bulletIndex) => (
-                          <LandingReveal key={bullet} delay={110 + bulletIndex * 50} as="li">
-                            <CheckIcon />
-                            <span>{bullet}</span>
-                          </LandingReveal>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <LandingFeaturesGrid features={landingFeaturesMain} />
 
-            <LandingReveal delay={120} className="landing-features-expand">
+            <LandingReveal delay={480} className="landing-features-expand">
               <button
                 type="button"
                 className="landing-features-expand__trigger landing-interactive"
@@ -270,8 +237,8 @@ export default function LandingPage() {
               {landingStats.map((stat, index) => (
                 <LandingReveal
                   key={stat.label}
-                  delay={90 + index * 70}
-                  className={`landing-glass-card landing-stat-card landing-stat-card--${stat.color} landing-stat-magnet landing-interactive`}
+                  delay={index * 130}
+                  className={`landing-glass-card landing-stat-card landing-stat-card--${stat.color} landing-interactive`}
                 >
                   <strong>{stat.value}</strong>
                   <span>{stat.label}</span>
@@ -282,32 +249,8 @@ export default function LandingPage() {
         </LandingScene>
 
         <LandingScene id="preco" className="landing-section-scene landing-pricing-scene">
-          <div className="landing-container landing-pricing">
-            <LandingReveal delay={0} className="landing-glass-card landing-pricing__copy landing-interactive">
-              <h2 className="landing-section-title">{landingPricing.title}</h2>
-              <p className="landing-section-lead">{landingPricing.text}</p>
-              <ul className="landing-pricing__list">
-                {landingPricing.features.map((feature, index) => (
-                  <li key={feature} style={{ '--reveal-delay': `${120 + index * 30}ms` }}>
-                    <CheckIcon />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </LandingReveal>
-
-            <LandingReveal delay={100} className="landing-pricing__card landing-pricing__card--neon landing-interactive">
-              <p className="landing-pricing__plan">{landingPricing.planName}</p>
-              <p className="landing-pricing__price">
-                {landingPricing.price}
-                <span>{landingPricing.period}</span>
-              </p>
-              <p className="landing-pricing__card-tagline">{landingPricing.cardTagline}</p>
-              <p className="landing-pricing__note">{landingPricing.note}</p>
-              <WhatsAppButton className="landing-btn landing-btn--light landing-btn--lg landing-pricing__cta landing-interactive">
-                Quero começar agora
-              </WhatsAppButton>
-            </LandingReveal>
+          <div className="landing-container">
+            <LandingPricingSection />
           </div>
         </LandingScene>
 
@@ -317,7 +260,7 @@ export default function LandingPage() {
               <h2 className="landing-section-title">Quem usa, recomenda</h2>
             </LandingReveal>
             <div className="landing-testimonials">
-              <LandingReveal delay={80} className="landing-glass-card landing-testimonial landing-testimonial--featured landing-interactive">
+              <LandingReveal delay={0} className="landing-glass-card landing-testimonial landing-testimonial--featured landing-interactive">
                 <LandingIcon name="quote" className="landing-testimonial__quote-icon" />
                 <p>“{featuredTestimonial.quote}”</p>
                 <footer className="landing-testimonial__author">
@@ -334,7 +277,7 @@ export default function LandingPage() {
                 {otherTestimonials.map((item, index) => (
                   <LandingReveal
                     key={item.name}
-                    delay={140 + index * 80}
+                    delay={120 + index * 120}
                     className="landing-glass-card landing-testimonial landing-interactive"
                   >
                     <p>“{item.quote}”</p>
@@ -352,7 +295,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <LandingReveal delay={180} className="landing-glass-card landing-cta-card landing-interactive">
+            <LandingReveal delay={360} className="landing-glass-card landing-cta-card landing-interactive">
               <h2>{landingCta.title}</h2>
               <p>{landingCta.text}</p>
               <div className="landing-cta-card__actions">

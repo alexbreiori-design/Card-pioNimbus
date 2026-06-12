@@ -98,9 +98,9 @@ export default function ReportsDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const loadReport = useCallback(async () => {
+  const loadReport = useCallback(async ({ silent = false } = {}) => {
     if (!activeSlug) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     setError('');
     try {
       const params = new URLSearchParams({
@@ -120,13 +120,21 @@ export default function ReportsDashboard() {
       setError(loadError?.message || 'Erro ao carregar relatório.');
       setReport(null);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [activeSlug, origem, pagamento, period, tipo]);
 
   useEffect(() => {
     loadReport();
   }, [loadReport]);
+
+  useEffect(() => {
+    if (period !== 0) return undefined;
+    const interval = window.setInterval(() => {
+      void loadReport({ silent: true });
+    }, 60_000);
+    return () => window.clearInterval(interval);
+  }, [loadReport, period]);
 
   const updatedLabel = useMemo(() => {
     if (!report?.generatedAt) return '—';
@@ -160,6 +168,16 @@ export default function ReportsDashboard() {
               <button
                 type="button"
                 role="tab"
+                aria-selected={period === 0}
+                className={`admin-reports-period-tab ${period === 0 ? 'active' : ''}`}
+                onClick={() => setPeriod(0)}
+              >
+                Hoje
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={period === 7}
                 className={`admin-reports-period-tab ${period === 7 ? 'active' : ''}`}
                 onClick={() => setPeriod(7)}
               >
@@ -168,6 +186,7 @@ export default function ReportsDashboard() {
               <button
                 type="button"
                 role="tab"
+                aria-selected={period === 30}
                 className={`admin-reports-period-tab ${period === 30 ? 'active' : ''}`}
                 onClick={() => setPeriod(30)}
               >
@@ -187,7 +206,12 @@ export default function ReportsDashboard() {
               type="button"
               className="admin-reports-export-btn"
               disabled={!report || !hasData}
-              onClick={() => downloadCsv(`relatorio-${activeSlug}-${period}d.csv`, buildReportCsv(report))}
+              onClick={() =>
+                downloadCsv(
+                  `relatorio-${activeSlug}-${period === 0 ? 'hoje' : `${period}d`}.csv`,
+                  buildReportCsv(report)
+                )
+              }
             >
               Exportar CSV
             </button>
