@@ -12,7 +12,7 @@ import {
 import { formatPrice } from '@/lib/utils/format';
 import { fetchViaCep } from '@/lib/cep/viacep';
 import { calculateCupomDiscount, findCupomByCode } from '@/lib/cupons';
-import { buildCardapioCatalog } from '@/lib/cardapio/catalogFromStore';
+import { resolveCardapioFromPublicPayload } from '@/lib/catalogPublic';
 import { getConfiguredDefaultSlug } from '@/lib/storeBoot';
 import { applyScheduleOpenStatus } from '@/lib/storeHours';
 import { DEFAULT_ADMIN_DATA, withDerivedData } from '@/lib/adminData';
@@ -462,7 +462,10 @@ export function CardapioProvider({ children, slug = '' }) {
           initMetaPixel(resolvedPixelId);
         }
 
-        const catalog = buildCardapioCatalog(parsed);
+        const resolved = resolveCardapioFromPublicPayload(parsed);
+        if (!resolved) return;
+
+        const catalog = resolved;
         setDynamicProducts(catalog.products);
         setPromoCarouselProducts(catalog.promoCarouselProducts || []);
         setDynamicCategories(catalog.categories);

@@ -2,14 +2,15 @@
 
 import { getFlavorPriceForSize } from '@/lib/pizza/pizzaWizard';
 import { IconCheck, IconPlus } from './icons';
+import MenuImageArea from '@/components/cardapio/MenuImageArea';
 
 function AddonThumb({ imageUrl }) {
-  const hasImage = Boolean(imageUrl);
   return (
-    <div
-      className={`addon-thumb ${hasImage ? 'has-image' : 'is-placeholder'}`}
-      style={hasImage ? { backgroundImage: `url(${imageUrl})` } : undefined}
-      aria-hidden="true"
+    <MenuImageArea
+      imageUrl={imageUrl}
+      className="addon-thumb"
+      alt=""
+      sizes="40px"
     />
   );
 }

@@ -16,6 +16,7 @@ import {
 } from '@/lib/pizza/pizzaWizard';
 import MarmitaWizardSteps from './MarmitaWizardSteps';
 import PizzaWizardSteps from './PizzaWizardSteps';
+import MenuImageArea from '@/components/cardapio/MenuImageArea';
 import { IconClose } from './icons';
 
 export default function ProductModal() {
@@ -39,7 +40,6 @@ export default function ProductModal() {
 
   const product = currentProduct;
   const productAddons = product?.addons || [];
-  const hasImage = Boolean(product?.imageUrl);
   const isPizza = product?.type === 'pizza' && product?.pizzaConfig;
   const isMarmita = product?.type === 'marmita';
   const marmitaSteps = productAddons;
@@ -182,10 +182,11 @@ export default function ProductModal() {
         id="productPopup"
       >
         <div className="popup-img-col">
-          <div
-            className={`popup-img-frame ${hasImage ? 'has-image' : 'is-placeholder'}`}
-            id="popupCoverImg"
-            style={hasImage ? { backgroundImage: `url(${product.imageUrl})` } : undefined}
+          <MenuImageArea
+            imageUrl={product.imageUrl}
+            className="popup-img-frame"
+            alt={product.name}
+            sizes="320px"
           />
         </div>
         <div

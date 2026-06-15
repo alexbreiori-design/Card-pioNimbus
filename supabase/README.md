@@ -82,6 +82,11 @@ Com **várias lojas**, o seletor "Loja ativa" aparece na sidebar; a escolha fica
 11. `migrations/010_super_admin_empresa_fields.sql` — métricas com consentimento + data go-live
 12. `migrations/011_super_admin_notas.sql` — notas internas Nimbus por loja
 13. `migrations/012_super_admin_system.sql` — suspensão de lojas, CRM (contrato/responsável) e perfil do sistema
+14. `migrations/013_public_empresa_meta_pixel.sql` — Meta Pixel no cardápio público
+15. `migrations/014_storage_menu_assets_svg.sql` — SVG no bucket menu-assets
+16. `migrations/015_catalog_public_and_fk.sql` — catálogo público enxuto + FK `empresas.slug` ON DELETE CASCADE
+17. `migrations/016_store_catalog_modular.sql` — catálogo modular (categorias/produtos/adicionais + módulos pizza/marmita/promos)
+18. `migrations/017_cupons_normalized.sql` — cupons na tabela + esvazia `menu_store_state.data` (fica `{}`)
 
 ## Tabelas principais
 

@@ -4,7 +4,7 @@ import { requireStoreAdmin, getAuthenticatedUser, userHasStoreMembership } from 
 import { normalizeStoreStateImages } from '@/lib/storage/normalizeStoreImages';
 import { uploadMenuAssetFromDataUrl } from '@/lib/storage/uploadMenuAssetServer';
 import { stampStoreMeta } from '@/lib/storeStateMerge';
-import { sanitizePublicStoreState } from '@/lib/storeStatePublic';
+import { formatStoreStateSizeMessage } from '@/lib/storeStateSize';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 import {
   fetchPublicStoreCatalogMeta,
@@ -80,7 +80,7 @@ export async function GET(request) {
     return NextResponse.json({
       ok: true,
       slug: row.slug,
-      data: sanitizePublicStoreState(row.data),
+      data: row.data,
       updated_at: row.updated_at,
     });
   } catch (error) {
@@ -112,10 +112,13 @@ export async function POST(request) {
     );
     const stamped = stampStoreMeta(withDerivedData(withStorageUrls));
     const saved = await upsertStoreStateServer(slug, stamped);
+    const sizeWarning = formatStoreStateSizeMessage(saved.sizeReport);
     return NextResponse.json({
       ok: true,
       slug: saved.slug,
       updated_at: saved.updated_at,
+      size: saved.sizeReport || null,
+      sizeWarning: sizeWarning || null,
     });
   } catch (error) {
     const status = error?.status || (error?.message?.includes('SERVICE_ROLE') ? 503 : 500);

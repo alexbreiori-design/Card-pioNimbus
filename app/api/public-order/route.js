@@ -4,8 +4,8 @@ import { checkPublicOrderRateLimit } from '@/lib/rateLimit';
 import { normalizePhone } from '@/lib/normalize';
 import { withDerivedData } from '@/lib/adminData';
 import { validatePublicOrder } from '@/lib/orderValidation';
+import { loadAssembledStoreState } from '@/lib/catalog/storeCatalogRepository';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
-import { fetchPublicStoreCatalogRow } from '@/lib/supabase/storeStateServer';
 import { listZonasByEmpresaId } from '@/lib/supabase/empresaServer';
 
 export async function POST(request) {
@@ -54,8 +54,8 @@ export async function POST(request) {
       return NextResponse.json({ ok: false, error: 'Loja fechada no momento.' }, { status: 403 });
     }
 
-    const storeRow = await fetchPublicStoreCatalogRow(slug);
-    const storeData = withDerivedData(storeRow?.data || {});
+    const loaded = await loadAssembledStoreState(supabase, slug);
+    const storeData = withDerivedData(loaded?.data || {});
     const zonas = await listZonasByEmpresaId(supabase, empresa.id);
 
     const validated = validatePublicOrder({

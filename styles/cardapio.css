@@ -761,6 +761,15 @@ body {
 }
 
 
+.menu-img-next {
+  position: relative;
+  overflow: hidden;
+}
+
+.menu-img-next-fill {
+  object-fit: cover;
+}
+
 .product-card-img-wrap {
   flex: 0 0 112px;
   display: flex;

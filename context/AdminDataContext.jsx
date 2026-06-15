@@ -15,7 +15,7 @@ import { mergeStoreStates, stampStoreMeta } from '@/lib/storeStateMerge';
 import { createEmptyStoreSeed, readLegacyLocalStorageState } from '@/lib/storeBoot';
 import { fetchUserMembershipsClient } from '@/lib/supabase/membershipsClient';
 import { normalizeStoreStateImages, storeHasEmbeddedImages } from '@/lib/storage/normalizeStoreImages';
-import { fetchStoreStateBySlug, upsertStoreState } from '@/lib/supabase/storeState';
+import { fetchStoreStateRemote, saveStoreStateRemote } from '@/lib/storeStateClient';
 import { uploadMenuAssetIfNeeded } from '@/lib/upload/menuAsset';
 
 const AdminDataContext = createContext(null);
@@ -36,6 +36,7 @@ export function AdminDataProvider({ children }) {
   const [ready, setReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [saveWarning, setSaveWarning] = useState('');
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const [memberships, setMemberships] = useState([]);
   const [activeSlug, setActiveSlug] = useState('');
@@ -81,7 +82,7 @@ export function AdminDataProvider({ children }) {
 
   const loadStoreForSlug = useCallback(
     async (slug, { legacyLocal = null } = {}) => {
-      const remote = await fetchStoreStateBySlug(slug);
+      const remote = await fetchStoreStateRemote(slug, { scope: 'admin' });
 
       if (remote?.data) {
         let merged = mergeStoreStates({
@@ -94,7 +95,7 @@ export function AdminDataProvider({ children }) {
           const withStorageUrls = await persistStoreImages(merged, slug);
           if (withStorageUrls !== merged) {
             merged = stampStoreMeta(withDerivedData({ ...withStorageUrls, pedidos: [] }));
-            await upsertStoreState(slug, merged);
+            await saveStoreStateRemote(slug, merged);
           }
         } catch (error) {
           console.error('Falha ao migrar imagens para o Storage:', error?.message || error);
@@ -104,7 +105,7 @@ export function AdminDataProvider({ children }) {
       }
 
       const seeded = stampStoreMeta(createEmptyStoreSeed(slug));
-      await upsertStoreState(slug, seeded);
+      await saveStoreStateRemote(slug, seeded);
       return applyState(seeded);
     },
     [applyState, persistStoreImages]
@@ -115,7 +116,7 @@ export function AdminDataProvider({ children }) {
       const slug = slugOverride || activeSlugRef.current || resolveSlug(dataRef.current);
       if (!slug || !slugAllowed(membershipsRef.current, slug)) return dataRef.current;
 
-      const remote = await fetchStoreStateBySlug(slug);
+      const remote = await fetchStoreStateRemote(slug, { scope: 'admin' });
       const merged = mergeStoreStates({
         local: dataRef.current,
         remote: remote?.data ? withDerivedData(remote.data) : null,
@@ -220,10 +221,15 @@ export function AdminDataProvider({ children }) {
         applyState(next);
         setSaving(true);
         setSaveError('');
+        setSaveWarning('');
 
         try {
-          await upsertStoreState(bootSlug, next);
+          const result = await saveStoreStateRemote(bootSlug, next);
           setLastSavedAt(new Date().toISOString());
+          if (result?.sizeWarning) {
+            setSaveWarning(result.sizeWarning);
+            console.warn('[store-state]', result.sizeWarning);
+          }
           window.dispatchEvent(new CustomEvent('admin-data-updated', { detail: next }));
         } catch (error) {
           console.error('Falha ao salvar no Supabase:', error?.message || error);
@@ -250,9 +256,11 @@ export function AdminDataProvider({ children }) {
       ready,
       saving,
       saveError,
+      saveWarning,
       lastSavedAt,
       refreshFromRemote,
       clearSaveError: () => setSaveError(''),
+      clearSaveWarning: () => setSaveWarning(''),
       memberships,
       activeSlug,
       switchStore,
@@ -264,6 +272,7 @@ export function AdminDataProvider({ children }) {
       ready,
       saving,
       saveError,
+      saveWarning,
       lastSavedAt,
       refreshFromRemote,
       memberships,

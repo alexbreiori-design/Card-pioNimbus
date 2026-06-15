@@ -6,6 +6,7 @@ import { useRef } from 'react';
 import { useCardapio } from '@/context/CardapioContext';
 import { calculateCupomDiscount } from '@/lib/cupons';
 import { IconCupom, IconChevron } from './icons';
+import MenuImageArea from '@/components/cardapio/MenuImageArea';
 
 function AlsoCarousel({ items, formatPrice, onOpen }) {
   const scrollRef = useRef(null);
@@ -30,9 +31,11 @@ function AlsoCarousel({ items, formatPrice, onOpen }) {
       <div className="sacola-also-scroll" ref={scrollRef}>
         {items.map((a) => (
           <button type="button" className="also-item" key={a.id} onClick={() => onOpen(a.id)}>
-            <div
-              className={`also-item-img ${a.imageUrl ? 'has-image' : 'is-placeholder'}`}
-              style={a.imageUrl ? { backgroundImage: `url(${a.imageUrl})` } : undefined}
+            <MenuImageArea
+              imageUrl={a.imageUrl}
+              className="also-item-img"
+              alt={a.name}
+              sizes="72px"
             />
             <div className="also-item-name">{a.name}</div>
             <div className="also-item-price">{formatPrice(a.price)}</div>
@@ -121,9 +124,11 @@ export default function SacolaPanel({ onFinalize, finalizeLabel = 'Finalizar ped
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
                   <div className="sacola-item-price">{formatPrice(item.price * item.qty)}</div>
-                  <div
-                    className={`sacola-item-thumb ${item.imageUrl ? 'has-image' : 'is-placeholder'}`}
-                    style={item.imageUrl ? { backgroundImage: `url(${item.imageUrl})` } : undefined}
+                  <MenuImageArea
+                    imageUrl={item.imageUrl}
+                    className="sacola-item-thumb"
+                    alt={item.name}
+                    sizes="56px"
                   />
                 </div>
               </div>

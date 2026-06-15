@@ -1,10 +1,10 @@
 'use client';
 
 import { useCardapio } from '@/context/CardapioContext';
+import MenuImageArea from '@/components/cardapio/MenuImageArea';
 
 export default function ProductCard({ product }) {
   const { openProduct, formatPrice } = useCardapio();
-  const hasImage = Boolean(product.imageUrl);
   const isPromo = product.isPromocao && product.promoOriginalPrice > product.price;
 
   return (
@@ -26,9 +26,11 @@ export default function ProductCard({ product }) {
           )}
         </div>
       </div>
-      <div
-        className={`product-card-img-wrap ${hasImage ? 'has-image' : 'is-placeholder'}`}
-        style={hasImage ? { backgroundImage: `url(${product.imageUrl})` } : undefined}
+      <MenuImageArea
+        imageUrl={product.imageUrl}
+        className="product-card-img-wrap"
+        alt={product.name}
+        sizes="112px"
       />
     </div>
   );
