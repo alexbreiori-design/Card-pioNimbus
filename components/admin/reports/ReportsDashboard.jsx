@@ -1,25 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { buildReportCsv } from '@/lib/admin/reports/reportCsv';
+import { formatCurrency, formatNumber, formatPct } from '@/lib/admin/reports/reportFormatters';
 import { useAdminData } from '@/hooks/useAdminData';
-
-function formatCurrency(value) {
-  return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
-function formatNumber(value, digits = 0) {
-  return Number(value || 0).toLocaleString('pt-BR', {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  });
-}
-
-function formatPct(value) {
-  const num = Number(value || 0);
-  const sign = num > 0 ? '+' : '';
-  return `${sign}${formatNumber(num, 1)}%`;
-}
+import ReportPrintDocument from '@/components/admin/reports/ReportPrintDocument';
 
 function downloadCsv(filename, content) {
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
@@ -89,7 +75,7 @@ const KPI_CONFIG = [
 ];
 
 export default function ReportsDashboard() {
-  const { activeSlug } = useAdminData();
+  const { activeSlug, data } = useAdminData();
   const [period, setPeriod] = useState(7);
   const [origem, setOrigem] = useState('all');
   const [tipo, setTipo] = useState('all');
@@ -97,6 +83,12 @@ export default function ReportsDashboard() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [printJob, setPrintJob] = useState(null);
+  const [portalReady, setPortalReady] = useState(false);
+
+  useEffect(() => {
+    setPortalReady(typeof document !== 'undefined');
+  }, []);
 
   const loadReport = useCallback(async ({ silent = false } = {}) => {
     if (!activeSlug) return;
@@ -143,6 +135,49 @@ export default function ReportsDashboard() {
 
   const topProducts = report?.topProducts || [];
   const hasData = (report?.summary?.pedidos || 0) > 0;
+  const storeName = data?.loja?.nome || activeSlug || 'Loja';
+
+  useEffect(() => {
+    if (!printJob) return;
+
+    document.body.classList.add('report-printing');
+
+    let cancelled = false;
+    let fallbackTimer = null;
+
+    const clear = () => {
+      if (cancelled) return;
+      cancelled = true;
+      document.body.classList.remove('report-printing');
+      setPrintJob(null);
+    };
+
+    const onAfterPrint = () => {
+      if (fallbackTimer) window.clearTimeout(fallbackTimer);
+      clear();
+    };
+
+    window.addEventListener('afterprint', onAfterPrint);
+
+    const timer = window.setTimeout(() => {
+      if (cancelled) return;
+      window.print();
+      fallbackTimer = window.setTimeout(clear, 10000);
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      if (fallbackTimer) window.clearTimeout(fallbackTimer);
+      window.removeEventListener('afterprint', onAfterPrint);
+      document.body.classList.remove('report-printing');
+    };
+  }, [printJob]);
+
+  const exportPdf = useCallback(() => {
+    if (!report || !hasData) return;
+    setPrintJob({ report, storeName });
+  }, [hasData, report, storeName]);
 
   return (
     <div className="admin-reports-page">
@@ -204,7 +239,15 @@ export default function ReportsDashboard() {
             </div>
             <button
               type="button"
-              className="admin-reports-export-btn"
+              className="admin-reports-export-btn is-primary"
+              disabled={!report || !hasData}
+              onClick={exportPdf}
+            >
+              Exportar PDF
+            </button>
+            <button
+              type="button"
+              className="admin-reports-export-btn is-secondary"
               disabled={!report || !hasData}
               onClick={() =>
                 downloadCsv(
@@ -296,7 +339,7 @@ export default function ReportsDashboard() {
                     <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
                     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                   </svg>
-                  Top produtos
+                  Top por faturamento
                 </h2>
               </div>
 
@@ -426,8 +469,9 @@ export default function ReportsDashboard() {
                     <path d="M4 22h16" />
                     <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
                   </svg>
-                  Top produtos
+                  Mais vendidos
                 </h3>
+                <p className="admin-reports-widget-subtitle">Ranking por quantidade vendida no período</p>
                 <div className="admin-reports-podium">
                   {(report.podium || []).map((row, index) => (
                     <div key={row.nome} className="admin-reports-podium-item">
@@ -435,10 +479,11 @@ export default function ReportsDashboard() {
                       <div className="admin-reports-podium-copy">
                         <strong>{row.nome}</strong>
                         <span>
-                          {formatCurrency(row.faturamento)} · {formatNumber(row.sharePct, 1)}%
+                          {formatNumber(row.quantidade)} un. · {formatNumber(row.sharePct, 1)}% das
+                          vendas
                         </span>
                       </div>
-                      <span className="admin-reports-badge brand">{formatNumber(row.quantidade)} un.</span>
+                      <span className="admin-reports-badge brand">{formatCurrency(row.faturamento)}</span>
                     </div>
                   ))}
                   {!report.podium?.length ? <div className="admin-reports-empty">Sem vendas no período.</div> : null}
@@ -493,6 +538,13 @@ export default function ReportsDashboard() {
           </>
         ) : null}
       </div>
+
+      {portalReady && printJob
+        ? createPortal(
+            <ReportPrintDocument report={printJob.report} storeName={printJob.storeName} />,
+            document.body
+          )
+        : null}
     </div>
   );
 }

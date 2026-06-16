@@ -14,7 +14,24 @@ export default function AdminLogoutButton({ variant = 'default' }) {
   }
 
   const className =
-    variant === 'minimal' ? 'admin-logout-icon-btn is-minimal' : 'admin-logout-icon-btn';
+    variant === 'minimal'
+      ? 'admin-logout-icon-btn is-minimal'
+      : variant === 'full'
+        ? 'admin-logout-full-btn'
+        : 'admin-logout-icon-btn';
+
+  if (variant === 'full') {
+    return (
+      <button type="button" className={className} onClick={handleLogout}>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5" />
+          <path d="M10 17l5-5-5-5" />
+          <path d="M15 12H3" />
+        </svg>
+        Sair da conta
+      </button>
+    );
+  }
 
   return (
     <button type="button" className={className} onClick={handleLogout} title="Sair">

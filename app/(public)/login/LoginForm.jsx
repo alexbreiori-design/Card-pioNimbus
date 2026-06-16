@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { resolveAdminMobileRedirect } from '@/lib/admin/mobileAccess';
 import styles from './login.module.css';
 
 function getSafeRedirect(searchParams) {
@@ -52,7 +53,7 @@ export default function LoginForm() {
         return;
       }
 
-      window.location.assign(redirect);
+      window.location.assign(resolveAdminMobileRedirect(redirect));
     } catch (submitError) {
       console.error('Erro no login:', submitError?.message || submitError);
       const message = String(submitError?.message || submitError || '');

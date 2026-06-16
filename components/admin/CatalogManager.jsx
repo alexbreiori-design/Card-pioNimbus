@@ -225,6 +225,7 @@ async function compactAdminDataImages(data, slug) {
       ...data.loja,
       logoUrl: await persistImageUrl(slug, data.loja?.logoUrl, 'loja'),
       capaUrl: await persistImageUrl(slug, data.loja?.capaUrl, 'loja'),
+      capaOriginalUrl: await persistImageUrl(slug, data.loja?.capaOriginalUrl, 'loja'),
     },
     produtos: await compactItems(data.produtos, 'produtos'),
     adicionaisItens: await compactItems(data.adicionaisItens, 'adicionais'),

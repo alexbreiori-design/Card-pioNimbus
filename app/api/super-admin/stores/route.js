@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSiteOrigin } from '@/lib/siteUrl';
+import { getSiteOrigin, getStorePublicUrl } from '@/lib/siteUrl';
 import { createStoreForSuperAdmin } from '@/lib/superAdmin/createStore';
 import { sortStoresWithModelFirst, withModelStoreFlags } from '@/lib/superAdmin/modelStore';
 import { enrichStoresForList } from '@/lib/superAdmin/storeMetrics';
@@ -130,7 +130,7 @@ export async function POST(request) {
       ok: true,
       store: {
         ...result.empresa,
-        cardapioUrl: `${origin}/${result.empresa.slug}`,
+        cardapioUrl: getStorePublicUrl(result.empresa.slug),
         loginUrl: `${origin}/login`,
       },
       ownerEmail: result.ownerEmail,

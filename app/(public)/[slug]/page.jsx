@@ -3,7 +3,7 @@ import { CardapioProvider } from '@/context/CardapioContext';
 import CardapioApp from '@/components/cardapio/CardapioApp';
 import StoreUnavailable from '@/components/cardapio/StoreUnavailable';
 import { normalizeSlug } from '@/lib/normalize';
-import { getSiteOrigin, toAbsoluteAssetUrl } from '@/lib/siteUrl';
+import { getSiteOrigin, getStorePublicUrl, toAbsoluteAssetUrl } from '@/lib/siteUrl';
 import { getEmpresaBySlug } from '@/lib/supabase/empresaServer';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 import { fetchPublicStoreCatalogRow } from '@/lib/supabase/storeStateServer';
@@ -40,9 +40,8 @@ export async function generateMetadata({ params }) {
   const description =
     String(loja.descricao || '').trim() ||
     `Faça seu pedido online em ${name}. Veja o cardápio, promoções e entrega.`;
-  const origin = getSiteOrigin();
-  const imageUrl = toAbsoluteAssetUrl(loja.capaUrl || loja.logoUrl, origin);
-  const pageUrl = `${origin}/${safeSlug}`;
+  const pageUrl = getStorePublicUrl(safeSlug);
+  const imageUrl = toAbsoluteAssetUrl(loja.capaUrl || loja.logoUrl, getSiteOrigin());
 
   return {
     title: name,

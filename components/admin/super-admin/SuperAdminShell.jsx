@@ -65,17 +65,23 @@ export default function SuperAdminShell({
         </nav>
 
         <div className="admin-sidebar-footer admin-sistema-sidebar-footer">
-          {modelSlug ? (
-            <a
-              href="/admin/pedidos"
-              className="admin-nav-item admin-sistema-nav-item admin-sistema-footer-link admin-sistema-model-link"
-              title={collapsed ? 'Loja modelo' : undefined}
-            >
-              <SuperAdminNavIcon name="model" />
-              <span className="admin-nav-label">Loja modelo</span>
-            </a>
-          ) : null}
-          <AdminLogoutButton variant="minimal" />
+          <div className="admin-sidebar-footer-row">
+            {modelSlug ? (
+              <a
+                href="/admin/pedidos"
+                className="admin-sistema-model-link-btn"
+                title={collapsed ? 'Loja modelo' : undefined}
+              >
+                <SuperAdminNavIcon name="model" />
+                <span>Loja modelo</span>
+              </a>
+            ) : (
+              <span className="admin-sidebar-footer-spacer" aria-hidden="true" />
+            )}
+            <div className="admin-sidebar-footer-actions">
+              <AdminLogoutButton variant="minimal" />
+            </div>
+          </div>
         </div>
       </aside>
 

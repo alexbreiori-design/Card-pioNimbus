@@ -7,7 +7,7 @@ import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import { isJsonDirty } from '@/lib/admin/isFormDirty';
 import SegmentCombobox from '@/components/admin/SegmentCombobox';
 import { generateTempPassword, isValidStoreSlug } from '@/lib/superAdmin';
-import { getSiteOrigin } from '@/lib/siteUrl';
+import { getStorePublicUrl } from '@/lib/siteUrl';
 
 function emptyForm() {
   return {
@@ -57,7 +57,7 @@ export default function CreateStoreModal({ open, onClose, onCreated }) {
   const previewUrl = useMemo(() => {
     const slug = String(form.slug || '').trim().toLowerCase();
     if (!isValidStoreSlug(slug)) return null;
-    return `${getSiteOrigin()}/${slug}`;
+    return getStorePublicUrl(slug);
   }, [form.slug]);
 
   function updateField(field, value) {

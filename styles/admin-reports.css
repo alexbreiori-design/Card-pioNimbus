@@ -158,6 +158,16 @@
   cursor: not-allowed;
 }
 
+.admin-reports-export-btn.is-primary {
+  background: var(--reports-brand);
+  color: #fff;
+  border-color: var(--reports-brand);
+}
+
+.admin-reports-export-btn.is-primary:hover:not(:disabled) {
+  background: #3f3ac4;
+}
+
 .admin-reports-body {
   max-width: 1600px;
   margin: 0 auto;
@@ -483,6 +493,13 @@
   stroke: #7c3aed;
 }
 
+.admin-reports-widget-subtitle {
+  margin: -10px 0 16px;
+  font-size: 12px;
+  color: var(--reports-muted);
+  line-height: 1.4;
+}
+
 .admin-reports-summary-list {
   display: flex;
   flex-direction: column;
@@ -766,5 +783,93 @@
 
   .admin-reports-segmented {
     flex-direction: column;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-shell-mobile .admin-reports-page {
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .admin-shell-mobile .admin-reports-header {
+    padding: calc(78px + env(safe-area-inset-top, 0px)) 16px 16px;
+  }
+
+  .admin-shell-mobile .admin-reports-body {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .admin-shell-mobile .admin-reports-header-inner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-shell-mobile .admin-reports-title {
+    font-size: 20px;
+  }
+
+  .admin-shell-mobile .admin-reports-header-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-shell-mobile .admin-reports-period-tabs {
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-shell-mobile .admin-reports-period-tab {
+    flex: 0 0 auto;
+    min-height: 44px;
+  }
+
+  .admin-shell-mobile .admin-reports-updated {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .admin-shell-mobile .admin-reports-export-btn {
+    width: 100%;
+    min-height: 48px;
+  }
+
+  .admin-shell-mobile .admin-reports-filters {
+    gap: 14px;
+  }
+
+  .admin-shell-mobile .admin-reports-select {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .admin-shell-mobile .admin-reports-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-shell-mobile .admin-reports-card {
+    border-radius: 14px;
+  }
+
+  .admin-shell-mobile .admin-reports-table-wrap {
+    display: none;
+  }
+
+  .admin-shell-mobile .admin-reports-mobile-list {
+    display: block;
+  }
+
+  .admin-shell-mobile .admin-reports-podium-item {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .admin-shell-mobile .admin-reports-podium-copy span {
+    display: block;
+    margin-top: 4px;
   }
 }

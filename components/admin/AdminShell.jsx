@@ -2,16 +2,21 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AdminSidebar from './AdminSidebar';
+import AdminMobileDrawer from './AdminMobileDrawer';
+import AdminMobileGate from './AdminMobileGate';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOrders } from '@/hooks/useAdminOrders';
+import { useAdminMobileAccess } from '@/hooks/useAdminMobileAccess';
 import { persistStoreManualClose } from '@/lib/storeManualClose';
 import { resolveStoreOpenStatus } from '@/lib/storeHours';
 
 export default function AdminShell({ children }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [storeToggleBusy, setStoreToggleBusy] = useState(false);
   const [storeToggleError, setStoreToggleError] = useState('');
+  const isMobile = useAdminMobileAccess();
   const { data, saving, saveError, clearSaveError, switchingStore, saveData, activeSlug } =
     useAdminData();
   const { orders, setAlertsActive } = useAdminOrders();
@@ -34,6 +39,10 @@ export default function AdminShell({ children }) {
     setAlertsActive(true);
     return () => setAlertsActive(false);
   }, [setAlertsActive]);
+
+  useEffect(() => {
+    if (!isMobile) setDrawerOpen(false);
+  }, [isMobile]);
 
   const handleCloseNow = useCallback(async () => {
     setStoreToggleError('');
@@ -69,21 +78,52 @@ export default function AdminShell({ children }) {
     }
   }, [activeSlug, saveData, store]);
 
+  const shellClassName = `admin-shell${isMobile ? ' admin-shell-mobile' : ''}`;
+
   return (
-    <div className="admin-shell">
-      <AdminSidebar
-        storeName={store.nome}
-        storeSlug={store.slug}
-        logoUrl={store.logoUrl}
-        openStatus={openStatus}
-        collapsed={collapsed}
-        newOrdersCount={newOrdersCount}
-        storeToggleBusy={storeToggleBusy || saving}
-        storeToggleError={storeToggleError}
-        onCloseNow={handleCloseNow}
-        onReopen={handleReopen}
-        onToggleCollapse={() => setCollapsed((v) => !v)}
-      />
+    <div className={shellClassName}>
+      {!isMobile ? (
+        <AdminSidebar
+          storeName={store.nome}
+          storeSlug={store.slug}
+          logoUrl={store.logoUrl}
+          openStatus={openStatus}
+          collapsed={collapsed}
+          newOrdersCount={newOrdersCount}
+          storeToggleBusy={storeToggleBusy || saving}
+          storeToggleError={storeToggleError}
+          onCloseNow={handleCloseNow}
+          onReopen={handleReopen}
+          onToggleCollapse={() => setCollapsed((v) => !v)}
+        />
+      ) : (
+        <>
+          <button
+            type="button"
+            className="admin-mobile-menu-fab"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Abrir menu"
+            aria-expanded={drawerOpen}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h16" />
+              <path d="M4 12h16" />
+              <path d="M4 17h16" />
+            </svg>
+          </button>
+          <AdminMobileDrawer
+            open={drawerOpen}
+            onClose={() => setDrawerOpen(false)}
+            storeName={store.nome}
+            logoUrl={store.logoUrl}
+            openStatus={openStatus}
+            storeToggleBusy={storeToggleBusy || saving}
+            storeToggleError={storeToggleError}
+            onCloseNow={handleCloseNow}
+            onReopen={handleReopen}
+          />
+        </>
+      )}
       <div className={`admin-main ${collapsed ? 'sidebar-collapsed' : ''}`}>
         {switchingStore ? (
           <div className="admin-sync-banner admin-sync-banner-saving">Trocando de loja…</div>
@@ -99,7 +139,7 @@ export default function AdminShell({ children }) {
         {saving ? (
           <div className="admin-sync-banner admin-sync-banner-saving">Salvando alterações…</div>
         ) : null}
-        {children}
+        <AdminMobileGate>{children}</AdminMobileGate>
       </div>
     </div>
   );

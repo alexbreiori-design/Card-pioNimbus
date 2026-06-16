@@ -125,6 +125,7 @@ export default function MinhaLojaPage() {
   const toast = useAdminToast();
   const [saving, setSaving] = useState(false);
   const [coverAdjustSrc, setCoverAdjustSrc] = useState('');
+  const [coverAdjustIsNew, setCoverAdjustIsNew] = useState(false);
   const [ticketWidthMm, setTicketWidthMm] = useState(80);
   const [ticketPreviewOpen, setTicketPreviewOpen] = useState(false);
   const [superAdmin, setSuperAdmin] = useState(false);
@@ -163,6 +164,7 @@ export default function MinhaLojaPage() {
             logoUrl: data.loja.logoUrl,
             logoComandaUrl: data.loja.logoComandaUrl,
             capaUrl: data.loja.capaUrl,
+            capaOriginalUrl: data.loja.capaOriginalUrl,
             corMarca: data.loja.corMarca,
             paletteColors: data.loja.paletteColors,
             paletteLogoUrl: data.loja.paletteLogoUrl,
@@ -284,6 +286,7 @@ export default function MinhaLojaPage() {
       try {
         const dataUrl = await readFileAsDataUrl(file);
         if (field === 'capaUrl') {
+          setCoverAdjustIsNew(true);
           setCoverAdjustSrc(dataUrl);
           e.target.value = '';
           return;
@@ -299,11 +302,23 @@ export default function MinhaLojaPage() {
 
   async function applyCoverImage(dataUrl) {
     setLojaField('capaUrl', dataUrl);
+    if (coverAdjustIsNew) {
+      setLojaField('capaOriginalUrl', coverAdjustSrc);
+    }
     setCoverAdjustSrc('');
+    setCoverAdjustIsNew(false);
+  }
+
+  function openCoverAdjust() {
+    const source = draft?.capaOriginalUrl || draft?.capaUrl;
+    if (!source) return;
+    setCoverAdjustIsNew(false);
+    setCoverAdjustSrc(source);
   }
 
   function cancelCoverAdjust() {
     setCoverAdjustSrc('');
+    setCoverAdjustIsNew(false);
   }
 
   function selectBrandColor(hex) {
@@ -426,9 +441,16 @@ export default function MinhaLojaPage() {
             style={draft.capaUrl ? { backgroundImage: `url(${draft.capaUrl})` } : undefined}
           >
             {!draft.capaUrl ? <span>Capa do cardápio</span> : null}
-            <button type="button" className="admin-store-cover-edit" onClick={() => coverInputRef.current?.click()}>
-              Alterar capa
-            </button>
+            <div className="admin-store-cover-actions">
+              {draft.capaUrl ? (
+                <button type="button" className="admin-store-cover-edit" onClick={openCoverAdjust}>
+                  Ajustar enquadramento
+                </button>
+              ) : null}
+              <button type="button" className="admin-store-cover-edit" onClick={() => coverInputRef.current?.click()}>
+                {draft.capaUrl ? 'Trocar imagem' : 'Alterar capa'}
+              </button>
+            </div>
             <input
               ref={coverInputRef}
               type="file"

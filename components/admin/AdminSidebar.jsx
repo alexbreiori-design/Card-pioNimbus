@@ -9,6 +9,7 @@ import AdminStoreSwitcher from './AdminStoreSwitcher';
 import { useAdminData } from '@/hooks/useAdminData';
 import { isMarmitaSegment, isPizzariaSegment } from '@/lib/empresaSegmentos';
 import { NIMBUS_SUPPORT_LABEL, NIMBUS_SUPPORT_URL } from '@/lib/nimbusSupport';
+import { getStorePublicUrl } from '@/lib/siteUrl';
 
 const BASE_NAV = [
   { href: '/admin/pedidos', label: 'Pedidos', icon: 'orders' },
@@ -186,7 +187,7 @@ export default function AdminSidebar({
     : aberta
       ? 'Loja aberta. Desative para fechar agora.'
       : 'Fechada pelo horário. Ative para liberar manualmente.';
-  const cardapioHref = storeSlug ? `/${String(storeSlug).trim().toLowerCase()}` : '';
+  const cardapioHref = storeSlug ? getStorePublicUrl(storeSlug) : '';
 
   return (
     <aside className={`admin-sidebar ${collapsed ? 'collapsed' : ''}`}>

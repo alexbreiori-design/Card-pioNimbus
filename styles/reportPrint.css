@@ -1,0 +1,236 @@
+.report-print-root {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.report-print-page {
+  box-sizing: border-box;
+  width: 210mm;
+  min-height: 297mm;
+  padding: 14mm 12mm 12mm;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 10pt;
+  line-height: 1.35;
+  color: #111827;
+  background: #fff;
+}
+
+.report-print-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 2px solid #4e48dd;
+}
+
+.report-print-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.report-print-brand-mark {
+  font-size: 18pt;
+  font-weight: 800;
+  color: #4e48dd;
+  letter-spacing: -0.02em;
+}
+
+.report-print-brand-type {
+  font-size: 11pt;
+  font-weight: 600;
+  color: #374151;
+}
+
+.report-print-meta {
+  text-align: right;
+  font-size: 8.5pt;
+  color: #4b5563;
+}
+
+.report-print-meta p {
+  margin: 0 0 3px;
+}
+
+.report-print-meta strong {
+  color: #111827;
+}
+
+.report-print-section {
+  margin-bottom: 14px;
+  break-inside: avoid;
+}
+
+.report-print-section h2 {
+  margin: 0 0 8px;
+  font-size: 10.5pt;
+  font-weight: 700;
+  color: #111827;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.report-print-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.report-print-kpi {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: #f9fafb;
+}
+
+.report-print-kpi-label {
+  display: block;
+  font-size: 8pt;
+  color: #6b7280;
+  margin-bottom: 2px;
+}
+
+.report-print-kpi-value {
+  display: block;
+  font-size: 12pt;
+  color: #111827;
+}
+
+.report-print-kpi-sub {
+  display: block;
+  margin-top: 3px;
+  font-size: 7.5pt;
+  color: #6b7280;
+}
+
+.report-print-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8.5pt;
+}
+
+.report-print-table th,
+.report-print-table td {
+  border: 1px solid #d1d5db;
+  padding: 5px 7px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.report-print-table th {
+  background: #f3f4f6;
+  font-weight: 700;
+  color: #374151;
+}
+
+.report-print-table tbody tr:nth-child(even) {
+  background: #fafafa;
+}
+
+.report-print-table-compact td,
+.report-print-table-compact th {
+  padding: 4px 6px;
+}
+
+.report-print-table tr.is-highlight td {
+  background: #eef2ff;
+  font-weight: 700;
+}
+
+.report-print-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.report-print-highlight-box {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+}
+
+.report-print-highlight-box strong {
+  font-size: 12pt;
+}
+
+.report-print-empty {
+  margin: 0;
+  color: #6b7280;
+  font-size: 8.5pt;
+}
+
+.report-print-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding-top: 8px;
+  border-top: 1px solid #e5e7eb;
+  font-size: 7.5pt;
+  color: #9ca3af;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body.report-printing > *:not(.report-print-root) {
+    display: none !important;
+  }
+
+  .report-print-root {
+    display: block !important;
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    pointer-events: none !important;
+    z-index: auto !important;
+  }
+
+  .report-print-root,
+  .report-print-root * {
+    visibility: visible !important;
+  }
+
+  .report-print-page {
+    width: auto;
+    min-height: auto;
+    padding: 0;
+  }
+
+  .report-print-section {
+    break-inside: avoid-page;
+  }
+
+  .report-print-table {
+    break-inside: auto;
+  }
+
+  .report-print-table tr {
+    break-inside: avoid;
+  }
+}

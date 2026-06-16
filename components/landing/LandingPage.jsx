@@ -14,6 +14,7 @@ import LandingScreenshot from '@/components/landing/LandingScreenshot';
 import LandingPricingSection from '@/components/landing/LandingPricingSection';
 import LandingStatsRow from '@/components/landing/LandingStatsRow';
 import { NIMBUS_DEMO_SLUG, whatsappUrl } from '@/lib/landing/constants';
+import { getStorePublicUrl } from '@/lib/siteUrl';
 import {
   landingCta,
   landingFaq,
@@ -302,9 +303,14 @@ export default function LandingPage() {
                 <WhatsAppButton className="landing-btn landing-btn--primary landing-btn--lg landing-interactive">
                   Falar no WhatsApp
                 </WhatsAppButton>
-                <Link href={`/${NIMBUS_DEMO_SLUG}`} className="landing-btn landing-btn--soft landing-btn--lg landing-interactive">
+                <a
+                  href={getStorePublicUrl(NIMBUS_DEMO_SLUG)}
+                  className="landing-btn landing-btn--soft landing-btn--lg landing-interactive"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   Ver cardápio demo
-                </Link>
+                </a>
               </div>
             </LandingReveal>
           </div>
