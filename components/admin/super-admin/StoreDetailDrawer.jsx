@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import AdminAvailabilitySwitch from '@/components/admin/AdminAvailabilitySwitch';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import AdminDatePicker from '@/components/admin/AdminDatePicker';
+import { useAdminToast, TOAST_DURATION_MS } from '@/context/AdminToastContext';
 import { activityStatusLabel } from '@/lib/superAdmin/storeActivity';
 import { generateTempPassword } from '@/lib/superAdmin';
 import StoreCatalogImportPanel from './StoreCatalogImportPanel';
@@ -99,7 +100,48 @@ function StatusPills({ store }) {
   );
 }
 
+function IconPencil() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M13.5 6.5l3 3"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconWhatsApp() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 2a10 10 0 0 0-8.7 15l-1.3 4.8 4.9-1.3A10 10 0 1 0 12 2z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8.5 9.2c.2-.5.5-.5.8-.5h.6c.2 0 .4 0 .5.3l.8 1.9c.1.2.1.4 0 .6l-.5.6c-.1.2-.1.3 0 .5.6 1.1 1.6 2 2.8 2.6.2.1.3.1.5 0l.7-.5c.2-.1.4-.1.6 0l1.8.9c.3.1.3.3.3.5v.6c0 .3-.1.6-.5.7-1 .4-2.1.2-3.5-.6-1.8-1-3.2-2.5-4.1-4.3-.5-1-.7-2-.4-2.9z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 export default function StoreDetailDrawer({ slug, onClose }) {
+  const toast = useAdminToast();
   const { overlayPointerDown, overlayClick } = useAdminOverlayClose({
     onClose,
     isDirty: false,
@@ -120,10 +162,24 @@ export default function StoreDetailDrawer({ slug, onClose }) {
     papel: 'atendente',
     tempPassword: generateTempPassword(),
   });
-  const [teamMessage, setTeamMessage] = useState('');
-  const [actionMessage, setActionMessage] = useState('');
+  const [ownerContactEditing, setOwnerContactEditing] = useState(false);
   const [ownerEmail, setOwnerEmail] = useState('');
   const [ownerPhone, setOwnerPhone] = useState('');
+
+  function syncOwnerContactDraft(nextStore) {
+    setOwnerEmail(nextStore?.owner?.email || '');
+    setOwnerPhone(nextStore?.owner?.phone || '');
+  }
+
+  function startOwnerContactEdit() {
+    syncOwnerContactDraft(store);
+    setOwnerContactEditing(true);
+  }
+
+  function cancelOwnerContactEdit() {
+    syncOwnerContactDraft(store);
+    setOwnerContactEditing(false);
+  }
 
   async function loadStore(targetSlug) {
     setLoading(true);
@@ -140,8 +196,8 @@ export default function StoreDetailDrawer({ slug, onClose }) {
       setResponsavelNimbus(payload.store.responsavel_nimbus || '');
       setContratoInicio(formatDateOnly(payload.store.contrato_inicio));
       setContratoFim(formatDateOnly(payload.store.contrato_fim));
-      setOwnerEmail(payload.store.owner?.email || '');
-      setOwnerPhone(payload.store.owner?.phone || '');
+      syncOwnerContactDraft(payload.store);
+      setOwnerContactEditing(false);
     } catch (loadError) {
       setStore(null);
       setError(loadError?.message || 'Erro ao carregar.');
@@ -159,6 +215,7 @@ export default function StoreDetailDrawer({ slug, onClose }) {
     }
 
     setTab('resumo');
+    setOwnerContactEditing(false);
     loadStore(slug);
     return undefined;
   }, [slug]);
@@ -195,7 +252,6 @@ export default function StoreDetailDrawer({ slug, onClose }) {
     event.preventDefault();
     if (!slug) return;
     setSaving(true);
-    setTeamMessage('');
     setError('');
     try {
       const response = await fetch(`/api/super-admin/stores/${encodeURIComponent(slug)}/members`, {
@@ -209,9 +265,11 @@ export default function StoreDetailDrawer({ slug, onClose }) {
       }
       setStore((prev) => (prev ? { ...prev, team: payload.members } : prev));
       if (payload.tempPassword) {
-        setTeamMessage(`Conta criada. Senha temporária: ${payload.tempPassword}`);
+        toast.success(`Conta criada. Senha temporária: ${payload.tempPassword}`, {
+          duration: TOAST_DURATION_MS.long,
+        });
       } else {
-        setTeamMessage('Membro vinculado à loja.');
+        toast.success('Membro vinculado à loja.');
       }
       setTeamForm({
         email: '',
@@ -220,7 +278,7 @@ export default function StoreDetailDrawer({ slug, onClose }) {
         tempPassword: generateTempPassword(),
       });
     } catch (teamError) {
-      setError(teamError?.message || 'Erro ao adicionar membro.');
+      toast.error(teamError?.message || 'Erro ao adicionar membro.');
     } finally {
       setSaving(false);
     }
@@ -229,7 +287,6 @@ export default function StoreDetailDrawer({ slug, onClose }) {
   async function toggleStoreOpen(isOpen) {
     if (!slug) return;
     setSaving(true);
-    setActionMessage('');
     setError('');
     try {
       const response = await fetch(`/api/super-admin/stores/${encodeURIComponent(slug)}/open-status`, {
@@ -242,9 +299,9 @@ export default function StoreDetailDrawer({ slug, onClose }) {
         throw new Error(payload.error || 'Não foi possível atualizar a loja.');
       }
       await loadStore(slug);
-      setActionMessage(isOpen ? 'Loja reaberta manualmente.' : 'Loja fechada manualmente.');
+      toast.success(isOpen ? 'Loja reaberta manualmente.' : 'Loja fechada manualmente.');
     } catch (toggleError) {
-      setError(toggleError?.message || 'Erro ao atualizar status.');
+      toast.error(toggleError?.message || 'Erro ao atualizar status.');
     } finally {
       setSaving(false);
     }
@@ -261,7 +318,6 @@ export default function StoreDetailDrawer({ slug, onClose }) {
     if (!confirmed) return;
 
     setSaving(true);
-    setActionMessage('');
     setError('');
     try {
       const response = await fetch(`/api/super-admin/stores/${encodeURIComponent(slug)}/suspend`, {
@@ -274,9 +330,9 @@ export default function StoreDetailDrawer({ slug, onClose }) {
         throw new Error(payload.error || 'Não foi possível atualizar a suspensão.');
       }
       await loadStore(slug);
-      setActionMessage(nextSuspended ? 'Loja suspensa.' : 'Loja reativada.');
+      toast.success(nextSuspended ? 'Loja suspensa.' : 'Loja reativada.');
     } catch (suspendError) {
-      setError(suspendError?.message || 'Erro ao suspender loja.');
+      toast.error(suspendError?.message || 'Erro ao suspender loja.');
     } finally {
       setSaving(false);
     }
@@ -290,7 +346,6 @@ export default function StoreDetailDrawer({ slug, onClose }) {
   async function saveOwnerContact() {
     if (!slug || !store?.owner?.userId) return;
     setSaving(true);
-    setActionMessage('');
     setError('');
     try {
       const response = await fetch(
@@ -309,9 +364,10 @@ export default function StoreDetailDrawer({ slug, onClose }) {
         throw new Error(payload.error || 'Não foi possível atualizar o contato.');
       }
       await loadStore(slug);
-      setActionMessage('Contato do proprietário atualizado.');
+      setOwnerContactEditing(false);
+      toast.success('Contato do proprietário atualizado.');
     } catch (contactError) {
-      setError(contactError?.message || 'Erro ao atualizar contato.');
+      toast.error(contactError?.message || 'Erro ao atualizar contato.');
     } finally {
       setSaving(false);
     }
@@ -325,7 +381,6 @@ export default function StoreDetailDrawer({ slug, onClose }) {
     if (!confirmed) return;
 
     setSaving(true);
-    setActionMessage('');
     setError('');
     try {
       const response = await fetch(
@@ -336,9 +391,9 @@ export default function StoreDetailDrawer({ slug, onClose }) {
       if (!response.ok || !payload.ok) {
         throw new Error(payload.error || 'Não foi possível resetar a senha.');
       }
-      setActionMessage(`Nova senha temporária: ${payload.tempPassword}`);
+      toast.success(`Nova senha temporária: ${payload.tempPassword}`, { duration: TOAST_DURATION_MS.long });
     } catch (resetError) {
-      setError(resetError?.message || 'Erro ao resetar senha.');
+      toast.error(resetError?.message || 'Erro ao resetar senha.');
     } finally {
       setSaving(false);
     }
@@ -441,55 +496,99 @@ export default function StoreDetailDrawer({ slug, onClose }) {
             <>
               <div className={styles.grid2}>
                 <section className={styles.panel}>
-                  <h3 className={styles.panelTitle}>Proprietário</h3>
-                  <p className={styles.ownerName}>{store.owner?.name || '—'}</p>
-                  <div className={styles.formGrid} style={{ marginTop: 12 }}>
-                    <label className={styles.formField}>
-                      <span className={styles.formLabel}>E-mail de login</span>
-                      <input
-                        className={styles.formInput}
-                        type="email"
-                        value={ownerEmail}
-                        onChange={(event) => setOwnerEmail(event.target.value)}
-                        disabled={saving || !store.owner?.userId}
-                      />
-                    </label>
-                    <label className={styles.formField}>
-                      <span className={styles.formLabel}>Telefone</span>
-                      <input
-                        className={styles.formInput}
-                        type="tel"
-                        value={ownerPhone}
-                        onChange={(event) => setOwnerPhone(event.target.value)}
-                        disabled={saving}
-                        placeholder="WhatsApp ou telefone da loja"
-                      />
-                    </label>
+                  <div className={styles.ownerPanelHead}>
+                    <h3 className={styles.panelTitle}>Proprietário</h3>
+                    <div className={styles.ownerIconActions}>
+                      {store.owner?.whatsappUrl ? (
+                        <a
+                          className={`${styles.ownerIconBtn} ${styles.ownerIconBtnWhatsapp}`}
+                          href={store.owner.whatsappUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label="WhatsApp do dono"
+                          title="WhatsApp do dono"
+                        >
+                          <IconWhatsApp />
+                        </a>
+                      ) : null}
+                      {store.owner?.userId && !ownerContactEditing ? (
+                        <button
+                          type="button"
+                          className={styles.ownerIconBtn}
+                          onClick={startOwnerContactEdit}
+                          disabled={saving}
+                          aria-label="Editar contato do proprietário"
+                          title="Editar contato"
+                        >
+                          <IconPencil />
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
-                  {store.owner?.userId ? (
-                    <button
-                      type="button"
-                      className={styles.btnPrimary}
-                      style={{ marginTop: 12 }}
-                      disabled={saving}
-                      onClick={saveOwnerContact}
-                    >
-                      {saving ? 'Salvando...' : 'Salvar contato'}
-                    </button>
+
+                  <p className={styles.ownerName}>{store.owner?.name || '—'}</p>
+
+                  {ownerContactEditing ? (
+                    <>
+                      <div className={styles.ownerEditForm}>
+                        <label className={styles.formField}>
+                          <span className={styles.formLabel}>E-mail de login</span>
+                          <input
+                            className={styles.formInput}
+                            type="email"
+                            value={ownerEmail}
+                            onChange={(event) => setOwnerEmail(event.target.value)}
+                            disabled={saving}
+                          />
+                        </label>
+                        <label className={styles.formField}>
+                          <span className={styles.formLabel}>Telefone</span>
+                          <input
+                            className={styles.formInput}
+                            type="tel"
+                            value={ownerPhone}
+                            onChange={(event) => setOwnerPhone(event.target.value)}
+                            disabled={saving}
+                            placeholder="WhatsApp ou telefone da loja"
+                          />
+                        </label>
+                      </div>
+                      <div className={styles.ownerEditActions}>
+                        <button
+                          type="button"
+                          className={styles.btnGhost}
+                          disabled={saving}
+                          onClick={cancelOwnerContactEdit}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.btnPrimary}
+                          disabled={saving}
+                          onClick={saveOwnerContact}
+                        >
+                          {saving ? 'Salvando...' : 'Salvar'}
+                        </button>
+                      </div>
+                    </>
                   ) : (
+                    <div className={styles.metaList}>
+                      <div className={styles.metaRow}>
+                        <span className={styles.metaLabel}>E-mail</span>
+                        <span className={styles.metaValue}>{store.owner?.email || '—'}</span>
+                      </div>
+                      <div className={styles.metaRow}>
+                        <span className={styles.metaLabel}>Telefone</span>
+                        <span className={styles.metaValue}>{store.owner?.phone || '—'}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {!store.owner?.userId ? (
                     <p className={styles.muted} style={{ marginTop: 12 }}>
                       Proprietário não vinculado — não é possível alterar o e-mail de login.
                     </p>
-                  )}
-                  {store.owner?.whatsappUrl ? (
-                    <a
-                      className={styles.btnPrimary}
-                      href={store.owner.whatsappUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      WhatsApp do dono
-                    </a>
                   ) : null}
                 </section>
 
@@ -584,7 +683,6 @@ export default function StoreDetailDrawer({ slug, onClose }) {
                 </div>
               </div>
 
-              {actionMessage ? <p className={styles.alertSuccess}>{actionMessage}</p> : null}
             </>
           ) : null}
 
@@ -769,7 +867,6 @@ export default function StoreDetailDrawer({ slug, onClose }) {
                   {saving ? 'Salvando...' : 'Vincular membro'}
                 </button>
               </form>
-              {teamMessage ? <p className={styles.alertSuccess}>{teamMessage}</p> : null}
             </>
           ) : null}
 
@@ -834,7 +931,7 @@ export default function StoreDetailDrawer({ slug, onClose }) {
               slug={slug}
               onImported={() => {
                 loadStore(slug);
-                setActionMessage('Cardápio importado. Revise fotos e detalhes no admin da loja.');
+                toast.success('Cardápio importado. Revise fotos e detalhes no admin da loja.');
               }}
             />
           ) : null}

@@ -12,6 +12,15 @@ import AdminToaster from '@/components/admin/AdminToaster';
 
 const AdminToastContext = createContext(null);
 
+const TOAST_DURATION_MS = {
+  default: 2500,
+  error: 3000,
+  warning: 2750,
+  long: 4000,
+};
+
+export { TOAST_DURATION_MS };
+
 let toastCounter = 0;
 
 export function AdminToastProvider({ children }) {
@@ -28,7 +37,7 @@ export function AdminToastProvider({ children }) {
   }, []);
 
   const pushToast = useCallback(
-    ({ title = '', description = '', variant = 'success', duration = 5000 } = {}) => {
+    ({ title = '', description = '', variant = 'success', duration = TOAST_DURATION_MS.default } = {}) => {
       const id = ++toastCounter;
       const message = String(description || title || '').trim();
       if (!message && !title) return null;
@@ -60,9 +69,9 @@ export function AdminToastProvider({ children }) {
       success: (description, options = {}) =>
         pushToast({ description, variant: 'success', ...options }),
       error: (description, options = {}) =>
-        pushToast({ description, variant: 'error', duration: 6000, ...options }),
+        pushToast({ description, variant: 'error', duration: TOAST_DURATION_MS.error, ...options }),
       warning: (description, options = {}) =>
-        pushToast({ description, variant: 'warning', duration: 5500, ...options }),
+        pushToast({ description, variant: 'warning', duration: TOAST_DURATION_MS.warning, ...options }),
       info: (description, options = {}) =>
         pushToast({ description, variant: 'info', ...options }),
     }),

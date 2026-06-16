@@ -2288,7 +2288,7 @@
   bottom: 0;
   height: 3px;
   transform-origin: left center;
-  animation: admin-toast-progress var(--admin-toast-duration, 5000ms) linear forwards;
+  animation: admin-toast-progress var(--admin-toast-duration, 2500ms) linear forwards;
 }
 
 .admin-toast-success .admin-toast-progress {
