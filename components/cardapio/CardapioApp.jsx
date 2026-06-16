@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useCardapio } from '@/context/CardapioContext';
 import MetaPixel from './MetaPixel';
 import TopNav from './TopNav';
