@@ -122,6 +122,8 @@ export default function StoreDetailDrawer({ slug, onClose }) {
   });
   const [teamMessage, setTeamMessage] = useState('');
   const [actionMessage, setActionMessage] = useState('');
+  const [ownerEmail, setOwnerEmail] = useState('');
+  const [ownerPhone, setOwnerPhone] = useState('');
 
   async function loadStore(targetSlug) {
     setLoading(true);
@@ -138,6 +140,8 @@ export default function StoreDetailDrawer({ slug, onClose }) {
       setResponsavelNimbus(payload.store.responsavel_nimbus || '');
       setContratoInicio(formatDateOnly(payload.store.contrato_inicio));
       setContratoFim(formatDateOnly(payload.store.contrato_fim));
+      setOwnerEmail(payload.store.owner?.email || '');
+      setOwnerPhone(payload.store.owner?.phone || '');
     } catch (loadError) {
       setStore(null);
       setError(loadError?.message || 'Erro ao carregar.');
@@ -283,6 +287,36 @@ export default function StoreDetailDrawer({ slug, onClose }) {
     window.location.href = `/api/super-admin/stores/${encodeURIComponent(slug)}/backup`;
   }
 
+  async function saveOwnerContact() {
+    if (!slug || !store?.owner?.userId) return;
+    setSaving(true);
+    setActionMessage('');
+    setError('');
+    try {
+      const response = await fetch(
+        `/api/super-admin/stores/${encodeURIComponent(slug)}/owner-contact`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: ownerEmail,
+            telefone: ownerPhone,
+          }),
+        }
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || 'Não foi possível atualizar o contato.');
+      }
+      await loadStore(slug);
+      setActionMessage('Contato do proprietário atualizado.');
+    } catch (contactError) {
+      setError(contactError?.message || 'Erro ao atualizar contato.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function resetOwnerPassword() {
     if (!slug || !store?.owner?.email) return;
     const confirmed = window.confirm(
@@ -409,16 +443,44 @@ export default function StoreDetailDrawer({ slug, onClose }) {
                 <section className={styles.panel}>
                   <h3 className={styles.panelTitle}>Proprietário</h3>
                   <p className={styles.ownerName}>{store.owner?.name || '—'}</p>
-                  <div className={styles.metaList}>
-                    <div className={styles.metaRow}>
-                      <span className={styles.metaLabel}>E-mail</span>
-                      <span className={styles.metaValue}>{store.owner?.email || '—'}</span>
-                    </div>
-                    <div className={styles.metaRow}>
-                      <span className={styles.metaLabel}>Telefone</span>
-                      <span className={styles.metaValue}>{store.owner?.phone || '—'}</span>
-                    </div>
+                  <div className={styles.formGrid} style={{ marginTop: 12 }}>
+                    <label className={styles.formField}>
+                      <span className={styles.formLabel}>E-mail de login</span>
+                      <input
+                        className={styles.formInput}
+                        type="email"
+                        value={ownerEmail}
+                        onChange={(event) => setOwnerEmail(event.target.value)}
+                        disabled={saving || !store.owner?.userId}
+                      />
+                    </label>
+                    <label className={styles.formField}>
+                      <span className={styles.formLabel}>Telefone</span>
+                      <input
+                        className={styles.formInput}
+                        type="tel"
+                        value={ownerPhone}
+                        onChange={(event) => setOwnerPhone(event.target.value)}
+                        disabled={saving}
+                        placeholder="WhatsApp ou telefone da loja"
+                      />
+                    </label>
                   </div>
+                  {store.owner?.userId ? (
+                    <button
+                      type="button"
+                      className={styles.btnPrimary}
+                      style={{ marginTop: 12 }}
+                      disabled={saving}
+                      onClick={saveOwnerContact}
+                    >
+                      {saving ? 'Salvando...' : 'Salvar contato'}
+                    </button>
+                  ) : (
+                    <p className={styles.muted} style={{ marginTop: 12 }}>
+                      Proprietário não vinculado — não é possível alterar o e-mail de login.
+                    </p>
+                  )}
                   {store.owner?.whatsappUrl ? (
                     <a
                       className={styles.btnPrimary}
