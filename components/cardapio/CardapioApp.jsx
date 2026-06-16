@@ -40,7 +40,9 @@ export default function CardapioApp() {
         <CepModal />
         <AddressModal />
         <CupomModal />
-        <CardapioLegalFooter />
+        <Suspense fallback={null}>
+          <CardapioLegalFooter />
+        </Suspense>
       </div>
     </>
   );

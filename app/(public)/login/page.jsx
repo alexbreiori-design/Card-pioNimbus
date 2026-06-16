@@ -55,9 +55,9 @@ export default function Page() {
           cardapionimbus.com.br
         </a>
         <nav className={styles.legalLinks} aria-label="Informações legais">
-          <a href="/privacidade">Privacidade</a>
+          <a href="/privacidade?from=%2Flogin">Privacidade</a>
           <span aria-hidden="true">·</span>
-          <a href="/termos">Termos</a>
+          <a href="/termos?from=%2Flogin">Termos</a>
         </nav>
       </footer>
     </main>

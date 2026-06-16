@@ -1,5 +1,7 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import styles from '../legal.module.css';
+import LegalBackLink from '@/components/legal/LegalBackLink';
 
 export const metadata = {
   title: 'Política de Privacidade | Nimbus',
@@ -10,9 +12,9 @@ export default function Page() {
   return (
     <main className={styles.page}>
       <article className={styles.shell}>
-        <Link className={styles.back} href="/login">
-          ← Voltar
-        </Link>
+        <Suspense fallback={<span className={styles.back}>← Voltar</span>}>
+          <LegalBackLink className={styles.back} />
+        </Suspense>
 
         <h1 className={styles.title}>Política de Privacidade</h1>
         <p className={styles.updated}>Última atualização: 31 de maio de 2026</p>
