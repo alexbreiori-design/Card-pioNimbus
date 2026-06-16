@@ -10000,9 +10000,41 @@ textarea.admin-input::placeholder {
   }
 
   .admin-shell-mobile .admin-store-delivery-time-row,
-  .admin-shell-mobile .admin-store-delivery-duration-row,
-  .admin-shell-mobile .admin-hours-row-v2 {
+  .admin-shell-mobile .admin-store-delivery-duration-row {
     grid-template-columns: 1fr;
+  }
+
+  .admin-shell-mobile .admin-hours-row-v2 {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    grid-template-areas:
+      'day day day'
+      'open close status';
+    gap: 8px 10px;
+    align-items: center;
+    max-width: none;
+    padding: 12px 0;
+  }
+
+  .admin-shell-mobile .admin-hours-row-v2 strong {
+    grid-area: day;
+    grid-column: auto;
+  }
+
+  .admin-shell-mobile .admin-hours-row-v2 .admin-hours-time-input:first-of-type {
+    grid-area: open;
+  }
+
+  .admin-shell-mobile .admin-hours-row-v2 .admin-hours-time-input:last-of-type {
+    grid-area: close;
+  }
+
+  .admin-shell-mobile .admin-hours-row-v2 .admin-hours-open {
+    grid-area: status;
+    justify-self: end;
+    min-width: 76px;
+    height: 44px;
+    padding: 0 10px;
+    white-space: nowrap;
   }
 
   .admin-shell-mobile .admin-store-pix-toggle-row {
