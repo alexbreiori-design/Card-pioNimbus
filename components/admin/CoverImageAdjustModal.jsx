@@ -6,6 +6,7 @@ import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import {
   COVER_ASPECT,
+  createImage,
   getCroppedCoverImage,
   resolveEditableImageSrc,
 } from '@/lib/image/coverImage';
@@ -77,11 +78,24 @@ export default function CoverImageAdjustModal({ src, onConfirm, onCancel }) {
   } = useAdminOverlayClose({ onClose: onCancel, isDirty });
 
   async function handleConfirm() {
-    if (!imageSrc || !croppedAreaPixelsRef.current) return;
+    if (!imageSrc) return;
     setSaving(true);
     setError('');
     try {
-      const dataUrl = await getCroppedCoverImage(imageSrc, croppedAreaPixelsRef.current);
+      let pixelCrop = croppedAreaPixelsRef.current;
+      if (!pixelCrop?.width || !pixelCrop?.height) {
+        const image = await createImage(imageSrc);
+        const cropWidth = image.naturalWidth;
+        const cropHeight = Math.round(cropWidth / COVER_ASPECT);
+        const y = Math.max(0, Math.round((image.naturalHeight - cropHeight) / 2));
+        pixelCrop = {
+          x: 0,
+          y,
+          width: cropWidth,
+          height: Math.min(cropHeight, image.naturalHeight - y),
+        };
+      }
+      const dataUrl = await getCroppedCoverImage(imageSrc, pixelCrop);
       await onConfirm(dataUrl);
     } catch {
       setError('Não foi possível processar a imagem. Tente outro arquivo ou recarregue a página.');

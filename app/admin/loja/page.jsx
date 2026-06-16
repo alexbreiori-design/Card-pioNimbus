@@ -300,11 +300,14 @@ export default function MinhaLojaPage() {
     };
   }
 
-  async function applyCoverImage(dataUrl) {
-    setLojaField('capaUrl', dataUrl);
-    if (coverAdjustIsNew) {
-      setLojaField('capaOriginalUrl', coverAdjustSrc);
-    }
+  function applyCoverImage(dataUrl) {
+    const isNew = coverAdjustIsNew;
+    const originalSrc = coverAdjustSrc;
+    setDraft((prev) => ({
+      ...prev,
+      capaUrl: dataUrl,
+      ...(isNew ? { capaOriginalUrl: originalSrc } : {}),
+    }));
     setCoverAdjustSrc('');
     setCoverAdjustIsNew(false);
   }
@@ -386,7 +389,7 @@ export default function MinhaLojaPage() {
         .replace(/\s+/g, ' ')
         .trim();
 
-      saveData((prev) => ({
+      await saveData((prev) => ({
         ...prev,
         loja: { ...prev.loja, ...nextLoja, endereco: enderecoText || prev.loja.endereco },
       }));
@@ -418,7 +421,7 @@ export default function MinhaLojaPage() {
       toast.success('Alterações salvas com sucesso.');
       setPedidoMinimo(moneyToDisplay(nextLoja.pedidoMinimo));
     } catch (e) {
-      toast.error(e?.message || 'Erro ao salvar. Dados locais foram atualizados.');
+      toast.error(e?.message || 'Erro ao salvar. Tente novamente.');
     } finally {
       setSaving(false);
     }

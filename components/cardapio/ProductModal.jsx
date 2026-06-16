@@ -41,6 +41,7 @@ export default function ProductModal() {
   const product = currentProduct;
   const productAddons = product?.addons || [];
   const isPizza = product?.type === 'pizza' && product?.pizzaConfig;
+  const pizzaPromoShortcut = product?.pizzaPromoShortcut || null;
   const isMarmita = product?.type === 'marmita';
   const marmitaSteps = productAddons;
   const hasMarmitaWizard = isMarmita && marmitaSteps.length > 0;
@@ -60,8 +61,24 @@ export default function ProductModal() {
 
   const currentPizzaStep = pizzaSteps[pizzaStep];
   const pizzaUnitPrice = hasPizzaWizard
-    ? computePizzaWizardUnitPrice(product, pizzaState, addonExtras)
+    ? pizzaPromoShortcut
+      ? Number(pizzaPromoShortcut.promoPrice || product.price || 0) + addonExtras
+      : computePizzaWizardUnitPrice(product, pizzaState, addonExtras)
     : 0;
+  const firstPizzaAddonStep = useMemo(
+    () => pizzaSteps.findIndex((step) => step.type === 'addons'),
+    [pizzaSteps]
+  );
+  const promoWizardSteps = useMemo(() => {
+    if (!pizzaPromoShortcut) return pizzaSteps;
+    return pizzaSteps.filter((step) => step.type === 'addons' || step.type === 'suggestions');
+  }, [pizzaPromoShortcut, pizzaSteps]);
+
+  const promoWizardStepIndex = useMemo(() => {
+    if (!pizzaPromoShortcut || !currentPizzaStep) return pizzaStep;
+    const index = promoWizardSteps.findIndex((step) => step.id === currentPizzaStep.id);
+    return index >= 0 ? index : 0;
+  }, [pizzaPromoShortcut, promoWizardSteps, currentPizzaStep, pizzaStep]);
   const canPizzaAdvance = hasPizzaWizard
     ? isPizzaStepComplete(currentPizzaStep, pizzaState, selectedAddons)
     : false;
@@ -77,9 +94,25 @@ export default function ProductModal() {
 
   useEffect(() => {
     setMarmitaStep(0);
+    if (product?.pizzaPromoShortcut) {
+      const { saborId, tamanhoId } = product.pizzaPromoShortcut;
+      setPizzaState({ sizeId: tamanhoId, flavorSlots: [saborId] });
+      setPizzaStep(-1);
+      return;
+    }
     setPizzaStep(0);
     setPizzaState({ sizeId: '', flavorSlots: [] });
-  }, [product?.id]);
+  }, [product?.id, product?.pizzaPromoShortcut]);
+
+  useEffect(() => {
+    if (!product?.pizzaPromoShortcut || !pizzaSteps.length) return;
+    if (firstPizzaAddonStep >= 0) {
+      setPizzaStep(firstPizzaAddonStep);
+      return;
+    }
+    const suggestionsIndex = pizzaSteps.findIndex((step) => step.type === 'suggestions');
+    setPizzaStep(suggestionsIndex >= 0 ? suggestionsIndex : Math.max(0, pizzaSteps.length - 1));
+  }, [product?.id, product?.pizzaPromoShortcut, pizzaSteps.length, firstPizzaAddonStep]);
 
   useEffect(() => {
     if (!hasPizzaWizard) return;
@@ -115,7 +148,9 @@ export default function ProductModal() {
       return;
     }
     addToCartCustom({
-      product,
+      product: pizzaPromoShortcut
+        ? { ...product, id: pizzaPromoShortcut.carouselId }
+        : product,
       qty: currentQty,
       unitPrice: pizzaUnitPrice,
       opts: buildPizzaCartLabels(product, pizzaState, selectedAddons),
@@ -226,10 +261,18 @@ export default function ProductModal() {
             </div>
           </div>
           <div className="popup-body" id="popupBody">
+            {pizzaPromoShortcut ? (
+              <div className="pizza-promo-preset-summary">
+                <p className="pizza-promo-preset-kicker">Promoção selecionada</p>
+                <p className="pizza-promo-preset-copy">
+                  Tamanho e sabor já estão definidos. Escolha os adicionais e siga para finalizar.
+                </p>
+              </div>
+            ) : null}
             {hasPizzaWizard ? (
               <PizzaWizardSteps
-                steps={pizzaSteps}
-                stepIndex={pizzaStep}
+                steps={pizzaPromoShortcut ? promoWizardSteps : pizzaSteps}
+                stepIndex={pizzaPromoShortcut ? promoWizardStepIndex : pizzaStep}
                 pizzaState={pizzaState}
                 selectedAddons={selectedAddons}
                 onSelectSize={handleSelectPizzaSize}
@@ -315,7 +358,7 @@ export default function ProductModal() {
 
             {hasPizzaWizard ? (
               <div className="pizza-wizard-footer-actions">
-                {pizzaStep > 0 ? (
+                {!pizzaPromoShortcut && pizzaStep > 0 ? (
                   <button
                     type="button"
                     className="pizza-wizard-nav-btn"

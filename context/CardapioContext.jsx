@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { formatPrice } from '@/lib/utils/format';
+import { formatMarmitaCartObs } from '@/lib/marmita/marmitaWizard';
 import { fetchViaCep } from '@/lib/cep/viacep';
 import { calculateCupomDiscount, findCupomByCode } from '@/lib/cupons';
 import { resolveCardapioFromPublicPayload } from '@/lib/catalogPublic';
@@ -995,9 +995,40 @@ export function CardapioProvider({ children, slug = '' }) {
 
   const openProduct = useCallback(
     (id) => {
+      const promoEntry = promoCarouselProducts.find((p) => p.id === id);
+      if (promoEntry?.type === 'pizza_sabor_promo' && promoEntry.promoPreset) {
+        const basePizza = dynamicProducts.find(
+          (p) =>
+            p.type === 'pizza' &&
+            p.pizzaConfig?.saboresSelecionados?.includes(promoEntry.promoPreset.saborId)
+        );
+
+        if (!basePizza) return;
+
+        setCurrentProduct({
+          ...basePizza,
+          name: promoEntry.name,
+          desc: promoEntry.desc,
+          imageUrl: promoEntry.imageUrl || basePizza.imageUrl,
+          price: promoEntry.price,
+          promoOriginalPrice: promoEntry.promoOriginalPrice,
+          isPromocao: true,
+          pizzaPromoShortcut: {
+            ...promoEntry.promoPreset,
+            promoPrice: promoEntry.price,
+            carouselId: promoEntry.id,
+          },
+        });
+        setCurrentQty(1);
+        setSelectedAddons({});
+        setAddonExtras(0);
+        setPopupHeaderCompact(false);
+        setProductOpen(true);
+        return;
+      }
+
       const product =
-        dynamicProducts.find((p) => p.id === id) ||
-        promoCarouselProducts.find((p) => p.id === id);
+        dynamicProducts.find((p) => p.id === id) || promoEntry;
       if (!product) return;
       setCurrentProduct({
         ...product,
@@ -1300,7 +1331,7 @@ export function CardapioProvider({ children, slug = '' }) {
           qtd: item.qty,
           precoUnit: item.price,
           subtotal: item.price * item.qty,
-          obs: item.opts?.length ? item.opts.join(', ') : '',
+          obs: item.opts?.length ? formatMarmitaCartObs(item.opts) : '',
           produtoId: item.productId,
         })),
         subtotal,
