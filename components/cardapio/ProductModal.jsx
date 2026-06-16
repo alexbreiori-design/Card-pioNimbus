@@ -367,7 +367,7 @@ export default function ProductModal() {
                   >
                     <span className="wizard-nav-btn-label">Anterior</span>
                     <span className="wizard-nav-btn-icon" aria-hidden="true">
-                      ←
+                      &lt;
                     </span>
                   </button>
                 ) : null}
@@ -392,7 +392,7 @@ export default function ProductModal() {
                   >
                     <span className="wizard-nav-btn-label">Anterior</span>
                     <span className="wizard-nav-btn-icon" aria-hidden="true">
-                      ←
+                      &lt;
                     </span>
                   </button>
                 ) : null}
