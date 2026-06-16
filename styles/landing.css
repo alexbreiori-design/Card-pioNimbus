@@ -2230,3 +2230,127 @@
     transform: none;
   }
 }
+
+/* Under construction (root) */
+
+.landing-under-construction {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.landing-under-construction__main {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 20px 32px;
+}
+
+.landing-under-construction__card {
+  width: min(560px, 100%);
+  text-align: center;
+  padding: 40px 32px;
+  border-radius: var(--landing-radius);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: var(--landing-shadow);
+  backdrop-filter: var(--landing-glass-filter);
+}
+
+.landing-under-construction__logo {
+  width: auto;
+  height: 42px;
+  margin: 0 auto 20px;
+}
+
+.landing-under-construction__eyebrow {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--landing-primary);
+}
+
+.landing-under-construction__title {
+  margin: 0 0 14px;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  line-height: 1.2;
+  color: var(--landing-text);
+}
+
+.landing-under-construction__text {
+  margin: 0 0 28px;
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--landing-text-mid);
+}
+
+.landing-under-construction__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+
+.landing-under-construction__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 22px;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.landing-under-construction__btn-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.landing-under-construction__btn--primary {
+  color: #fff;
+  background: linear-gradient(135deg, var(--landing-primary), var(--landing-pink));
+  box-shadow: 0 12px 28px rgba(109, 40, 217, 0.22);
+}
+
+.landing-under-construction__btn--ghost {
+  color: var(--landing-text);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(109, 40, 217, 0.16);
+}
+
+.landing-under-construction__btn:hover {
+  transform: translateY(-1px);
+}
+
+.landing-under-construction__footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 18px 20px 28px;
+  font-size: 0.82rem;
+  color: var(--landing-text-soft);
+}
+
+.landing-under-construction__preview-link {
+  color: rgba(139, 151, 171, 0.45);
+  text-decoration: none;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 4px 6px;
+}
+
+.landing-under-construction__preview-link:hover {
+  color: var(--landing-text-soft);
+}

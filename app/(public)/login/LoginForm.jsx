@@ -6,13 +6,17 @@ import { createClient } from '@/lib/supabase/client';
 import styles from './login.module.css';
 
 function getSafeRedirect(searchParams) {
-  const redirect = searchParams.get('redirect');
+  const next = searchParams.get('next') || searchParams.get('redirect');
 
-  if (!redirect || !redirect.startsWith('/admin') || redirect.startsWith('/admin/login')) {
-    return '/admin/pedidos';
+  if (next === '/home') {
+    return '/home';
   }
 
-  return redirect;
+  if (next && next.startsWith('/admin') && !next.startsWith('/admin/login')) {
+    return next;
+  }
+
+  return '/admin/pedidos';
 }
 
 export default function LoginForm() {

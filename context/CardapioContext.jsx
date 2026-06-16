@@ -53,20 +53,25 @@ const CardapioCheckoutContext = createContext(null);
 const STORE_ADDRESS = DEFAULT_ADMIN_DATA.loja.endereco;
 const STEP_LABELS = ['Dados', 'Entrega', 'Pagamento', 'Confirmar'];
 
-const PAYMENT_METHODS = [
+const PUBLIC_PAYMENT_METHODS_BASE = [
   { id: 'pix', label: 'Pix', group: 'Pagar online' },
   { id: 'dinheiro', label: 'Dinheiro', group: 'Pagar na entrega' },
   { id: 'credito', label: 'Cartão de crédito', group: 'Pagar na entrega' },
   { id: 'debito', label: 'Cartão de débito', group: 'Pagar na entrega' },
-  { id: 'vale', label: 'Vale refeição', group: 'Pagar na entrega' },
 ];
+
+function buildPublicPaymentMethods(exibirPixCardapio = true) {
+  if (exibirPixCardapio === false) {
+    return PUBLIC_PAYMENT_METHODS_BASE.filter((method) => method.id !== 'pix');
+  }
+  return PUBLIC_PAYMENT_METHODS_BASE;
+}
 
 const PAY_LABELS = {
   pix: 'Pix',
   dinheiro: 'Dinheiro',
   credito: 'Cartão de crédito',
   debito: 'Cartão de débito',
-  vale: 'Vale refeição',
 };
 const PROFILE_STORAGE_KEY = 'cardapio_profile_v1';
 const STORE_SYNC_MS = 30000;
@@ -327,6 +332,17 @@ export function CardapioProvider({ children, slug = '' }) {
       });
     });
   }, []);
+
+  const paymentMethods = useMemo(
+    () => buildPublicPaymentMethods(storeConfig.exibirPixCardapio),
+    [storeConfig.exibirPixCardapio]
+  );
+
+  useEffect(() => {
+    if (storeConfig.exibirPixCardapio === false && checkoutData.payment === 'pix') {
+      setCheckoutData((current) => ({ ...current, payment: '' }));
+    }
+  }, [storeConfig.exibirPixCardapio, checkoutData.payment]);
 
   const persistStoreSnapshot = useCallback(
     async (nextState) => {
@@ -1702,7 +1718,7 @@ export function CardapioProvider({ children, slug = '' }) {
       locStrong,
       locSub,
       STEP_LABELS,
-      PAYMENT_METHODS,
+      PAYMENT_METHODS: paymentMethods,
       PAY_LABELS,
       openCheckout,
       closeCheckout,
@@ -1756,6 +1772,7 @@ export function CardapioProvider({ children, slug = '' }) {
       deliveryMeta,
       locStrong,
       locSub,
+      paymentMethods,
       openCheckout,
       closeCheckout,
       openCheckoutAddressFlow,

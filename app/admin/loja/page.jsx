@@ -168,6 +168,7 @@ export default function MinhaLojaPage() {
             paletteLogoUrl: data.loja.paletteLogoUrl,
             chavePix: data.loja.chavePix,
             descricaoChavePix: data.loja.descricaoChavePix,
+            exibirPixCardapio: data.loja.exibirPixCardapio !== false,
             tempoEntregaDelivery: data.loja.tempoEntregaDelivery,
             tempoEntregaRetirada: data.loja.tempoEntregaRetirada,
             enderecoCep: data.loja.enderecoCep,
@@ -648,6 +649,25 @@ export default function MinhaLojaPage() {
           hint="Exibido no cardápio online somente quando o cliente escolher Pix."
         />
         <div className="admin-store-section-body">
+          <div className="admin-form-group admin-store-pix-toggle-row">
+            <div>
+              <label className="admin-label" htmlFor="exibir-pix-cardapio">
+                Exibir Pix no cardápio online
+              </label>
+              <p className="admin-help-text" style={{ margin: '4px 0 0' }}>
+                Desmarcado, o checkout mostra apenas pagamento na entrega (dinheiro e cartão).
+              </p>
+            </div>
+            <label className="admin-switch" htmlFor="exibir-pix-cardapio">
+              <input
+                id="exibir-pix-cardapio"
+                type="checkbox"
+                checked={draft.exibirPixCardapio !== false}
+                onChange={(e) => setLojaField('exibirPixCardapio', e.target.checked)}
+              />
+              <span className="admin-switch-slider" />
+            </label>
+          </div>
           <div className="admin-form-group">
             <label className="admin-label">Chave Pix</label>
             <div className="admin-input-icon-wrap">
