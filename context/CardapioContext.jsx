@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react';
 import { formatMarmitaCartObs } from '@/lib/marmita/marmitaWizard';
+import { formatPrice } from '@/lib/utils/format';
 import { fetchViaCep } from '@/lib/cep/viacep';
 import { calculateCupomDiscount, findCupomByCode } from '@/lib/cupons';
 import { resolveCardapioFromPublicPayload } from '@/lib/catalogPublic';
