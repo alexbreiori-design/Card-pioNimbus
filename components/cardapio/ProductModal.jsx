@@ -361,10 +361,14 @@ export default function ProductModal() {
                 {!pizzaPromoShortcut && pizzaStep > 0 ? (
                   <button
                     type="button"
-                    className="pizza-wizard-nav-btn"
+                    className="pizza-wizard-nav-btn wizard-nav-btn"
                     onClick={() => setPizzaStep((value) => Math.max(0, value - 1))}
+                    aria-label="Voltar"
                   >
-                    Anterior
+                    <span className="wizard-nav-btn-label">Anterior</span>
+                    <span className="wizard-nav-btn-icon" aria-hidden="true">
+                      ←
+                    </span>
                   </button>
                 ) : null}
                 <button
@@ -382,10 +386,14 @@ export default function ProductModal() {
                 {marmitaStep > 0 ? (
                   <button
                     type="button"
-                    className="marmita-wizard-nav-btn"
+                    className="marmita-wizard-nav-btn wizard-nav-btn"
                     onClick={() => setMarmitaStep((value) => Math.max(0, value - 1))}
+                    aria-label="Voltar"
                   >
-                    Anterior
+                    <span className="wizard-nav-btn-label">Anterior</span>
+                    <span className="wizard-nav-btn-icon" aria-hidden="true">
+                      ←
+                    </span>
                   </button>
                 ) : null}
                 <button
