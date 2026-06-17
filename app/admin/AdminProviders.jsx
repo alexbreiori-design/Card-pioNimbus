@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { AdminDataProvider } from '@/context/AdminDataContext';
+import { CaixaProvider } from '@/context/CaixaContext';
 import { AdminOrdersProvider } from '@/context/AdminOrdersContext';
 import { OrderPrintProvider } from '@/context/OrderPrintContext';
 import { AdminToastProvider } from '@/context/AdminToastContext';
@@ -33,13 +34,15 @@ export default function AdminProviders({ children }) {
   return (
     <AdminToastProvider>
       <AdminDataProvider>
-        <AdminOrdersProvider>
-          <OrderPrintProvider>
-            <AdminBootGate>
-              <AdminShell>{children}</AdminShell>
-            </AdminBootGate>
-          </OrderPrintProvider>
-        </AdminOrdersProvider>
+        <CaixaProvider>
+          <AdminOrdersProvider>
+            <OrderPrintProvider>
+              <AdminBootGate>
+                <AdminShell>{children}</AdminShell>
+              </AdminBootGate>
+            </OrderPrintProvider>
+          </AdminOrdersProvider>
+        </CaixaProvider>
       </AdminDataProvider>
     </AdminToastProvider>
   );

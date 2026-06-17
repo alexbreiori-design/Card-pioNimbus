@@ -873,3 +873,87 @@
     margin-top: 4px;
   }
 }
+
+.admin-caixa-historico-card {
+  margin-top: 0;
+}
+
+.admin-caixa-historico-empty,
+.admin-caixa-historico-error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--reports-muted);
+}
+
+.admin-caixa-historico-error {
+  color: var(--reports-red);
+}
+
+.admin-caixa-historico-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-caixa-historico-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.admin-caixa-historico-table th {
+  padding: 0 10px 10px 0;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--reports-muted);
+  border-bottom: 1px solid var(--reports-border);
+}
+
+.admin-caixa-historico-table td {
+  padding: 10px 10px 10px 0;
+  color: var(--reports-text);
+  font-weight: 500;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: top;
+}
+
+.admin-caixa-historico-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-caixa-historico-table td.is-positive {
+  color: var(--reports-green);
+}
+
+.admin-caixa-historico-table td.is-negative {
+  color: var(--reports-red);
+}
+
+@media (max-width: 900px) {
+  .admin-caixa-historico-table thead {
+    display: none;
+  }
+
+  .admin-caixa-historico-table tr {
+    display: block;
+    padding: 10px 0;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .admin-caixa-historico-table td {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 0;
+    border: none;
+  }
+
+  .admin-caixa-historico-table td::before {
+    content: attr(data-label);
+    color: var(--reports-muted);
+    font-size: 12px;
+    font-weight: 500;
+  }
+}
+

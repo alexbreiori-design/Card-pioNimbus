@@ -7,6 +7,12 @@ import NewOrderModal from '@/components/admin/orders/NewOrderModal';
 import OrderDetailModal from '@/components/admin/orders/OrderDetailModal';
 import AdminIcon from '@/components/admin/AdminIcon';
 import {
+  CaixaManageModal,
+  CaixaPedidosChip,
+} from '@/components/admin/caixa/CaixaPanels';
+import { useAdminMobileAccess } from '@/hooks/useAdminMobileAccess';
+import { useCaixa } from '@/hooks/useCaixa';
+import {
   computeOrderTotals,
   currency,
   EMPTY_ORDER_DRAFT,
@@ -108,6 +114,9 @@ export default function PedidosPage() {
     createOrder,
   } = useAdminOrders();
   const { printOrder } = useOrderPrint();
+  const { isOpen: caixaOpen, loading: caixaLoading, turno: caixaTurno, canReopen, refresh: refreshCaixa } = useCaixa();
+  const isMobile = useAdminMobileAccess();
+  const caixaBlocked = !isMobile && !caixaLoading && !caixaOpen;
 
   useEffect(() => {
     void requestAdminNotificationPermission();
@@ -124,6 +133,20 @@ export default function PedidosPage() {
   const [archiveDateFrom, setArchiveDateFrom] = useState('');
   const [archiveDateTo, setArchiveDateTo] = useState('');
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [caixaManageModal, setCaixaManageModal] = useState(false);
+  const [caixaManageView, setCaixaManageView] = useState('menu');
+
+  function openCaixaManage(view = 'menu') {
+    setCaixaManageView(view);
+    setCaixaManageModal(true);
+  }
+
+  function guardCaixa() {
+    if (isMobile || caixaOpen) return true;
+    toast.error('Abra o caixa para continuar.');
+    openCaixaManage(canReopen ? 'reabrir' : 'abrir');
+    return false;
+  }
 
   const products = useMemo(() => buildAdminOrderCatalogProducts(data), [data]);
   const categorias = useMemo(
@@ -157,11 +180,13 @@ export default function PedidosPage() {
   );
 
   function openNewOrderModal(initialDraft = null) {
+    if (!guardCaixa()) return;
     setModalInitialDraft(initialDraft);
     setCreateOpen(true);
   }
 
   async function moveStatus(order) {
+    if (!guardCaixa()) return;
     const next = STATUS_NEXT[order.status];
     if (!next) return;
     try {
@@ -173,6 +198,7 @@ export default function PedidosPage() {
   }
 
   async function rollbackStatus(order) {
+    if (!guardCaixa()) return;
     const prevStatus = STATUS_PREV[order.status];
     if (!prevStatus) return;
     try {
@@ -184,6 +210,7 @@ export default function PedidosPage() {
   }
 
   async function handleArchiveConcluded() {
+    if (!guardCaixa()) return;
     try {
       await archiveConcluded();
       toast.success('Pedidos concluídos movidos para arquivo.');
@@ -193,6 +220,7 @@ export default function PedidosPage() {
   }
 
   async function handleRestoreArchived(orderId) {
+    if (!guardCaixa()) return;
     const order = allOrders.find((o) => String(o.id) === String(orderId));
     if (!order) return;
     try {
@@ -219,6 +247,7 @@ export default function PedidosPage() {
   }, [allOrders, archiveDateFrom, archiveDateTo]);
 
   async function saveOrder(draft, printNow = false) {
+    if (!guardCaixa()) return;
     const totals = computeOrderTotals(draft);
     const eta = getEtaFromConfirmedAt(new Date().toISOString(), data.loja, draft.tipo);
     const phoneDigits = normalizePhone(draft.telefone);
@@ -247,6 +276,7 @@ export default function PedidosPage() {
       pagamento: { metodo: draft.formaPagamento, recebido: totals.total, troco: 0 },
       origem: 'admin_manual',
       itens: [],
+      caixaTurnoId: caixaTurno?.id || null,
     };
     const items = draft.cart.map((i) => ({
       nome: i.nome,
@@ -269,6 +299,7 @@ export default function PedidosPage() {
       newOrder.cliente_id = customerId;
 
       await createOrder(newOrder, items);
+      await refreshCaixa({ silent: true });
 
       if (customerId && empresaId) {
         await updateCustomerStats({ customerId, orderValue: newOrder.total, empresaId });
@@ -349,6 +380,13 @@ export default function PedidosPage() {
 
   return (
     <div className="admin-content admin-content-pedidos admin-orders-page">
+      {!isMobile ? (
+        <div className="admin-pedidos-caixa-zone">
+          <CaixaPedidosChip />
+        </div>
+      ) : null}
+
+      <div className="admin-pedidos-body">
       <div className="admin-pedidos-search-row">
         <div className="admin-pedidos-search-wrap">
           <AdminIcon name="search" />
@@ -385,7 +423,7 @@ export default function PedidosPage() {
         </div>
       </div>
 
-      <div className="admin-kanban-wrap admin-kanban-wrap-pedidos">
+      <div className={`admin-kanban-wrap admin-kanban-wrap-pedidos${caixaBlocked ? ' is-caixa-locked' : ''}`}>
         <div className="admin-kanban">
           {COLS.map((col) => {
             const colOrders = filteredOrders.filter((o) => o.status === col.key);
@@ -428,6 +466,9 @@ export default function PedidosPage() {
                         #{order.id} · {TIPO_LABEL[order.tipo]}
                         {order.createdAt ? (
                           <span className="admin-order-age"> · {formatOrderAgePt(order.createdAt)}</span>
+                        ) : null}
+                        {order.aguardandoCaixa ? (
+                          <span className="admin-order-caixa-badge">Aguardando caixa</span>
                         ) : null}
                       </div>
                       <div className="admin-order-meta">{deadlineLabel(order)}</div>
@@ -488,7 +529,36 @@ export default function PedidosPage() {
             );
           })}
         </div>
+        {caixaBlocked ? (
+          <div className="admin-caixa-kanban-lock">
+            <div className="admin-caixa-kanban-lock-panel">
+              <p>
+                {canReopen
+                  ? 'O caixa foi fechado. Reabra para continuar operando pedidos.'
+                  : 'Abra o caixa para operar pedidos.'}
+              </p>
+              <button
+                type="button"
+                className="admin-btn admin-btn-primary"
+                onClick={() => openCaixaManage(canReopen ? 'reabrir' : 'abrir')}
+              >
+                {canReopen ? 'Reabrir caixa' : 'Abrir caixa'}
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
+      </div>
+
+      <CaixaManageModal
+        open={caixaManageModal}
+        initialView={caixaManageView}
+        onClose={() => setCaixaManageModal(false)}
+        onSuccess={(error, message) => {
+          if (error instanceof Error) toast.error(error.message);
+          else if (message) toast.success(message);
+        }}
+      />
 
       <NewOrderModal
         open={createOpen}

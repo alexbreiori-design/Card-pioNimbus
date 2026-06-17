@@ -732,7 +732,14 @@
 
 .admin-orders-page {
   max-width: none;
-  padding: 34px 40px 44px;
+  padding: 20px 40px 44px;
+}
+
+.admin-pedidos-caixa-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
 }
 
 .admin-orders-page .admin-pedidos-search-row {
@@ -10059,3 +10066,456 @@ textarea.admin-input::placeholder {
     min-height: 44px;
   }
 }
+
+/* Caixa */
+.admin-caixa-sidebar {
+  margin: 10px 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--admin-border, #e8e8ef);
+  border-radius: 10px;
+  background: var(--admin-surface-2, #f8f8fc);
+}
+
+.admin-sidebar.collapsed .admin-caixa-sidebar {
+  display: none;
+}
+
+.admin-caixa-sidebar-head {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.admin-caixa-sidebar-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-caixa-sidebar-meta {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--admin-muted, #6b6b7b);
+}
+
+.admin-caixa-sidebar-btn {
+  width: 100%;
+  justify-content: center;
+  font-size: 12px;
+  min-height: 32px;
+}
+
+.admin-caixa-sidebar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.admin-caixa-sidebar-meta.is-error {
+  color: #dc2626;
+}
+
+.admin-caixa-dot.loading {
+  background: #94a3b8;
+}
+
+.admin-caixa-sidebar-compact {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+  padding: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.admin-caixa-sidebar-compact:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.admin-caixa-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+.admin-caixa-dot.open {
+  background: #16a34a;
+}
+
+.admin-caixa-dot.closed {
+  background: #dc2626;
+}
+
+.admin-caixa-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-caixa-pedidos-chip-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+}
+
+.admin-caixa-pedidos-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.admin-caixa-pedidos-chip.is-closed,
+.admin-caixa-pedidos-chip.is-loading {
+  color: #9a3412;
+  border-color: #f59e0b;
+}
+
+.admin-caixa-pedidos-chip.is-error {
+  color: #dc2626;
+  border-color: #f87171;
+}
+
+.admin-caixa-pedidos-chip.is-open {
+  color: var(--admin-muted, #6b6b7b);
+  border-color: var(--admin-border, #d4d4de);
+}
+
+.admin-caixa-outline-chip {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.admin-caixa-outline-chip.is-closed,
+.admin-caixa-outline-chip.is-loading {
+  color: #9a3412;
+  border-color: #f59e0b;
+}
+
+.admin-caixa-outline-chip.is-error {
+  color: #dc2626;
+  border-color: #f87171;
+}
+
+.admin-caixa-outline-chip.is-open {
+  color: var(--admin-muted, #6b6b7b);
+  border-color: var(--admin-border, #d4d4de);
+}
+
+.admin-caixa-manage-status {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8f8fc;
+}
+
+.admin-caixa-manage-status strong {
+  display: block;
+  font-size: 14px;
+}
+
+.admin-caixa-manage-status p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--admin-muted, #6b6b7b);
+}
+
+.admin-caixa-modal h3 {
+  margin: 0 0 4px;
+}
+
+.admin-caixa-modal-head {
+  margin-bottom: 14px;
+}
+
+.admin-caixa-modal-head p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--admin-muted, #6b6b7b);
+}
+
+.admin-caixa-manage-loading,
+.admin-caixa-manage-error {
+  padding: 16px;
+  border-radius: 10px;
+  background: #f8f8fc;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.admin-caixa-manage-error p {
+  margin: 0 0 10px;
+  color: #dc2626;
+}
+
+.admin-caixa-manage-group {
+  margin-bottom: 12px;
+}
+
+.admin-caixa-manage-group-label {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--admin-muted, #6b6b7b);
+}
+
+.admin-caixa-manage-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--admin-border, #e8e8ef);
+  border-radius: 10px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.admin-caixa-manage-action + .admin-caixa-manage-action {
+  margin-top: 8px;
+}
+
+.admin-caixa-manage-action:hover {
+  border-color: #4e48dd;
+  background: #fafaff;
+}
+
+.admin-caixa-manage-action.danger:hover {
+  border-color: #f87171;
+  background: #fffafa;
+}
+
+.admin-caixa-manage-action.success:hover {
+  border-color: #4ade80;
+  background: #fafffb;
+}
+
+.admin-caixa-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #f0f0f8;
+  color: #4e48dd;
+  flex-shrink: 0;
+}
+
+.admin-caixa-action-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.admin-caixa-manage-action.danger .admin-caixa-action-icon {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.admin-caixa-manage-action.success .admin-caixa-action-icon {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.admin-caixa-manage-action-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-caixa-manage-action-copy span {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--admin-text, #1a1a2e);
+}
+
+.admin-caixa-manage-action-copy small {
+  font-size: 12px;
+  color: var(--admin-muted, #6b6b7b);
+}
+
+.admin-caixa-manage-action-chevron {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: #94a3b8;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+.admin-mobile-drawer-caixa {
+  padding: 0 16px 8px;
+}
+
+.admin-caixa-modal {
+  width: min(420px, calc(100vw - 32px));
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+}
+
+.admin-caixa-modal-wide {
+  width: min(520px, calc(100vw - 32px));
+}
+
+.admin-caixa-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.admin-caixa-summary-grid > div {
+  padding: 8px;
+  border-radius: 8px;
+  background: #f4f4f8;
+}
+
+.admin-caixa-summary-grid span {
+  display: block;
+  font-size: 11px;
+  color: var(--admin-muted, #6b6b7b);
+}
+
+.admin-caixa-payment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.admin-caixa-payment-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+}
+
+.admin-caixa-hint {
+  font-size: 12px;
+  margin: 6px 0 18px;
+  color: var(--admin-muted, #6b6b7b);
+}
+
+.admin-caixa-modal .admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 16px;
+}
+
+.admin-caixa-modal .admin-field span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--admin-text, #1a1a2e);
+}
+
+.admin-caixa-modal .admin-caixa-modal-head + .admin-field {
+  margin-top: 4px;
+}
+
+.admin-caixa-modal .admin-field + .admin-field {
+  margin-top: 0;
+}
+
+.admin-caixa-modal .admin-confirm-actions {
+  margin-top: 4px;
+}
+
+.admin-kanban-wrap.is-caixa-locked {
+  position: relative;
+}
+
+.admin-kanban-wrap.is-caixa-locked .admin-kanban {
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.42;
+  filter: saturate(0.2);
+}
+
+.admin-caixa-kanban-lock {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+
+.admin-caixa-kanban-lock-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 320px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-border, #e2e8f0);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 28px rgba(78, 72, 221, 0.1);
+  text-align: center;
+  pointer-events: auto;
+}
+
+.admin-caixa-kanban-lock-panel p {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--admin-muted, #64748b);
+}
+
+.admin-pedidos-body {
+  position: relative;
+}
+
+.admin-order-caixa-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #c2410c;
+  font-size: 10px;
+  font-weight: 700;
+}
+

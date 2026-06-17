@@ -7,6 +7,11 @@ import AdminIcon from './AdminIcon';
 import AdminLogoutButton from './AdminLogoutButton';
 import AdminStoreSwitcher from './AdminStoreSwitcher';
 import { useAdminData } from '@/hooks/useAdminData';
+import { useAdminToast } from '@/context/AdminToastContext';
+import {
+  CaixaManageModal,
+  CaixaSidebarStatus,
+} from '@/components/admin/caixa/CaixaPanels';
 import { isMarmitaSegment, isPizzariaSegment } from '@/lib/empresaSegmentos';
 import { NIMBUS_SUPPORT_LABEL, NIMBUS_SUPPORT_URL } from '@/lib/nimbusSupport';
 import { getStorePublicUrl } from '@/lib/siteUrl';
@@ -122,6 +127,8 @@ export default function AdminSidebar({
   const pathname = usePathname();
   const { data } = useAdminData();
   const [superAdmin, setSuperAdmin] = useState(false);
+  const [caixaManageModal, setCaixaManageModal] = useState(false);
+  const toast = useAdminToast();
   const [supportUrl, setSupportUrl] = useState(NIMBUS_SUPPORT_URL);
 
   const navItems = useMemo(() => {
@@ -243,6 +250,15 @@ export default function AdminSidebar({
             {storeToggleError}
           </p>
         ) : null}
+        <CaixaSidebarStatus collapsed={collapsed} onManageClick={() => setCaixaManageModal(true)} />
+        <CaixaManageModal
+          open={caixaManageModal}
+          onClose={() => setCaixaManageModal(false)}
+          onSuccess={(error, message) => {
+            if (error instanceof Error) toast.error(error.message);
+            else if (message) toast.success(message);
+          }}
+        />
         <button
           type="button"
           className="admin-sidebar-collapse-btn"

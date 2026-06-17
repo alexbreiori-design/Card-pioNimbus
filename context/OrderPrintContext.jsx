@@ -33,7 +33,8 @@ export function OrderPrintProvider({ children }) {
   useEffect(() => {
     if (!printJob) return;
 
-    document.body.classList.add('order-ticket-printing');
+    const widthClass = printJob.widthMm === 58 ? 'order-ticket-printing--58' : 'order-ticket-printing--80';
+    document.body.classList.add('order-ticket-printing', widthClass);
 
     let cancelled = false;
     let fallbackTimer = null;
@@ -41,7 +42,7 @@ export function OrderPrintProvider({ children }) {
     const clear = () => {
       if (cancelled) return;
       cancelled = true;
-      document.body.classList.remove('order-ticket-printing');
+      document.body.classList.remove('order-ticket-printing', 'order-ticket-printing--58', 'order-ticket-printing--80');
       setPrintJob(null);
     };
 
@@ -63,7 +64,7 @@ export function OrderPrintProvider({ children }) {
       window.clearTimeout(timer);
       if (fallbackTimer) window.clearTimeout(fallbackTimer);
       window.removeEventListener('afterprint', onAfterPrint);
-      document.body.classList.remove('order-ticket-printing');
+      document.body.classList.remove('order-ticket-printing', 'order-ticket-printing--58', 'order-ticket-printing--80');
     };
   }, [printJob]);
 

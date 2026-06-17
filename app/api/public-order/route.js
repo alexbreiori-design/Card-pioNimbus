@@ -5,6 +5,7 @@ import { normalizePhone } from '@/lib/normalize';
 import { withDerivedData } from '@/lib/adminData';
 import { validatePublicOrder } from '@/lib/orderValidation';
 import { loadAssembledStoreState } from '@/lib/catalog/storeCatalogRepository';
+import { getActiveTurno } from '@/lib/caixa/caixaServer';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 import { listZonasByEmpresaId } from '@/lib/supabase/empresaServer';
 
@@ -123,6 +124,8 @@ export async function POST(request) {
       if (addrError) throw addrError;
     }
 
+    const activeTurno = await getActiveTurno(supabase, empresa.id);
+
     const { data: pedido, error: pedidoError } = await supabase
       .from('pedidos')
       .insert({
@@ -146,6 +149,8 @@ export async function POST(request) {
         entregar_ate: order.entregarAte || null,
         status_novo_em: order.createdAt || new Date().toISOString(),
         created_at: order.createdAt || new Date().toISOString(),
+        caixa_turno_id: activeTurno?.id || null,
+        aguardando_caixa: !activeTurno,
       })
       .select('id')
       .single();

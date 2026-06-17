@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import AdminLogoutButton from '@/components/admin/AdminLogoutButton';
+import { CaixaStatusChip } from '@/components/admin/caixa/CaixaPanels';
 import { ADMIN_MOBILE_NAV } from '@/lib/admin/mobileAccess';
 
 function DrawerNavIcon({ name }) {
@@ -136,6 +137,10 @@ export default function AdminMobileDrawer({
             {storeToggleError}
           </p>
         ) : null}
+
+        <div className="admin-mobile-drawer-caixa">
+          <CaixaStatusChip />
+        </div>
 
         <nav className="admin-mobile-drawer-nav" aria-label="Funções mobile">
           {ADMIN_MOBILE_NAV.map((item) => (

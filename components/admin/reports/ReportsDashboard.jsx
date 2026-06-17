@@ -6,6 +6,8 @@ import { buildReportCsv } from '@/lib/admin/reports/reportCsv';
 import { formatCurrency, formatNumber, formatPct } from '@/lib/admin/reports/reportFormatters';
 import { useAdminData } from '@/hooks/useAdminData';
 import ReportPrintDocument from '@/components/admin/reports/ReportPrintDocument';
+import CaixaHistoricoPanel from '@/components/admin/caixa/CaixaHistoricoPanel';
+import { CaixaStatusChip } from '@/components/admin/caixa/CaixaPanels';
 
 function downloadCsv(filename, content) {
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
@@ -195,6 +197,7 @@ export default function ReportsDashboard() {
               <p className="admin-reports-subtitle">
                 {report?.periodLabel || 'Últimos 7 dias'} · {report?.compareLabel || 'Comparado ao período anterior'}
               </p>
+              <CaixaStatusChip />
             </div>
           </div>
 
@@ -537,6 +540,8 @@ export default function ReportsDashboard() {
             </section>
           </>
         ) : null}
+
+        <CaixaHistoricoPanel />
       </div>
 
       {portalReady && printJob
