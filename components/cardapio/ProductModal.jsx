@@ -367,7 +367,16 @@ export default function ProductModal() {
                   >
                     <span className="wizard-nav-btn-label">Anterior</span>
                     <span className="wizard-nav-btn-icon" aria-hidden="true">
-                      &lt;
+                      <svg viewBox="0 0 24 24" focusable="false">
+                        <path
+                          d="M14.5 6.5 9 12l5.5 5.5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
                     </span>
                   </button>
                 ) : null}
@@ -392,7 +401,16 @@ export default function ProductModal() {
                   >
                     <span className="wizard-nav-btn-label">Anterior</span>
                     <span className="wizard-nav-btn-icon" aria-hidden="true">
-                      &lt;
+                      <svg viewBox="0 0 24 24" focusable="false">
+                        <path
+                          d="M14.5 6.5 9 12l5.5 5.5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
                     </span>
                   </button>
                 ) : null}
