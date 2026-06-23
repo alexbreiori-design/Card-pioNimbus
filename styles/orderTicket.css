@@ -122,6 +122,29 @@
   font-size: 11px;
 }
 
+.order-ticket-item-obs .cart-item-opts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.order-ticket-item-obs .cart-item-opts-list__item {
+  position: relative;
+  padding-left: 10px;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.order-ticket-item-obs .cart-item-opts-list__item::before {
+  content: '-';
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
 .order-ticket-total-final {
   font-size: 14px;
   font-weight: 700;

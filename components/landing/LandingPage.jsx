@@ -11,6 +11,7 @@ import LandingIcon from '@/components/landing/LandingIcons';
 import LandingReveal from '@/components/landing/LandingReveal';
 import LandingScene from '@/components/landing/LandingScene';
 import LandingScreenshot from '@/components/landing/LandingScreenshot';
+import LandingSolutionsTimeline from '@/components/landing/LandingSolutionsTimeline';
 import LandingPricingSection from '@/components/landing/LandingPricingSection';
 import LandingStatsRow from '@/components/landing/LandingStatsRow';
 import { NIMBUS_DEMO_SLUG, whatsappUrl } from '@/lib/landing/constants';
@@ -174,28 +175,9 @@ export default function LandingPage() {
               <p className="landing-section-lead">{landingSteps.subtitle}</p>
             </LandingReveal>
 
-            <LandingReveal delay={100} className="landing-steps-visual">
-              <LandingScreenshot
-                src="/images/landing/hero/painel-pedidos.webp"
-                alt="Painel Nimbus"
-                placeholder="Print do painel de pedidos"
-                className="landing-steps-visual__wide"
-              />
+            <LandingReveal delay={100}>
+              <LandingSolutionsTimeline items={landingSteps.items} />
             </LandingReveal>
-
-            <div className="landing-steps">
-              {landingSteps.items.map((item, index) => (
-                <LandingReveal
-                  key={item.title}
-                  delay={index * 110}
-                  className="landing-glass-card landing-step-card landing-interactive"
-                >
-                  <LandingIcon name={item.icon} className="landing-step-card__icon" />
-                  <h3>{item.title}</h3>
-                  <p>{item.text}</p>
-                </LandingReveal>
-              ))}
-            </div>
           </div>
         </LandingScene>
 

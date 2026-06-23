@@ -1,56 +1,44 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-
 export default function LandingScreenshot({
   src,
   alt = '',
-  placeholder,
+  placeholder: _placeholder,
   priority = false,
   className = '',
+  framed = false,
 }) {
-  const [failed, setFailed] = useState(!src);
+  if (!src) return null;
 
-  useEffect(() => {
-    if (!src) {
-      return undefined;
-    }
-
-    let cancelled = false;
-    const image = new Image();
-    image.onload = () => {
-      if (!cancelled) setFailed(false);
-    };
-    image.onerror = () => {
-      if (!cancelled) setFailed(true);
-    };
-    image.src = src;
-
-    return () => {
-      cancelled = true;
-    };
-  }, [src]);
+  const variantClass = framed ? 'landing-shot--framed' : 'landing-shot--loose';
 
   return (
-    <div className={`landing-shot${className ? ` ${className}` : ''}`}>
-      <div className="landing-shot__frame">
-        {src && !failed ? (
-          // eslint-disable-next-line @next/next/no-img-element
+    <div
+      className={`landing-shot landing-shot--ready ${variantClass}${className ? ` ${className}` : ''}`}
+    >
+      {framed ? (
+        <div className="landing-shot__frame">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
             alt={alt}
             className="landing-shot__image"
             loading={priority ? 'eager' : 'lazy'}
             decoding="async"
-            onError={() => setFailed(true)}
           />
-        ) : (
-          <div className="landing-shot__placeholder" aria-hidden="true">
-            <span className="landing-shot__placeholder-icon" />
-            <span className="landing-shot__placeholder-label">{placeholder || 'Screenshot em breve'}</span>
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="landing-shot__media">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={src}
+            alt={alt}
+            className="landing-shot__image"
+            loading={priority ? 'eager' : 'lazy'}
+            decoding="async"
+          />
+        </div>
+      )}
       <div className="landing-shot__glow" aria-hidden="true" />
     </div>
   );

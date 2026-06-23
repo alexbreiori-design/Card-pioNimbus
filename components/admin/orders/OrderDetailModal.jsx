@@ -1,5 +1,6 @@
 'use client';
 
+import CartItemOptsList from '@/components/cardapio/CartItemOptsList';
 import AdminIcon from '@/components/admin/AdminIcon';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import OrderStatusTimeline from './OrderStatusTimeline';
@@ -139,7 +140,7 @@ export default function OrderDetailModal({
                 <strong>
                   {item.qtd}x {item.nome}
                 </strong>
-                {item.obs ? <span>{item.obs}</span> : null}
+                <CartItemOptsList obs={item.obs} className="admin-order-detail-item-opts" />
               </div>
               <strong>{currency(item.subtotal)}</strong>
             </div>

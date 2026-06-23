@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import CartItemOptsList from '@/components/cardapio/CartItemOptsList';
 import ImagePlaceholder from '@/components/admin/ImagePlaceholder';
 import AdminIcon from '@/components/admin/AdminIcon';
 import { productNeedsConfiguration } from '@/lib/admin/orderProductUtils';
@@ -143,7 +144,7 @@ export default function OrderRightColumn({
                   </strong>
                   <span>{currency(item.qtd * item.preco)}</span>
                 </div>
-                {item.obs ? <p className="admin-order-cart-item-obs">{item.obs}</p> : null}
+                <CartItemOptsList obs={item.obs} className="admin-order-cart-item-obs" />
                 <div className="admin-order-cart-item-actions">
                   <button
                     type="button"

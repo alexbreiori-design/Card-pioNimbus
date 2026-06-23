@@ -1,5 +1,6 @@
 'use client';
 
+import CartItemOptsList from '@/components/cardapio/CartItemOptsList';
 import '@/styles/orderTicket.css';
 import { currency, fmtPhone } from './orderDraftUtils';
 import { paymentLabelForOrder } from '@/lib/orders/mapAdminOrder';
@@ -106,7 +107,7 @@ export default function OrderTicket({ order, store = {}, widthMm = 80, mode = 'p
                   </span>
                   <span className="order-ticket-item-price">{currency(item.subtotal ?? item.qtd * item.precoUnit)}</span>
                 </div>
-                {item.obs ? <div className="order-ticket-item-obs">+ {item.obs}</div> : null}
+                <CartItemOptsList obs={item.obs} className="order-ticket-item-obs" />
               </div>
             ))
           )}

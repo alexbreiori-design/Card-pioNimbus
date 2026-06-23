@@ -22,4 +22,6 @@ landing/
 
 Formato recomendado: **WebP**, largura entre 1200px e 1600px.
 
-Os caminhos já estão referenciados em `lib/landing/content.js`. Enquanto o arquivo não existir, a página exibe um placeholder automático.
+**Hero (`hero/cardapio-mobile.webp`):** print vertical de celular, ideal ~900×1800px ou proporção 9:19.
+
+Os caminhos já estão referenciados em `lib/landing/content.js` e `components/landing/LandingPage.jsx`. O placeholder some automaticamente quando o arquivo carrega. Se o texto "Print do cardápio" continuar visível, confira o caminho e o formato do arquivo.

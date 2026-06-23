@@ -12,6 +12,7 @@ export default function LandingReveal({
   as: Tag = 'div',
   onLoad = false,
   once = true,
+  style,
 }) {
   const ref = useRef(null);
   const [visible, setVisible] = useState(false);
@@ -58,7 +59,7 @@ export default function LandingReveal({
     <Tag
       ref={ref}
       className={`landing-reveal${visible ? ' is-visible' : ''}${className ? ` ${className}` : ''}`}
-      style={{ '--reveal-delay': `${delay}ms` }}
+      style={{ '--reveal-delay': `${delay}ms`, ...style }}
     >
       {children}
     </Tag>

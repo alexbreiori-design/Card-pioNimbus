@@ -9,7 +9,7 @@ import {
   getEtaFromConfirmedAt,
 } from '@/lib/deliveryDuration';
 import { MOBILE_PHONE_MASK, formatMobilePhoneBr } from '@/lib/phoneBr';
-import { formatCartOptsList } from '@/lib/cardapio/formatCartOpts';
+import CartItemOptsList from '@/components/cardapio/CartItemOptsList';
 import { useCardapio } from '@/context/CardapioContext';
 import { IconBack, IconClose, IconContinue, IconStepCheck } from './icons';
 
@@ -391,7 +391,7 @@ export default function CheckoutModal() {
                     <span className="confirm-order-name">{item.name}</span>
                   </div>
                   {item.opts?.length ? (
-                    <p className="confirm-order-opts">{formatCartOptsList(item.opts)}</p>
+                    <CartItemOptsList opts={item.opts} className="confirm-order-opts" />
                   ) : null}
                   <span className="confirm-order-price">{formatPrice(item.price * item.qty)}</span>
                 </li>

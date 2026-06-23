@@ -25,16 +25,17 @@ export default function LandingFeaturesGrid({ features = [] }) {
         <LandingReveal
           key={feature.id}
           delay={index * 120}
-          className="landing-feature-card landing-glass-card landing-interactive"
+          className="landing-feature-card"
         >
           <div className="landing-feature-card__visual">
             <LandingScreenshot
               src={feature.image}
               alt={feature.imageAlt}
               placeholder={feature.placeholder}
+              framed
             />
           </div>
-          <div className="landing-feature-card__body">
+          <div className="landing-feature-card__body landing-glass-card landing-interactive">
             <h3 className="landing-feature-card__title">{feature.title}</h3>
             <p className="landing-feature-card__text">{feature.text}</p>
             <ul className="landing-feature-card__list">

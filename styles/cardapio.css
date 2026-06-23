@@ -855,6 +855,30 @@ body {
 .sacola-item-qty { font-size: 12px; color: var(--brand); font-weight: 600; }
 .sacola-item-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
 .sacola-item-opts { font-size: 11px; color: var(--text-light); line-height: 1.4; font-weight: 300; }
+
+.cart-item-opts-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cart-item-opts-list__item {
+  position: relative;
+  padding-left: 11px;
+  line-height: 1.35;
+}
+
+.cart-item-opts-list__item::before {
+  content: '–';
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: inherit;
+  opacity: 0.75;
+}
 .sacola-item-actions { display: flex; gap: 8px; margin-top: 6px; }
 .sacola-item-actions button { background: none; border: none; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--brand); padding: 0; }
 .sacola-item-actions button:hover { text-decoration: underline; }

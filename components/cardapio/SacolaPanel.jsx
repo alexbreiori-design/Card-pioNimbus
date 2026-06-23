@@ -1,6 +1,6 @@
 'use client';
 
-import { formatCartOptsList } from '@/lib/cardapio/formatCartOpts';
+import CartItemOptsList from '@/components/cardapio/CartItemOptsList';
 
 import { useRef } from 'react';
 import { useCardapio } from '@/context/CardapioContext';
@@ -108,7 +108,7 @@ export default function SacolaPanel({ onFinalize, finalizeLabel = 'Finalizar ped
                 <div className="sacola-item-info">
                   <div className="sacola-item-qty">{item.qty}x</div>
                   <div className="sacola-item-name">{item.name}</div>
-                  <div className="sacola-item-opts">{formatCartOptsList(item.opts)}</div>
+                  <CartItemOptsList opts={item.opts} className="sacola-item-opts" />
                   <div className="sacola-item-actions">
                     <button type="button" onClick={() => editCartItem(item.id)}>
                       Editar
