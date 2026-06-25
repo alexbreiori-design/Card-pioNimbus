@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { calculateDeliveryFee } from '@/lib/delivery/calculateFee';
 import { getLocationIqKey, getOpenRouteServiceKey, hasDeliveryApiKeys } from '@/lib/env/server';
-import { createClient } from '@/lib/supabase/server';
 import { getEmpresaBySlug, listZonasByEmpresaId } from '@/lib/supabase/empresaServer';
+import { getServiceClient } from '@/lib/supabase/serviceRole';
 
 /**
  * POST { slug, endereco: { logradouro, numero, bairro, cidade, estado, cep } }
@@ -26,10 +26,17 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Slug da loja é obrigatório.' }, { status: 400 });
     }
 
-    const supabase = await createClient();
+    const supabase = getServiceClient();
+    if (!supabase) {
+      return NextResponse.json({ error: 'Serviço indisponível.' }, { status: 503 });
+    }
+
     const empresa = await getEmpresaBySlug(supabase, slug);
     if (!empresa) {
       return NextResponse.json({ error: 'Loja não encontrada.' }, { status: 404 });
+    }
+    if (empresa.suspensa === true) {
+      return NextResponse.json({ error: 'Loja indisponível no momento.' }, { status: 403 });
     }
 
     const zonas = await listZonasByEmpresaId(supabase, empresa.id);
