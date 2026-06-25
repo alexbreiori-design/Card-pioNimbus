@@ -1,19 +1,8 @@
 'use client';
 
 import { getMarmitaStepBadge } from '@/lib/marmita/marmitaWizard';
+import AddonThumb from '@/components/cardapio/AddonThumb';
 import { IconCheck, IconPlus } from './icons';
-import MenuImageArea from '@/components/cardapio/MenuImageArea';
-
-function AddonThumb({ imageUrl }) {
-  return (
-    <MenuImageArea
-      imageUrl={imageUrl}
-      className="addon-thumb"
-      alt=""
-      sizes="40px"
-    />
-  );
-}
 
 export default function MarmitaWizardSteps({
   steps,

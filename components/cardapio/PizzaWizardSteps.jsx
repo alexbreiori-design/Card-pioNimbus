@@ -1,19 +1,8 @@
 'use client';
 
 import { getFlavorPriceForSize } from '@/lib/pizza/pizzaWizard';
+import AddonThumb from '@/components/cardapio/AddonThumb';
 import { IconCheck, IconPlus } from './icons';
-import MenuImageArea from '@/components/cardapio/MenuImageArea';
-
-function AddonThumb({ imageUrl }) {
-  return (
-    <MenuImageArea
-      imageUrl={imageUrl}
-      className="addon-thumb"
-      alt=""
-      sizes="40px"
-    />
-  );
-}
 
 export default function PizzaWizardSteps({
   steps,

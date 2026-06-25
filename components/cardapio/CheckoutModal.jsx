@@ -199,16 +199,6 @@ export default function CheckoutModal() {
       return (
         <>
           <div className="form-group">
-            <label className="form-label">Seu nome</label>
-            <input
-              className="form-input"
-              type="text"
-              placeholder="Como você se chama?"
-              value={checkoutName}
-              onChange={(e) => setCheckoutName(e.target.value)}
-            />
-          </div>
-          <div className="form-group">
             <label className="form-label">Telefone</label>
             <input
               className="form-input"
@@ -218,6 +208,16 @@ export default function CheckoutModal() {
               placeholder={MOBILE_PHONE_MASK}
               value={checkoutPhone}
               onChange={(e) => setCheckoutPhone(formatMobilePhoneBr(e.target.value))}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Seu nome</label>
+            <input
+              className="form-input"
+              type="text"
+              placeholder="Como você se chama?"
+              value={checkoutName}
+              onChange={(e) => setCheckoutName(e.target.value)}
             />
           </div>
         </>
@@ -337,14 +337,20 @@ export default function CheckoutModal() {
                   </button>
                 </div>
                 {checkoutData.trocoAnswer === 'sim' ? (
-                  <input
-                    className="form-input checkout-troco-input"
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="R$ 0,00"
-                    value={checkoutData.trocoValue}
-                    onChange={(e) => setCheckoutTrocoValue(e.target.value)}
-                  />
+                  <div className="checkout-troco-value-wrap">
+                    <label className="form-label checkout-troco-value-label" htmlFor="checkoutTrocoValue">
+                      Troco para:
+                    </label>
+                    <input
+                      id="checkoutTrocoValue"
+                      className="form-input checkout-troco-input"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="R$ 0,00"
+                      value={checkoutData.trocoValue}
+                      onChange={(e) => setCheckoutTrocoValue(e.target.value)}
+                    />
+                  </div>
                 ) : null}
               </div>
             ) : null}

@@ -16,6 +16,7 @@ import {
 } from '@/lib/pizza/pizzaWizard';
 import MarmitaWizardSteps from './MarmitaWizardSteps';
 import PizzaWizardSteps from './PizzaWizardSteps';
+import AddonThumb from '@/components/cardapio/AddonThumb';
 import MenuImageArea from '@/components/cardapio/MenuImageArea';
 import { IconClose } from './icons';
 
@@ -319,6 +320,7 @@ export default function ProductModal() {
                         const isActive = selected.includes(item.id);
                         return (
                           <div className="addon-item" key={item.id}>
+                            <AddonThumb imageUrl={item.imageUrl} />
                             <div className="addon-info">
                               <div className="addon-name">{item.name}</div>
                               {item.desc ? <div className="addon-desc">{item.desc}</div> : null}

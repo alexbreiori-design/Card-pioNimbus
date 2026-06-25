@@ -1440,17 +1440,56 @@ export function CardapioProvider({ children, slug = '' }) {
 
   const checkoutNext = useCallback(async () => {
     if (checkoutStep === 1) {
-      const name = checkoutName.trim();
       const phone = checkoutPhone.trim();
-      if (!name) {
-        void showAlert('Preencha seu nome.');
-        return;
-      }
       if (!isCompleteMobilePhoneBr(phone)) {
         void showAlert(mobilePhoneIncompleteMessage());
         return;
       }
+
       const formattedPhone = formatPhoneBr(phone);
+      let name = checkoutName.trim();
+      let nextProfileAddress = profileAddress;
+
+      const storeSlug = normalizeSlug(storeConfig.slug || effectiveSlug || slug);
+      if (storeSlug) {
+        try {
+          const res = await fetch(
+            `/api/public-customer?slug=${encodeURIComponent(storeSlug)}&phone=${encodeURIComponent(normalizePhone(phone))}`
+          );
+          const json = await res.json();
+          if (res.ok && json.ok && json.customer) {
+            if (json.customer.name) {
+              name = json.customer.name.trim();
+              setCheckoutName(name);
+            }
+            if (json.customer.address?.rua) {
+              nextProfileAddress = {
+                rua: json.customer.address.rua || '',
+                num: json.customer.address.num || '',
+                bairro: json.customer.address.bairro || '',
+                cidade: json.customer.address.cidade || '',
+                estado: json.customer.address.estado || '',
+                cep: json.customer.address.cep || '',
+                comp: json.customer.address.comp || '',
+                ref: json.customer.address.ref || '',
+              };
+              setProfileAddress(nextProfileAddress);
+              setAddrForm((current) => ({ ...current, ...nextProfileAddress }));
+              setCepValue(nextProfileAddress.cep || '');
+              setSavedAddress(null);
+              setCheckoutAddressConfirmed(false);
+            }
+          }
+        } catch {
+          /* segue com dados digitados manualmente */
+        }
+      }
+
+      if (!name) {
+        void showAlert('Preencha seu nome.');
+        return;
+      }
+
       setProfileDisplayName(name);
       setProfileDisplayPhone(formattedPhone);
       setProfileName(name);
@@ -1458,7 +1497,12 @@ export function CardapioProvider({ children, slug = '' }) {
       try {
         window.localStorage.setItem(
           PROFILE_STORAGE_KEY,
-          JSON.stringify({ name, phone: formattedPhone, image: profileImage, address: profileAddress })
+          JSON.stringify({
+            name,
+            phone: formattedPhone,
+            image: profileImage,
+            address: nextProfileAddress?.rua ? nextProfileAddress : profileAddress,
+          })
         );
       } catch {}
       void persistClientSnapshot({ name, phone: formattedPhone });
@@ -1558,10 +1602,11 @@ export function CardapioProvider({ children, slug = '' }) {
     showAlert,
     cartSubtotal,
     deliveryFee,
-    savedAddress,
-    checkoutAddressConfirmed,
     appliedCupom,
     formatPrice,
+    effectiveSlug,
+    slug,
+    storeConfig,
   ]);
 
   const checkoutBack = useCallback(() => {

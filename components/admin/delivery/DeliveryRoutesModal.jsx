@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
+import { buildRouteShareMessage } from '@/lib/delivery/routeShareMessage';
 import { MAX_STOPS_PER_ROUTE } from '@/lib/delivery/routeOptimization';
 
 const STATUS_META = {
@@ -29,6 +30,8 @@ const STATUS_META = {
   },
 };
 
+const STORE_PURPLE = '#8b5cf6';
+
 function createPinIcon(status, selected = false) {
   const meta = STATUS_META[status] || STATUS_META.em_preparo;
   const size = selected ? 34 : 28;
@@ -36,18 +39,22 @@ function createPinIcon(status, selected = false) {
   const shadow = selected
     ? `0 0 0 4px ${meta.ring}, 0 8px 18px rgba(15, 23, 42, 0.28)`
     : '0 4px 12px rgba(15, 23, 42, 0.22)';
+  const iconClass = status === 'saiu_entrega' ? 'ph-fill ph-map-pin' : 'ph-fill ph-map-pin-plus';
 
   return L.divIcon({
     className: 'delivery-route-pin',
-    html: `<span style="
-      display:block;
+    html: `<span class="delivery-route-pin-shell" style="
+      display:flex;
+      align-items:center;
+      justify-content:center;
       width:${size}px;
       height:${size}px;
       border-radius:999px;
       background:${meta.pin};
       border:${border};
       box-shadow:${shadow};
-    "></span>`,
+      color:#fff;
+    "><i class="${iconClass}" style="font-size:${selected ? 17 : 15}px;line-height:1;"></i></span>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });
@@ -56,20 +63,18 @@ function createPinIcon(status, selected = false) {
 function createStoreIcon() {
   return L.divIcon({
     className: 'delivery-route-store-pin',
-    html: `<span style="
+    html: `<span class="delivery-route-store-shell" style="
       display:flex;
       align-items:center;
       justify-content:center;
       width:36px;
       height:36px;
       border-radius:12px;
-      background:#4e48dd;
+      background:${STORE_PURPLE};
       color:#fff;
-      font-size:11px;
-      font-weight:700;
       border:2px solid #fff;
-      box-shadow:0 8px 20px rgba(78, 72, 221, 0.35);
-    ">L</span>`,
+      box-shadow:0 8px 20px rgba(139, 92, 246, 0.35);
+    "><i class="ph-fill ph-house-line" style="font-size:18px;line-height:1;"></i></span>`,
     iconSize: [36, 36],
     iconAnchor: [18, 18],
   });
@@ -254,7 +259,9 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged }) 
       const json = await res.json();
       if (!res.ok || !json.ok) throw new Error(json.error || 'Erro ao criar rota.');
 
-      await navigator.clipboard.writeText(json.mapsUrl);
+      await navigator.clipboard.writeText(
+        buildRouteShareMessage(json.titulo, json.mapsUrl, json.orderedStops)
+      );
       toast.success(`${json.titulo} criada · link copiado.`);
       setSelectedIds([]);
       await loadMapData();
