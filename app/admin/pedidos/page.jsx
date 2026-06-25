@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useState } from 'react';
 import { requestAdminNotificationPermission } from '@/lib/adminNewOrderAlert';
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog';
@@ -32,6 +33,11 @@ import {
   buildAdminOrderCatalogProducts,
   buildAdminOrderCategories,
 } from '@/lib/admin/buildAdminCatalogProducts';
+
+const DeliveryRoutesModal = dynamic(
+  () => import('@/components/admin/delivery/DeliveryRoutesModal'),
+  { ssr: false }
+);
 
 const COLS = [
   {
@@ -112,6 +118,7 @@ export default function PedidosPage() {
     archiveConcluded,
     restoreArchived,
     createOrder,
+    refreshOrders,
   } = useAdminOrders();
   const { printOrder } = useOrderPrint();
   const { isOpen: caixaOpen, loading: caixaLoading, turno: caixaTurno, canReopen, refresh: refreshCaixa } = useCaixa();
@@ -375,6 +382,8 @@ export default function PedidosPage() {
     if (printNow) printOrder(newOrder);
   }
 
+  const [routesOpen, setRoutesOpen] = useState(false);
+
   const detailOrder = allOrders.find((o) => o.id === detailOrderId);
   const paymentLabel = paymentLabelForOrder(detailOrder);
 
@@ -409,6 +418,14 @@ export default function PedidosPage() {
           ))}
         </div>
         <div className="admin-pedidos-action-buttons">
+          <button
+            type="button"
+            className="admin-btn admin-btn-ghost admin-pedidos-routes-btn"
+            onClick={() => setRoutesOpen(true)}
+          >
+            <AdminIcon name="delivery" />
+            Rotas de entrega
+          </button>
           <button type="button" className="admin-btn admin-btn-primary admin-pedidos-new-btn" onClick={() => openNewOrderModal(null)}>
             <AdminIcon name="plus" />
             Novo pedido
@@ -708,6 +725,12 @@ export default function PedidosPage() {
           </div>
         </div>
       ) : null}
+
+      <DeliveryRoutesModal
+        open={routesOpen}
+        onClose={() => setRoutesOpen(false)}
+        onRoutesChanged={() => void refreshOrders({ force: true, silent: true })}
+      />
     </div>
   );
 }

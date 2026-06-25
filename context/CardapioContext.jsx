@@ -1326,6 +1326,18 @@ export function CardapioProvider({ children, slug = '' }) {
             }
           : null,
         enderecoTexto: addressText,
+        enderecoLatitude:
+          checkoutData.delivery === 'entregar' && deliveryMeta?.latitude != null
+            ? Number(deliveryMeta.latitude)
+            : null,
+        enderecoLongitude:
+          checkoutData.delivery === 'entregar' && deliveryMeta?.longitude != null
+            ? Number(deliveryMeta.longitude)
+            : null,
+        distanciaKm:
+          checkoutData.delivery === 'entregar' && deliveryMeta?.distanciaKm != null
+            ? Number(deliveryMeta.distanciaKm)
+            : null,
         observacao,
         itens: cart.map((item) => ({
           nome: item.name,
@@ -1423,7 +1435,7 @@ export function CardapioProvider({ children, slug = '' }) {
 
       return publicOrder;
     },
-    [PAY_LABELS, appliedCupom, cart, cartSubtotal, checkoutAddressConfirmed, checkoutData, deliveryFee, effectiveSlug, hydratePublicOrders, persistStoreSnapshot, savedAddress, slug, storeConfig]
+    [PAY_LABELS, appliedCupom, cart, cartSubtotal, checkoutAddressConfirmed, checkoutData, deliveryFee, deliveryMeta, effectiveSlug, hydratePublicOrders, persistStoreSnapshot, savedAddress, slug, storeConfig]
   );
 
   const checkoutNext = useCallback(async () => {
