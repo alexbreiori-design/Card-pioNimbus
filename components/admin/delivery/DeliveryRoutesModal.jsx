@@ -34,49 +34,24 @@ const STORE_PURPLE = '#8b5cf6';
 
 function createPinIcon(status, selected = false) {
   const meta = STATUS_META[status] || STATUS_META.em_preparo;
-  const size = selected ? 34 : 28;
-  const border = selected ? '3px solid #fff' : '2px solid #fff';
-  const shadow = selected
-    ? `0 0 0 4px ${meta.ring}, 0 8px 18px rgba(15, 23, 42, 0.28)`
-    : '0 4px 12px rgba(15, 23, 42, 0.22)';
+  const size = selected ? 36 : 30;
   const iconClass = status === 'saiu_entrega' ? 'ph-fill ph-map-pin' : 'ph-fill ph-map-pin-plus';
 
   return L.divIcon({
-    className: 'delivery-route-pin',
-    html: `<span class="delivery-route-pin-shell" style="
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      width:${size}px;
-      height:${size}px;
-      border-radius:999px;
-      background:${meta.pin};
-      border:${border};
-      box-shadow:${shadow};
-      color:#fff;
-    "><i class="${iconClass}" style="font-size:${selected ? 17 : 15}px;line-height:1;"></i></span>`,
+    className: `delivery-route-pin${selected ? ' is-selected' : ''}`,
+    html: `<i class="${iconClass} delivery-route-pin-icon" style="font-size:${size}px;color:${meta.pin};"></i>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });
 }
 
 function createStoreIcon() {
+  const size = 32;
   return L.divIcon({
     className: 'delivery-route-store-pin',
-    html: `<span class="delivery-route-store-shell" style="
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      width:36px;
-      height:36px;
-      border-radius:12px;
-      background:${STORE_PURPLE};
-      color:#fff;
-      border:2px solid #fff;
-      box-shadow:0 8px 20px rgba(139, 92, 246, 0.35);
-    "><i class="ph-fill ph-house-line" style="font-size:18px;line-height:1;"></i></span>`,
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
+    html: `<i class="ph-fill ph-house-line delivery-route-store-icon" style="font-size:${size}px;color:${STORE_PURPLE};"></i>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
   });
 }
 
