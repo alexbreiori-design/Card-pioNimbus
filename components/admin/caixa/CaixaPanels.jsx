@@ -71,6 +71,13 @@ export function CaixaSidebarStatus({ collapsed = false, compact = false, readOnl
           ? `${pendingCount} pedido${pendingCount === 1 ? '' : 's'} aguardando`
           : 'Abra o caixa para operar pedidos';
 
+  const manageBtn =
+    !readOnly && !error ? (
+      <button type="button" className="admin-caixa-sidebar-btn admin-caixa-sidebar-btn--outline" onClick={onManageClick}>
+        Gerenciar caixa
+      </button>
+    ) : null;
+
   if (collapsed) {
     return (
       <button
@@ -85,40 +92,27 @@ export function CaixaSidebarStatus({ collapsed = false, compact = false, readOnl
     );
   }
 
-  if (compact) {
-    return (
-      <div className="admin-caixa-sidebar admin-caixa-sidebar--inline">
-        <span className={`admin-caixa-dot ${loading ? 'loading' : isOpen ? 'open' : 'closed'}`} aria-hidden="true" />
-        {!readOnly ? (
-          <button type="button" className="admin-caixa-sidebar-btn admin-caixa-sidebar-btn--brand admin-caixa-sidebar-btn--sm" onClick={onManageClick}>
-            Gerenciar caixa
-          </button>
-        ) : null}
-      </div>
-    );
-  }
-
   return (
-    <div className="admin-caixa-sidebar">
-      <div className="admin-caixa-sidebar-head">
-        <span className={`admin-caixa-dot ${loading ? 'loading' : isOpen ? 'open' : 'closed'}`} aria-hidden="true" />
-        <div>
-          <p className="admin-caixa-sidebar-title">{statusLabel}</p>
-          <p className={`admin-caixa-sidebar-meta${error ? ' is-error' : ''}`}>{meta}</p>
+    <div className={`admin-caixa-sidebar-wrap${compact ? ' is-compact' : ''}`}>
+      <div className="admin-caixa-sidebar">
+        <div className="admin-caixa-sidebar-head">
+          <div>
+            <p className="admin-caixa-sidebar-title">{statusLabel}</p>
+            <p className={`admin-caixa-sidebar-meta${error ? ' is-error' : ''}`}>{meta}</p>
+          </div>
         </div>
-      </div>
-      {!readOnly ? (
-        <div className="admin-caixa-sidebar-actions">
-          {error ? (
-            <button type="button" className="admin-btn admin-btn-ghost admin-caixa-sidebar-btn admin-caixa-sidebar-btn--retry" onClick={() => refresh()}>
+        {error && !readOnly ? (
+          <div className="admin-caixa-sidebar-actions">
+            <button type="button" className="admin-caixa-sidebar-btn admin-caixa-sidebar-btn--outline" onClick={() => refresh()}>
               Tentar novamente
             </button>
-          ) : null}
-          <button type="button" className="admin-caixa-sidebar-btn admin-caixa-sidebar-btn--brand" onClick={onManageClick}>
-            Gerenciar caixa
-          </button>
-        </div>
-      ) : null}
+          </div>
+        ) : null}
+      </div>
+      <div className="admin-caixa-sidebar-loose">
+        <span className={`admin-caixa-dot ${loading ? 'loading' : isOpen ? 'open' : 'closed'}`} aria-hidden="true" />
+        {manageBtn}
+      </div>
     </div>
   );
 }

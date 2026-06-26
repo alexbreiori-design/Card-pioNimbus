@@ -86,12 +86,9 @@
   top: 0;
   left: 0;
   bottom: 0;
-  z-index: 100;
+  z-index: 200;
   transition: width 0.2s;
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(78, 72, 221, 0.16) transparent;
+  overflow: visible;
 }
 
 .admin-sidebar.collapsed { width: var(--admin-sidebar-collapsed); }
@@ -101,6 +98,8 @@
   border-bottom: none;
   position: relative;
   overflow: visible;
+  z-index: 3;
+  flex-shrink: 0;
 }
 
 .admin-sidebar-collapse-btn {
@@ -115,8 +114,8 @@
   height: 28px;
   cursor: pointer;
   padding: 6px;
-  z-index: 110;
-  box-shadow: none;
+  z-index: 400;
+  box-shadow: 0 2px 8px rgba(78, 72, 221, 0.18);
 }
 
 .admin-sidebar-collapse-btn svg {
@@ -201,6 +200,14 @@
   flex-shrink: 0;
 }
 
+.admin-store-toggle-compact.is-label-hidden {
+  gap: 0;
+}
+
+.admin-store-toggle-compact.is-label-hidden .admin-store-toggle-label {
+  display: none;
+}
+
 .admin-sidebar.collapsed .admin-store-toggle-compact {
   display: flex;
   justify-content: center;
@@ -266,7 +273,22 @@
   flex-basis: 44px;
 }
 
-.admin-nav { flex: 1; padding: 12px 16px 14px; overflow-x: hidden; overflow-y: auto; border-top: 1px solid #e4e7ef; min-height: 0; scrollbar-width: thin; scrollbar-color: rgba(78, 72, 221, 0.16) transparent; }
+.admin-nav {
+  flex: 1;
+  padding: 12px 16px 14px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-top: 1px solid #e4e7ef;
+  min-height: 0;
+  direction: rtl;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(78, 72, 221, 0.14) transparent;
+}
+
+.admin-nav .admin-nav-item,
+.admin-nav .admin-nav-badge {
+  direction: ltr;
+}
 
 .admin-nav::-webkit-scrollbar,
 .admin-sidebar::-webkit-scrollbar {
@@ -1112,58 +1134,73 @@
 }
 
 .admin-order-card-status-btn {
+  display: none;
+}
+
+.admin-order-card-icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  padding: 0;
   border: none;
-  border-radius: 999px;
+  background: transparent;
   cursor: pointer;
   font-family: inherit;
   line-height: 1;
-  transition: filter 0.15s ease, background 0.15s ease;
+  color: #5d657d;
 }
 
-.admin-order-card-status-btn i {
-  font-size: 18px;
+.admin-order-card-icon-btn i {
+  font-size: 20px;
   line-height: 1;
+}
+
+.admin-order-card-icon-btn:hover {
+  color: #434b62;
 }
 
 .admin-order-card-rollback {
-  padding: 6px 10px !important;
-  background: #f4f4f8;
-  color: #4a5270;
-}
-
-.admin-order-card-rollback:hover {
-  background: #ececf4;
+  color: #5d657d;
 }
 
 .admin-order-card-advance {
-  padding: 6px 12px !important;
-  font-size: 12px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 5px 10px;
+  border: 1px solid rgba(78, 72, 221, 0.45);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--admin-brand);
+  font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
-  background: linear-gradient(135deg, #5b55ea, #423cc9);
-  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1.2;
 }
 
 .admin-order-card-advance:hover {
-  filter: brightness(1.03);
+  background: rgba(78, 72, 221, 0.06);
 }
 
-.admin-order-card-whatsapp-icon {
+.admin-order-card-advance-icon {
   display: none;
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1;
+}
+
+.admin-order-card-whatsapp-icon,
+.admin-order-card-whatsapp-svg {
+  display: none;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
 }
 
 .admin-order-card-whatsapp-label {
   display: inline;
-}
-
-.admin-order-card-status-btn-label {
-  display: none;
 }
 
 .admin-order-card-advance-label {
@@ -5611,6 +5648,11 @@
   .admin-pedidos-action-buttons {
     justify-content: flex-end;
   }
+}
+
+.admin-viewport-compact .admin-orders-page .admin-pedidos-actions-row {
+  flex-direction: row;
+  align-items: center;
 }
 
 @media (max-width: 768px) {
@@ -10466,16 +10508,41 @@ textarea.admin-input::placeholder {
 }
 
 /* Caixa */
+.admin-caixa-sidebar-wrap {
+  margin-top: 10px;
+}
+
 .admin-caixa-sidebar {
-  margin: 10px 12px 0;
+  margin: 0 12px;
   padding: 10px 12px;
   border: 1px solid var(--admin-border, #e8e8ef);
   border-radius: 10px;
   background: var(--admin-surface-2, #f8f8fc);
 }
 
-.admin-sidebar.collapsed .admin-caixa-sidebar {
+.admin-sidebar.collapsed .admin-caixa-sidebar-wrap {
   display: none;
+}
+
+.admin-caixa-sidebar-loose {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 12px 0;
+}
+
+.admin-caixa-sidebar-loose .admin-caixa-dot {
+  margin-top: 0;
+  flex-shrink: 0;
+}
+
+.admin-caixa-sidebar-wrap.is-compact .admin-caixa-sidebar-loose {
+  margin-top: 6px;
+}
+
+.admin-caixa-sidebar-wrap.is-compact .admin-caixa-sidebar-btn {
+  min-height: 28px;
+  font-size: 11px;
 }
 
 .admin-caixa-sidebar-head {
@@ -10497,33 +10564,34 @@ textarea.admin-input::placeholder {
 }
 
 .admin-caixa-sidebar-btn {
-  width: 100%;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
+  width: 100%;
   font-size: 12px;
   min-height: 32px;
-  border: none;
-  border-radius: 999px;
+  padding: 0 12px;
+  border-radius: 8px;
   cursor: pointer;
   font-family: inherit;
-  font-weight: 700;
-  transition: filter 0.15s ease, box-shadow 0.15s ease;
+  font-weight: 600;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.admin-caixa-sidebar-btn--brand {
-  background: linear-gradient(135deg, #5b55ea, #423cc9);
-  color: #fff;
-  box-shadow: 0 8px 18px rgba(78, 72, 221, 0.22);
+.admin-caixa-sidebar-btn--outline {
+  border: 1px solid #d7dbe3;
+  background: #fff;
+  color: var(--admin-brand);
 }
 
-.admin-caixa-sidebar-btn--brand:hover {
-  filter: brightness(1.04);
+.admin-caixa-sidebar-btn--outline:hover {
+  background: #f8f8ff;
+  border-color: rgba(78, 72, 221, 0.35);
 }
 
-.admin-caixa-sidebar-btn--retry {
-  width: 100%;
-  justify-content: center;
-  font-size: 12px;
-  min-height: 32px;
+.admin-caixa-sidebar-loose .admin-caixa-sidebar-btn {
+  flex: 1;
+  min-width: 0;
 }
 
 .admin-caixa-sidebar-actions {
@@ -10944,6 +11012,7 @@ textarea.admin-input::placeholder {
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
+  direction: rtl;
 }
 
 .admin-btn-outline {
@@ -11144,6 +11213,11 @@ textarea.admin-input::placeholder {
   flex: 1;
 }
 
+.admin-viewport-compact .admin-store-toggle-compact.is-label-hidden,
+.admin-sidebar.is-compact-viewport .admin-store-toggle-compact.is-label-hidden {
+  justify-content: center;
+}
+
 .admin-viewport-compact .admin-store-avatar {
   width: 52px;
   height: 52px;
@@ -11205,19 +11279,31 @@ textarea.admin-input::placeholder {
 }
 
 .admin-viewport-compact .admin-orders-page .admin-pedidos-search {
-  height: 42px;
-  font-size: 14px;
+  height: 40px;
+  font-size: 13px;
+  padding-left: 38px;
+}
+
+.admin-viewport-compact .admin-orders-page .admin-pedidos-search-wrap > svg {
+  left: 14px;
+  width: 18px;
+  height: 18px;
 }
 
 .admin-viewport-compact .admin-orders-page .admin-pedidos-search-row {
-  margin-bottom: 8px;
+  margin-bottom: 0;
+  flex: 0 1 200px;
+  min-width: 120px;
+  max-width: 220px;
 }
 
 .admin-viewport-compact .admin-orders-page .admin-pedidos-actions-row {
   margin-bottom: 14px;
   gap: 10px;
   flex-wrap: nowrap;
-  justify-content: flex-end;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 .admin-viewport-compact .admin-tabs-pedidos--desktop {
@@ -11231,6 +11317,9 @@ textarea.admin-input::placeholder {
 .admin-viewport-compact .admin-pedidos-action-buttons {
   gap: 8px;
   flex-wrap: nowrap;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .admin-viewport-compact .admin-pedidos-view-archived {
@@ -11261,35 +11350,58 @@ textarea.admin-input::placeholder {
 
 /* Cards de pedido — ações compactas em telas menores */
 .admin-viewport-compact .admin-order-card-advance-label,
-.admin-viewport-compact .admin-order-card-whatsapp-label,
-.admin-viewport-compact .admin-order-card-status-btn-label {
+.admin-viewport-compact .admin-order-card-whatsapp-label {
   display: none;
 }
 
-.admin-viewport-compact .admin-order-card-whatsapp-icon {
+.admin-viewport-compact .admin-order-card-whatsapp-icon,
+.admin-viewport-compact .admin-order-card-whatsapp-svg {
   display: inline-flex;
+  width: 22px;
+  height: 22px;
+  color: #25d366;
 }
 
 .admin-viewport-compact .admin-order-card-whatsapp {
-  width: 32px;
-  height: 32px;
+  width: auto;
+  height: auto;
   padding: 0 !important;
-  border-radius: 999px;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
-.admin-viewport-compact .admin-order-card-status-btn {
-  width: 32px;
-  height: 32px;
-  padding: 0 !important;
-  border-radius: 999px;
+.admin-viewport-compact .admin-order-card-whatsapp:hover {
+  filter: none;
+  opacity: 0.85;
 }
 
-.admin-viewport-compact .admin-order-card-status-btn i {
+.admin-viewport-compact .admin-order-card-advance {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  min-width: 0;
+}
+
+.admin-viewport-compact .admin-order-card-advance-icon {
+  display: inline-flex;
   font-size: 20px;
+  color: var(--admin-brand);
+}
+
+.admin-viewport-compact .admin-order-card-advance:hover {
+  background: transparent;
+  opacity: 0.85;
+}
+
+.admin-viewport-compact .admin-order-card-icon-btn {
+  color: #5d657d;
 }
 
 .admin-viewport-compact .admin-order-card-actions {
-  gap: 4px;
+  gap: 6px;
 }
 
 .admin-viewport-compact .admin-order-card-footer {

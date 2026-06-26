@@ -244,7 +244,7 @@ export default function AdminSidebar({
         </div>
         <AdminStoreSwitcher collapsed={collapsed} />
         <div
-          className="admin-toggle-row admin-store-toggle-compact"
+          className={`admin-toggle-row admin-store-toggle-compact${compactViewport ? ' is-label-hidden' : ''}`}
           title={toggleTitle}
         >
           <span className={`admin-store-toggle-label ${aberta ? 'open' : 'closed'}`}>
