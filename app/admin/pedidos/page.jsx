@@ -105,6 +105,19 @@ function deadlineLabel(order) {
   return `Retirar até ${order.prazo || '--:--'}`;
 }
 
+function orderAdvanceLabel(order) {
+  if (order.status === 'novo') return 'Avançar para preparo';
+  if (order.status === 'em_preparo') {
+    return order.tipo === 'delivery' ? 'Saiu para entrega' : 'Finalizar';
+  }
+  return 'Marcar como entregue';
+}
+
+function orderAdvanceIconClass(order) {
+  if (order.status === 'saiu_entrega') return 'ph ph-check-circle';
+  return 'ph ph-arrow-circle-right';
+}
+
 export default function PedidosPage() {
   const { data, saveData } = useAdminData();
   const {
@@ -521,51 +534,48 @@ export default function PedidosPage() {
                       </div>
                       <div className="admin-order-meta">{deadlineLabel(order)}</div>
                       <div className="admin-order-card-footer">
-                        <div className="admin-order-card-footer-left">
-                          <div className="admin-order-price">{currency(order.total)}</div>
-                          {order.status !== 'novo' ? (
-                            <button
-                              type="button"
-                              className="admin-btn admin-btn-ghost admin-order-card-rollback"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                rollbackStatus(order);
-                              }}
-                              title="Voltar status"
-                            >
-                              ←
-                            </button>
-                          ) : null}
-                        </div>
-                        <div className="admin-order-card-footer-right">
+                        <div className="admin-order-price">{currency(order.total)}</div>
+                        <div className="admin-order-card-actions">
                           {buildOrderStatusNotifyUrl(order) ? (
                             <a
-                              className="admin-btn admin-btn-whatsapp-sm"
+                              className="admin-btn admin-btn-whatsapp-sm admin-order-card-whatsapp"
                               href={buildOrderStatusNotifyUrl(order)}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
                               title="Notificar cliente no WhatsApp"
+                              aria-label="Notificar cliente no WhatsApp"
                             >
-                              WhatsApp
+                              <span className="admin-order-card-whatsapp-label">WhatsApp</span>
+                              <i className="ph-fill ph-whatsapp-logo admin-order-card-whatsapp-icon" aria-hidden="true" />
                             </a>
+                          ) : null}
+                          {order.status !== 'novo' ? (
+                            <button
+                              type="button"
+                              className="admin-btn admin-order-card-status-btn admin-order-card-rollback"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                rollbackStatus(order);
+                              }}
+                              title="Voltar status"
+                              aria-label="Voltar status"
+                            >
+                              <i className="ph ph-arrow-circle-left" aria-hidden="true" />
+                            </button>
                           ) : null}
                           {order.status !== 'concluido' ? (
                             <button
                               type="button"
-                              className="admin-btn admin-btn-ghost admin-order-card-advance"
+                              className="admin-btn admin-btn-primary admin-order-card-status-btn admin-order-card-advance"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 moveStatus(order);
                               }}
+                              title={orderAdvanceLabel(order)}
                             >
-                              {order.status === 'novo'
-                                ? 'Avançar para preparo'
-                                : order.status === 'em_preparo'
-                                  ? order.tipo === 'delivery'
-                                    ? 'Saiu para entrega'
-                                    : 'Finalizar'
-                                  : 'Marcar como entregue'}
+                              <i className={orderAdvanceIconClass(order)} aria-hidden="true" />
+                              <span className="admin-order-card-advance-label">{orderAdvanceLabel(order)}</span>
                             </button>
                           ) : null}
                         </div>

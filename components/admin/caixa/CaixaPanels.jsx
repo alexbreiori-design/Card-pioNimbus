@@ -90,7 +90,7 @@ export function CaixaSidebarStatus({ collapsed = false, compact = false, readOnl
       <div className="admin-caixa-sidebar admin-caixa-sidebar--inline">
         <span className={`admin-caixa-dot ${loading ? 'loading' : isOpen ? 'open' : 'closed'}`} aria-hidden="true" />
         {!readOnly ? (
-          <button type="button" className="admin-caixa-sidebar-btn admin-caixa-sidebar-btn--sm" onClick={onManageClick}>
+          <button type="button" className="admin-caixa-sidebar-btn admin-caixa-sidebar-btn--brand admin-caixa-sidebar-btn--sm" onClick={onManageClick}>
             Gerenciar caixa
           </button>
         ) : null}
@@ -110,11 +110,11 @@ export function CaixaSidebarStatus({ collapsed = false, compact = false, readOnl
       {!readOnly ? (
         <div className="admin-caixa-sidebar-actions">
           {error ? (
-            <button type="button" className="admin-btn admin-btn-ghost admin-caixa-sidebar-btn" onClick={() => refresh()}>
+            <button type="button" className="admin-btn admin-btn-ghost admin-caixa-sidebar-btn admin-caixa-sidebar-btn--retry" onClick={() => refresh()}>
               Tentar novamente
             </button>
           ) : null}
-          <button type="button" className="admin-btn admin-btn-ghost admin-caixa-sidebar-btn" onClick={onManageClick}>
+          <button type="button" className="admin-caixa-sidebar-btn admin-caixa-sidebar-btn--brand" onClick={onManageClick}>
             Gerenciar caixa
           </button>
         </div>
