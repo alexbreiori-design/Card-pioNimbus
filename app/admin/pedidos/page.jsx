@@ -1,12 +1,13 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { requestAdminNotificationPermission } from '@/lib/adminNewOrderAlert';
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog';
 import NewOrderModal from '@/components/admin/orders/NewOrderModal';
 import OrderDetailModal from '@/components/admin/orders/OrderDetailModal';
 import AdminIcon from '@/components/admin/AdminIcon';
+import AdminKanbanStatusIcon from '@/components/admin/AdminKanbanStatusIcon';
 import {
   CaixaManageModal,
   CaixaPedidosChip,
@@ -43,7 +44,6 @@ const COLS = [
   {
     key: 'novo',
     label: 'Novos',
-    icon: 'orders',
     tone: 'blue',
     emptyTitle: 'Nenhum pedido novo',
     emptyDescription: 'Pedidos novos aparecerão aqui',
@@ -51,7 +51,6 @@ const COLS = [
   {
     key: 'em_preparo',
     label: 'Em preparo',
-    icon: 'prep',
     tone: 'amber',
     emptyTitle: 'Nenhum pedido em preparo',
     emptyDescription: 'Pedidos em preparo aparecerão aqui',
@@ -59,11 +58,17 @@ const COLS = [
   {
     key: 'saiu_entrega',
     label: 'Saiu para entrega',
-    icon: 'delivery',
     tone: 'green',
     emptyTitle: 'Nenhum pedido para entrega',
     emptyDescription: 'Pedidos para entrega aparecerão aqui',
   },
+];
+
+const TYPE_FILTER_OPTIONS = [
+  { key: 'todos', label: 'Todos' },
+  { key: 'delivery', label: 'Delivery' },
+  { key: 'retirada', label: 'Retirada' },
+  { key: 'balcao', label: 'Balcão' },
 ];
 
 const TIPO_LABEL = { delivery: 'Delivery', retirada: 'Retirada', balcao: 'Balcão' };
@@ -118,6 +123,17 @@ export default function PedidosPage() {
   useEffect(() => {
     void requestAdminNotificationPermission();
   }, []);
+
+  useEffect(() => {
+    if (!typeFilterOpen) return undefined;
+    const close = (event) => {
+      if (typeFilterRef.current && !typeFilterRef.current.contains(event.target)) {
+        setTypeFilterOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [typeFilterOpen]);
   const storeSlug = data.loja?.slug || '';
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('todos');
@@ -132,6 +148,8 @@ export default function PedidosPage() {
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [caixaManageModal, setCaixaManageModal] = useState(false);
   const [caixaManageView, setCaixaManageView] = useState('menu');
+  const [typeFilterOpen, setTypeFilterOpen] = useState(false);
+  const typeFilterRef = useRef(null);
 
   function openCaixaManage(view = 'menu') {
     setCaixaManageView(view);
@@ -376,43 +394,80 @@ export default function PedidosPage() {
       ) : null}
 
       <div className="admin-pedidos-body">
-      <div className="admin-pedidos-search-row">
-        <div className="admin-pedidos-search-wrap">
-          <AdminIcon name="search" />
-          <input
-            className="admin-input admin-pedidos-search"
-            placeholder="Pesquise pelo nome do cliente ou código do pedido"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+      <div className="admin-pedidos-top">
+        <div className="admin-pedidos-search-row">
+          <div className="admin-pedidos-search-wrap">
+            <AdminIcon name="search" />
+            <input
+              className="admin-input admin-pedidos-search"
+              placeholder="Pesquise pelo nome do cliente ou código do pedido"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
         </div>
-      </div>
 
-      <div className="admin-pedidos-actions-row">
-        <div className="admin-tabs admin-tabs-pedidos">
-          {['todos', 'delivery', 'retirada', 'balcao'].map((t) => (
-            <button key={t} type="button" className={`admin-tab ${typeFilter === t ? 'active' : ''}`} onClick={() => setTypeFilter(t)}>
-              <span>{t === 'todos' ? 'Todos' : TIPO_LABEL[t]}</span>
-              <span className="admin-tab-count">{countsByType[t]}</span>
+        <div className="admin-pedidos-actions-row">
+          <div className="admin-tabs admin-tabs-pedidos admin-tabs-pedidos--desktop">
+            {TYPE_FILTER_OPTIONS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                className={`admin-tab ${typeFilter === t.key ? 'active' : ''}`}
+                onClick={() => setTypeFilter(t.key)}
+              >
+                <span>{t.label}</span>
+                <span className="admin-tab-count">{countsByType[t.key]}</span>
+              </button>
+            ))}
+          </div>
+          <div className="admin-pedidos-action-buttons">
+            <div className="admin-pedidos-filter-wrap" ref={typeFilterRef}>
+              <button
+                type="button"
+                className={`admin-pedidos-filter-btn${typeFilter !== 'todos' ? ' is-active' : ''}`}
+                onClick={() => setTypeFilterOpen((open) => !open)}
+                aria-label="Filtrar pedidos"
+                aria-expanded={typeFilterOpen}
+              >
+                <i className="ph ph-sliders-horizontal" aria-hidden="true" />
+              </button>
+              {typeFilterOpen ? (
+                <div className="admin-pedidos-filter-menu" role="menu">
+                  {TYPE_FILTER_OPTIONS.map((t) => (
+                    <button
+                      key={t.key}
+                      type="button"
+                      role="menuitem"
+                      className={`admin-pedidos-filter-option${typeFilter === t.key ? ' is-active' : ''}`}
+                      onClick={() => {
+                        setTypeFilter(t.key);
+                        setTypeFilterOpen(false);
+                      }}
+                    >
+                      <span>{t.label}</span>
+                      <span className="admin-tab-count">{countsByType[t.key]}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              className="admin-btn admin-btn-ghost admin-pedidos-routes-btn"
+              onClick={() => setRoutesOpen(true)}
+            >
+              <AdminKanbanStatusIcon status="delivery" />
+              Rotas de entrega
             </button>
-          ))}
-        </div>
-        <div className="admin-pedidos-action-buttons">
-          <button
-            type="button"
-            className="admin-btn admin-btn-ghost admin-pedidos-routes-btn"
-            onClick={() => setRoutesOpen(true)}
-          >
-            <AdminIcon name="delivery" />
-            Rotas de entrega
-          </button>
-          <button type="button" className="admin-btn admin-btn-primary admin-pedidos-new-btn" onClick={() => openNewOrderModal(null)}>
-            <AdminIcon name="plus" />
-            Novo pedido
-          </button>
-          <button type="button" className="admin-text-btn admin-pedidos-view-archived" onClick={() => setArchiveOpen(true)}>
-            Ver concluídos
-          </button>
+            <button type="button" className="admin-btn admin-btn-primary admin-pedidos-new-btn" onClick={() => openNewOrderModal(null)}>
+              <AdminIcon name="plus" />
+              Novo pedido
+            </button>
+            <button type="button" className="admin-text-btn admin-pedidos-view-archived" onClick={() => setArchiveOpen(true)}>
+              Ver concluídos
+            </button>
+          </div>
         </div>
       </div>
 
@@ -425,7 +480,7 @@ export default function PedidosPage() {
                 <div className="admin-kanban-col-header">
                   <div className="admin-kanban-title">
                     <span className={`admin-kanban-icon ${col.tone}`}>
-                      <AdminIcon name={col.icon} />
+                      <AdminKanbanStatusIcon status={col.key} />
                     </span>
                     <span>{col.label}</span>
                   </div>
@@ -434,7 +489,7 @@ export default function PedidosPage() {
                 {colOrders.length === 0 ? (
                   <div className="admin-kanban-empty">
                     <span className="admin-kanban-empty-icon">
-                      <AdminIcon name={col.icon} />
+                      <AdminKanbanStatusIcon status={col.key} />
                     </span>
                     <strong>{col.emptyTitle}</strong>
                     <span>{col.emptyDescription}</span>

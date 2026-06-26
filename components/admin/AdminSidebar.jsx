@@ -116,6 +116,7 @@ export default function AdminSidebar({
   logoUrl = '',
   openStatus = { aberta: true, fechadaManual: false, abertaPorHorario: true },
   collapsed = false,
+  compactViewport = false,
   newOrdersCount = 0,
   storeToggleBusy = false,
   storeToggleError = '',
@@ -195,15 +196,32 @@ export default function AdminSidebar({
       ? 'Loja aberta. Desative para fechar agora.'
       : 'Fechada pelo horário. Ative para liberar manualmente.';
   const cardapioHref = storeSlug ? getStorePublicUrl(storeSlug) : '';
+  const showStoreName = !collapsed && !compactViewport;
+
+  const logoNode = logoUrl ? (
+    <img src={logoUrl} alt="Logo da loja" />
+  ) : (
+    'N'
+  );
 
   return (
-    <aside className={`admin-sidebar ${collapsed ? 'collapsed' : ''}`}>
+    <aside className={`admin-sidebar ${collapsed ? 'collapsed' : ''}${compactViewport ? ' is-compact-viewport' : ''}`}>
       <div className="admin-sidebar-header">
         <div className="admin-store-badge">
-          <div className="admin-store-avatar">
-            {logoUrl ? <img src={logoUrl} alt="Logo da loja" /> : 'N'}
-          </div>
-          {!collapsed ? (
+          {cardapioHref ? (
+            <a
+              href={cardapioHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="admin-store-avatar admin-store-avatar-link"
+              title="Abrir cardápio público"
+            >
+              {logoNode}
+            </a>
+          ) : (
+            <div className="admin-store-avatar">{logoNode}</div>
+          )}
+          {showStoreName ? (
             <div className="admin-store-name-block">
               {cardapioHref ? (
                 <a
@@ -222,9 +240,7 @@ export default function AdminSidebar({
                 <span className="admin-store-cardapio-hint">Clique no nome para acessar o cardápio.</span>
               ) : null}
             </div>
-          ) : (
-            <div className="admin-store-name">{storeName}</div>
-          )}
+          ) : null}
         </div>
         <AdminStoreSwitcher collapsed={collapsed} />
         <div
@@ -250,7 +266,11 @@ export default function AdminSidebar({
             {storeToggleError}
           </p>
         ) : null}
-        <CaixaSidebarStatus collapsed={collapsed} onManageClick={() => setCaixaManageModal(true)} />
+        <CaixaSidebarStatus
+          collapsed={collapsed}
+          compact={compactViewport && !collapsed}
+          onManageClick={() => setCaixaManageModal(true)}
+        />
         <CaixaManageModal
           open={caixaManageModal}
           onClose={() => setCaixaManageModal(false)}

@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import '@phosphor-icons/web/regular/style.css';
 import '@phosphor-icons/web/fill/style.css';
 import '@/styles/admin.css';
 import { createClient } from '@/lib/supabase/server';

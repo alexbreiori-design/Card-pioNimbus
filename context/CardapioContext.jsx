@@ -324,6 +324,7 @@ export function CardapioProvider({ children, slug = '' }) {
   const catalogWatermarkRef = useRef(null);
   const ordersWatermarkRef = useRef(null);
   const checkoutSubmittingRef = useRef(false);
+  const storeClosedNoticeShownRef = useRef(false);
   const [dialog, setDialog] = useState(null);
 
   const showAlert = useCallback((message, { title = 'Aviso' } = {}) => {
@@ -1134,9 +1135,9 @@ export function CardapioProvider({ children, slug = '' }) {
 
   const openProduct = useCallback(
     (id) => {
-      if (!storeConfig.aberta) {
+      if (!storeConfig.aberta && !storeClosedNoticeShownRef.current) {
+        storeClosedNoticeShownRef.current = true;
         setStoreClosedNoticeOpen(true);
-        return;
       }
 
       const promoEntry = promoCarouselProducts.find((p) => p.id === id);

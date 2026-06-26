@@ -257,10 +257,10 @@
 .admin-sidebar.collapsed .admin-store-badge { justify-content: center; }
 .admin-sidebar.collapsed .admin-store-badge { margin-top: 8px; }
 .admin-sidebar.collapsed .admin-store-avatar {
-  width: 56px;
-  height: 56px;
-  min-width: 56px;
-  flex-basis: 56px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  flex-basis: 44px;
 }
 
 .admin-nav { flex: 1; padding: 12px 16px 14px; overflow: hidden; border-top: 1px solid #e4e7ef; }
@@ -427,8 +427,8 @@
 
 .admin-sidebar.collapsed .admin-nav-item svg,
 .admin-sidebar.collapsed .admin-nav-item .admin-file-icon {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
 }
 
@@ -490,13 +490,14 @@
 }
 
 .admin-sidebar.collapsed .admin-sidebar-footer-row {
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row;
+  justify-content: center;
+  gap: 6px;
 }
 
 .admin-sidebar.collapsed .admin-sidebar-footer-actions {
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row;
+  gap: 6px;
 }
 
 .admin-main {
@@ -743,7 +744,7 @@
 }
 
 .admin-orders-page .admin-pedidos-search-row {
-  margin-bottom: 49px;
+  margin-bottom: 10px;
 }
 
 .admin-pedidos-search-wrap {
@@ -767,14 +768,14 @@
 }
 
 .admin-orders-page .admin-pedidos-search {
-  height: 70px;
-  padding: 0 24px 0 64px;
+  height: 48px;
+  padding: 0 18px 0 48px;
   border: 1px solid #e0e4ee;
   border-radius: 12px;
   background: #ffffff;
   color: #283044;
-  font-size: 16px;
-  box-shadow: 0 13px 30px rgba(41, 49, 79, 0.08);
+  font-size: 15px;
+  box-shadow: 0 8px 20px rgba(41, 49, 79, 0.06);
 }
 
 .admin-orders-page .admin-pedidos-search::placeholder {
@@ -783,8 +784,8 @@
 
 .admin-orders-page .admin-pedidos-actions-row {
   align-items: center;
-  gap: 24px;
-  margin-bottom: 36px;
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
 .admin-orders-page .admin-tabs-pedidos {
@@ -868,11 +869,12 @@
 
 .admin-orders-page .admin-pedidos-archive-btn,
 .admin-orders-page .admin-pedidos-new-btn {
-  height: 68px;
-  border-radius: 12px;
-  padding: 0 29px;
-  font-size: 15px;
-  box-shadow: 0 12px 26px rgba(41, 49, 79, 0.06);
+  height: 40px;
+  min-height: 40px;
+  border-radius: 10px;
+  padding: 0 16px;
+  font-size: 14px;
+  box-shadow: 0 8px 18px rgba(41, 49, 79, 0.06);
 }
 
 .admin-orders-page .admin-pedidos-archive-btn {
@@ -912,8 +914,8 @@
 }
 
 .admin-orders-page .admin-kanban {
-  gap: 14px;
-  align-items: stretch;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
 }
 
 .admin-orders-page .admin-kanban-col {
@@ -1025,12 +1027,16 @@
 }
 
 .admin-orders-page .admin-order-card {
-  margin: 16px;
+  margin: 8px 10px;
   border: 1px solid #e2e6ef;
-  border-radius: 14px;
-  padding: 16px;
-  box-shadow: 0 10px 22px rgba(41, 49, 79, 0.06);
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: 0 6px 16px rgba(41, 49, 79, 0.05);
   cursor: pointer;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  align-items: center;
 }
 
 .admin-order-card-title {
@@ -1038,10 +1044,11 @@
   flex-wrap: wrap;
   align-items: baseline;
   gap: 6px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
-  margin-bottom: 5px;
-  line-height: 1.3;
+  margin-bottom: 0;
+  line-height: 1.25;
+  grid-column: 1 / -1;
 }
 
 .admin-order-card-phone {
@@ -1053,22 +1060,29 @@
 .admin-order-card-footer {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  gap: 10px;
-  margin-top: 10px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  grid-column: 1 / -1;
+}
+
+.admin-orders-page .admin-order-meta {
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .admin-order-card-footer-left {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
 }
 
 .admin-order-card-footer-right {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-direction: row;
+  align-items: center;
   gap: 6px;
   flex-shrink: 0;
 }
@@ -6112,7 +6126,7 @@
 }
 
 .admin-orders-page .admin-pedidos-search {
-  height: 62px;
+  height: 48px;
   font-weight: 400;
 }
 
@@ -8312,10 +8326,7 @@ textarea.admin-input::placeholder {
 }
 
 .admin-sidebar.collapsed .admin-sidebar-sistema-link {
-  align-self: center;
-  justify-content: center;
-  padding: 12px 0;
-  gap: 0;
+  display: none !important;
 }
 
 .admin-sidebar.collapsed .admin-sidebar-sistema-link span {
@@ -10879,31 +10890,274 @@ textarea.admin-input::placeholder {
 
 @media (max-width: 1366px) {
   :root {
-    --admin-sidebar-w: 280px;
-  }
-
-  .admin-orders-page .admin-kanban {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    --admin-sidebar-w: 260px;
+    --admin-sidebar-collapsed: 72px;
   }
 
   .admin-orders-page .admin-kanban-col {
-    min-height: calc(100vh - 280px);
+    min-height: calc(100vh - 220px);
   }
 
   .admin-orders-page .admin-kanban-col-header {
-    min-height: 84px;
-    padding: 16px 18px;
+    min-height: 72px;
+    padding: 14px 16px;
   }
 
   .admin-kanban-icon {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
   }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 900px) {
   .admin-orders-page .admin-kanban {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* ——— Compact viewport + pedidos refinements ——— */
+
+.admin-store-avatar-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: inherit;
+}
+
+.admin-kanban-phosphor-icon {
+  font-size: 24px;
+  line-height: 1;
+  display: block;
+}
+
+.admin-kanban-icon .admin-kanban-phosphor-icon,
+.admin-kanban-empty-icon .admin-kanban-phosphor-icon {
+  font-size: 22px;
+}
+
+.admin-pedidos-routes-btn .admin-kanban-phosphor-icon {
+  font-size: 18px;
+}
+
+.admin-pedidos-top {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.admin-pedidos-filter-wrap {
+  position: relative;
+  display: none;
+}
+
+.admin-pedidos-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid #e1e5ef;
+  background: #fff;
+  color: #4a5270;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(41, 49, 79, 0.05);
+}
+
+.admin-pedidos-filter-btn i {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.admin-pedidos-filter-btn.is-active,
+.admin-pedidos-filter-btn:hover {
+  color: var(--admin-brand);
+  border-color: rgba(78, 72, 221, 0.35);
+  background: #f4f3ff;
+}
+
+.admin-pedidos-filter-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  min-width: 190px;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid #e2e6ef;
+  background: #fff;
+  box-shadow: 0 16px 40px rgba(41, 49, 79, 0.12);
+}
+
+.admin-pedidos-filter-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #323a52;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+
+.admin-pedidos-filter-option:hover,
+.admin-pedidos-filter-option.is-active {
+  background: #f4f3ff;
+  color: var(--admin-brand);
+}
+
+.admin-orders-page .admin-pedidos-routes-btn,
+.admin-orders-page .admin-pedidos-new-btn {
+  height: 40px;
+  min-height: 40px;
+  min-width: auto;
+  border-radius: 10px;
+  padding: 0 16px;
+  font-size: 14px;
+  box-shadow: 0 8px 18px rgba(41, 49, 79, 0.06);
+}
+
+.admin-orders-page .admin-pedidos-new-btn {
+  background: linear-gradient(135deg, #5b55ea, #423cc9);
+}
+
+.admin-caixa-sidebar--inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 10px 0;
+  padding: 8px 10px;
+}
+
+.admin-caixa-sidebar--inline .admin-caixa-dot {
+  margin-top: 0;
+}
+
+.admin-caixa-sidebar-btn--sm {
+  width: auto !important;
+  min-height: 28px !important;
+  padding: 0 10px !important;
+  font-size: 11px !important;
+  flex: 1;
+}
+
+.admin-viewport-compact .admin-store-avatar {
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  flex-basis: 52px;
+}
+
+.admin-viewport-compact .admin-store-name-block,
+.admin-viewport-compact .admin-store-cardapio-hint,
+.admin-sidebar.is-compact-viewport .admin-store-name-block,
+.admin-sidebar.is-compact-viewport .admin-store-cardapio-hint {
+  display: none;
+}
+
+.admin-viewport-compact .admin-sidebar-header,
+.admin-sidebar.is-compact-viewport .admin-sidebar-header {
+  padding: 12px 14px 10px;
+}
+
+.admin-viewport-compact .admin-store-badge,
+.admin-sidebar.is-compact-viewport .admin-store-badge {
+  margin-bottom: 8px;
+  gap: 0;
+}
+
+.admin-viewport-compact .admin-store-name,
+.admin-sidebar.is-compact-viewport .admin-store-name {
+  font-size: 18px;
+}
+
+.admin-viewport-compact .admin-nav-item,
+.admin-sidebar.is-compact-viewport:not(.collapsed) .admin-nav-item {
+  padding: 7px 12px;
+  font-size: 12px;
+  gap: 10px;
+}
+
+.admin-viewport-compact .admin-sidebar-footer,
+.admin-sidebar.is-compact-viewport .admin-sidebar-footer {
+  padding: 10px 12px 12px;
+}
+
+.admin-viewport-compact .admin-sidebar-footer-row,
+.admin-sidebar.is-compact-viewport .admin-sidebar-footer-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-viewport-compact .admin-sidebar-footer-actions,
+.admin-sidebar.is-compact-viewport .admin-sidebar-footer-actions {
+  flex-direction: row;
+}
+
+.admin-viewport-compact .admin-sidebar-sistema-link,
+.admin-sidebar.is-compact-viewport .admin-sidebar-sistema-link {
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.admin-viewport-compact .admin-orders-page .admin-pedidos-search {
+  height: 42px;
+  font-size: 14px;
+}
+
+.admin-viewport-compact .admin-orders-page .admin-pedidos-search-row {
+  margin-bottom: 8px;
+}
+
+.admin-viewport-compact .admin-orders-page .admin-pedidos-actions-row {
+  margin-bottom: 14px;
+  gap: 10px;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+
+.admin-viewport-compact .admin-tabs-pedidos--desktop {
+  display: none !important;
+}
+
+.admin-viewport-compact .admin-pedidos-filter-wrap {
+  display: block;
+}
+
+.admin-viewport-compact .admin-pedidos-action-buttons {
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.admin-viewport-compact .admin-pedidos-view-archived {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.admin-viewport-compact .admin-orders-page .admin-kanban-col-header {
+  min-height: 64px;
+  padding: 12px 14px;
+}
+
+.admin-viewport-compact .admin-kanban-title {
+  gap: 10px;
+  font-size: 14px;
+}
+
+.admin-viewport-compact .admin-kanban-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.admin-viewport-compact .admin-sidebar.collapsed .admin-nav-item {
+  padding: 8px 0;
 }
 

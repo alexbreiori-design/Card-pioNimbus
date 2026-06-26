@@ -50,7 +50,7 @@ function CaixaActionIcon({ name }) {
   return <span className="admin-caixa-action-icon">{icons[name] || null}</span>;
 }
 
-export function CaixaSidebarStatus({ collapsed = false, readOnly = false, onManageClick }) {
+export function CaixaSidebarStatus({ collapsed = false, compact = false, readOnly = false, onManageClick }) {
   const { loading, isOpen, turno, summary, pendingCount, error, refresh } = useCaixa();
 
   const statusLabel = loading
@@ -82,6 +82,19 @@ export function CaixaSidebarStatus({ collapsed = false, readOnly = false, onMana
       >
         <span className={`admin-caixa-dot ${loading ? 'loading' : isOpen ? 'open' : 'closed'}`} aria-hidden="true" />
       </button>
+    );
+  }
+
+  if (compact) {
+    return (
+      <div className="admin-caixa-sidebar admin-caixa-sidebar--inline">
+        <span className={`admin-caixa-dot ${loading ? 'loading' : isOpen ? 'open' : 'closed'}`} aria-hidden="true" />
+        {!readOnly ? (
+          <button type="button" className="admin-caixa-sidebar-btn admin-caixa-sidebar-btn--sm" onClick={onManageClick}>
+            Gerenciar caixa
+          </button>
+        ) : null}
+      </div>
     );
   }
 

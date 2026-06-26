@@ -12,6 +12,7 @@ import { resolveStoreOpenStatus } from '@/lib/storeHours';
 
 export default function AdminShell({ children }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [compactViewport, setCompactViewport] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [storeToggleBusy, setStoreToggleBusy] = useState(false);
@@ -81,13 +82,16 @@ export default function AdminShell({ children }) {
   useEffect(() => {
     if (isMobile) return undefined;
     const mq = window.matchMedia('(max-width: 1366px)');
-    const apply = () => setCollapsed(mq.matches);
+    const apply = () => {
+      setCompactViewport(mq.matches);
+      setCollapsed(mq.matches);
+    };
     apply();
     mq.addEventListener('change', apply);
     return () => mq.removeEventListener('change', apply);
   }, [isMobile]);
 
-  const shellClassName = `admin-shell${isMobile ? ' admin-shell-mobile' : ''}`;
+  const shellClassName = `admin-shell${isMobile ? ' admin-shell-mobile' : ''}${compactViewport ? ' admin-viewport-compact' : ''}`;
 
   return (
     <div className={shellClassName}>
@@ -98,6 +102,7 @@ export default function AdminShell({ children }) {
           logoUrl={store.logoUrl}
           openStatus={openStatus}
           collapsed={collapsed}
+          compactViewport={compactViewport}
           newOrdersCount={newOrdersCount}
           storeToggleBusy={storeToggleBusy || saving}
           storeToggleError={storeToggleError}
