@@ -78,6 +78,15 @@ export default function AdminShell({ children }) {
     }
   }, [activeSlug, saveData, store]);
 
+  useEffect(() => {
+    if (isMobile) return undefined;
+    const mq = window.matchMedia('(max-width: 1366px)');
+    const apply = () => setCollapsed(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, [isMobile]);
+
   const shellClassName = `admin-shell${isMobile ? ' admin-shell-mobile' : ''}`;
 
   return (

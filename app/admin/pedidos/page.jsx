@@ -64,14 +64,6 @@ const COLS = [
     emptyTitle: 'Nenhum pedido para entrega',
     emptyDescription: 'Pedidos para entrega aparecerão aqui',
   },
-  {
-    key: 'concluido',
-    label: 'Concluídos',
-    icon: 'done',
-    tone: 'brand',
-    emptyTitle: 'Nenhum pedido concluído',
-    emptyDescription: 'Pedidos concluídos aparecerão aqui',
-  },
 ];
 
 const TIPO_LABEL = { delivery: 'Delivery', retirada: 'Retirada', balcao: 'Balcão' };
@@ -90,7 +82,6 @@ const STATUS_NEXT = {
 const STATUS_PREV = {
   em_preparo: 'novo',
   saiu_entrega: 'em_preparo',
-  concluido: 'saiu_entrega',
 };
 
 const PAYMENT_LABEL = {
@@ -115,7 +106,6 @@ export default function PedidosPage() {
     orders: allOrders,
     patchOrderStatus,
     cancelOrder,
-    archiveConcluded,
     restoreArchived,
     createOrder,
     refreshOrders,
@@ -216,31 +206,21 @@ export default function PedidosPage() {
     }
   }
 
-  async function handleArchiveConcluded() {
-    if (!guardCaixa()) return;
-    try {
-      await archiveConcluded();
-      toast.success('Pedidos concluídos movidos para arquivo.');
-    } catch (error) {
-      toast.error(error?.message || 'Erro ao arquivar pedidos.');
-    }
-  }
-
   async function handleRestoreArchived(orderId) {
     if (!guardCaixa()) return;
     const order = allOrders.find((o) => String(o.id) === String(orderId));
     if (!order) return;
     try {
       await restoreArchived(order);
-      toast.success(`Pedido #${orderId} restaurado.`);
+      toast.success(`Pedido #${orderId} restaurado em Saiu para entrega.`);
     } catch (error) {
       toast.error(error?.message || 'Erro ao restaurar pedido.');
     }
   }
 
-  const archivedOrders = useMemo(() => {
+  const concludedOrders = useMemo(() => {
     return allOrders
-      .filter((o) => o.arquivado)
+      .filter((o) => o.arquivado && o.status === 'concluido')
       .filter((o) => {
         if (!archiveDateFrom && !archiveDateTo) return true;
         const created = new Date(o.createdAt || 0).getTime();
@@ -430,12 +410,8 @@ export default function PedidosPage() {
             <AdminIcon name="plus" />
             Novo pedido
           </button>
-          <button type="button" className="admin-btn admin-btn-ghost admin-pedidos-archive-btn" onClick={handleArchiveConcluded}>
-            <AdminIcon name="archive" />
-            Arquivar Concluídos
-          </button>
           <button type="button" className="admin-text-btn admin-pedidos-view-archived" onClick={() => setArchiveOpen(true)}>
-            Ver arquivados
+            Ver concluídos
           </button>
         </div>
       </div>
@@ -573,7 +549,10 @@ export default function PedidosPage() {
         onClose={() => setCaixaManageModal(false)}
         onSuccess={(error, message) => {
           if (error instanceof Error) toast.error(error.message);
-          else if (message) toast.success(message);
+          else if (message) {
+            toast.success(message);
+            void refreshOrders({ force: true, silent: true });
+          }
         }}
       />
 
@@ -671,8 +650,8 @@ export default function PedidosPage() {
           <div className="admin-order-detail-modal admin-archive-modal" onClick={(e) => e.stopPropagation()}>
             <div className="admin-order-detail-head">
               <div>
-                <span className="admin-order-detail-kicker">Pedidos arquivados</span>
-                <h2>{archivedOrders.length} pedido(s)</h2>
+                <span className="admin-order-detail-kicker">Pedidos concluídos</span>
+                <h2>{concludedOrders.length} pedido(s)</h2>
               </div>
               <button type="button" className="admin-order-detail-close" onClick={() => setArchiveOpen(false)} aria-label="Fechar">
                 ×
@@ -699,10 +678,10 @@ export default function PedidosPage() {
               </div>
             </div>
             <div className="admin-archive-list">
-              {archivedOrders.length === 0 ? (
-                <p className="admin-order-meta">Nenhum pedido arquivado no período.</p>
+              {concludedOrders.length === 0 ? (
+                <p className="admin-order-meta">Nenhum pedido concluído no período.</p>
               ) : (
-                archivedOrders.map((order) => (
+                concludedOrders.map((order) => (
                   <div key={order.id} className="admin-archive-row">
                     <div>
                       <strong>#{order.id} · {order.clienteNome}</strong>

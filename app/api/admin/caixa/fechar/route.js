@@ -19,6 +19,7 @@ export async function POST(request) {
   const turnoId = String(body.turnoId || '');
   const valorContado = Number(body.valorContado ?? 0);
   const observacao = String(body.observacao || '');
+  const resolveOpenOrders = String(body.resolveOpenOrders || '').trim().toLowerCase() || null;
 
   if (!slug || !turnoId) {
     return NextResponse.json({ ok: false, error: 'Dados inválidos.' }, { status: 400 });
@@ -37,6 +38,7 @@ export async function POST(request) {
       turnoId,
       valorContado,
       observacao,
+      resolveOpenOrders,
     });
 
     return NextResponse.json({

@@ -5,6 +5,7 @@ import { formatCurrency } from '@/lib/admin/reports/reportFormatters';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import { formatMoneyBrInput, parseMoneyBrInput } from '@/lib/moneyMask';
 import { useCaixa } from '@/hooks/useCaixa';
+import { useAdminOrders } from '@/hooks/useAdminOrders';
 
 function formatTurnoTime(iso) {
   if (!iso) return '--:--';
@@ -160,9 +161,22 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
     refresh,
     error,
   } = useCaixa();
+  const { orders, refreshOrders } = useAdminOrders();
+
+  const openKanbanOrders = useMemo(
+    () =>
+      orders.filter(
+        (order) =>
+          !order.arquivado &&
+          order.status !== 'cancelado' &&
+          ['novo', 'em_preparo', 'saiu_entrega'].includes(order.status)
+      ),
+    [orders]
+  );
 
   const [view, setView] = useState('menu');
   const [closeStep, setCloseStep] = useState(1);
+  const [openOrdersPrompt, setOpenOrdersPrompt] = useState(false);
   const [valorAbertura, setValorAbertura] = useState('');
   const [valorContado, setValorContado] = useState('');
   const [observacao, setObservacao] = useState('');
@@ -184,6 +198,7 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
     setValorGaveta('');
     setMovValor('');
     setMovDescricao('');
+    setOpenOrdersPrompt(false);
     void refresh({ silent: true });
   }, [open, initialView, refresh]);
 
@@ -209,22 +224,33 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
     }
   }
 
+  async function finishCloseTurno(resolveOpenOrders) {
+    try {
+      await closeTurno({
+        turnoId: turno?.id,
+        valorContado: parseMoneyBrInput(valorContado),
+        observacao,
+        resolveOpenOrders,
+      });
+      await refreshOrders({ force: true, silent: true });
+      setOpenOrdersPrompt(false);
+      handleSuccess(null, 'Caixa fechado.');
+    } catch (err) {
+      handleSuccess(err);
+    }
+  }
+
   async function handleFechar(event) {
     event.preventDefault();
     if (closeStep === 1) {
       setCloseStep(2);
       return;
     }
-    try {
-      await closeTurno({
-        turnoId: turno?.id,
-        valorContado: parseMoneyBrInput(valorContado),
-        observacao,
-      });
-      handleSuccess(null, 'Caixa fechado.');
-    } catch (err) {
-      handleSuccess(err);
+    if (openKanbanOrders.length > 0) {
+      setOpenOrdersPrompt(true);
+      return;
     }
+    await finishCloseTurno(null);
   }
 
   async function handleReabrir(event) {
@@ -261,8 +287,9 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
   const pagamentos = summary?.pagamentos || [];
 
   return (
-    <div className="admin-confirm-overlay" role="presentation" onPointerDown={overlayPointerDown} onClick={overlayClick}>
-      <div className="admin-caixa-modal admin-caixa-modal-wide" onClick={(e) => e.stopPropagation()}>
+    <>
+      <div className="admin-confirm-overlay" role="presentation" onPointerDown={overlayPointerDown} onClick={overlayClick}>
+        <div className="admin-caixa-modal admin-caixa-modal-wide" onClick={(e) => e.stopPropagation()}>
         {view === 'menu' ? (
           <>
             <div className="admin-caixa-modal-head">
@@ -521,8 +548,48 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
             />
           </form>
         ) : null}
+        </div>
       </div>
-    </div>
+
+      {openOrdersPrompt ? (
+        <div className="admin-confirm-overlay admin-confirm-overlay-top" role="presentation">
+          <div className="admin-caixa-open-orders-card" onClick={(e) => e.stopPropagation()}>
+            <h4>Ainda existem pedidos em aberto</h4>
+            <p>
+              {openKanbanOrders.length} pedido{openKanbanOrders.length === 1 ? '' : 's'} ainda{' '}
+              {openKanbanOrders.length === 1 ? 'está' : 'estão'} em andamento. O que deseja fazer antes de
+              fechar o caixa?
+            </p>
+            <div className="admin-caixa-open-orders-actions">
+              <button
+                type="button"
+                className="admin-btn admin-btn-outline"
+                onClick={() => setOpenOrdersPrompt(false)}
+                disabled={busy}
+              >
+                Voltar
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn-primary"
+                onClick={() => void finishCloseTurno('concluir')}
+                disabled={busy}
+              >
+                {busy ? 'Concluindo…' : 'Concluir todos'}
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn-danger"
+                onClick={() => void finishCloseTurno('cancelar')}
+                disabled={busy}
+              >
+                {busy ? 'Cancelando…' : 'Cancelar todos'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 

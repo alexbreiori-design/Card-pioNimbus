@@ -2,22 +2,17 @@
 
 import { useCardapio } from '@/context/CardapioContext';
 import { getStoreClosedBannerText } from '@/lib/storeHours';
-import { IconChevron, IconClock, IconUserPin } from './icons';
+import { IconChevron, IconUserPin } from './icons';
 
 export default function StoreHeader() {
   const {
     infoOpen,
     toggleInfo,
     toggleDeliveryCard,
-    deliveryMiniOpen,
-    currentDeliveryMode,
-    selectDeliveryMode,
     locStrong,
     locSub,
     storeConfig,
     formatStoreAddress,
-    pickupDurationLabel,
-    deliveryDurationLabel,
   } = useCardapio();
   const weekdays = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
   const dayKey = weekdays[new Date().getDay()];
@@ -67,14 +62,14 @@ export default function StoreHeader() {
       </div>
 
       <div
-        className="store-location-bar"
+        className="store-location-bar store-location-bar--check"
         id="locationBar"
         onClick={toggleDeliveryCard}
         role="button"
         tabIndex={0}
       >
         <span className="loc-icon">
-          {currentDeliveryMode === 'retirar' ? <IconClock /> : <IconUserPin />}
+          <IconUserPin />
         </span>
         <div className="loc-text">
           <strong>{locStrong}</strong>
@@ -83,37 +78,6 @@ export default function StoreHeader() {
         <span className="chevron">
           <IconChevron />
         </span>
-
-        <div
-          className={`delivery-mini-card ${deliveryMiniOpen ? 'open' : ''}`}
-          onClick={(e) => e.stopPropagation()}
-          role="presentation"
-        >
-          <div
-            className={`delivery-mini-item ${currentDeliveryMode === 'retirar' ? 'selected' : ''}`}
-            onClick={() => selectDeliveryMode('retirar')}
-            role="button"
-            tabIndex={0}
-          >
-            <IconClock />
-            <div className="delivery-mini-item-text">
-              <span className="delivery-mini-item-label">Retirar no estabelecimento</span>
-              <span className="delivery-mini-item-eta">Pronto em ~{pickupDurationLabel}</span>
-            </div>
-          </div>
-          <div
-            className={`delivery-mini-item ${currentDeliveryMode === 'entregar' ? 'selected' : ''}`}
-            onClick={() => selectDeliveryMode('entregar')}
-            role="button"
-            tabIndex={0}
-          >
-            <IconUserPin />
-            <div className="delivery-mini-item-text">
-              <span className="delivery-mini-item-label">Receber em casa</span>
-              <span className="delivery-mini-item-eta">Entrega em ~{deliveryDurationLabel}</span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

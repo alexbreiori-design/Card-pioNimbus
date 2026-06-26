@@ -117,7 +117,7 @@ export function CaixaProvider({ children }) {
     [refresh]
   );
 
-  const closeTurno = useCallback(async ({ turnoId, valorContado, observacao }) => {
+  const closeTurno = useCallback(async ({ turnoId, valorContado, observacao, resolveOpenOrders }) => {
     const slug = slugRef.current;
     if (!slug) throw new Error('Loja não identificada.');
     setBusy(true);
@@ -125,7 +125,7 @@ export function CaixaProvider({ children }) {
       const response = await fetch('/api/admin/caixa/fechar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug, turnoId, valorContado, observacao }),
+        body: JSON.stringify({ slug, turnoId, valorContado, observacao, resolveOpenOrders }),
       });
       const data = await readJson(response);
       setState((prev) => ({

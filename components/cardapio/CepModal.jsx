@@ -12,7 +12,10 @@ export default function CepModal() {
     maskCep,
     goToAddress,
     cepInputRef,
+    addressFlowContext,
   } = useCardapio();
+
+  const isDeliveryCheck = addressFlowContext === 'deliveryCheck';
 
   const handleOverlayClick = (e) => {
     if (e.target.id === 'cepOverlay') closeCepPopup();
@@ -27,14 +30,18 @@ export default function CepModal() {
       <div className="modal-card">
         <div className="modal-topbar">
           <div style={{ width: 30 }} />
-          <div className="modal-topbar-title">Endereço de entrega</div>
+          <div className="modal-topbar-title">
+            {isDeliveryCheck ? 'Verificar entrega' : 'Endereço de entrega'}
+          </div>
           <button type="button" className="modal-close" onClick={closeCepPopup}>
             <IconClose />
           </button>
         </div>
         <div className="modal-body">
           <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--text-mid)', fontWeight: 300, marginBottom: 28 }}>
-            Informe seu CEP para verificarmos se entregamos em sua região
+            {isDeliveryCheck
+              ? 'Informe seu CEP para verificarmos se entregamos na sua região'
+              : 'Informe seu CEP para verificarmos se entregamos em sua região'}
           </p>
           <div className="cep-input-wrap">
             <input
@@ -48,7 +55,7 @@ export default function CepModal() {
             />
           </div>
           <button type="button" className="btn-buscar-cep" onClick={goToAddress}>
-            BUSCAR CEP
+            {isDeliveryCheck ? 'CONTINUAR' : 'BUSCAR CEP'}
           </button>
           <a className="no-cep-link" onClick={goToAddress} role="button" tabIndex={0}>
             Não sei meu CEP

@@ -10833,3 +10833,77 @@ textarea.admin-input::placeholder {
   font-weight: 700;
 }
 
+.admin-nav {
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+
+.admin-btn-outline {
+  background: transparent;
+  color: var(--admin-brand, #4e48dd);
+  border: 1px solid var(--admin-brand, #4e48dd);
+}
+
+.admin-btn-outline:hover {
+  background: rgba(78, 72, 221, 0.06);
+}
+
+.admin-caixa-open-orders-card {
+  width: min(100%, 420px);
+  padding: 22px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.18);
+}
+
+.admin-caixa-open-orders-card h4 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: #151824;
+}
+
+.admin-caixa-open-orders-card p {
+  margin: 0 0 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #5b6478;
+}
+
+.admin-caixa-open-orders-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 1366px) {
+  :root {
+    --admin-sidebar-w: 280px;
+  }
+
+  .admin-orders-page .admin-kanban {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-orders-page .admin-kanban-col {
+    min-height: calc(100vh - 280px);
+  }
+
+  .admin-orders-page .admin-kanban-col-header {
+    min-height: 84px;
+    padding: 16px 18px;
+  }
+
+  .admin-kanban-icon {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .admin-orders-page .admin-kanban {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+

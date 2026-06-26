@@ -2824,3 +2824,98 @@ body {
 .cardapio-legal-footer a:hover {
   color: rgba(0, 0, 0, 0.7);
 }
+
+.store-location-bar--check {
+  cursor: pointer;
+}
+
+.delivery-check-number-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.delivery-check-number-hint {
+  margin: 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-mid);
+  font-weight: 300;
+}
+
+.delivery-check-address-preview {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--bg, #f7f7f8);
+  border: 1px solid var(--border, #ececf0);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-mid);
+}
+
+.delivery-check-result-body {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.delivery-check-result {
+  text-align: center;
+}
+
+.delivery-check-result-icon {
+  font-size: 52px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.delivery-check-result-title {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.delivery-check-result-title--animated {
+  animation: delivery-check-pop 0.55s ease-out;
+}
+
+.delivery-check-result-sub {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-mid);
+  font-weight: 400;
+}
+
+.delivery-check-result--fail .delivery-check-result-title {
+  font-size: 17px;
+}
+
+.store-closed-notice-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--text);
+}
+
+.store-closed-notice-sub {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--text-mid);
+  font-weight: 300;
+}
+
+@keyframes delivery-check-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

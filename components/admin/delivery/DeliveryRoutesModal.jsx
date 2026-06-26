@@ -235,7 +235,7 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged }) 
       if (!res.ok || !json.ok) throw new Error(json.error || 'Erro ao criar rota.');
 
       await navigator.clipboard.writeText(
-        buildRouteShareMessage(json.titulo, json.mapsUrl, json.orderedStops)
+        buildRouteShareMessage(json.titulo, json.mapsUrl)
       );
       toast.success(`${json.titulo} criada · link copiado.`);
       setSelectedIds([]);
