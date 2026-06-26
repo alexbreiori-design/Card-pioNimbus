@@ -120,20 +120,6 @@ export default function PedidosPage() {
   const isMobile = useAdminMobileAccess();
   const caixaBlocked = !isMobile && !caixaLoading && !caixaOpen;
 
-  useEffect(() => {
-    void requestAdminNotificationPermission();
-  }, []);
-
-  useEffect(() => {
-    if (!typeFilterOpen) return undefined;
-    const close = (event) => {
-      if (typeFilterRef.current && !typeFilterRef.current.contains(event.target)) {
-        setTypeFilterOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [typeFilterOpen]);
   const storeSlug = data.loja?.slug || '';
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('todos');
@@ -149,7 +135,23 @@ export default function PedidosPage() {
   const [caixaManageModal, setCaixaManageModal] = useState(false);
   const [caixaManageView, setCaixaManageView] = useState('menu');
   const [typeFilterOpen, setTypeFilterOpen] = useState(false);
+  const [routesOpen, setRoutesOpen] = useState(false);
   const typeFilterRef = useRef(null);
+
+  useEffect(() => {
+    void requestAdminNotificationPermission();
+  }, []);
+
+  useEffect(() => {
+    if (!typeFilterOpen) return undefined;
+    const close = (event) => {
+      if (typeFilterRef.current && !typeFilterRef.current.contains(event.target)) {
+        setTypeFilterOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [typeFilterOpen]);
 
   function openCaixaManage(view = 'menu') {
     setCaixaManageView(view);
@@ -379,8 +381,6 @@ export default function PedidosPage() {
     toast.success(`Pedido #${newOrder.id} criado com sucesso.`);
     if (printNow) printOrder(newOrder);
   }
-
-  const [routesOpen, setRoutesOpen] = useState(false);
 
   const detailOrder = allOrders.find((o) => o.id === detailOrderId);
   const paymentLabel = paymentLabelForOrder(detailOrder);
