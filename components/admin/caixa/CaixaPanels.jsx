@@ -51,25 +51,17 @@ function CaixaActionIcon({ name }) {
 }
 
 export function CaixaSidebarStatus({ collapsed = false, compact = false, readOnly = false, onManageClick }) {
-  const { loading, isOpen, turno, summary, pendingCount, error, refresh } = useCaixa();
+  const { loading, isOpen, turno, pendingCount, error, refresh } = useCaixa();
 
-  const statusLabel = loading
+  const caption = loading
     ? 'Carregando…'
-    : error
-      ? 'Erro no caixa'
-      : isOpen
-        ? 'Caixa aberto'
-        : 'Caixa fechado';
-
-  const meta = loading
-    ? 'Atualizando status…'
     : error
       ? error
       : isOpen
-        ? `Desde ${formatTurnoTime(turno?.abertoEm)} · ${formatCurrency(summary?.totalVendas || 0)}`
+        ? `Caixa aberto · Desde ${formatTurnoTime(turno?.abertoEm)}`
         : pendingCount > 0
-          ? `${pendingCount} pedido${pendingCount === 1 ? '' : 's'} aguardando`
-          : 'Abra o caixa para operar pedidos';
+          ? `Caixa fechado · ${pendingCount} pedido${pendingCount === 1 ? '' : 's'} aguardando`
+          : 'Caixa fechado';
 
   const manageBtn =
     !readOnly && !error ? (
@@ -83,7 +75,7 @@ export function CaixaSidebarStatus({ collapsed = false, compact = false, readOnl
       <button
         type="button"
         className="admin-caixa-sidebar-compact"
-        title={`${statusLabel}. ${meta}`}
+        title={caption}
         onClick={readOnly ? undefined : onManageClick}
         disabled={readOnly}
       >
@@ -94,25 +86,16 @@ export function CaixaSidebarStatus({ collapsed = false, compact = false, readOnl
 
   return (
     <div className={`admin-caixa-sidebar-wrap${compact ? ' is-compact' : ''}`}>
-      <div className="admin-caixa-sidebar">
-        <div className="admin-caixa-sidebar-head">
-          <div>
-            <p className="admin-caixa-sidebar-title">{statusLabel}</p>
-            <p className={`admin-caixa-sidebar-meta${error ? ' is-error' : ''}`}>{meta}</p>
-          </div>
-        </div>
-        {error && !readOnly ? (
-          <div className="admin-caixa-sidebar-actions">
-            <button type="button" className="admin-caixa-sidebar-btn admin-caixa-sidebar-btn--outline" onClick={() => refresh()}>
-              Tentar novamente
-            </button>
-          </div>
-        ) : null}
-      </div>
-      <div className="admin-caixa-sidebar-loose">
+      <div className="admin-caixa-sidebar-main">
         <span className={`admin-caixa-dot ${loading ? 'loading' : isOpen ? 'open' : 'closed'}`} aria-hidden="true" />
         {manageBtn}
       </div>
+      <p className={`admin-caixa-sidebar-caption${error ? ' is-error' : ''}`}>{caption}</p>
+      {error && !readOnly ? (
+        <button type="button" className="admin-caixa-sidebar-retry" onClick={() => refresh()}>
+          Tentar novamente
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -601,24 +584,13 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
 }
 
 export function CaixaPedidosChip() {
-  const { loading, isOpen, summary, error } = useCaixa();
+  const { loading, isOpen, error } = useCaixa();
 
-  const label = useMemo(() => {
-    if (loading) return 'Carregando caixa…';
-    if (error) return 'Erro ao carregar caixa';
-    if (isOpen) return `Caixa aberto · ${formatCurrency(summary?.totalVendas || 0)} em vendas`;
-    return 'Caixa fechado';
-  }, [loading, isOpen, summary, error]);
+  if (loading || error || !isOpen) return null;
 
   return (
     <div className="admin-caixa-pedidos-chip-wrap">
-      <span
-        className={`admin-caixa-pedidos-chip ${
-          loading ? 'is-loading' : error ? 'is-error' : isOpen ? 'is-open' : 'is-closed'
-        }`}
-      >
-        {label}
-      </span>
+      <span className="admin-caixa-pedidos-chip is-open">Caixa aberto</span>
     </div>
   );
 }

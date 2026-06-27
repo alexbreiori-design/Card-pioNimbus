@@ -34,24 +34,29 @@ function NavIcon({ name }) {
     return <AdminIcon name="store" />;
   }
 
+  if (name === 'orders') {
+    return <i className="ph ph-clipboard-text admin-nav-phosphor-icon" aria-hidden="true" />;
+  }
+
+  if (name === 'pizzas') {
+    return <i className="ph ph-pizza admin-nav-phosphor-icon" aria-hidden="true" />;
+  }
+
+  if (name === 'products') {
+    return <ion-icon name="fast-food-outline" aria-hidden="true" />;
+  }
+
+  if (name === 'promos') {
+    return <i className="ph ph-seal-percent admin-nav-phosphor-icon" aria-hidden="true" />;
+  }
+
   const icons = {
-    orders: (
-      <svg viewBox="0 0 24 24">
-        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-        <line x1="3" y1="6" x2="21" y2="6" />
-      </svg>
-    ),
     reports: (
       <svg viewBox="0 0 24 24">
         <path d="M3 3v16a2 2 0 0 0 2 2h16" />
         <path d="M18 17V9" />
         <path d="M13 17V5" />
         <path d="M8 17v-3" />
-      </svg>
-    ),
-    products: (
-      <svg viewBox="0 0 24 24">
-        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
       </svg>
     ),
     addons: (
@@ -65,20 +70,6 @@ function NavIcon({ name }) {
         <rect x="4" y="7" width="16" height="12" rx="2" />
         <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
         <line x1="4" y1="12" x2="20" y2="12" />
-      </svg>
-    ),
-    pizzas: (
-      <svg viewBox="0 0 24 24">
-        <path d="M12 2C8 2 4 5 4 9c0 5 4 9 8 13 4-4 8-8 8-13 0-4-4-7-8-7z" />
-        <circle cx="9" cy="9" r="1" />
-        <circle cx="14" cy="8" r="1" />
-        <circle cx="12" cy="12" r="1" />
-      </svg>
-    ),
-    promos: (
-      <svg viewBox="0 0 24 24">
-        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
-        <line x1="7" y1="7" x2="7.01" y2="7" />
       </svg>
     ),
     coupons: (

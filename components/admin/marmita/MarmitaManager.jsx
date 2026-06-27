@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
 import AdminIcon from '@/components/admin/AdminIcon';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
@@ -170,6 +170,47 @@ export default function MarmitaManager() {
   );
   const [cardapioEditing, setCardapioEditing] = useState(false);
   const [cardapioDraft, setCardapioDraft] = useState(() => defaultMarmitaCardapio());
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
+  const [cardapioModalOpen, setCardapioModalOpen] = useState(false);
+  const [vitrineModalOpen, setVitrineModalOpen] = useState(false);
+  const settingsMenuRef = useRef(null);
+
+  const isCardapioDirty = useMemo(() => {
+    if (!cardapioModalOpen || !cardapioEditing) return false;
+    return isJsonDirty(cardapioDraft, savedCardapio);
+  }, [cardapioModalOpen, cardapioEditing, cardapioDraft, savedCardapio]);
+
+  const {
+    overlayPointerDown: cardapioOverlayPointerDown,
+    overlayClick: cardapioOverlayClick,
+    requestClose: requestCloseCardapioModal,
+    discardOpen: cardapioDiscardOpen,
+    confirmDiscard: confirmDiscardCardapioModal,
+    cancelDiscard: cancelDiscardCardapioModal,
+  } = useAdminOverlayClose({
+    onClose: () => {
+      setCardapioModalOpen(false);
+      setCardapioEditing(false);
+    },
+    isDirty: isCardapioDirty,
+  });
+
+  const { overlayPointerDown: vitrineOverlayPointerDown, overlayClick: vitrineOverlayClick } =
+    useAdminOverlayClose({
+      onClose: () => setVitrineModalOpen(false),
+      isDirty: false,
+    });
+
+  useEffect(() => {
+    if (!settingsMenuOpen) return undefined;
+    const close = (event) => {
+      if (settingsMenuRef.current && !settingsMenuRef.current.contains(event.target)) {
+        setSettingsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [settingsMenuOpen]);
 
   const grupos = useMemo(() => sortByOrdem(marmitaGrupos), [marmitaGrupos]);
 
@@ -386,6 +427,12 @@ export default function MarmitaManager() {
     toast.success('Grupo duplicado com suas marmitas.');
   }
 
+  function openCardapioModal() {
+    setCardapioDraft(savedCardapio);
+    setCardapioEditing(false);
+    setCardapioModalOpen(true);
+  }
+
   function openCardapioEdit() {
     setCardapioDraft(savedCardapio);
     setCardapioEditing(true);
@@ -403,7 +450,159 @@ export default function MarmitaManager() {
     }
     await saveData((prev) => ({ ...prev, marmitaCardapio: payload }));
     setCardapioEditing(false);
+    setCardapioModalOpen(false);
     toast.success('Exibição de marmitas no cardápio salva.');
+  }
+
+  function renderCardapioSettingsPanel() {
+    return (
+      <div className="admin-marmita-cardapio-body">
+        {cardapioEditing ? (
+          <div className="admin-marmita-cardapio-form">
+            <div className="admin-marmita-cardapio-row">
+              <div className="admin-form-group admin-marmita-cardapio-field">
+                <label className="admin-label">Vincular horário?</label>
+                <select
+                  className="admin-input"
+                  value={cardapioDraft.vincularHorario ? 'sim' : 'nao'}
+                  onChange={(e) => {
+                    const vincularHorario = e.target.value === 'sim';
+                    setCardapioDraft((prev) => ({
+                      ...prev,
+                      vincularHorario,
+                      ...(vincularHorario ? {} : { continuarModo: 'nao', depoisCategoriaId: '' }),
+                    }));
+                  }}
+                >
+                  <option value="nao">Não</option>
+                  <option value="sim">Sim</option>
+                </select>
+              </div>
+
+              {cardapioDraft.vincularHorario ? (
+                <>
+                  <div className="admin-form-group admin-marmita-cardapio-field-time">
+                    <label className="admin-label">Início</label>
+                    <div className="admin-time-field">
+                      <input
+                        type="time"
+                        className="admin-input admin-time-input"
+                        value={cardapioDraft.horarioInicio}
+                        onChange={(e) =>
+                          setCardapioDraft((prev) => ({ ...prev, horarioInicio: e.target.value }))
+                        }
+                      />
+                      <span className="admin-time-icon" aria-hidden="true">
+                        <AdminIcon name="clock" />
+                      </span>
+                    </div>
+                  </div>
+                  <div className="admin-form-group admin-marmita-cardapio-field-time">
+                    <label className="admin-label">Fim</label>
+                    <div className="admin-time-field">
+                      <input
+                        type="time"
+                        className="admin-input admin-time-input"
+                        value={cardapioDraft.horarioFim}
+                        onChange={(e) =>
+                          setCardapioDraft((prev) => ({ ...prev, horarioFim: e.target.value }))
+                        }
+                      />
+                      <span className="admin-time-icon" aria-hidden="true">
+                        <AdminIcon name="clock" />
+                      </span>
+                    </div>
+                  </div>
+                </>
+              ) : null}
+            </div>
+
+            {cardapioDraft.vincularHorario ? (
+              <div className="admin-marmita-cardapio-row">
+                <div className="admin-form-group admin-marmita-cardapio-field">
+                  <label className="admin-label">Continuar exibindo depois?</label>
+                  <select
+                    className="admin-input"
+                    value={cardapioDraft.continuarModo === 'depois' ? 'depois' : 'nao'}
+                    onChange={(e) => {
+                      const depois = e.target.value === 'depois';
+                      setCardapioDraft((prev) => ({
+                        ...prev,
+                        continuarModo: depois ? 'depois' : 'nao',
+                        depoisCategoriaId: depois ? prev.depoisCategoriaId : '',
+                      }));
+                    }}
+                  >
+                    <option value="nao">Não</option>
+                    <option value="depois">Depois de</option>
+                  </select>
+                </div>
+
+                {cardapioDraft.continuarModo === 'depois' ? (
+                  <div className="admin-form-group admin-marmita-cardapio-field admin-marmita-cardapio-field-wide">
+                    <label className="admin-label">Categoria</label>
+                    <select
+                      className="admin-input"
+                      value={cardapioDraft.depoisCategoriaId}
+                      onChange={(e) =>
+                        setCardapioDraft((prev) => ({ ...prev, depoisCategoriaId: e.target.value }))
+                      }
+                    >
+                      <option value="">Selecione uma categoria</option>
+                      {categoriasCardapio.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            <button
+              type="button"
+              className="admin-btn admin-btn-primary admin-btn-sm admin-marmita-cardapio-save"
+              onClick={saveCardapioSettings}
+            >
+              Salvar
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="admin-marmita-cardapio-summary"
+            onClick={openCardapioEdit}
+            aria-label="Editar exibição no cardápio público"
+          >
+            <span className="admin-marmita-cardapio-summary-headline">{cardapioSummary.headline}</span>
+            <span className="admin-marmita-cardapio-summary-detail">{cardapioSummary.detail}</span>
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  function renderVitrinePreviewPanel() {
+    return (
+      <div className="admin-marmita-preview-body">
+        {publicPreview.mode !== 'vitrine' ? (
+          <p className="admin-marmita-preview-headline">{publicPreview.headline}</p>
+        ) : null}
+        <p className="admin-help-text admin-marmita-preview-detail">{publicPreview.detail}</p>
+
+        {publicPreview.marmita ? (
+          <div className="admin-marmita-preview-sizes">
+            <p className="admin-label">{publicPreview.marmita.nomePublico || publicPreview.marmita.tagAdmin}</p>
+            {publicPreview.sizes.map((tam) => (
+              <span key={tam.id} className="admin-marmita-size-chip">
+                {tam.nome}: {formatCurrency(tam.preco)}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
   }
 
   function renderMarmitaRow(item) {
@@ -748,10 +947,49 @@ export default function MarmitaManager() {
         title="Marmitas"
         icon="products"
         actions={
-          <button type="button" className="admin-btn admin-btn-primary" onClick={() => openNew()}>
-            <AdminIcon name="plus" />
-            Nova marmita
-          </button>
+          <div className="admin-marmita-header-actions">
+            <button type="button" className="admin-btn admin-btn-primary" onClick={() => openNew()}>
+              <AdminIcon name="plus" />
+              Nova marmita
+            </button>
+            <div className="admin-marmita-settings-menu-wrap" ref={settingsMenuRef}>
+              <button
+                type="button"
+                className="admin-marmita-settings-btn"
+                onClick={() => setSettingsMenuOpen((open) => !open)}
+                aria-label="Configurações de marmitas"
+                aria-expanded={settingsMenuOpen}
+              >
+                <i className="ph ph-gear" aria-hidden="true" />
+              </button>
+              {settingsMenuOpen ? (
+                <div className="admin-marmita-settings-menu" role="menu">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="admin-marmita-settings-menu-item"
+                    onClick={() => {
+                      setSettingsMenuOpen(false);
+                      openCardapioModal();
+                    }}
+                  >
+                    Exibição no cardápio público
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="admin-marmita-settings-menu-item"
+                    onClick={() => {
+                      setSettingsMenuOpen(false);
+                      setVitrineModalOpen(true);
+                    }}
+                  >
+                    Vitrine de preços
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
         }
       />
 
@@ -772,159 +1010,6 @@ export default function MarmitaManager() {
         A categoria <strong>Marmitas</strong> aparece automaticamente no cardápio público. Use{' '}
         <strong>vitrine de preços</strong> para exibir referência nos dias sem cardápio do dia.
       </p>
-
-      <div className="admin-marmita-settings-row">
-        <div className="admin-card admin-marmita-cardapio-card">
-          <h4 className="admin-form-section-title">Exibição no cardápio público</h4>
-          <div className="admin-marmita-cardapio-body">
-          {cardapioEditing ? (
-          <div className="admin-marmita-cardapio-form">
-            <div className="admin-marmita-cardapio-row">
-              <div className="admin-form-group admin-marmita-cardapio-field">
-                <label className="admin-label">Vincular horário?</label>
-                <select
-                  className="admin-input"
-                  value={cardapioDraft.vincularHorario ? 'sim' : 'nao'}
-                  onChange={(e) => {
-                    const vincularHorario = e.target.value === 'sim';
-                    setCardapioDraft((prev) => ({
-                      ...prev,
-                      vincularHorario,
-                      ...(vincularHorario
-                        ? {}
-                        : { continuarModo: 'nao', depoisCategoriaId: '' }),
-                    }));
-                  }}
-                >
-                  <option value="nao">Não</option>
-                  <option value="sim">Sim</option>
-                </select>
-              </div>
-
-              {cardapioDraft.vincularHorario ? (
-                <>
-                  <div className="admin-form-group admin-marmita-cardapio-field-time">
-                    <label className="admin-label">Início</label>
-                    <div className="admin-time-field">
-                      <input
-                        type="time"
-                        className="admin-input admin-time-input"
-                        value={cardapioDraft.horarioInicio}
-                        onChange={(e) =>
-                          setCardapioDraft((prev) => ({ ...prev, horarioInicio: e.target.value }))
-                        }
-                      />
-                      <span className="admin-time-icon" aria-hidden="true">
-                        <AdminIcon name="clock" />
-                      </span>
-                    </div>
-                  </div>
-                  <div className="admin-form-group admin-marmita-cardapio-field-time">
-                    <label className="admin-label">Fim</label>
-                    <div className="admin-time-field">
-                      <input
-                        type="time"
-                        className="admin-input admin-time-input"
-                        value={cardapioDraft.horarioFim}
-                        onChange={(e) =>
-                          setCardapioDraft((prev) => ({ ...prev, horarioFim: e.target.value }))
-                        }
-                      />
-                      <span className="admin-time-icon" aria-hidden="true">
-                        <AdminIcon name="clock" />
-                      </span>
-                    </div>
-                  </div>
-                </>
-              ) : null}
-            </div>
-
-            {cardapioDraft.vincularHorario ? (
-              <div className="admin-marmita-cardapio-row">
-                <div className="admin-form-group admin-marmita-cardapio-field">
-                  <label className="admin-label">Continuar exibindo depois?</label>
-                  <select
-                    className="admin-input"
-                    value={cardapioDraft.continuarModo === 'depois' ? 'depois' : 'nao'}
-                    onChange={(e) => {
-                      const depois = e.target.value === 'depois';
-                      setCardapioDraft((prev) => ({
-                        ...prev,
-                        continuarModo: depois ? 'depois' : 'nao',
-                        depoisCategoriaId: depois ? prev.depoisCategoriaId : '',
-                      }));
-                    }}
-                  >
-                    <option value="nao">Não</option>
-                    <option value="depois">Depois de</option>
-                  </select>
-                </div>
-
-                {cardapioDraft.continuarModo === 'depois' ? (
-                  <div className="admin-form-group admin-marmita-cardapio-field admin-marmita-cardapio-field-wide">
-                    <label className="admin-label">Categoria</label>
-                    <select
-                      className="admin-input"
-                      value={cardapioDraft.depoisCategoriaId}
-                      onChange={(e) =>
-                        setCardapioDraft((prev) => ({ ...prev, depoisCategoriaId: e.target.value }))
-                      }
-                    >
-                      <option value="">Selecione uma categoria</option>
-                      {categoriasCardapio.map((cat) => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.nome}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-
-            <button
-              type="button"
-              className="admin-btn admin-btn-primary admin-btn-sm admin-marmita-cardapio-save"
-              onClick={saveCardapioSettings}
-            >
-              Salvar
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            className="admin-marmita-cardapio-summary"
-            onClick={openCardapioEdit}
-            aria-label="Editar exibição no cardápio público"
-          >
-            <span className="admin-marmita-cardapio-summary-headline">{cardapioSummary.headline}</span>
-            <span className="admin-marmita-cardapio-summary-detail">{cardapioSummary.detail}</span>
-          </button>
-        )}
-          </div>
-        </div>
-
-        <div className="admin-card admin-marmita-preview-card">
-          <h4 className="admin-form-section-title">Vitrine de preços</h4>
-          <div className="admin-marmita-preview-body">
-            {publicPreview.mode !== 'vitrine' ? (
-              <p className="admin-marmita-preview-headline">{publicPreview.headline}</p>
-            ) : null}
-            <p className="admin-help-text admin-marmita-preview-detail">{publicPreview.detail}</p>
-
-            {publicPreview.marmita ? (
-              <div className="admin-marmita-preview-sizes">
-                <p className="admin-label">{publicPreview.marmita.nomePublico || publicPreview.marmita.tagAdmin}</p>
-                {publicPreview.sizes.map((tam) => (
-                  <span key={tam.id} className="admin-marmita-size-chip">
-                    {tam.nome}: {formatCurrency(tam.preco)}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </div>
 
       <div className="admin-catalog-top-row admin-marmita-top-row">
         <div className="admin-catalog-top-actions">
@@ -1579,6 +1664,62 @@ export default function MarmitaManager() {
         />
         </>
       ) : null}
+
+      {cardapioModalOpen ? (
+        <div
+          className="admin-confirm-overlay admin-marmita-settings-overlay"
+          role="presentation"
+          onPointerDown={cardapioOverlayPointerDown}
+          onClick={cardapioOverlayClick}
+        >
+          <div
+            className="admin-confirm-modal admin-marmita-settings-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-marmita-cardapio-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="admin-marmita-cardapio-modal-title">Exibição no cardápio público</h3>
+            {renderCardapioSettingsPanel()}
+            <div className="admin-confirm-actions">
+              <button type="button" className="admin-btn admin-btn-ghost" onClick={requestCloseCardapioModal}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {vitrineModalOpen ? (
+        <div
+          className="admin-confirm-overlay admin-marmita-settings-overlay"
+          role="presentation"
+          onPointerDown={vitrineOverlayPointerDown}
+          onClick={vitrineOverlayClick}
+        >
+          <div
+            className="admin-confirm-modal admin-marmita-settings-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-marmita-vitrine-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="admin-marmita-vitrine-modal-title">Vitrine de preços</h3>
+            {renderVitrinePreviewPanel()}
+            <div className="admin-confirm-actions">
+              <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setVitrineModalOpen(false)}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <AdminDiscardDialog
+        open={cardapioDiscardOpen}
+        onConfirm={confirmDiscardCardapioModal}
+        onCancel={cancelDiscardCardapioModal}
+      />
     </div>
   );
 }

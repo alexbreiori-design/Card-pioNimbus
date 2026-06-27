@@ -347,6 +347,15 @@
   stroke-linejoin: round;
 }
 
+.admin-nav-phosphor-icon,
+.admin-nav-item ion-icon {
+  width: 20px;
+  height: 20px;
+  font-size: 20px;
+  flex-shrink: 0;
+  display: block;
+}
+
 .admin-store-icon-svg,
 .admin-nav-item .admin-store-icon-svg {
   width: 20px;
@@ -1205,6 +1214,10 @@
 
 .admin-order-card-advance-label {
   display: inline;
+}
+
+.admin-order-card-action-icon--compact {
+  display: none;
 }
 
 .admin-orders-page .admin-order-meta {
@@ -5641,18 +5654,13 @@
 
 @media (max-width: 1320px) {
   .admin-orders-page .admin-pedidos-actions-row {
-    align-items: stretch;
-    flex-direction: column;
+    align-items: center;
+    flex-direction: row;
   }
 
   .admin-pedidos-action-buttons {
     justify-content: flex-end;
   }
-}
-
-.admin-viewport-compact .admin-orders-page .admin-pedidos-actions-row {
-  flex-direction: row;
-  align-items: center;
 }
 
 @media (max-width: 768px) {
@@ -10510,34 +10518,51 @@ textarea.admin-input::placeholder {
 /* Caixa */
 .admin-caixa-sidebar-wrap {
   margin-top: 10px;
-}
-
-.admin-caixa-sidebar {
-  margin: 0 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--admin-border, #e8e8ef);
-  border-radius: 10px;
-  background: var(--admin-surface-2, #f8f8fc);
+  padding: 0 12px;
 }
 
 .admin-sidebar.collapsed .admin-caixa-sidebar-wrap {
   display: none;
 }
 
-.admin-caixa-sidebar-loose {
+.admin-caixa-sidebar-main {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 8px 12px 0;
 }
 
-.admin-caixa-sidebar-loose .admin-caixa-dot {
+.admin-caixa-sidebar-main .admin-caixa-dot {
   margin-top: 0;
   flex-shrink: 0;
 }
 
-.admin-caixa-sidebar-wrap.is-compact .admin-caixa-sidebar-loose {
-  margin-top: 6px;
+.admin-caixa-sidebar-caption {
+  margin: 6px 0 0;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--admin-muted, #6b6b7b);
+  font-weight: 400;
+}
+
+.admin-caixa-sidebar-caption.is-error {
+  color: var(--admin-red);
+}
+
+.admin-caixa-sidebar-retry {
+  margin-top: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--admin-brand);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.admin-caixa-sidebar-wrap.is-compact .admin-caixa-sidebar-caption {
+  font-size: 10px;
 }
 
 .admin-caixa-sidebar-wrap.is-compact .admin-caixa-sidebar-btn {
@@ -10590,6 +10615,11 @@ textarea.admin-input::placeholder {
 }
 
 .admin-caixa-sidebar-loose .admin-caixa-sidebar-btn {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-caixa-sidebar-main .admin-caixa-sidebar-btn {
   flex: 1;
   min-width: 0;
 }
@@ -11113,7 +11143,63 @@ textarea.admin-input::placeholder {
 
 .admin-pedidos-filter-wrap {
   position: relative;
-  display: none;
+  display: block;
+}
+
+.admin-pedidos-search-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid #e1e5ef;
+  background: #fff;
+  color: #4a5270;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(41, 49, 79, 0.05);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.admin-pedidos-search-toggle svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.9;
+}
+
+.admin-pedidos-search-toggle:hover {
+  color: var(--admin-brand);
+  border-color: rgba(78, 72, 221, 0.35);
+  background: #f4f3ff;
+}
+
+.admin-orders-page .admin-pedidos-search-row {
+  flex: 0 0 auto;
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.admin-orders-page .admin-pedidos-search-row.is-expanded {
+  flex: 1 1 auto;
+  min-width: 120px;
+  max-width: none;
+}
+
+.admin-orders-page .admin-pedidos-action-buttons {
+  flex-shrink: 0;
+}
+
+.admin-orders-page .admin-tabs-pedidos--desktop {
+  display: none !important;
+}
+
+.admin-orders-page .admin-pedidos-actions-row {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
 }
 
 .admin-pedidos-filter-btn {
@@ -11290,20 +11376,10 @@ textarea.admin-input::placeholder {
   height: 18px;
 }
 
-.admin-viewport-compact .admin-orders-page .admin-pedidos-search-row {
-  margin-bottom: 0;
-  flex: 0 1 200px;
+.admin-viewport-compact .admin-orders-page .admin-pedidos-search-row.is-expanded {
+  flex: 1 1 auto;
   min-width: 120px;
-  max-width: 220px;
-}
-
-.admin-viewport-compact .admin-orders-page .admin-pedidos-actions-row {
-  margin-bottom: 14px;
-  gap: 10px;
-  flex-wrap: nowrap;
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-start;
+  max-width: none;
 }
 
 .admin-viewport-compact .admin-tabs-pedidos--desktop {
@@ -11354,17 +11430,37 @@ textarea.admin-input::placeholder {
   display: none;
 }
 
-.admin-viewport-compact .admin-order-card-whatsapp-icon,
-.admin-viewport-compact .admin-order-card-whatsapp-svg {
+.admin-viewport-compact .admin-order-card-action-icon--full {
+  display: none;
+}
+
+.admin-viewport-compact .admin-order-card-action-icon--compact {
   display: inline-flex;
-  width: 22px;
-  height: 22px;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.admin-viewport-compact .admin-order-card-whatsapp-icon {
+  display: inline-flex;
+  font-size: 24px;
+  width: 24px;
+  height: 24px;
   color: #25d366;
 }
 
+.admin-viewport-compact .admin-order-card-whatsapp,
+.admin-viewport-compact .admin-order-card-icon-btn,
+.admin-viewport-compact .admin-order-card-advance {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .admin-viewport-compact .admin-order-card-whatsapp {
-  width: auto;
-  height: auto;
   padding: 0 !important;
   border: none !important;
   border-radius: 0 !important;
@@ -11382,12 +11478,11 @@ textarea.admin-input::placeholder {
   border: none;
   border-radius: 0;
   background: transparent;
-  min-width: 0;
+  min-width: 32px;
 }
 
 .admin-viewport-compact .admin-order-card-advance-icon {
   display: inline-flex;
-  font-size: 20px;
   color: var(--admin-brand);
 }
 
@@ -11406,5 +11501,89 @@ textarea.admin-input::placeholder {
 
 .admin-viewport-compact .admin-order-card-footer {
   gap: 6px;
+}
+
+/* Marmitas — menu de configurações */
+.admin-marmita-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-marmita-settings-menu-wrap {
+  position: relative;
+}
+
+.admin-marmita-settings-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid #e1e5ef;
+  background: #fff;
+  color: #4a5270;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(41, 49, 79, 0.05);
+}
+
+.admin-marmita-settings-btn i {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.admin-marmita-settings-btn:hover,
+.admin-marmita-settings-btn[aria-expanded='true'] {
+  color: var(--admin-brand);
+  border-color: rgba(78, 72, 221, 0.35);
+  background: #f4f3ff;
+}
+
+.admin-marmita-settings-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  min-width: 240px;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid #e2e6ef;
+  background: #fff;
+  box-shadow: 0 16px 40px rgba(41, 49, 79, 0.12);
+}
+
+.admin-marmita-settings-menu-item {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #323a52;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.admin-marmita-settings-menu-item:hover {
+  background: #f4f3ff;
+  color: var(--admin-brand);
+}
+
+.admin-marmita-settings-modal {
+  width: min(100%, 560px);
+  max-height: min(88vh, 720px);
+  overflow-y: auto;
+}
+
+.admin-marmita-settings-modal h3 {
+  margin: 0 0 14px;
+}
+
+.admin-marmita-settings-overlay .admin-confirm-actions {
+  margin-top: 16px;
 }
 
