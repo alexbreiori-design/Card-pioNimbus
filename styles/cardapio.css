@@ -724,7 +724,7 @@ body {
 }
 
 .product-card-price {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-dark);
 }
@@ -781,7 +781,7 @@ body {
   min-width: 104px;
   max-width: 112px;
   height: 104px;
-  margin: 10px 10px 0 0;
+  margin: 10px 0 0 10px;
   font-size: 38px;
   flex-shrink: 0;
   background-size: cover;

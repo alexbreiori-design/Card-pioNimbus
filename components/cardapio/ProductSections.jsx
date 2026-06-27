@@ -3,7 +3,6 @@
 import { useCardapio } from '@/context/CardapioContext';
 import { PROMO_CATEGORY_NAME } from '@/lib/promocoes';
 import CategoryIcon from '@/components/admin/CategoryIcon';
-import MarmitaCarouselSection from './MarmitaCarouselSection';
 import ProductCard from './ProductCard';
 import PromoCarouselSection from './PromoCarouselSection';
 
@@ -30,20 +29,13 @@ export default function ProductSections() {
   return (
     <>
       {showPromoCarousel ? <PromoCarouselSection products={promoProducts} /> : null}
-      {gridSections.map(({ category, items, categoryIcon, isMarmitaSection }) =>
-        isMarmitaSection ? (
-          <MarmitaCarouselSection
-            key={category}
-            title={category}
-            categoryIcon={categoryIcon}
-            products={items}
-            vitrineNotice={
-              items.some((product) => product.isMarmitaVitrine)
-                ? 'Cardápio de referência — pedidos disponíveis nos dias de funcionamento.'
-                : ''
-            }
-          />
-        ) : (
+      {gridSections.map(({ category, items, categoryIcon, isMarmitaSection }) => {
+        const vitrineNotice =
+          isMarmitaSection && items.some((product) => product.isMarmitaVitrine)
+            ? 'Cardápio de referência — pedidos disponíveis nos dias de funcionamento.'
+            : '';
+
+        return (
           <div className="section-block" key={category}>
             <div className="section-title-sticky">
               {categoryIcon ? (
@@ -51,14 +43,15 @@ export default function ProductSections() {
               ) : null}
               {category}
             </div>
+            {vitrineNotice ? <p className="marmita-vitrine-notice">{vitrineNotice}</p> : null}
             <div className="product-grid">
               {items.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}
             </div>
           </div>
-        )
-      )}
+        );
+      })}
     </>
   );
 }

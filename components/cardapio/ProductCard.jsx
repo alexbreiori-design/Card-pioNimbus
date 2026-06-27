@@ -9,6 +9,12 @@ export default function ProductCard({ product }) {
 
   return (
     <div className="product-card" onClick={() => openProduct(product.id)} role="button" tabIndex={0}>
+      <MenuImageArea
+        imageUrl={product.imageUrl}
+        className="product-card-img-wrap"
+        alt={product.name}
+        sizes="112px"
+      />
       <div className="product-card-body">
         <div className="product-card-title">{product.name}</div>
         <div className="product-card-desc">{product.desc}</div>
@@ -26,12 +32,6 @@ export default function ProductCard({ product }) {
           )}
         </div>
       </div>
-      <MenuImageArea
-        imageUrl={product.imageUrl}
-        className="product-card-img-wrap"
-        alt={product.name}
-        sizes="112px"
-      />
     </div>
   );
 }
