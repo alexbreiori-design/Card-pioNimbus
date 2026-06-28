@@ -21,6 +21,7 @@ import CartReviewModal from './CartReviewModal';
 import CardapioSplash from './CardapioSplash';
 import CardapioLegalFooter from './CardapioLegalFooter';
 import { SHOW_LEGACY_NAV } from '@/lib/cardapioFeatures';
+import EnvironmentBanner from '@/components/shared/EnvironmentBanner';
 
 export default function CardapioApp() {
   const { storeConfig, splashVisible } = useCardapio();
@@ -31,6 +32,7 @@ export default function CardapioApp() {
       <div
         className={`cardapio-theme-root${SHOW_LEGACY_NAV ? '' : ' cardapio-legacy-nav-hidden'}`}
       >
+        <EnvironmentBanner className="nimbus-env-banner-cardapio" />
         <MetaPixel pixelId={storeConfig?.metaPixelId} />
         <TopNav />
         <MainPage />

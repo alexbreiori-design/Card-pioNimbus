@@ -11587,3 +11587,45 @@ textarea.admin-input::placeholder {
   margin-top: 16px;
 }
 
+/* ——— Banner ambiente (staging / preview / local) ——— */
+.nimbus-env-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 10px;
+  padding: 8px 14px;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.nimbus-env-banner strong {
+  font-weight: 700;
+}
+
+.nimbus-env-banner--staging {
+  background: #fff7ed;
+  color: #9a3412;
+  border-bottom-color: #fed7aa;
+}
+
+.nimbus-env-banner--preview {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-bottom-color: #bfdbfe;
+}
+
+.nimbus-env-banner--local {
+  background: #f4f3ff;
+  color: #4338ca;
+  border-bottom-color: #c7d2fe;
+}
+
+.nimbus-env-banner-admin {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+}
+

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import AdminSidebar from './AdminSidebar';
 import AdminMobileDrawer from './AdminMobileDrawer';
 import AdminMobileGate from './AdminMobileGate';
+import EnvironmentBanner from '@/components/shared/EnvironmentBanner';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOrders } from '@/hooks/useAdminOrders';
 import { useAdminMobileAccess } from '@/hooks/useAdminMobileAccess';
@@ -139,6 +140,7 @@ export default function AdminShell({ children }) {
         </>
       )}
       <div className={`admin-main ${collapsed ? 'sidebar-collapsed' : ''}`}>
+        <EnvironmentBanner className="nimbus-env-banner-admin" />
         {switchingStore ? (
           <div className="admin-sync-banner admin-sync-banner-saving">Trocando de loja…</div>
         ) : null}

@@ -16,6 +16,7 @@ export async function GET(request) {
 
   return NextResponse.json({
     ok: true,
+    appEnvironment: process.env.NEXT_PUBLIC_NIMBUS_APP_ENV || null,
     supabasePublic: Boolean(url && anonKey),
     supabaseServiceRole: Boolean(serviceKey),
     defaultStoreSlug: Boolean(defaultSlug),

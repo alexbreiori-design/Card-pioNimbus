@@ -23,7 +23,7 @@ npm run dev
 
 App em **http://localhost:3010** (ver `package.json`).
 
-Crie `.env.local` conforme `docs/ENV.md`. Mínimo:
+Crie `.env.local` copiando `env.staging.example` para apontar ao **Supabase de staging** (recomendado). Mínimo:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
@@ -48,14 +48,20 @@ Detalhes: `docs/DOMINIO.md`
 
 ---
 
+## Ambientes (staging / produção)
+
+Guia completo: **[STAGING.md](./STAGING.md)**
+
+Fluxo resumido: `local` → branch `feature/*` (Preview Vercel) → `staging` → `main` (produção).
+
+---
+
 ## Documentação
 
 | Arquivo | Conteúdo |
 |---------|----------|
-| `docs/ENV.md` | Variáveis de ambiente |
-| `docs/DOMINIO.md` | Domínio e rotas |
-| `docs/OPS.md` | Operações e incidentes |
-| `docs/GO_LIVE.md` | Checklist go-live |
+| `STAGING.md` | Local, staging, preview e produção |
+| `env.staging.example` | Template `.env.local` para staging |
 | `supabase/README.md` | Schema, migrations, onboarding |
 
 ---

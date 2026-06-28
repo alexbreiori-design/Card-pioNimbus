@@ -8,6 +8,7 @@ import { OrderPrintProvider } from '@/context/OrderPrintContext';
 import { AdminToastProvider } from '@/context/AdminToastContext';
 import AdminShell from '@/components/admin/AdminShell';
 import AdminBootGate from '@/components/admin/AdminBootGate';
+import EnvironmentBanner from '@/components/shared/EnvironmentBanner';
 
 export default function AdminProviders({ children }) {
   const pathname = usePathname();
@@ -26,7 +27,10 @@ export default function AdminProviders({ children }) {
   if (isSemAcesso || isLojaSuspensa) {
     return (
       <AdminToastProvider>
-        <div className="admin-root">{children}</div>
+        <div className="admin-root">
+          <EnvironmentBanner className="nimbus-env-banner-admin" />
+          {children}
+        </div>
       </AdminToastProvider>
     );
   }
