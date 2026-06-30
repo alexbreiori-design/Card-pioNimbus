@@ -1,13 +1,13 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  /* ===== BRAND COLOR — change this one value to retheme everything ===== */
-  --brand: #8B2FC9;
+  /* ===== BRAND COLOR — sobrescrito por Minha Loja via JS ===== */
+  --brand: #4e48dd;
 
   /* Derived brand shades */
-  --brand-hover: #7020b0;
-  --brand-light: #f3eafc;
-  --brand-mid: #b060e0;
+  --brand-hover: #3f3ab8;
+  --brand-light: #eeedfc;
+  --brand-mid: #9490e8;
 
   /* Neutral palette */
   --bg: #f2f3f6;
@@ -352,8 +352,12 @@ body {
 }
 
 .cardapio-theme-root .section-title-icon.admin-category-icon-tinted {
-  background-color: var(--brand);
-  color: var(--brand);
+  color: var(--brand, #4e48dd);
+  background-color: var(--brand, #4e48dd);
+}
+
+.cardapio-theme-root .section-title-icon.admin-category-icon-img {
+  object-fit: contain;
 }
 
 .promo-carousel-wrap {
@@ -1590,7 +1594,11 @@ body {
   align-items: center;
   margin-bottom: 4px;
 }
-.addon-section-title { font-size: 14px; font-weight: 600; }
+.addon-section-title {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+}
 
 .addon-section-meta {
   display: flex;

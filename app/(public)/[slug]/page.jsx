@@ -87,7 +87,11 @@ export default async function LojaPublicaPage({ params }) {
   }
 
   return (
-    <CardapioProvider slug={safeSlug}>
+    <CardapioProvider
+      slug={safeSlug}
+      initialPublicPayload={catalog?.data ?? null}
+      initialEmpresa={empresa}
+    >
       <CardapioApp />
     </CardapioProvider>
   );

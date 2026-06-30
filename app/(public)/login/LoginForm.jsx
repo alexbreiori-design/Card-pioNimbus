@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { isAdminMobileViewport, resolveAdminMobileRedirect } from '@/lib/admin/mobileAccess';
+import { isCardapioV2Path } from '@/lib/cardapioV2';
 import styles from './login.module.css';
 
 function getSafeRedirect(searchParams) {
@@ -11,6 +12,10 @@ function getSafeRedirect(searchParams) {
 
   if (next === '/home') {
     return '/home';
+  }
+
+  if (next && isCardapioV2Path(next)) {
+    return next;
   }
 
   if (next && next.startsWith('/admin') && !next.startsWith('/admin/login')) {

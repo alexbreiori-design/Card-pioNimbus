@@ -5,6 +5,7 @@ import CartItemOptsList from '@/components/cardapio/CartItemOptsList';
 import { useRef } from 'react';
 import { useCardapio } from '@/context/CardapioContext';
 import { calculateCupomDiscount } from '@/lib/cupons';
+import CategoryIcon from '@/components/admin/CategoryIcon';
 import { IconCupom, IconChevron } from './icons';
 import MenuImageArea from '@/components/cardapio/MenuImageArea';
 
@@ -54,7 +55,15 @@ function AlsoCarousel({ items, formatPrice, onOpen }) {
   );
 }
 
-export default function SacolaPanel({ onFinalize, finalizeLabel = 'Finalizar pedido', onAddMore }) {
+export default function SacolaPanel({
+  onFinalize,
+  finalizeLabel = 'Finalizar pedido',
+  onAddMore,
+  orderTerminology = false,
+  promoCupomIcon = false,
+  cartEmptyIcon = false,
+  inlineQtyControls = false,
+}) {
   const {
     cart,
     cartSubtotal,
@@ -67,6 +76,7 @@ export default function SacolaPanel({ onFinalize, finalizeLabel = 'Finalizar ped
     clearCart,
     removeCartItem,
     editCartItem,
+    changeCartItemQty,
     openCupomPopup,
     openProduct,
     isStoreOpen,
@@ -80,25 +90,31 @@ export default function SacolaPanel({ onFinalize, finalizeLabel = 'Finalizar ped
   const cupomOff = calculateCupomDiscount(appliedCupom, subtotal);
   const total = cartTotal();
   const empty = cart.length === 0;
+  const emptyLabel = orderTerminology ? 'Pedido vazio' : 'Sacola vazia';
+  const headerLabel = orderTerminology ? 'Seu pedido' : 'Sua sacola';
 
   return (
     <>
       <div id="sacolaContent" className="sacola-panel-content">
         {empty ? (
           <div className="sacola-empty">
-            <div className="bag-icon">
-              <svg viewBox="0 0 24 24">
-                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <path d="M16 10a4 4 0 0 1-8 0" />
-              </svg>
+            <div className={`bag-icon${cartEmptyIcon ? ' bag-icon--cart' : ''}`}>
+              {cartEmptyIcon ? (
+                <i className="ph ph-shopping-cart" aria-hidden="true" />
+              ) : (
+                <svg viewBox="0 0 24 24">
+                  <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <path d="M16 10a4 4 0 0 1-8 0" />
+                </svg>
+              )}
             </div>
-            <span>Sacola vazia</span>
+            <span>{emptyLabel}</span>
           </div>
         ) : (
           <>
             <div className="sacola-header">
-              <h3>Sua sacola</h3>
+              <h3>{headerLabel}</h3>
               <button type="button" className="limpar-btn" onClick={clearCart}>
                 LIMPAR
               </button>
@@ -106,7 +122,29 @@ export default function SacolaPanel({ onFinalize, finalizeLabel = 'Finalizar ped
             {cart.map((item) => (
               <div className="sacola-item" key={item.id}>
                 <div className="sacola-item-info">
-                  <div className="sacola-item-qty">{item.qty}x</div>
+                  {inlineQtyControls ? (
+                    <div className="sacola-item-qty-stepper">
+                      <button
+                        type="button"
+                        className="sacola-item-qty-btn"
+                        onClick={() => changeCartItemQty(item.id, -1)}
+                        aria-label={`Diminuir quantidade de ${item.name}`}
+                      >
+                        −
+                      </button>
+                      <span className="sacola-item-qty-value">{item.qty}</span>
+                      <button
+                        type="button"
+                        className="sacola-item-qty-btn"
+                        onClick={() => changeCartItemQty(item.id, 1)}
+                        aria-label={`Aumentar quantidade de ${item.name}`}
+                      >
+                        +
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="sacola-item-qty">{item.qty}x</div>
+                  )}
                   <div className="sacola-item-name">{item.name}</div>
                   <CartItemOptsList opts={item.opts} className="sacola-item-opts" />
                   <div className="sacola-item-actions">
@@ -135,7 +173,7 @@ export default function SacolaPanel({ onFinalize, finalizeLabel = 'Finalizar ped
             ))}
             {relatedItems.length > 0 ? (
               <>
-                <div className="sacola-also-title">Peça também</div>
+                <div className="sacola-also-title">Adicione ao pedido</div>
                 <AlsoCarousel items={relatedItems} formatPrice={formatPrice} onOpen={openProduct} />
               </>
             ) : null}
@@ -174,7 +212,11 @@ export default function SacolaPanel({ onFinalize, finalizeLabel = 'Finalizar ped
         <div className="sacola-panel-footer">
           <div className="cupom-row" onClick={openCupomPopup} role="button" tabIndex={0}>
             <span className="cupom-icon">
-              <IconCupom />
+              {promoCupomIcon ? (
+                <CategoryIcon name="promo" size={20} className="sacola-cupom-promo-icon" tinted />
+              ) : (
+                <IconCupom />
+              )}
             </span>
             <span className="cupom-info">
               <div className="cupom-title">

@@ -24,14 +24,34 @@ Guia para desenvolver e testar **sem afetar clientes reais** em `cardapionimbus.
 1. [supabase.com](https://supabase.com) → **New project** (ex.: `cardapio-nimbus-staging`).
 2. Anote **URL**, **anon key** e **service role key**.
 
-### 1.2 Aplicar schema
+### 1.2 Aplicar schema (ordem obrigatória)
 
-No **SQL Editor** do projeto staging, execute na ordem:
+A migration `001` **não cria** as tabelas — ela só adiciona colunas em `empresas`, `pedidos`, etc.  
+Se rodar `001` antes do base, aparece: `relation "empresas" does not exist`.
 
-1. Conteúdo de `supabase/schema.sql` (se existir no repo)
-2. Todas as migrations em `supabase/migrations/` de `001` até `022` (ordem numérica)
+**Passo a passo no SQL Editor do projeto staging:**
+
+1. **`supabase/schema.sql`** — execute o arquivo **inteiro** primeiro (cria `empresas`, `pedidos`, RLS base, etc.)
+2. **`supabase/migrations/001_prd_foundation.sql`**
+3. **`002`** … até **`022`** — uma por vez, na ordem numérica
 
 Confira também `supabase/README.md`.
+
+> Se alguma migration falhar com “already exists”, leia a mensagem: muitas são idempotentes (`IF NOT EXISTS`). Só avance quando a anterior terminou com sucesso.
+
+### 1.2b Duplicar o projeto de produção?
+
+O Supabase **não tem** botão “duplicar projeto” no plano gratuito. Opções:
+
+| Abordagem | Quando usar | Dados reais de clientes? |
+|-----------|-------------|---------------------------|
+| **A — Schema do zero** (schema.sql + 001–022) | **Recomendado para staging** | Não — só loja demo |
+| **B — Backup/restore** (plano pago) | Clonar prod inteiro | Sim — cuidado com LGPD |
+| **C — `pg_dump` / `pg_restore`** | Quem já usa CLI/Postgres | Opcional (só schema ou schema+dados) |
+
+Para staging com clientes reais em produção, prefira **A**: mesma estrutura, **banco vazio** + `loja-demo`. Assim pedidos de teste nunca misturam com dados reais.
+
+Se no futuro precisar copiar **só o cardápio** de uma loja, use no super-admin: export/import de catálogo ou backup JSON da loja — não clone o banco inteiro.
 
 ### 1.3 Usuário e loja demo
 
