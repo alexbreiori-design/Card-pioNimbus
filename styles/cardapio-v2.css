@@ -2703,6 +2703,10 @@
 }
 
 /* ——— Modal produto v2 ——— */
+.cardapio-v2-root #storeClosedOverlay.generic-overlay {
+  z-index: 1400;
+}
+
 .cardapio-v2-product-modal-overlay {
   position: fixed;
   inset: 0;
