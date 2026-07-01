@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import CategoryIcon from '@/components/admin/CategoryIcon';
+import CardapioCategoryIcon from '@/components/cardapio/CardapioCategoryIcon';
 import { PROMO_CATEGORY_NAME } from '@/lib/promocoes';
 import { IconChevron } from './icons';
 import PromoProductCard from './PromoProductCard';
@@ -23,7 +23,7 @@ export default function PromoCarouselSection({ products }) {
   return (
     <section className="promo-section-block" aria-label={PROMO_CATEGORY_NAME}>
       <div className="section-title-sticky promo-section-title">
-        <CategoryIcon name="promo" size={18} className="section-title-icon" tinted />
+        <CardapioCategoryIcon name="promo" size={18} className="section-title-icon" tinted />
         {PROMO_CATEGORY_NAME}
       </div>
       <div className="promo-carousel-wrap">

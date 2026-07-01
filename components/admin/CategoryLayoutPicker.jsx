@@ -28,6 +28,10 @@ export default function CategoryLayoutPicker({ value, onChange }) {
   return (
     <div className="admin-category-layout-picker">
       <p className="admin-category-layout-picker-label">Exibição no cardápio</p>
+      <p className="admin-cardapio-v2-exclusive-note">
+        Disponível no <strong>novo cardápio online</strong>. No cardápio que seus clientes veem hoje,
+        a exibição continua no formato padrão.
+      </p>
       <div className="admin-category-layout-options">
         {CATEGORY_LAYOUT_OPTIONS.map((option) => {
           const isActive = value === option.id;

@@ -1,7 +1,7 @@
 'use client';
 
 export default function PromoFireIcon({ size = 18, className = '' }) {
-  const classes = ['cardapio-v2-promo-fire-icon', className].filter(Boolean).join(' ');
+  const classes = ['cardapio-promo-fire-icon', className].filter(Boolean).join(' ');
 
   return (
     <span

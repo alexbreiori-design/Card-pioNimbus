@@ -1,6 +1,6 @@
 'use client';
 
-import CardapioCategoryIcon from './CardapioCategoryIcon';
+import CardapioCategoryIcon from '@/components/cardapio/CardapioCategoryIcon';
 
 export default function CardapioCategoryChips({ sections = [], activeId = '', onSelect }) {
   function handleClick(sectionId, event) {

@@ -6,7 +6,7 @@ import { PROMO_CATEGORY_NAME } from '@/lib/promocoes';
 import { isReviewsEnabledOnCardapio } from '@/lib/cardapioV2Reviews';
 import MenuImageArea from '@/components/cardapio/MenuImageArea';
 import { V2Icon } from './CardapioV2Icons';
-import CardapioCategoryIcon from './CardapioCategoryIcon';
+import CardapioCategoryIcon from '@/components/cardapio/CardapioCategoryIcon';
 import {
   CARDAPIO_V2_SECTION,
   cardapioV2CategorySectionId,

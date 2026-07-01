@@ -117,12 +117,17 @@ export default function ReviewsAdminPanel() {
 
   return (
     <div className="admin-card admin-reviews-page-card">
+      <p className="admin-cardapio-v2-exclusive-note admin-cardapio-v2-exclusive-note--block">
+        As avaliações aprovadas só aparecem para os clientes no <strong>novo cardápio online</strong>.
+        No cardápio atual, essa seção não é exibida.
+      </p>
+
       <div className="admin-reviews-toolbar">
         <div className="admin-reviews-enable-row">
           <div>
             <strong className="admin-reviews-enable-title">Exibir avaliações no cardápio</strong>
             <p className="admin-help-text admin-reviews-enable-hint">
-              Desativado, a seção de avaliações some do cardápio online.
+              Quando ativado, clientes veem as avaliações no novo cardápio online.
             </p>
           </div>
           <label className="admin-switch" htmlFor="exibir-avaliacoes-cardapio">

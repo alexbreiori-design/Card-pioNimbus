@@ -7040,9 +7040,25 @@ textarea.admin-input::placeholder {
 }
 
 .admin-category-layout-picker-label {
-  margin: 0 0 10px;
+  margin: 0 0 6px;
   font-size: 12px;
   font-weight: 600;
+  color: #475569;
+}
+
+.admin-cardapio-v2-exclusive-note {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.admin-cardapio-v2-exclusive-note--block {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--brand, #4e48dd) 22%, transparent);
+  background: color-mix(in srgb, var(--brand, #4e48dd) 6%, transparent);
   color: #475569;
 }
 

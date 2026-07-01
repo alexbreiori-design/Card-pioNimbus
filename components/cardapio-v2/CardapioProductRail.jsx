@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import CardapioCategoryIcon from './CardapioCategoryIcon';
+import CardapioCategoryIcon from '@/components/cardapio/CardapioCategoryIcon';
 import { normalizeCategoryLayout, resolveCategoryLayout } from '@/lib/cardapio/categoryLayouts';
 import CardapioProductCardV2 from './CardapioProductCardV2';
 import CardapioProductCardV2List from './CardapioProductCardV2List';

@@ -2,6 +2,7 @@
 
 import { useCardapio } from '@/context/CardapioContext';
 import MenuImageArea from '@/components/cardapio/MenuImageArea';
+import ProductPromoChip from '@/components/cardapio/ProductPromoChip';
 
 export default function ProductCard({ product }) {
   const { openProduct, formatPrice } = useCardapio();
@@ -9,12 +10,17 @@ export default function ProductCard({ product }) {
 
   return (
     <div className="product-card" onClick={() => openProduct(product.id)} role="button" tabIndex={0}>
-      <MenuImageArea
-        imageUrl={product.imageUrl}
-        className="product-card-img-wrap"
-        alt={product.name}
-        sizes="112px"
-      />
+      <div className="product-card-img-shell">
+        <MenuImageArea
+          imageUrl={product.imageUrl}
+          className="product-card-img-wrap"
+          alt={product.name}
+          sizes="112px"
+        />
+        {isPromo ? (
+          <ProductPromoChip originalPrice={product.promoOriginalPrice} promoPrice={product.price} />
+        ) : null}
+      </div>
       <div className="product-card-body">
         <div className="product-card-title">{product.name}</div>
         <div className="product-card-desc">{product.desc}</div>

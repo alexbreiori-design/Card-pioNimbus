@@ -2,7 +2,7 @@
 
 import { useCardapio } from '@/context/CardapioContext';
 import MenuImageArea from '@/components/cardapio/MenuImageArea';
-import ProductPromoChip from './ProductPromoChip';
+import ProductPromoChip from '@/components/cardapio/ProductPromoChip';
 
 export default function CardapioProductCardV2({ product, layout = 'rail' }) {
   const { addProductFromCard, formatPrice } = useCardapio();
