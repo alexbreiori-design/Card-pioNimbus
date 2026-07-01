@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { useCardapio } from '@/context/CardapioContext';
 import { getSiteOrigin } from '@/lib/siteUrl';
 import { V2Icon } from './CardapioV2Icons';
+import { useCardapioV2Mobile } from './useCardapioV2Mobile';
 import { CARDAPIO_V2_SECTION } from './cardapioV2Sections';
 import {
   FOOTER_WEEKDAY_LABELS,
@@ -16,6 +17,7 @@ import {
 } from '@/lib/cardapioV2StoreInfo';
 
 export default function CardapioInfoFooter() {
+  const isMobile = useCardapioV2Mobile();
   const {
     storeConfig,
     formatStoreAddress,
@@ -45,6 +47,7 @@ export default function CardapioInfoFooter() {
     value: formatFooterDaySchedule(storeConfig?.horarios?.[dayKey]),
     isToday: dayKey === todayKey,
   }));
+  const todaySchedule = scheduleRows.find((row) => row.isToday);
 
   return (
     <footer
@@ -73,7 +76,7 @@ export default function CardapioInfoFooter() {
                 </li>
               ) : null}
               {addressLine ? (
-                <li>
+                <li className="cardapio-v2-info-footer-list-item--address">
                   <V2Icon name="map-pin" fill className="cardapio-v2-info-footer-list-icon is-pin" />
                   <span>{addressLine}</span>
                 </li>
@@ -104,45 +107,84 @@ export default function CardapioInfoFooter() {
           </section>
 
           <section className="cardapio-v2-info-footer-col" aria-labelledby="cardapio-v2-info-hours">
-            <h3 className="cardapio-v2-info-footer-heading" id="cardapio-v2-info-hours">
-              Horário de funcionamento
-            </h3>
-            <ul className="cardapio-v2-info-footer-schedule">
-              {scheduleRows.map((row) => (
-                <li
-                  key={row.key}
-                  className={`cardapio-v2-info-footer-schedule-row${row.isToday ? ' is-today' : ''}`}
-                >
-                  <span className="cardapio-v2-info-footer-schedule-day">{row.label}</span>
-                  <span className="cardapio-v2-info-footer-schedule-time">{row.value}</span>
-                </li>
-              ))}
-            </ul>
+            {isMobile ? (
+              <details className="cardapio-v2-info-footer-schedule-panel">
+                <summary className="cardapio-v2-info-footer-schedule-summary">
+                  <span className="cardapio-v2-info-footer-heading" id="cardapio-v2-info-hours">
+                    Horário de funcionamento
+                  </span>
+                  {todaySchedule ? (
+                    <span className="cardapio-v2-info-footer-schedule-today-hint">
+                      Hoje: {todaySchedule.value}
+                    </span>
+                  ) : null}
+                </summary>
+                <ul className="cardapio-v2-info-footer-schedule">
+                  {scheduleRows.map((row) => (
+                    <li
+                      key={row.key}
+                      className={`cardapio-v2-info-footer-schedule-row${row.isToday ? ' is-today' : ''}`}
+                    >
+                      <span className="cardapio-v2-info-footer-schedule-day">{row.label}</span>
+                      <span className="cardapio-v2-info-footer-schedule-time">{row.value}</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : (
+              <>
+                <h3 className="cardapio-v2-info-footer-heading" id="cardapio-v2-info-hours">
+                  Horário de funcionamento
+                </h3>
+                <ul className="cardapio-v2-info-footer-schedule">
+                  {scheduleRows.map((row) => (
+                    <li
+                      key={row.key}
+                      className={`cardapio-v2-info-footer-schedule-row${row.isToday ? ' is-today' : ''}`}
+                    >
+                      <span className="cardapio-v2-info-footer-schedule-day">{row.label}</span>
+                      <span className="cardapio-v2-info-footer-schedule-time">{row.value}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </section>
 
           <section className="cardapio-v2-info-footer-col" aria-labelledby="cardapio-v2-info-orders">
             <h3 className="cardapio-v2-info-footer-heading" id="cardapio-v2-info-orders">
               Pedidos e pagamento
             </h3>
-            <dl className="cardapio-v2-info-footer-details">
+            <dl
+              className={
+                isMobile
+                  ? 'cardapio-v2-info-footer-details cardapio-v2-info-footer-details--orders'
+                  : 'cardapio-v2-info-footer-details'
+              }
+            >
               <div className="cardapio-v2-info-footer-detail">
                 <dt>Pedido mínimo</dt>
                 <dd>{minOrder > 0 ? formatPrice(minOrder) : 'Sem mínimo'}</dd>
               </div>
-              {deliveryDurationLabel ? (
+              {isMobile ? (
+                <div className="cardapio-v2-info-footer-detail">
+                  <dt>Entrega</dt>
+                  <dd>{deliveryDurationLabel ? `até ${deliveryDurationLabel}` : '—'}</dd>
+                </div>
+              ) : deliveryDurationLabel ? (
                 <div className="cardapio-v2-info-footer-detail">
                   <dt>Entrega</dt>
                   <dd>até {deliveryDurationLabel}</dd>
                 </div>
               ) : null}
-              {pickupDurationLabel ? (
+              {!isMobile && pickupDurationLabel ? (
                 <div className="cardapio-v2-info-footer-detail">
                   <dt>Retirada</dt>
                   <dd>até {pickupDurationLabel}</dd>
                 </div>
               ) : null}
               <div className="cardapio-v2-info-footer-detail">
-                <dt>Formas de pagamento</dt>
+                <dt>{isMobile ? 'Pagamento' : 'Formas de pagamento'}</dt>
                 <dd>{paymentLabels.join(' · ')}</dd>
               </div>
             </dl>

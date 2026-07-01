@@ -35,9 +35,9 @@ export function V2Icon({ name, className = '', fill = false, duotone = false }) 
   );
 }
 
-function HeroGlassChip({ children, className = '' }) {
+function HeroGlassChip({ children, className = '', ...props }) {
   return (
-    <span className={`cardapio-v2-hero-glass-chip ${className}`.trim()}>
+    <span className={`cardapio-v2-hero-glass-chip ${className}`.trim()} {...props}>
       <span className="cardapio-v2-hero-glass-chip-bg" aria-hidden="true" />
       <span className="cardapio-v2-hero-glass-chip-inner">{children}</span>
     </span>

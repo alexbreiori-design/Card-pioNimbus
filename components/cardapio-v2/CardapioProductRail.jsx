@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import CategoryIcon from '@/components/admin/CategoryIcon';
-import { getCategoryLayoutConfig } from '@/lib/cardapio/categoryLayouts';
+import { normalizeCategoryLayout, resolveCategoryLayout } from '@/lib/cardapio/categoryLayouts';
 import CardapioProductCardV2 from './CardapioProductCardV2';
 import CardapioProductCardV2List from './CardapioProductCardV2List';
 import { V2Icon } from './CardapioV2Icons';
+import { useCardapioV2Mobile } from './useCardapioV2Mobile';
 
 export default function CardapioProductRail({
   sectionId,
@@ -20,7 +21,12 @@ export default function CardapioProductRail({
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
 
-  const layoutConfig = useMemo(() => getCategoryLayoutConfig(displayLayout), [displayLayout]);
+  const isMobile = useCardapioV2Mobile();
+  const layoutId = normalizeCategoryLayout(displayLayout);
+  const layoutConfig = useMemo(
+    () => resolveCategoryLayout(displayLayout, { mobile: isMobile }),
+    [displayLayout, isMobile]
+  );
   const isListLayout = layoutConfig.mode === 'lista';
   const visibleCount = layoutConfig.visibleCount;
   const hasOverflow = items.length > visibleCount;
@@ -32,8 +38,10 @@ export default function CardapioProductRail({
     const el = scrollRef.current;
     if (!el) return;
     const maxScroll = el.scrollWidth - el.clientWidth;
-    setCanScrollPrev(el.scrollLeft > 4);
-    setCanScrollNext(maxScroll > 4 && el.scrollLeft < maxScroll - 4);
+    const nextPrev = el.scrollLeft > 4;
+    const nextNext = maxScroll > 4 && el.scrollLeft < maxScroll - 4;
+    setCanScrollPrev((prev) => (prev === nextPrev ? prev : nextPrev));
+    setCanScrollNext((prev) => (prev === nextNext ? prev : nextNext));
   }, []);
 
   useEffect(() => {
@@ -56,7 +64,8 @@ export default function CardapioProductRail({
     const el = scrollRef.current;
     if (!el) return;
     const card = el.querySelector(cardSelector);
-    const gap = 20;
+    const gapRaw = getComputedStyle(el).getPropertyValue('--v2-rail-gap').trim();
+    const gap = gapRaw ? parseFloat(gapRaw) : isMobile ? 12 : 20;
     const amount = card ? card.getBoundingClientRect().width + gap : Math.floor(el.clientWidth * 0.75);
     el.scrollBy({ left: direction * amount, behavior: 'smooth' });
   }
@@ -68,7 +77,7 @@ export default function CardapioProductRail({
 
   return (
     <section
-      className={`cardapio-v2-rail-section is-layout-${layoutConfig.id}`}
+      className={`cardapio-v2-rail-section is-layout-${layoutId}`}
       id={sectionId}
       aria-label={label}
     >
@@ -117,12 +126,12 @@ export default function CardapioProductRail({
               <V2Icon name="caret-left" />
             </button>
           ) : null}
-          <div className="cardapio-v2-rail-track" ref={scrollRef}>
+          <div className={`cardapio-v2-rail-track is-rail-${layoutId}`} ref={scrollRef}>
             {items.map((product) => (
               <CardComponent key={product.id} product={product} />
             ))}
           </div>
-          {canScrollNext ? (
+          {canScrollNext || (!canScrollPrev && hasOverflow) ? (
             <button
               type="button"
               className="cardapio-v2-rail-nav cardapio-v2-rail-nav--next"

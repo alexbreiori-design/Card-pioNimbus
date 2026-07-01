@@ -45,17 +45,18 @@ export default function CardapioMainColumn() {
       });
 
     return list;
-  }, [filteredProducts, promoProducts]);
+  }, [filteredProducts, promoProducts, categoryLayoutsByName]);
 
   useEffect(() => {
     if (!sections.length) {
-      setActiveSectionId('');
+      setActiveSectionId((prev) => (prev ? '' : prev));
       return;
     }
-    if (!activeSectionId || !sections.some((section) => section.id === activeSectionId)) {
-      setActiveSectionId(sections[0].id);
-    }
-  }, [sections, activeSectionId]);
+    setActiveSectionId((prev) => {
+      if (prev && sections.some((section) => section.id === prev)) return prev;
+      return sections[0].id;
+    });
+  }, [sections]);
 
   useEffect(() => {
     if (!sections.length || typeof IntersectionObserver === 'undefined') return undefined;
@@ -80,7 +81,7 @@ export default function CardapioMainColumn() {
         });
 
         if (bestId && bestRatio > 0.15) {
-          setActiveSectionId(bestId);
+          setActiveSectionId((prev) => (prev === bestId ? prev : bestId));
         }
       },
       {

@@ -36,7 +36,7 @@ export default function CardapioProductCardV2({ product, layout = 'rail' }) {
           imageUrl={product.imageUrl}
           className="cardapio-v2-product-card-img"
           alt={product.name}
-          sizes="(min-width: 1100px) 30vw, 200px"
+          sizes="(min-width: 1100px) 30vw, 33vw"
         />
       </div>
       <div className="cardapio-v2-product-card-body">

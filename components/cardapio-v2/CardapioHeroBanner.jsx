@@ -75,13 +75,13 @@ export default function CardapioHeroBanner() {
 
         <div className="cardapio-v2-hero-chips-row">
           {deliveryDurationLabel ? (
-            <HeroGlassChip>
+            <HeroGlassChip aria-label={`Entrega em até ${deliveryDurationLabel}`}>
               <V2Icon name="clock" className="cardapio-v2-hero-chip-icon" />
               <span className="cardapio-v2-hero-chip-label">Entrega em até</span>
               <span className="cardapio-v2-hero-chip-value">{deliveryDurationLabel}</span>
             </HeroGlassChip>
           ) : null}
-          <HeroGlassChip>
+          <HeroGlassChip aria-label={`Pedido mínimo ${minOrderValue}`}>
             <V2Icon name="receipt" className="cardapio-v2-hero-chip-icon" />
             <span className="cardapio-v2-hero-chip-label">Pedido mínimo</span>
             <span className="cardapio-v2-hero-chip-value">{minOrderValue}</span>
@@ -100,13 +100,14 @@ export default function CardapioHeroBanner() {
           {reviewsEnabled ? (
             <button
               type="button"
-              className="cardapio-v2-hero-btn cardapio-v2-hero-btn--outline"
+              className="cardapio-v2-hero-btn cardapio-v2-hero-btn--outline cardapio-v2-hero-btn--review"
+              aria-label="Avaliar"
               onClick={() => {
                 window.dispatchEvent(new CustomEvent('cardapio-v2-open-review-submit'));
               }}
             >
               <V2Icon name="star" className="cardapio-v2-hero-btn-icon" />
-              Avaliar
+              <span className="cardapio-v2-hero-btn-label">Avaliar</span>
             </button>
           ) : null}
         </div>
