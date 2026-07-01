@@ -2,7 +2,7 @@
 
 import { useCardapio } from '@/context/CardapioContext';
 import { PROMO_CATEGORY_NAME } from '@/lib/promocoes';
-import CategoryIcon from '@/components/admin/CategoryIcon';
+import CardapioCategoryIcon from '@/components/cardapio/CardapioCategoryIcon';
 import ProductCard from './ProductCard';
 import PromoCarouselSection from './PromoCarouselSection';
 
@@ -39,7 +39,7 @@ export default function ProductSections() {
           <div className="section-block" key={category}>
             <div className="section-title-sticky">
               {categoryIcon ? (
-                <CategoryIcon name={categoryIcon} size={18} className="section-title-icon" tinted />
+                <CardapioCategoryIcon name={categoryIcon} size={18} className="section-title-icon" tinted />
               ) : null}
               {category}
             </div>

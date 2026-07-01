@@ -6,6 +6,7 @@ import { withDerivedData } from '@/lib/adminData';
 import { validatePublicOrder } from '@/lib/orderValidation';
 import { loadAssembledStoreState } from '@/lib/catalog/storeCatalogRepository';
 import { getActiveTurno } from '@/lib/caixa/caixaServer';
+import { resolveStoreOpenStatus } from '@/lib/storeHours';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 import { listZonasByEmpresaId } from '@/lib/supabase/empresaServer';
 
@@ -51,12 +52,14 @@ export async function POST(request) {
     if (empresa.suspensa === true) {
       return NextResponse.json({ ok: false, error: 'Loja indisponível no momento.' }, { status: 403 });
     }
-    if (empresa.aberta === false) {
-      return NextResponse.json({ ok: false, error: 'Loja fechada no momento.' }, { status: 403 });
-    }
 
     const loaded = await loadAssembledStoreState(supabase, slug);
     const storeData = withDerivedData(loaded?.data || {});
+    const { aberta } = resolveStoreOpenStatus(storeData.loja);
+    if (!aberta) {
+      return NextResponse.json({ ok: false, error: 'Loja fechada no momento.' }, { status: 403 });
+    }
+
     const zonas = await listZonasByEmpresaId(supabase, empresa.id);
 
     const validated = validatePublicOrder({

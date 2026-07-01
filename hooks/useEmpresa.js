@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAdminData } from '@/hooks/useAdminData';
 import { getEmpresaBySlug } from '@/lib/supabase/empresa';
+import { withTimeout } from '@/lib/fetchWithTimeout';
+
+const EMPRESA_FETCH_TIMEOUT_MS = 15000;
 
 /**
  * Carrega a empresa (tenant) atual com base no slug da loja no admin.
@@ -27,7 +30,11 @@ export function useEmpresa() {
     setLoading(true);
     setError('');
     try {
-      const row = await getEmpresaBySlug(slug);
+      const row = await withTimeout(
+        getEmpresaBySlug(slug),
+        EMPRESA_FETCH_TIMEOUT_MS,
+        'Tempo esgotado ao carregar empresa.'
+      );
       if (!row) {
         setEmpresaId(null);
         setEmpresa(null);

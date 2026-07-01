@@ -266,6 +266,11 @@
   text-decoration: underline;
 }
 
+.footerDomainLight {
+  font-weight: 400;
+  opacity: 0.82;
+}
+
 @media (max-width: 1180px) {
   .shell {
     height: 660px;

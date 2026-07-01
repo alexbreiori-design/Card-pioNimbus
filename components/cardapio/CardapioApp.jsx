@@ -22,6 +22,7 @@ import CardapioSplash from './CardapioSplash';
 import CardapioLegalFooter from './CardapioLegalFooter';
 import { SHOW_LEGACY_NAV } from '@/lib/cardapioFeatures';
 import EnvironmentBanner from '@/components/shared/EnvironmentBanner';
+import '@phosphor-icons/web/regular/style.css';
 
 export default function CardapioApp() {
   const { storeConfig, splashVisible } = useCardapio();

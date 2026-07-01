@@ -12,7 +12,9 @@ import AdminGroupedSortablePanel from './AdminGroupedSortablePanel';
 import ImagePlaceholder from './ImagePlaceholder';
 import AdminIcon from './AdminIcon';
 import CategoryIcon from './CategoryIcon';
-import { CATEGORY_ICONS } from '@/lib/categoryIcons';
+import CategoryIconPicker from '@/components/admin/CategoryIconPicker';
+import CategoryLayoutPicker from '@/components/admin/CategoryLayoutPicker';
+import { CATEGORY_LAYOUT_DEFAULT } from '@/lib/cardapio/categoryLayouts';
 import {
   COMBO_SUGGESTED_DISCOUNT_PERCENT,
   formatComboPriceBr,
@@ -364,7 +366,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
       ordem: data[catKey]?.length || 0,
     };
     const nextCategory = isProdutos
-      ? { ...baseCategory, icone: 'burger' }
+      ? { ...baseCategory, icone: 'burger', exibicaoCardapio: CATEGORY_LAYOUT_DEFAULT }
       : {
           ...baseCategory,
           obrigatorio: false,
@@ -381,7 +383,12 @@ export default function CatalogManager({ mode = 'produtos' }) {
 
   function openEditCategory(cat) {
     if (isProdutos) {
-      setEditingCategory({ id: cat.id, nome: cat.nome, icone: cat.icone || 'burger' });
+      setEditingCategory({
+        id: cat.id,
+        nome: cat.nome,
+        icone: cat.icone || 'burger',
+        exibicaoCardapio: cat.exibicaoCardapio || CATEGORY_LAYOUT_DEFAULT,
+      });
     } else {
       setEditingCategory({
         id: cat.id,
@@ -403,7 +410,12 @@ export default function CatalogManager({ mode = 'produtos' }) {
       [catKey]: prev[catKey].map((cat) => {
         if (cat.id !== editingCategory.id) return cat;
         if (isProdutos) {
-          return { ...cat, nome, icone: editingCategory.icone || cat.icone || 'burger' };
+          return {
+            ...cat,
+            nome,
+            icone: editingCategory.icone || cat.icone || 'burger',
+            exibicaoCardapio: editingCategory.exibicaoCardapio || CATEGORY_LAYOUT_DEFAULT,
+          };
         }
         const min = Math.max(0, Number(editingCategory.min || 0));
         let max = Math.max(min, Number(editingCategory.max || min));
@@ -1676,13 +1688,13 @@ export default function CatalogManager({ mode = 'produtos' }) {
       {editingCategory ? (
         <div className="admin-confirm-overlay" onClick={() => setEditingCategory(null)}>
           <div
-            className={`admin-confirm-modal ${isProdutos ? '' : 'admin-category-edit-modal'}`}
+            className="admin-confirm-modal admin-category-edit-modal"
             onClick={(e) => e.stopPropagation()}
           >
             <h3>{isProdutos ? 'Editar categoria' : 'Editar categoria de adicional'}</h3>
             <p>
               {isProdutos
-                ? 'Altere o nome e o ícone da categoria que aparece no painel e no cardápio.'
+                ? 'Altere o nome, o ícone e a exibição da categoria no cardápio.'
                 : 'Configure nome e regras padrão de seleção para esta categoria de adicionais.'}
             </p>
             <div className="admin-form-group">
@@ -1695,19 +1707,18 @@ export default function CatalogManager({ mode = 'produtos' }) {
               />
             </div>
             {isProdutos ? (
-              <div className="admin-category-icon-picker">
-                {CATEGORY_ICONS.map((icon) => (
-                  <button
-                    key={icon.id}
-                    type="button"
-                    className={`admin-category-icon-option ${editingCategory.icone === icon.id ? 'active' : ''}`}
-                    onClick={() => setEditingCategory((cat) => ({ ...cat, icone: icon.id }))}
-                    title={icon.label}
-                  >
-                    <CategoryIcon name={icon.id} size={28} tinted />
-                  </button>
-                ))}
-              </div>
+              <>
+                <CategoryIconPicker
+                  value={editingCategory.icone || 'burger'}
+                  onChange={(icone) => setEditingCategory((cat) => ({ ...cat, icone }))}
+                />
+                <CategoryLayoutPicker
+                  value={editingCategory.exibicaoCardapio || CATEGORY_LAYOUT_DEFAULT}
+                  onChange={(exibicaoCardapio) =>
+                    setEditingCategory((cat) => ({ ...cat, exibicaoCardapio }))
+                  }
+                />
+              </>
             ) : (
               <div className="admin-addon-category-rules">
                 <label className="admin-option-row">

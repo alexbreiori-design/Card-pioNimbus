@@ -13,8 +13,10 @@ import { formatMarmitaCartObs } from '@/lib/marmita/marmitaWizard';
 import { formatPrice } from '@/lib/utils/format';
 import { fetchViaCep } from '@/lib/cep/viacep';
 import { calculateCupomDiscount, findCupomByCode } from '@/lib/cupons';
+import { applyBrandThemeTargets } from '@/lib/brandTheme';
+import { buildCardapioBootState, resolveStoreSlugFromBrowser } from '@/lib/cardapioBoot';
 import { resolveCardapioFromPublicPayload } from '@/lib/catalogPublic';
-import { getConfiguredDefaultSlug } from '@/lib/storeBoot';
+import { createEmptyStoreSeed, getConfiguredDefaultSlug } from '@/lib/storeBoot';
 import { applyScheduleOpenStatus } from '@/lib/storeHours';
 import { DEFAULT_ADMIN_DATA, withDerivedData } from '@/lib/adminData';
 import { fetchStoreStateMetaRemote, fetchStoreStateRemote } from '@/lib/storeStateClient';
@@ -36,6 +38,7 @@ import {
 } from '@/lib/phoneBr';
 import { formatMoneyBrInput, hasMoneyBrValue, parseMoneyBrInput } from '@/lib/moneyMask';
 import { mergeEmpresaIntoLoja } from '@/lib/supabase/empresa';
+import { CATEGORY_LAYOUT_DEFAULT, resolveMarmitaSectionLayout } from '@/lib/cardapio/categoryLayouts';
 import { fetchPublicEmpresaCardapio } from '@/lib/supabase/publicEmpresa';
 import { initMetaPixel, sanitizeMetaPixelId, trackMetaEvent } from '@/lib/meta/pixel';
 import { MAX_PECA_TAMBEM } from '@/lib/productSuggestions';
@@ -163,43 +166,35 @@ function upsertClientInStoreSnapshot(adminState, { name, phone, address = null }
   });
 }
 
-function hexToRgb(hex) {
-  const normalized = String(hex || '').replace('#', '').trim();
-  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return null;
-  return {
-    r: parseInt(normalized.slice(0, 2), 16),
-    g: parseInt(normalized.slice(2, 4), 16),
-    b: parseInt(normalized.slice(4, 6), 16),
-  };
-}
-
-function rgbToHex({ r, g, b }) {
-  return `#${[r, g, b].map((value) => Math.round(value).toString(16).padStart(2, '0')).join('')}`;
-}
-
-function mixColors(hex, target, weight) {
-  const from = hexToRgb(hex);
-  const to = hexToRgb(target);
-  if (!from || !to) return hex;
-  return rgbToHex({
-    r: from.r * (1 - weight) + to.r * weight,
-    g: from.g * (1 - weight) + to.g * weight,
-    b: from.b * (1 - weight) + to.b * weight,
-  });
-}
-
-/** Aplica cor de destaque no cardápio público (inclui diálogos fora do theme-root). */
+/** Aplica cor de destaque no cardápio público (v1, v2 e diálogos). */
 function applyBrandColor(hex) {
-  const brand = hex || '#610C27';
-  const targets = new Set([document.documentElement]);
+  const targets = [document.documentElement];
   const themeRoot = document.querySelector('.cardapio-theme-root');
-  if (themeRoot) targets.add(themeRoot);
-  targets.forEach((target) => {
-    target.style.setProperty('--brand', brand);
-    target.style.setProperty('--brand-hover', mixColors(brand, '#000000', 0.18));
-    target.style.setProperty('--brand-light', mixColors(brand, '#ffffff', 0.9));
-    target.style.setProperty('--brand-mid', mixColors(brand, '#ffffff', 0.42));
-  });
+  const v2Root = document.querySelector('.cardapio-v2-root');
+  if (themeRoot) targets.push(themeRoot);
+  if (v2Root) targets.push(v2Root);
+  applyBrandThemeTargets(targets, hex);
+}
+
+function arraysShallowEqualById(a, b) {
+  if (a === b) return true;
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+  return a.every((item, index) => item?.id === b[index]?.id);
+}
+
+function publicOrdersEqual(a, b) {
+  if (a === b) return true;
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+  return a.every(
+    (order, index) =>
+      order?.id === b[index]?.id &&
+      order?.status === b[index]?.status &&
+      order?.total === b[index]?.total
+  );
+}
+
+function stringifyScheduleKey(horarios, fechadaManual) {
+  return `${Boolean(fechadaManual)}:${JSON.stringify(horarios ?? null)}`;
 }
 
 function getInitialProfile() {
@@ -222,15 +217,38 @@ function getInitialProfile() {
   }
 }
 
-export function CardapioProvider({ children, slug = '' }) {
+export function CardapioProvider({
+  children,
+  slug = '',
+  initialPublicPayload = null,
+  initialEmpresa = null,
+}) {
+  const bootRef = useRef(undefined);
+  if (bootRef.current === undefined) {
+    bootRef.current = buildCardapioBootState(initialPublicPayload, initialEmpresa, slug);
+  }
+  const boot = bootRef.current;
+
   const [effectiveSlug, setEffectiveSlug] = useState(() => normalizeSlug(slug));
-  const [storeConfig, setStoreConfig] = useState(DEFAULT_ADMIN_DATA.loja);
-  const [dynamicProducts, setDynamicProducts] = useState([]);
-  const [promoCarouselProducts, setPromoCarouselProducts] = useState([]);
-  const [dynamicCategories, setDynamicCategories] = useState(['Todos']);
-  const [storeReady, setStoreReady] = useState(false);
-  const [splashVisible, setSplashVisible] = useState(true);
-  const [categoryIconsByName, setCategoryIconsByName] = useState({});
+  const [storeConfig, setStoreConfig] = useState(() => boot?.loja ?? DEFAULT_ADMIN_DATA.loja);
+  const [dynamicProducts, setDynamicProducts] = useState(() => boot?.resolved?.products ?? []);
+  const [promoCarouselProducts, setPromoCarouselProducts] = useState(
+    () => boot?.resolved?.promoCarouselProducts ?? []
+  );
+  const [dynamicCategories, setDynamicCategories] = useState(
+    () => boot?.resolved?.categories ?? ['Todos']
+  );
+  const [storeReady, setStoreReady] = useState(() => Boolean(boot?.loja));
+  const [splashVisible, setSplashVisible] = useState(() => !boot?.loja);
+  const [categoryIconsByName, setCategoryIconsByName] = useState(
+    () => boot?.resolved?.categoryIconsByName ?? {}
+  );
+  const [categoryLayoutsByName, setCategoryLayoutsByName] = useState(
+    () => boot?.resolved?.categoryLayoutsByName ?? {}
+  );
+  const [marmitaGrupoLayoutsById, setMarmitaGrupoLayoutsById] = useState(
+    () => boot?.resolved?.marmitaGrupoLayoutsById ?? {}
+  );
   const [page, setPage] = useState('main');
   const [navActive, setNavActive] = useState('navInicio');
   const [mobileNavActive, setMobileNavActive] = useState('mNavInicio');
@@ -294,7 +312,7 @@ export function CardapioProvider({ children, slug = '' }) {
     estado: 'SP',
   });
   const [cupomValue, setCupomValue] = useState('');
-  const [availableCupons, setAvailableCupons] = useState([]);
+  const [availableCupons, setAvailableCupons] = useState(() => boot?.resolved?.cupons ?? []);
   const [appliedCupom, setAppliedCupom] = useState(null);
 
   const [profileName, setProfileName] = useState('');
@@ -320,9 +338,15 @@ export function CardapioProvider({ children, slug = '' }) {
   const popupDetailsRef = useRef(null);
   const cepInputRef = useRef(null);
   const cupomInputRef = useRef(null);
-  const storeSnapshotRef = useRef(withDerivedData(DEFAULT_ADMIN_DATA));
+  const storeSnapshotRef = useRef(
+    boot?.snapshot ??
+      withDerivedData(createEmptyStoreSeed(normalizeSlug(slug) || getConfiguredDefaultSlug()))
+  );
   const catalogWatermarkRef = useRef(null);
   const ordersWatermarkRef = useRef(null);
+  const appliedBrandColorRef = useRef('');
+  const effectiveSlugRef = useRef(effectiveSlug);
+  effectiveSlugRef.current = effectiveSlug;
   const checkoutSubmittingRef = useRef(false);
   const storeClosedNoticeShownRef = useRef(false);
   const [dialog, setDialog] = useState(null);
@@ -387,7 +411,9 @@ export function CardapioProvider({ children, slug = '' }) {
     });
 
     if (!phoneDigits) {
-      if (cachedOrders.length) setPublicOrders(cachedOrders);
+      if (cachedOrders.length) {
+        setPublicOrders((prev) => (publicOrdersEqual(prev, cachedOrders) ? prev : cachedOrders));
+      }
       return;
     }
 
@@ -404,7 +430,7 @@ export function CardapioProvider({ children, slug = '' }) {
       phoneDigits,
     });
 
-    setPublicOrders(merged);
+    setPublicOrders((prev) => (publicOrdersEqual(prev, merged) ? prev : merged));
     writeCachedOrders(slugToUse, merged);
   }, [
     checkoutData.phone,
@@ -415,8 +441,18 @@ export function CardapioProvider({ children, slug = '' }) {
     storeConfig.slug,
   ]);
 
+  const hydratePublicOrdersRef = useRef(hydratePublicOrders);
+  hydratePublicOrdersRef.current = hydratePublicOrders;
+
   const modalOpen =
     productOpen || cartReviewOpen || checkoutOpen || cepOpen || addressOpen || cupomOpen;
+
+  useEffect(() => {
+    const brand = boot?.loja?.corMarca;
+    if (!brand || brand === appliedBrandColorRef.current) return;
+    appliedBrandColorRef.current = brand;
+    applyBrandColor(brand);
+  }, [boot]);
 
   useEffect(() => {
     if (slug) {
@@ -426,20 +462,18 @@ export function CardapioProvider({ children, slug = '' }) {
     if (storeSnapshotRef.current?.loja?.slug) {
       setEffectiveSlug(normalizeSlug(storeSnapshotRef.current.loja.slug));
     } else {
-      setEffectiveSlug(normalizeSlug(getConfiguredDefaultSlug()));
+      setEffectiveSlug(resolveStoreSlugFromBrowser(getConfiguredDefaultSlug()));
     }
   }, [slug]);
 
   useEffect(() => {
-    const targetSlug =
-      effectiveSlug ||
-      (typeof window !== 'undefined'
-        ? window.location.pathname.split('/').filter(Boolean).at(-1)?.toLowerCase() || ''
-        : '');
-
     const syncFromAdmin = async ({ force = false } = {}) => {
       try {
-        const slugToFetch = targetSlug || getConfiguredDefaultSlug();
+        const slugToFetch =
+          normalizeSlug(slug) ||
+          normalizeSlug(effectiveSlugRef.current) ||
+          resolveStoreSlugFromBrowser() ||
+          getConfiguredDefaultSlug();
         if (!force) {
           const meta = await fetchStoreStateMetaRemote(slugToFetch);
           if (meta?.updated_at && meta.updated_at === catalogWatermarkRef.current) {
@@ -461,15 +495,30 @@ export function CardapioProvider({ children, slug = '' }) {
 
         if (!parsed) {
           parsed = storeSnapshotRef.current;
-        } else {
+        }
+
+        const catalogChanged =
+          force ||
+          (remoteUpdatedAt != null && remoteUpdatedAt !== catalogWatermarkRef.current);
+
+        if (catalogChanged && remoteUpdatedAt != null) {
           catalogWatermarkRef.current = remoteUpdatedAt;
         }
+
         storeSnapshotRef.current = parsed;
 
-        let loja = parsed.loja;
-        if (targetSlug) {
+        let loja = parsed?.loja;
+        if (!loja) {
+          if (boot?.loja) {
+            loja = boot.loja;
+          } else {
+            return;
+          }
+        }
+
+        if (slugToFetch) {
           try {
-            const empresa = await fetchPublicEmpresaCardapio(targetSlug);
+            const empresa = await fetchPublicEmpresaCardapio(slugToFetch);
             loja = mergeEmpresaIntoLoja(loja, empresa);
           } catch {
             /* mantém loja do estado remoto/local */
@@ -486,31 +535,80 @@ export function CardapioProvider({ children, slug = '' }) {
         }
 
         const resolved = resolveCardapioFromPublicPayload(parsed);
-        if (!resolved) return;
+        if (resolved && catalogChanged) {
+          setDynamicProducts((prev) =>
+            arraysShallowEqualById(prev, resolved.products) ? prev : resolved.products
+          );
+          setPromoCarouselProducts((prev) =>
+            arraysShallowEqualById(prev, resolved.promoCarouselProducts || [])
+              ? prev
+              : resolved.promoCarouselProducts || []
+          );
+          setDynamicCategories((prev) => {
+            const next = resolved.categories;
+            if (
+              prev.length === next.length &&
+              prev.every((cat, index) => cat === next[index])
+            ) {
+              return prev;
+            }
+            return next;
+          });
+          setCategoryIconsByName((prev) => {
+            const next = resolved.categoryIconsByName;
+            return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+          });
+          setCategoryLayoutsByName((prev) => {
+            const next = resolved.categoryLayoutsByName || {};
+            return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+          });
+          setMarmitaGrupoLayoutsById((prev) => {
+            const next = resolved.marmitaGrupoLayoutsById || {};
+            return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+          });
+          setAvailableCupons((prev) =>
+            arraysShallowEqualById(prev, resolved.cupons) ? prev : resolved.cupons
+          );
+        }
 
-        const catalog = resolved;
-        setDynamicProducts(catalog.products);
-        setPromoCarouselProducts(catalog.promoCarouselProducts || []);
-        setDynamicCategories(catalog.categories);
-        setCategoryIconsByName(catalog.categoryIconsByName);
-        setAvailableCupons(catalog.cupons);
         const lojaWithAddress = applyScheduleOpenStatus({
           ...loja,
           endereco: formatStoreAddress(loja),
         });
-        setStoreConfig(lojaWithAddress);
-        applyBrandColor(lojaWithAddress.corMarca);
+        setStoreConfig((prev) => {
+          if (
+            prev.aberta === lojaWithAddress.aberta &&
+            prev.corMarca === lojaWithAddress.corMarca &&
+            prev.endereco === lojaWithAddress.endereco &&
+            prev.fechadaManual === lojaWithAddress.fechadaManual &&
+            prev.nome === lojaWithAddress.nome &&
+            prev.slug === lojaWithAddress.slug
+          ) {
+            return prev;
+          }
+          return lojaWithAddress;
+        });
+
+        const nextBrand = lojaWithAddress.corMarca || '';
+        if (nextBrand && nextBrand !== appliedBrandColorRef.current) {
+          appliedBrandColorRef.current = nextBrand;
+          applyBrandColor(nextBrand);
+        }
       } catch {
+        /* noop */
       } finally {
         setStoreReady(true);
-        void hydratePublicOrders();
       }
     };
     syncFromAdmin({ force: true });
     const interval = window.setInterval(() => syncFromAdmin(), STORE_SYNC_MS);
     const onFocus = () => syncFromAdmin();
     const onStorage = () => syncFromAdmin({ force: true });
-    const onAdminUpdated = () => syncFromAdmin({ force: true });
+    const onAdminUpdated = (event) => {
+      if (event?.detail === storeSnapshotRef.current) return;
+      catalogWatermarkRef.current = null;
+      void syncFromAdmin({ force: true });
+    };
     window.addEventListener('focus', onFocus);
     window.addEventListener('storage', onStorage);
     window.addEventListener('admin-data-updated', onAdminUpdated);
@@ -520,17 +618,33 @@ export function CardapioProvider({ children, slug = '' }) {
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('admin-data-updated', onAdminUpdated);
     };
-  }, [effectiveSlug, hydratePublicOrders]);
+  }, [boot, slug]);
+
+  const scheduleSyncKey = useMemo(
+    () => stringifyScheduleKey(storeConfig.horarios, storeConfig.fechadaManual),
+    [storeConfig.horarios, storeConfig.fechadaManual]
+  );
+
+  useEffect(() => {
+    if (!storeReady || !storeConfig?.corMarca) return;
+    const nextBrand = storeConfig.corMarca;
+    if (nextBrand === appliedBrandColorRef.current) return;
+    appliedBrandColorRef.current = nextBrand;
+    applyBrandColor(nextBrand);
+  }, [storeReady, storeConfig.corMarca]);
 
   useEffect(() => {
     if (!storeReady) return undefined;
     const tick = () => {
-      setStoreConfig((prev) => applyScheduleOpenStatus(prev));
+      setStoreConfig((prev) => {
+        const next = applyScheduleOpenStatus(prev);
+        return next.aberta === prev.aberta ? prev : next;
+      });
     };
     tick();
     const interval = window.setInterval(tick, 60_000);
     return () => window.clearInterval(interval);
-  }, [storeReady, storeConfig.horarios, storeConfig.fechadaManual]);
+  }, [storeReady, scheduleSyncKey]);
 
   useEffect(() => {
     if (!storeReady) return undefined;
@@ -541,12 +655,15 @@ export function CardapioProvider({ children, slug = '' }) {
   useEffect(() => {
     if (!storeReady) return undefined;
 
-    void hydratePublicOrders({ force: true });
+    void hydratePublicOrdersRef.current({ force: true });
     const interval = window.setInterval(() => {
-      void hydratePublicOrders();
+      void hydratePublicOrdersRef.current();
     }, ORDERS_SYNC_MS);
-    const onFocus = () => void hydratePublicOrders({ force: true });
-    const onOrdersUpdated = () => void hydratePublicOrders({ force: true });
+    const onFocus = () => void hydratePublicOrdersRef.current({ force: true });
+    const onOrdersUpdated = (event) => {
+      if (event?.detail === storeSnapshotRef.current) return;
+      void hydratePublicOrdersRef.current({ force: true });
+    };
 
     window.addEventListener('focus', onFocus);
     window.addEventListener('admin-data-updated', onOrdersUpdated);
@@ -558,7 +675,7 @@ export function CardapioProvider({ children, slug = '' }) {
       window.removeEventListener('admin-data-updated', onOrdersUpdated);
       window.removeEventListener('cardapio-public-orders-updated', onOrdersUpdated);
     };
-  }, [hydratePublicOrders, storeReady]);
+  }, [storeReady]);
 
   useEffect(() => {
     if (modalOpen) {
@@ -577,7 +694,9 @@ export function CardapioProvider({ children, slug = '' }) {
         setShowMobileSacola(false);
         return;
       }
-      setShowMobileSacola(window.innerWidth < 768);
+      const isV2 = Boolean(document.querySelector('.cardapio-v2-root'));
+      const mobileBreakpoint = isV2 ? 1100 : 768;
+      setShowMobileSacola(window.innerWidth < mobileBreakpoint);
     };
     updateMobileSacola();
     window.addEventListener('resize', updateMobileSacola);
@@ -720,10 +839,17 @@ export function CardapioProvider({ children, slug = '' }) {
       );
       if (items.length > 0) {
         const isMarmitaSection = items.every((p) => p.type === 'marmita');
+        const categoryLayout = isMarmitaSection
+          ? resolveMarmitaSectionLayout(cat, items, {
+              categoryLayoutsByName,
+              marmitaGrupoLayoutsById,
+            })
+          : categoryLayoutsByName[cat] || CATEGORY_LAYOUT_DEFAULT;
         sections.push({
           category: cat,
           items,
           categoryIcon: categoryIconsByName[cat] || 'burger',
+          categoryLayout,
           isMarmitaSection,
         });
       }
@@ -735,6 +861,8 @@ export function CardapioProvider({ children, slug = '' }) {
     dynamicProducts,
     dynamicCategories,
     categoryIconsByName,
+    categoryLayoutsByName,
+    marmitaGrupoLayoutsById,
     productMatchesSearch,
   ]);
 
@@ -1313,6 +1441,35 @@ export function CardapioProvider({ children, slug = '' }) {
     [cart, openProduct]
   );
 
+  const changeCartItemQty = useCallback((id, delta) => {
+    setCart((prev) =>
+      prev
+        .map((item) => {
+          if (item.id !== id) return item;
+          const qty = item.qty + delta;
+          if (qty <= 0) return null;
+          return { ...item, qty };
+        })
+        .filter(Boolean)
+    );
+  }, []);
+
+  const addProductFromCard = useCallback(
+    (id) => {
+      const promoEntry = promoCarouselProducts.find((p) => p.id === id);
+      const product = dynamicProducts.find((p) => p.id === id) || promoEntry;
+      if (!product) return;
+
+      if (!storeConfig.aberta && !storeClosedNoticeShownRef.current) {
+        storeClosedNoticeShownRef.current = true;
+        setStoreClosedNoticeOpen(true);
+      }
+
+      openProduct(id);
+    },
+    [dynamicProducts, promoCarouselProducts, storeConfig.aberta, openProduct]
+  );
+
   const openCartReview = useCallback(() => {
     if (cart.length === 0) return;
     setCartReviewOpen(true);
@@ -1832,6 +1989,7 @@ export function CardapioProvider({ children, slug = '' }) {
       relatedItems,
       filteredProducts,
       promoProducts,
+      categoryLayoutsByName,
       searchQuery,
       setSearchQuery,
       selectedCategory,
@@ -1857,6 +2015,7 @@ export function CardapioProvider({ children, slug = '' }) {
       relatedItems,
       filteredProducts,
       promoProducts,
+      categoryLayoutsByName,
       searchQuery,
       selectedCategory,
       categoryMenuOpen,
@@ -1889,6 +2048,8 @@ export function CardapioProvider({ children, slug = '' }) {
       clearCart,
       removeCartItem,
       editCartItem,
+      changeCartItemQty,
+      addProductFromCard,
       closeProductPopup,
       adicionarTotal,
       cartSubtotal,
@@ -1918,6 +2079,8 @@ export function CardapioProvider({ children, slug = '' }) {
       clearCart,
       removeCartItem,
       editCartItem,
+      changeCartItemQty,
+      addProductFromCard,
       closeProductPopup,
       adicionarTotal,
       cartSubtotal,

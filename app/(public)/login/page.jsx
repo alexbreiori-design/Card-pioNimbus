@@ -48,11 +48,13 @@ export default function Page() {
       <footer className={styles.legalFooter}>
         <a
           className={styles.footer}
-          href="https://cardapionimbus.com.br"
+          href="https://www.cardapionimbus.com.br"
           target="_blank"
           rel="noopener noreferrer"
         >
-          cardapionimbus.com.br
+          <span className={styles.footerDomainLight}>www.</span>
+          cardapionimbus
+          <span className={styles.footerDomainLight}>.com.br</span>
         </a>
         <nav className={styles.legalLinks} aria-label="Informações legais">
           <a href="/privacidade?from=%2Flogin">Privacidade</a>

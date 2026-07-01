@@ -15,7 +15,10 @@ import { mergeStoreStates, stampStoreMeta } from '@/lib/storeStateMerge';
 import { createEmptyStoreSeed, readLegacyLocalStorageState } from '@/lib/storeBoot';
 import { fetchUserMembershipsClient } from '@/lib/supabase/membershipsClient';
 import { normalizeStoreStateImages, storeHasEmbeddedImages } from '@/lib/storage/normalizeStoreImages';
-import { fetchStoreStateRemote, saveStoreStateRemote } from '@/lib/storeStateClient';
+import { fetchStoreStateMetaRemote, fetchStoreStateRemote, saveStoreStateRemote } from '@/lib/storeStateClient';
+import { withTimeout } from '@/lib/fetchWithTimeout';
+
+const BOOT_LOAD_TIMEOUT_MS = 30000;
 import { uploadMenuAssetIfNeeded } from '@/lib/upload/menuAsset';
 
 const AdminDataContext = createContext(null);
@@ -44,6 +47,7 @@ export function AdminDataProvider({ children }) {
 
   const dataRef = useRef(data);
   const bootRef = useRef(false);
+  const remoteLoadOkRef = useRef(false);
   const saveQueueRef = useRef(Promise.resolve());
   const membershipsRef = useRef(memberships);
   const activeSlugRef = useRef(activeSlug);
@@ -85,6 +89,7 @@ export function AdminDataProvider({ children }) {
       const remote = await fetchStoreStateRemote(slug, { scope: 'admin' });
 
       if (remote?.data) {
+        remoteLoadOkRef.current = true;
         let merged = mergeStoreStates({
           local: legacyLocal,
           remote: withDerivedData(remote.data),
@@ -92,16 +97,33 @@ export function AdminDataProvider({ children }) {
         });
 
         try {
+          const remoteProductCount = (remote.data.produtos || []).length;
+          const mergedProductCount = (merged.produtos || []).length;
           const withStorageUrls = await persistStoreImages(merged, slug);
           if (withStorageUrls !== merged) {
             merged = stampStoreMeta(withDerivedData({ ...withStorageUrls, pedidos: [] }));
-            await saveStoreStateRemote(slug, merged);
+            if (remoteProductCount > 0 || mergedProductCount === 0) {
+              await saveStoreStateRemote(slug, merged);
+            }
           }
         } catch (error) {
           console.error('Falha ao migrar imagens para o Storage:', error?.message || error);
         }
 
         return applyState(merged);
+      }
+
+      const meta = await fetchStoreStateMetaRemote(slug, { scope: 'admin' });
+      if (meta?.updated_at) {
+        console.error(
+          'Loja já existe no Supabase, mas a carga completa falhou. Seed vazio não será gravado.'
+        );
+        if (legacyLocal) {
+          return applyState(stampStoreMeta(withDerivedData({ ...legacyLocal, pedidos: [] })));
+        }
+        throw new Error(
+          'Não foi possível carregar os dados da loja. Recarregue a página ou tente novamente.'
+        );
       }
 
       const seeded = stampStoreMeta(createEmptyStoreSeed(slug));
@@ -122,6 +144,10 @@ export function AdminDataProvider({ children }) {
         remote: remote?.data ? withDerivedData(remote.data) : null,
         remoteUpdatedAt: remote?.updated_at,
       });
+
+      if (remote?.data) {
+        remoteLoadOkRef.current = true;
+      }
 
       return applyState(merged);
     },
@@ -172,9 +198,14 @@ export function AdminDataProvider({ children }) {
         const legacyForMerge =
           legacyLocal && legacySlug === slug ? legacyLocal : null;
 
-        await loadStoreForSlug(slug, { legacyLocal: legacyForMerge });
+        await withTimeout(
+          loadStoreForSlug(slug, { legacyLocal: legacyForMerge }),
+          BOOT_LOAD_TIMEOUT_MS,
+          'Tempo esgotado ao carregar dados da loja.'
+        );
       } catch (error) {
         console.error('Falha ao carregar estado do Supabase:', error?.message || error);
+        remoteLoadOkRef.current = false;
         setSaveError('Não foi possível sincronizar com o Supabase. Verifique sua conexão.');
         const legacyLocal = readLegacyLocalStorageState();
         applyState(legacyLocal || withDerivedData(DEFAULT_ADMIN_DATA));
@@ -205,6 +236,12 @@ export function AdminDataProvider({ children }) {
 
         if (!bootSlug || !slugAllowed(membershipsRef.current, bootSlug)) {
           throw new Error('Sem permissão para salvar nesta loja.');
+        }
+
+        if (!remoteLoadOkRef.current) {
+          throw new Error(
+            'Carregamento incompleto — salvamento bloqueado para proteger seus dados. Recarregue a página (Ctrl+Shift+R) e aguarde o catálogo aparecer antes de salvar.'
+          );
         }
 
         let next = stampStoreMeta(

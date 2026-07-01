@@ -25,6 +25,7 @@ const BASE_NAV = [
   { href: '/admin/clientes', label: 'Clientes', icon: 'clients' },
   { href: '/admin/entrega', label: 'Entrega', icon: 'delivery' },
   { href: '/admin/loja', label: 'Minha loja', icon: 'store' },
+  { href: '/admin/avaliacoes', label: 'Avaliações', icon: 'reviews' },
   { href: '/admin/integracoes', label: 'Integrações', icon: 'integrations' },
   { href: '/admin/relatorios', label: 'Relatórios', icon: 'reports' },
 ];
@@ -48,6 +49,10 @@ function NavIcon({ name }) {
 
   if (name === 'promos') {
     return <i className="ph ph-seal-percent admin-nav-phosphor-icon" aria-hidden="true" />;
+  }
+
+  if (name === 'reviews') {
+    return <i className="ph ph-star admin-nav-phosphor-icon" aria-hidden="true" />;
   }
 
   const icons = {

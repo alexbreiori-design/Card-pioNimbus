@@ -1,7 +1,9 @@
 import { notFound } from 'next/navigation';
 import { CardapioProvider } from '@/context/CardapioContext';
 import CardapioApp from '@/components/cardapio/CardapioApp';
+import CardapioAppV2 from '@/components/cardapio-v2/CardapioAppV2';
 import StoreUnavailable from '@/components/cardapio/StoreUnavailable';
+import { isCardapioPublicV2 } from '@/lib/cardapioPublicVersion';
 import { normalizeSlug } from '@/lib/normalize';
 import { getSiteOrigin, getStorePublicUrl, toAbsoluteAssetUrl } from '@/lib/siteUrl';
 import { getEmpresaBySlug } from '@/lib/supabase/empresaServer';
@@ -87,8 +89,12 @@ export default async function LojaPublicaPage({ params }) {
   }
 
   return (
-    <CardapioProvider slug={safeSlug}>
-      <CardapioApp />
+    <CardapioProvider
+      slug={safeSlug}
+      initialPublicPayload={catalog?.data ?? null}
+      initialEmpresa={empresa}
+    >
+      {isCardapioPublicV2(empresa?.cardapio_publico_versao) ? <CardapioAppV2 /> : <CardapioApp />}
     </CardapioProvider>
   );
 }

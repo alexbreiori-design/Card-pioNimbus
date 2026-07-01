@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { applyCatalogImport } from '@/lib/catalogImport/nimbusCatalogImport';
+import { resolveCatalogImportAssets } from '@/lib/catalogImport/resolveCatalogImportAssets';
 import { normalizeSlug } from '@/lib/normalize';
 import { requireSuperAdmin } from '@/lib/superAdminServer';
 import { normalizeStoreStateImages } from '@/lib/storage/normalizeStoreImages';
@@ -54,14 +55,24 @@ export async function POST(request, { params }) {
       });
     }
 
-    const withStorageUrls = await normalizeStoreStateImages(result.data, safeSlug, (storeSlug, dataUrl, folder) =>
+    const { state: withAssetUrls, stats: assetStats } = await resolveCatalogImportAssets(
+      supabase,
+      safeSlug,
+      result.data,
+      payload
+    );
+
+    const withStorageUrls = await normalizeStoreStateImages(withAssetUrls, safeSlug, (storeSlug, dataUrl, folder) =>
       uploadMenuAssetFromDataUrl(supabase, storeSlug, dataUrl, { folder })
     );
     const saved = await upsertStoreStateServer(safeSlug, withStorageUrls);
     return NextResponse.json({
       ok: true,
       dryRun: false,
-      preview: result.preview,
+      preview: {
+        ...result.preview,
+        images: assetStats,
+      },
       updated_at: saved.updated_at,
     });
   } catch (error) {

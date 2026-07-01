@@ -85,7 +85,10 @@ export default function StoreCatalogImportPanel({ slug, onImported }) {
 
       setPreview(result.preview);
       if (!dryRun) {
-        setSuccess('Cardápio importado com sucesso. As fotos ainda precisam ser adicionadas no admin da loja.');
+        const imageNote = result.preview?.images
+          ? ` Imagens: ${result.preview.images.resolved} enviada(s)${result.preview.images.missing ? `, ${result.preview.images.missing} não encontrada(s)` : ''}.`
+          : '';
+        setSuccess(`Cardápio importado com sucesso.${imageNote} Exporte um JSON novo como backup.`);
         onImported?.();
       }
     } catch (importError) {
@@ -98,8 +101,10 @@ export default function StoreCatalogImportPanel({ slug, onImported }) {
   return (
     <div className={styles.catalogImport}>
       <p className={`${styles.muted} ${styles.tabIntro}`}>
-        Importe ou exporte o cardápio em JSON (formato Nimbus v1). Use o agente conversor para gerar o arquivo a
-        partir dos dados do cliente. Fotos não entram no JSON — adicione depois no admin da loja.
+        <strong>Backup com fotos:</strong> clique em &quot;Exportar cardápio atual&quot; — o JSON inclui{' '}
+        <code>imagemUrl</code> de cada item (URL já salva no Supabase Storage). Para restaurar, importe o mesmo
+        arquivo no modo <strong>Substituir</strong>; as imagens voltam pelos links, sem cadastrar de novo.
+        Alternativa: em Detalhes da loja, &quot;Exportar backup JSON&quot; (arquivo maior, inclui pedidos/clientes).
       </p>
 
       <div className={styles.catalogImportActions}>

@@ -463,7 +463,7 @@ export default function MinhaLojaPage() {
             />
           </div>
           <div className="admin-store-cover-footer">
-            <p className="admin-store-cover-hint">Tamanho ideal: 1240 × 248 px (proporção 5:1)</p>
+            <p className="admin-store-cover-hint">Tamanho ideal: 1145 × 366 px (proporção 5:1,6)</p>
           </div>
         </div>
 

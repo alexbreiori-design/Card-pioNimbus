@@ -17,6 +17,8 @@ import {
 } from '@/lib/pizza/pizzaModel';
 import { resolvePizzaCardapioFromStore } from '@/lib/pizza/pizzaCardapioResolve';
 import { normalizePecaTambemIds } from '@/lib/productSuggestions';
+import CategoryLayoutPicker from '@/components/admin/CategoryLayoutPicker';
+import { CATEGORY_LAYOUT_DEFAULT } from '@/lib/cardapio/categoryLayouts';
 import { uploadMenuAssetIfNeeded } from '@/lib/upload/menuAsset';
 import {
   PizzaCheckPill,
@@ -401,6 +403,13 @@ export default function PizzaCategoriasPanel() {
                   />
                 </div>
               </div>
+
+              <CategoryLayoutPicker
+                value={draft.exibicaoCardapio || CATEGORY_LAYOUT_DEFAULT}
+                onChange={(exibicaoCardapio) =>
+                  setDraft((prev) => ({ ...prev, exibicaoCardapio }))
+                }
+              />
 
               <div className="admin-pizza-editor-section">
                 <div className="admin-pizza-sabores-select-row">
