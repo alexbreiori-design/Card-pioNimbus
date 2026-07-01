@@ -1,6 +1,9 @@
 'use client';
 
 import { Suspense } from 'react';
+import { useCardapio } from '@/context/CardapioContext';
+import MetaPixel from '@/components/cardapio/MetaPixel';
+import CardapioContextMenuGuard from '@/components/cardapio/CardapioContextMenuGuard';
 import EnvironmentBanner from '@/components/shared/EnvironmentBanner';
 import CheckoutModal from '@/components/cardapio/CheckoutModal';
 import CupomModal from '@/components/cardapio/CupomModal';
@@ -22,8 +25,12 @@ import '@phosphor-icons/web/duotone/style.css';
 import '@/styles/cardapio-v2.css';
 
 export default function CardapioAppV2() {
+  const { storeConfig } = useCardapio();
+
   return (
     <div className="cardapio-v2-root cardapio-theme-root cardapio-legacy-nav-hidden">
+      <MetaPixel pixelId={storeConfig?.metaPixelId} />
+      <CardapioContextMenuGuard />
       <EnvironmentBanner className="nimbus-env-banner-cardapio" />
 
       <CardapioDesktopLayout />

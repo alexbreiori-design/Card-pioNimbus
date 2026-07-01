@@ -3,6 +3,7 @@
 import { Suspense } from 'react';
 import { useCardapio } from '@/context/CardapioContext';
 import MetaPixel from './MetaPixel';
+import CardapioContextMenuGuard from './CardapioContextMenuGuard';
 import TopNav from './TopNav';
 import MainPage from './MainPage';
 import ProfilePage from './ProfilePage';
@@ -35,6 +36,7 @@ export default function CardapioApp() {
       >
         <EnvironmentBanner className="nimbus-env-banner-cardapio" />
         <MetaPixel pixelId={storeConfig?.metaPixelId} />
+        <CardapioContextMenuGuard />
         <TopNav />
         <MainPage />
         <OrdersPage />
