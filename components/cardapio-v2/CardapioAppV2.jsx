@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import EnvironmentBanner from '@/components/shared/EnvironmentBanner';
 import CheckoutModal from '@/components/cardapio/CheckoutModal';
 import CupomModal from '@/components/cardapio/CupomModal';
@@ -12,6 +13,7 @@ import CartReviewModal from '@/components/cardapio/CartReviewModal';
 import CardapioDesktopLayout from './CardapioDesktopLayout';
 import CardapioMobileLayout from './CardapioMobileLayout';
 import CardapioProductModal from './CardapioProductModal';
+import CardapioLegalFooter from '@/components/cardapio/CardapioLegalFooter';
 import '@/styles/cardapio.css';
 import '@phosphor-icons/web/regular/style.css';
 import '@phosphor-icons/web/bold/style.css';
@@ -36,6 +38,9 @@ export default function CardapioAppV2() {
       <DeliveryCheckNumberModal />
       <DeliveryCheckResultModal />
       <StoreClosedNotice />
+      <Suspense fallback={null}>
+        <CardapioLegalFooter />
+      </Suspense>
     </div>
   );
 }

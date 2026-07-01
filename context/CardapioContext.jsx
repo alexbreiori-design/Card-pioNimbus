@@ -38,7 +38,6 @@ import {
 } from '@/lib/phoneBr';
 import { formatMoneyBrInput, hasMoneyBrValue, parseMoneyBrInput } from '@/lib/moneyMask';
 import { mergeEmpresaIntoLoja } from '@/lib/supabase/empresa';
-import { canQuickAddProduct } from '@/lib/cardapio/canQuickAddProduct';
 import { CATEGORY_LAYOUT_DEFAULT, resolveMarmitaSectionLayout } from '@/lib/cardapio/categoryLayouts';
 import { fetchPublicEmpresaCardapio } from '@/lib/supabase/publicEmpresa';
 import { initMetaPixel, sanitizeMetaPixelId, trackMetaEvent } from '@/lib/meta/pixel';
@@ -1466,19 +1465,9 @@ export function CardapioProvider({
         setStoreClosedNoticeOpen(true);
       }
 
-      if (canQuickAddProduct(product)) {
-        addToCartCustom({
-          product,
-          qty: 1,
-          unitPrice: product.price,
-          opts: [],
-        });
-        return;
-      }
-
       openProduct(id);
     },
-    [dynamicProducts, promoCarouselProducts, storeConfig.aberta, addToCartCustom, openProduct]
+    [dynamicProducts, promoCarouselProducts, storeConfig.aberta, openProduct]
   );
 
   const openCartReview = useCallback(() => {

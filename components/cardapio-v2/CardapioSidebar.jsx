@@ -1,21 +1,21 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useCardapio } from '@/context/CardapioContext';
 import { PROMO_CATEGORY_NAME } from '@/lib/promocoes';
 import { isReviewsEnabledOnCardapio } from '@/lib/cardapioV2Reviews';
-import CategoryIcon from '@/components/admin/CategoryIcon';
 import MenuImageArea from '@/components/cardapio/MenuImageArea';
 import { V2Icon } from './CardapioV2Icons';
+import CardapioCategoryIcon from './CardapioCategoryIcon';
 import {
   CARDAPIO_V2_SECTION,
   cardapioV2CategorySectionId,
   scrollToCardapioV2Section,
 } from './cardapioV2Sections';
+import { useCardapioV2ScrollSpy } from './useCardapioV2ScrollSpy';
 
 export default function CardapioSidebar() {
   const { storeConfig, CATEGORIES, promoProducts, filteredProducts } = useCardapio();
-  const [activeId, setActiveId] = useState(CARDAPIO_V2_SECTION.inicio);
 
   const iconByCategory = useMemo(() => {
     const map = {};
@@ -47,7 +47,22 @@ export default function CardapioSidebar() {
     return links;
   }, [CATEGORIES, promoProducts, iconByCategory]);
 
+  const reviewsEnabled = isReviewsEnabledOnCardapio(storeConfig);
+
+  const scrollSectionIds = useMemo(() => {
+    const ids = categoryLinks.map((item) => item.id);
+    if (reviewsEnabled) ids.push(CARDAPIO_V2_SECTION.avaliacoes);
+    ids.push(CARDAPIO_V2_SECTION.informacoes);
+    return ids;
+  }, [categoryLinks, reviewsEnabled]);
+
+  const { activeId, setActiveId, lockScrollSpy } = useCardapioV2ScrollSpy(scrollSectionIds, {
+    initialId: CARDAPIO_V2_SECTION.inicio,
+    fallbackId: CARDAPIO_V2_SECTION.inicio,
+  });
+
   function navigate(sectionId) {
+    lockScrollSpy();
     setActiveId(sectionId);
     scrollToCardapioV2Section(sectionId);
   }
@@ -67,8 +82,6 @@ export default function CardapioSidebar() {
       await navigator.clipboard.writeText(url);
     }
   }
-
-  const reviewsEnabled = isReviewsEnabledOnCardapio(storeConfig);
 
   return (
     <aside className="cardapio-v2-sidebar" aria-label="Navegação do cardápio">
@@ -100,7 +113,7 @@ export default function CardapioSidebar() {
                 className={`cardapio-v2-sidebar-link${activeId === item.id ? ' is-active' : ''}`}
                 onClick={() => navigate(item.id)}
               >
-                <CategoryIcon
+                <CardapioCategoryIcon
                   name={item.categoryIcon}
                   size={18}
                   className="cardapio-v2-sidebar-cat-icon"

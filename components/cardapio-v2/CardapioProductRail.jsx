@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import CategoryIcon from '@/components/admin/CategoryIcon';
+import CardapioCategoryIcon from './CardapioCategoryIcon';
 import { normalizeCategoryLayout, resolveCategoryLayout } from '@/lib/cardapio/categoryLayouts';
 import CardapioProductCardV2 from './CardapioProductCardV2';
 import CardapioProductCardV2List from './CardapioProductCardV2List';
@@ -84,7 +84,7 @@ export default function CardapioProductRail({
       <div className="cardapio-v2-rail-head">
         <div className="cardapio-v2-rail-head-main">
           {categoryIcon ? (
-            <CategoryIcon name={categoryIcon} size={18} className="cardapio-v2-rail-icon" tinted />
+            <CardapioCategoryIcon name={categoryIcon} size={18} className="cardapio-v2-rail-icon" tinted />
           ) : null}
           <h2 className="cardapio-v2-rail-title">{label}</h2>
         </div>

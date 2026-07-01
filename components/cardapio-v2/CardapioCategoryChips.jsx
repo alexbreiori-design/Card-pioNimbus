@@ -1,8 +1,9 @@
 'use client';
 
-import CategoryIcon from '@/components/admin/CategoryIcon';
+import CardapioCategoryIcon from './CardapioCategoryIcon';
 
-export default function CardapioCategoryChips({ sections = [], activeId = '', onSelect }) {  function handleClick(sectionId, event) {
+export default function CardapioCategoryChips({ sections = [], activeId = '', onSelect }) {
+  function handleClick(sectionId, event) {
     const track = event.currentTarget.parentElement;
     const chip = event.currentTarget;
     if (track && chip) {
@@ -27,14 +28,15 @@ export default function CardapioCategoryChips({ sections = [], activeId = '', on
               className={`cardapio-v2-category-chip${isActive ? ' is-active' : ''}`}
               onClick={(event) => handleClick(section.id, event)}
             >
-              <CategoryIcon
+              <CardapioCategoryIcon
                 name={section.categoryIcon || 'burger'}
                 size={16}
                 className="cardapio-v2-category-chip-cat-icon"
                 tinted
               />
               <span className="cardapio-v2-category-chip-label">{section.label}</span>
-            </button>          );
+            </button>
+          );
         })}
       </div>
     </nav>

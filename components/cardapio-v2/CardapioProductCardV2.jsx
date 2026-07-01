@@ -2,6 +2,7 @@
 
 import { useCardapio } from '@/context/CardapioContext';
 import MenuImageArea from '@/components/cardapio/MenuImageArea';
+import ProductPromoChip from './ProductPromoChip';
 
 export default function CardapioProductCardV2({ product, layout = 'rail' }) {
   const { addProductFromCard, formatPrice } = useCardapio();
@@ -38,6 +39,9 @@ export default function CardapioProductCardV2({ product, layout = 'rail' }) {
           alt={product.name}
           sizes="(min-width: 1100px) 30vw, 33vw"
         />
+        {isPromo ? (
+          <ProductPromoChip originalPrice={product.promoOriginalPrice} promoPrice={product.price} />
+        ) : null}
       </div>
       <div className="cardapio-v2-product-card-body">
         <h3 className="cardapio-v2-product-card-title">{product.name}</h3>

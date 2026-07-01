@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { useCardapio } from '@/context/CardapioContext';
 import { PROMO_CATEGORY_NAME } from '@/lib/promocoes';
 import { CATEGORY_LAYOUT_DEFAULT } from '@/lib/cardapio/categoryLayouts';
 import { cardapioV2CategorySectionId, scrollToCardapioV2Section } from './cardapioV2Sections';
+import { useCardapioV2ScrollSpy } from './useCardapioV2ScrollSpy';
 import CardapioHeroBanner from './CardapioHeroBanner';
 import CardapioCategoryChips from './CardapioCategoryChips';
 import CardapioProductRail from './CardapioProductRail';
@@ -13,8 +14,6 @@ import CardapioReviewsSection from './CardapioReviewsSection';
 
 export default function CardapioMainColumn() {
   const { filteredProducts, promoProducts, searchQuery, categoryLayoutsByName } = useCardapio();
-  const [activeSectionId, setActiveSectionId] = useState('');
-  const scrollLockRef = useRef(false);
 
   const sections = useMemo(() => {
     const list = [];
@@ -47,65 +46,17 @@ export default function CardapioMainColumn() {
     return list;
   }, [filteredProducts, promoProducts, categoryLayoutsByName]);
 
-  useEffect(() => {
-    if (!sections.length) {
-      setActiveSectionId((prev) => (prev ? '' : prev));
-      return;
-    }
-    setActiveSectionId((prev) => {
-      if (prev && sections.some((section) => section.id === prev)) return prev;
-      return sections[0].id;
+  const sectionIds = useMemo(() => sections.map((section) => section.id), [sections]);
+
+  const { activeId: activeSectionId, setActiveId: setActiveSectionId, lockScrollSpy } =
+    useCardapioV2ScrollSpy(sectionIds, {
+      initialId: sections[0]?.id || '',
     });
-  }, [sections]);
-
-  useEffect(() => {
-    if (!sections.length || typeof IntersectionObserver === 'undefined') return undefined;
-
-    const visible = new Map();
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (scrollLockRef.current) return;
-
-        entries.forEach((entry) => {
-          visible.set(entry.target.id, entry.isIntersecting ? entry.intersectionRatio : 0);
-        });
-
-        let bestId = '';
-        let bestRatio = 0;
-        visible.forEach((ratio, id) => {
-          if (ratio > bestRatio) {
-            bestRatio = ratio;
-            bestId = id;
-          }
-        });
-
-        if (bestId && bestRatio > 0.15) {
-          setActiveSectionId((prev) => (prev === bestId ? prev : bestId));
-        }
-      },
-      {
-        root: null,
-        rootMargin: '-20% 0px -55% 0px',
-        threshold: [0, 0.15, 0.35, 0.55, 0.75, 1],
-      }
-    );
-
-    sections.forEach((section) => {
-      const el = document.getElementById(section.id);
-      if (el) observer.observe(el);
-    });
-
-    return () => observer.disconnect();
-  }, [sections]);
 
   function handleChipSelect(sectionId) {
-    scrollLockRef.current = true;
+    lockScrollSpy();
     setActiveSectionId(sectionId);
     scrollToCardapioV2Section(sectionId);
-    window.setTimeout(() => {
-      scrollLockRef.current = false;
-    }, 900);
   }
 
   const nothingToShow = sections.length === 0;

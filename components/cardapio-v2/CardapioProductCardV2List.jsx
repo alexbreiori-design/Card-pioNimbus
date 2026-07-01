@@ -2,6 +2,7 @@
 
 import { useCardapio } from '@/context/CardapioContext';
 import MenuImageArea from '@/components/cardapio/MenuImageArea';
+import ProductPromoChip from './ProductPromoChip';
 
 export default function CardapioProductCardV2List({ product, layout = 'rail' }) {
   const { addProductFromCard, formatPrice } = useCardapio();
@@ -31,12 +32,17 @@ export default function CardapioProductCardV2List({ product, layout = 'rail' }) 
       role="button"
       tabIndex={0}
     >
-      <MenuImageArea
-        imageUrl={product.imageUrl}
-        className="cardapio-v2-product-card-list-media"
-        alt={product.name}
-        sizes="120px"
-      />
+      <div className="cardapio-v2-product-card-list-media-wrap">
+        <MenuImageArea
+          imageUrl={product.imageUrl}
+          className="cardapio-v2-product-card-list-media"
+          alt={product.name}
+          sizes="120px"
+        />
+        {isPromo ? (
+          <ProductPromoChip originalPrice={product.promoOriginalPrice} promoPrice={product.price} />
+        ) : null}
+      </div>
       <div className="cardapio-v2-product-card-list-body">
         <h3 className="cardapio-v2-product-card-list-title">{product.name}</h3>
         {product.desc ? (

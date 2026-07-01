@@ -7,6 +7,8 @@ import AdminDatePicker from '@/components/admin/AdminDatePicker';
 import { useAdminToast, TOAST_DURATION_MS } from '@/context/AdminToastContext';
 import { activityStatusLabel } from '@/lib/superAdmin/storeActivity';
 import { generateTempPassword } from '@/lib/superAdmin';
+import { buildCardapioV2Path } from '@/lib/cardapioV2';
+import { isCardapioPublicV2 } from '@/lib/cardapioPublicVersion';
 import StoreCatalogImportPanel from './StoreCatalogImportPanel';
 import styles from './StoreDetailModal.module.css';
 
@@ -302,6 +304,40 @@ export default function StoreDetailDrawer({ slug, onClose }) {
       toast.success(isOpen ? 'Loja reaberta manualmente.' : 'Loja fechada manualmente.');
     } catch (toggleError) {
       toast.error(toggleError?.message || 'Erro ao atualizar status.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleCardapioVersion(useV2) {
+    if (!slug) return;
+    const nextVersion = useV2 ? 'v2' : 'v1';
+    if (useV2) {
+      const confirmed = window.confirm(
+        `Ativar cardápio v2 na URL pública de "${store?.nome || slug}"?\n\nTodos os visitantes verão o layout novo em ${store?.cardapioUrl || `/${slug}`}. Você pode voltar para v1 a qualquer momento.`
+      );
+      if (!confirmed) return;
+    }
+
+    setSaving(true);
+    setError('');
+    try {
+      const response = await fetch(
+        `/api/super-admin/stores/${encodeURIComponent(slug)}/cardapio-version`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ version: nextVersion }),
+        }
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || 'Não foi possível atualizar a versão do cardápio.');
+      }
+      await loadStore(slug);
+      toast.success(useV2 ? 'Cardápio público v2 ativado.' : 'Cardápio público v1 restaurado.');
+    } catch (versionError) {
+      toast.error(versionError?.message || 'Erro ao atualizar versão do cardápio.');
     } finally {
       setSaving(false);
     }
@@ -640,6 +676,49 @@ export default function StoreDetailDrawer({ slug, onClose }) {
                       {store.fechadaManual
                         ? 'Fechada manualmente — cardápio indisponível até reabrir.'
                         : 'Aberta — respeita horários se não houver fechamento manual.'}
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <section className={styles.panelAccent}>
+                <div className={styles.remoteRow}>
+                  <AdminAvailabilitySwitch
+                    checked={isCardapioPublicV2(store.cardapio_publico_versao)}
+                    onChange={toggleCardapioVersion}
+                    label="Cardápio público v2"
+                  />
+                  <div className={styles.remoteCopy}>
+                    <p className={styles.remoteTitle}>Layout do cardápio</p>
+                    <p className={styles.remoteHint}>
+                      {isCardapioPublicV2(store.cardapio_publico_versao) ? (
+                        <>
+                          Visitantes veem o <strong>v2</strong> em{' '}
+                          <a href={store.cardapioUrl} target="_blank" rel="noopener noreferrer">
+                            {store.cardapioUrl}
+                          </a>
+                          . Preview interno:{' '}
+                          <a
+                            href={buildCardapioV2Path(store.slug)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            /v2
+                          </a>
+                        </>
+                      ) : (
+                        <>
+                          Visitantes veem o <strong>v1</strong> (padrão). Teste o v2 em{' '}
+                          <a
+                            href={buildCardapioV2Path(store.slug)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {buildCardapioV2Path(store.slug)}
+                          </a>{' '}
+                          antes de ativar aqui.
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
