@@ -5733,6 +5733,11 @@
   margin: 0;
 }
 
+.admin-order-coupon-inline > .admin-order-coupon-label {
+  display: block;
+  margin-bottom: 6px;
+}
+
 .admin-order-coupon-add {
   font-weight: 700;
   color: var(--admin-brand);
