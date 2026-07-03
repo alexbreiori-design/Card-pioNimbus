@@ -67,22 +67,6 @@ export default function CardapioSidebar() {
     scrollToCardapioV2Section(sectionId);
   }
 
-  async function handleShare() {
-    const url = window.location.href;
-    const title = storeConfig?.nome || 'Cardápio';
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        await navigator.share({ title, url });
-        return;
-      } catch {
-        /* cancelado */
-      }
-    }
-    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(url);
-    }
-  }
-
   return (
     <aside className="cardapio-v2-sidebar" aria-label="Navegação do cardápio">
       <div className="cardapio-v2-sidebar-brand">
@@ -149,13 +133,6 @@ export default function CardapioSidebar() {
       </nav>
 
       <div className="cardapio-v2-sidebar-spacer" aria-hidden="true" />
-
-      <div className="cardapio-v2-sidebar-footer">
-        <button type="button" className="cardapio-v2-sidebar-share" onClick={handleShare}>
-          <V2Icon name="share" />
-          <span>Compartilhar</span>
-        </button>
-      </div>
     </aside>
   );
 }
