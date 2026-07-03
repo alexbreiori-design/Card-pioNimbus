@@ -7,6 +7,7 @@ import { findCustomerByPhone, listClienteEnderecos } from '@/lib/supabase/custom
 import { resolveEmpresaIdFromStore } from '@/lib/supabase/empresa';
 import OrderLeftColumn from './OrderLeftColumn';
 import OrderRightColumn from './OrderRightColumn';
+import OrderCartDock from './OrderCartDock';
 import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
 import AdminIcon from '@/components/admin/AdminIcon';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
@@ -31,6 +32,7 @@ export default function NewOrderModal({
   products = [],
   categorias = [],
   initialDraft = null,
+  editingOrderId = null,
 }) {
   const { data } = useAdminData();
   const [draft, setDraft] = useState(EMPTY_ORDER_DRAFT);
@@ -139,39 +141,60 @@ export default function NewOrderModal({
     <>
       <div className="admin-confirm-overlay" onClick={requestClose}>
         <div
-          className="admin-confirm-modal admin-new-order-modal"
+          className={`admin-confirm-modal admin-new-order-modal${draft.cart.length ? ' has-cart' : ''}`}
           onClick={(e) => e.stopPropagation()}
         >
           <h3 className="admin-new-order-title">
             <span className="admin-section-icon">
               <AdminIcon name="orders" />
             </span>
-            Novo pedido
+            {editingOrderId ? `Editar pedido #${editingOrderId}` : 'Novo pedido'}
           </h3>
-          <div className="admin-new-order-layout">
-            <OrderLeftColumn
-              draft={draft}
-              setDraft={setDraft}
-              subtotal={totals.subtotal}
-              entrega={totals.entrega}
-              total={totals.total}
-              onSearchCustomer={searchCustomer}
-              searchingCustomer={searchingCustomer}
-              deliveryFeeLoading={deliveryFeeLoading}
-            />
-            <OrderRightColumn
-              draft={draft}
-              setDraft={setDraft}
-              products={products}
-              categorias={categorias}
-              productSearch={productSearch}
-              setProductSearch={setProductSearch}
-              onAddProduct={addProduct}
-              canSave={canSave}
-              onRequestClose={requestClose}
-              onSave={() => canSave && onSave(draft, false)}
-              onSavePrint={() => canSave && onSave(draft, true)}
-            />
+          <div className="admin-new-order-body-wrap">
+            <div className="admin-new-order-layout">
+              <OrderLeftColumn
+                draft={draft}
+                setDraft={setDraft}
+                subtotal={totals.subtotal}
+                entrega={totals.entrega}
+                total={totals.total}
+                onSearchCustomer={searchCustomer}
+                searchingCustomer={searchingCustomer}
+                deliveryFeeLoading={deliveryFeeLoading}
+              />
+              <OrderRightColumn
+                products={products}
+                categorias={categorias}
+                productSearch={productSearch}
+                setProductSearch={setProductSearch}
+                onAddProduct={addProduct}
+              />
+            </div>
+            <OrderCartDock cart={draft.cart} setDraft={setDraft} />
+          </div>
+          <div className="admin-new-order-footer">
+            <button type="button" className="admin-text-btn" onClick={requestClose}>
+              Cancelar
+            </button>
+            <div className="admin-new-order-footer-actions">
+              <button
+                type="button"
+                className={`admin-btn admin-btn-primary ${canSave ? '' : 'admin-btn-inactive'}`}
+                disabled={!canSave}
+                onClick={() => canSave && onSave(draft, true)}
+              >
+                <AdminIcon name="printer" />
+                Salvar e imprimir
+              </button>
+              <button
+                type="button"
+                className={`admin-btn admin-btn-primary ${canSave ? '' : 'admin-btn-inactive'}`}
+                disabled={!canSave}
+                onClick={() => canSave && onSave(draft, false)}
+              >
+                Salvar
+              </button>
+            </div>
           </div>
         </div>
       </div>

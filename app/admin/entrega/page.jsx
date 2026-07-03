@@ -12,9 +12,18 @@ import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useEmpresa } from '@/hooks/useEmpresa';
 
+function EntregaPageIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <circle cx="12" cy="10" r="3" />
+      <path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z" />
+    </svg>
+  );
+}
+
 export default function EntregaPage() {
   const { data, ready } = useAdminData();
-  const { empresa, slug, loading: empresaLoading, error: empresaError } = useEmpresa();
+  const { empresa, slug, error: empresaError } = useEmpresa();
   const loja = data?.loja;
   const toast = useAdminToast();
   const [geocoding, setGeocoding] = useState(false);
@@ -66,16 +75,15 @@ export default function EntregaPage() {
           {empresaError}
         </div>
       ) : null}
-      <AdminPageHeader title="Entrega" icon="delivery" />
 
-      <StoreDeliveryDurationCard />
-
-      <div className="admin-card admin-store-block-card">
-        <div className="admin-store-section-head admin-delivery-address-head">
-          <div className="admin-delivery-section-intro">
-            <h2>Endereço da loja</h2>
-            <span>Usado como origem das entregas. Edite em Minha loja.</span>
-          </div>
+      <AdminPageHeader
+        title="Entrega"
+        iconNode={
+          <span className="admin-page-title-icon">
+            <EntregaPageIcon />
+          </span>
+        }
+        actions={
           <div className="admin-marmita-settings-menu-wrap" ref={menuRef}>
             <button
               type="button"
@@ -97,25 +105,24 @@ export default function EntregaPage() {
                     setGeocodeModalOpen(true);
                   }}
                 >
-                  Recalcular coordenadas
+                  Endereço da loja
                 </button>
               </div>
             ) : null}
           </div>
-        </div>
-        <div className="admin-delivery-address-body">
-          <p className="admin-delivery-store-address-line1">{addressLines.line1}</p>
-          {addressLines.line2 ? (
-            <p className="admin-delivery-store-address-line2">{addressLines.line2}</p>
-          ) : null}
-        </div>
-      </div>
+        }
+      />
+
+      <StoreDeliveryDurationCard />
 
       <div className="admin-card admin-store-block-card admin-compact-page-card">
         <div className="admin-store-section-head">
-          <div className="admin-delivery-section-intro">
-            <h2>Áreas de entrega</h2>
-            <span>Taxa por distância em km a partir da loja.</span>
+          <div className="admin-delivery-section-intro admin-delivery-section-intro--with-icon">
+            <i className="ph ph-map-trifold admin-delivery-section-ph-icon" aria-hidden="true" />
+            <div>
+              <h2>Áreas de entrega</h2>
+              <span>Taxa por distância em km a partir da loja.</span>
+            </div>
           </div>
         </div>
         <div className="admin-delivery-areas-body">

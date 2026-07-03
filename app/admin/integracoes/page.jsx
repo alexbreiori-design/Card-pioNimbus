@@ -310,11 +310,11 @@ function GoogleAnalyticsIntegrationCard({ slug, empresaLoading }) {
     <div className="admin-card admin-store-block-card admin-compact-page-card admin-integration-card">
       <div className="admin-integration-meta-wrap admin-integration-meta-wrap-left">
         <Image
-          className="admin-integration-ga-logo"
+          className="admin-integration-meta-logo admin-integration-ga-logo"
           src="/images/GA4_Logo.webp"
           alt="Google Analytics"
-          width={160}
-          height={40}
+          width={148}
+          height={32}
           priority
         />
       </div>
