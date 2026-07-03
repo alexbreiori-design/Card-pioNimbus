@@ -28,6 +28,9 @@ import {
 import {
   getOrderTicketWidthMm,
   ORDER_TICKET_WIDTH_OPTIONS,
+  ORDER_PRINT_ON_PREP_OPTIONS,
+  getOrderPrintOnPrepMode,
+  setOrderPrintOnPrepMode,
   setOrderTicketWidthMm,
 } from '@/lib/orderTicketPrefs';
 import OrderTicketPreviewModal from '@/components/admin/orders/OrderTicketPreviewModal';
@@ -127,12 +130,14 @@ export default function MinhaLojaPage() {
   const [coverAdjustSrc, setCoverAdjustSrc] = useState('');
   const [coverAdjustIsNew, setCoverAdjustIsNew] = useState(false);
   const [ticketWidthMm, setTicketWidthMm] = useState(80);
+  const [printOnPrepMode, setPrintOnPrepMode] = useState('ask');
   const [ticketPreviewOpen, setTicketPreviewOpen] = useState(false);
   const [superAdmin, setSuperAdmin] = useState(false);
   const segmentBeforeModeloRef = useRef('restaurante');
 
   useEffect(() => {
     setTicketWidthMm(getOrderTicketWidthMm());
+    setPrintOnPrepMode(getOrderPrintOnPrepMode());
   }, []);
 
   useEffect(() => {
@@ -350,17 +355,6 @@ export default function MinhaLojaPage() {
     } catch {
       toast.error('Não foi possível copiar a chave Pix.');
     }
-  }
-
-  function setDurationField(field, raw) {
-    setLojaField(field, formatHHMMInput(raw));
-  }
-
-  function blurDurationField(field) {
-    setDraft((prev) => {
-      const durations = resolveLojaDurations({ ...prev, [field]: prev[field] });
-      return { ...prev, ...durations };
-    });
   }
 
   async function save() {
@@ -729,48 +723,6 @@ export default function MinhaLojaPage() {
         </div>
       </div>
 
-      <div className="admin-card admin-store-section-card">
-        <StoreSectionHead
-          iconNode={<i className="ph-fill ph-motorcycle admin-kanban-phosphor-icon" aria-hidden="true" />}
-          title="Tempo estimado de entrega"
-          hint="Duração em horas e minutos (HH:MM). O horário «até …» nos pedidos é calculado a partir da confirmação."
-        />
-        <div className="admin-store-section-body">
-          <div className="admin-store-delivery-time-row admin-store-delivery-duration-row">
-            <div className="admin-form-group">
-              <label className="admin-label">Delivery</label>
-              <p className="admin-help-text" style={{ margin: '0 0 8px' }}>
-                Cliente escolhe «Receber em seu endereço».
-              </p>
-              <input
-                className="admin-input"
-                inputMode="numeric"
-                maxLength={5}
-                value={draft.tempoEntregaDelivery || ''}
-                onChange={(e) => setDurationField('tempoEntregaDelivery', e.target.value)}
-                onBlur={() => blurDurationField('tempoEntregaDelivery')}
-                placeholder="00:45"
-              />
-            </div>
-            <div className="admin-form-group">
-              <label className="admin-label">Retirada</label>
-              <p className="admin-help-text" style={{ margin: '0 0 8px' }}>
-                Cliente escolhe «Retirar no estabelecimento».
-              </p>
-              <input
-                className="admin-input"
-                inputMode="numeric"
-                maxLength={5}
-                value={draft.tempoEntregaRetirada || ''}
-                onChange={(e) => setDurationField('tempoEntregaRetirada', e.target.value)}
-                onBlur={() => blurDurationField('tempoEntregaRetirada')}
-                placeholder="00:30"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="admin-card admin-store-section-card admin-ticket-print-card">
         <StoreSectionHead
           icon="printer"
@@ -791,6 +743,27 @@ export default function MinhaLojaPage() {
                     onChange={() => {
                       setTicketWidthMm(opt.value);
                       setOrderTicketWidthMm(opt.value);
+                    }}
+                  />
+                  <span>{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="admin-ticket-print-field">
+            <span className="admin-label">Ao avançar para preparo</span>
+            <div className="admin-ticket-width-options">
+              {ORDER_PRINT_ON_PREP_OPTIONS.map((opt) => (
+                <label key={opt.value} className="admin-ticket-width-option">
+                  <input
+                    type="radio"
+                    name="printOnPrepMode"
+                    value={opt.value}
+                    checked={printOnPrepMode === opt.value}
+                    onChange={() => {
+                      setPrintOnPrepMode(opt.value);
+                      setOrderPrintOnPrepMode(opt.value);
                     }}
                   />
                   <span>{opt.label}</span>

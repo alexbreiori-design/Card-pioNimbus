@@ -20,10 +20,9 @@ export default function CardapioHeroBanner() {
   const [shareUrl, setShareUrl] = useState('');
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setShareUrl(window.location.href);
-    }
-  }, []);
+    if (!shareOpen || typeof window === 'undefined') return;
+    setShareUrl(window.location.href);
+  }, [shareOpen]);
 
   const todaySchedule = useMemo(() => {
     const dayKey = WEEKDAY_KEYS[new Date().getDay()];
