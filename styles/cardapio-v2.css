@@ -212,44 +212,6 @@
   outline-offset: 2px;
 }
 
-.cardapio-v2-sidebar-footer {
-  flex-shrink: 0;
-  padding-top: 0;
-  padding-bottom: 2px;
-}
-
-.cardapio-v2-sidebar-share {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.301);
-  border-radius: 10px;
-  background: transparent;
-  color: #fff;
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 300;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.cardapio-v2-sidebar-share .cardapio-v2-icon {
-  color: #fff;
-}
-
-.cardapio-v2-sidebar-share:hover {
-  background: var(--brand-soft, color-mix(in srgb, var(--brand, #4e48dd) 14%, transparent));
-  border-color: color-mix(in srgb, var(--brand, #4e48dd) 45%, rgba(255, 255, 255, 0.301));
-}
-
-.cardapio-v2-sidebar-share:focus-visible {
-  outline: 2px solid var(--brand, #4e48dd);
-  outline-offset: 2px;
-}
-
 /* ——— Coluna principal ——— */
 .cardapio-v2-main {
   display: flex;
@@ -467,6 +429,43 @@
   font-weight: 400;
 }
 
+.cardapio-v2-hero-chip-rotate {
+  position: relative;
+  display: inline-grid;
+  min-width: 6.75rem;
+  max-width: 34vw;
+  overflow: hidden;
+}
+
+.cardapio-v2-hero-chip-rotate-line {
+  grid-area: 1 / 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #fff;
+  font-weight: 500;
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+}
+
+.cardapio-v2-hero-chip-rotate-line.is-hidden {
+  opacity: 0;
+  transform: translateY(5px);
+  pointer-events: none;
+}
+
+.cardapio-v2-hero-chip-rotate-line.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cardapio-v2-hero-chip-rotate-line {
+    transition: none;
+  }
+}
+
 .cardapio-v2-hero-actions {
   display: flex;
   flex-wrap: wrap;
@@ -600,10 +599,6 @@
     gap: 5px;
   }
 
-  .cardapio-v2-hero-chips-row .cardapio-v2-hero-chip-label {
-    display: none;
-  }
-
   .cardapio-v2-hero-title {
     font-size: 2.375rem;
     line-height: 1.1;
@@ -669,6 +664,11 @@
     gap: 6px;
   }
 
+  .cardapio-v2-hero-chip-rotate {
+    min-width: 5.5rem;
+    max-width: 42vw;
+  }
+
   .cardapio-v2-hero-actions {
     width: 100%;
     max-width: 100%;
@@ -692,14 +692,14 @@
     padding-inline: 14px;
   }
 
-  .cardapio-v2-hero-btn--review {
+  .cardapio-v2-hero-btn--share {
     flex: 0 0 44px;
     width: 44px;
     min-width: 44px;
     padding: 0;
   }
 
-  .cardapio-v2-hero-btn--review .cardapio-v2-hero-btn-label {
+  .cardapio-v2-hero-btn--share .cardapio-v2-hero-btn-label {
     display: none;
   }
 
@@ -1392,6 +1392,12 @@
     container-type: inline-size;
   }
 
+  .cardapio-v2-rail-track.is-rail-grid-4,
+  .cardapio-v2-rail-track.is-rail-grid-5 {
+    --v2-rail-gap: 8px;
+    gap: 8px;
+  }
+
   .cardapio-v2-rail-track.is-rail-grid-3 {
     container-type: inline-size;
   }
@@ -1403,15 +1409,15 @@
   }
 
   .cardapio-v2-rail-track.is-rail-grid-4 > .cardapio-v2-product-card {
-    flex: 0 0 calc((100cqw - (var(--v2-rail-gap) * 2)) / 2.5);
-    width: calc((100cqw - (var(--v2-rail-gap) * 2)) / 2.5);
-    max-width: calc((100cqw - (var(--v2-rail-gap) * 2)) / 2.5);
+    flex: 0 0 calc((100cqw - (var(--v2-rail-gap) * 2)) / 2.35);
+    width: calc((100cqw - (var(--v2-rail-gap) * 2)) / 2.35);
+    max-width: calc((100cqw - (var(--v2-rail-gap) * 2)) / 2.35);
   }
 
   .cardapio-v2-rail-track.is-rail-grid-5 > .cardapio-v2-product-card {
-    flex: 0 0 calc((100cqw - (var(--v2-rail-gap) * 2)) / 3);
-    width: calc((100cqw - (var(--v2-rail-gap) * 2)) / 3);
-    max-width: calc((100cqw - (var(--v2-rail-gap) * 2)) / 3);
+    flex: 0 0 calc((100cqw - (var(--v2-rail-gap) * 2)) / 2.65);
+    width: calc((100cqw - (var(--v2-rail-gap) * 2)) / 2.65);
+    max-width: calc((100cqw - (var(--v2-rail-gap) * 2)) / 2.65);
   }
 
   .cardapio-v2-rail-section.is-layout-grid-3 .cardapio-v2-product-card-body {
@@ -1421,6 +1427,53 @@
   .cardapio-v2-rail-section.is-layout-grid-3 .cardapio-v2-product-card-title {
     font-size: 16px;
     font-weight: 600;
+  }
+
+  .cardapio-v2-rail-section.is-layout-grid-4 .cardapio-v2-product-card-footer {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 4px;
+    padding-top: 6px;
+  }
+
+  .cardapio-v2-rail-section.is-layout-grid-4 .cardapio-v2-product-card-price {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .cardapio-v2-rail-section.is-layout-grid-4 .cardapio-v2-product-card-price.has-promo {
+    flex-wrap: nowrap;
+    align-items: baseline;
+    gap: 4px;
+  }
+
+  .cardapio-v2-rail-section.is-layout-grid-4 .cardapio-v2-product-card-price.has-promo .product-price-original {
+    font-size: 10px;
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .cardapio-v2-rail-section.is-layout-grid-4 .cardapio-v2-product-card-price.has-promo .product-price-promo {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .cardapio-v2-rail-section.is-layout-grid-4 .cardapio-v2-product-card-add {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+  }
+
+  .cardapio-v2-rail-section.is-layout-grid-4 .cardapio-v2-product-card-add .ph-bold {
+    font-size: 13px;
   }
 
   .cardapio-v2-rail-section.is-layout-grid-5 .cardapio-v2-product-card-title {
@@ -1452,13 +1505,11 @@
   .cardapio-v2-rail-section.is-layout-grid-5 .cardapio-v2-product-card-price {
     margin: 0;
     min-width: 0;
-    flex: 1 1 auto;
+    flex: 1 1 100%;
     font-size: 11px;
     font-weight: 700;
     line-height: 1.15;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .cardapio-v2-rail-section.is-layout-grid-5 .cardapio-v2-product-card-price.has-promo {
@@ -1501,14 +1552,7 @@
   }
 
   .cardapio-v2-rail-section.is-layout-grid-5 .cardapio-v2-product-card-add {
-    flex-shrink: 0;
-    width: 28px;
-    height: 28px;
-    border-radius: 7px;
-  }
-
-  .cardapio-v2-rail-section.is-layout-grid-5 .cardapio-v2-product-card-add .ph-bold {
-    font-size: 14px;
+    display: none;
   }
 
   .cardapio-v2-rail-wrap {
@@ -1925,6 +1969,71 @@
 
 .cardapio-v2-modal-body {
   padding: 0 20px 20px;
+}
+
+.cardapio-v2-share-modal {
+  width: min(100%, 420px);
+}
+
+.cardapio-v2-share-modal-hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-light, #666);
+}
+
+.cardapio-v2-share-modal-url {
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.03);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-mid, #555);
+  word-break: break-all;
+}
+
+.cardapio-v2-share-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 20px 20px;
+}
+
+.cardapio-v2-share-modal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  padding: 0 16px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  background: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text, #141414);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.cardapio-v2-share-modal-btn:hover {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+.cardapio-v2-share-modal-btn:focus-visible {
+  outline: 2px solid var(--brand, #4e48dd);
+  outline-offset: 2px;
+}
+
+.cardapio-v2-share-modal-btn .cardapio-v2-icon {
+  font-size: 18px;
+  color: var(--brand, #4e48dd);
 }
 
 .cardapio-v2-modal-lead {
