@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 import DeliveryZonesCrud from '@/components/admin/DeliveryZonesCrud';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import StoreSectionHead from '@/components/admin/StoreSectionHead';
 import StoreDeliveryDurationCard from '@/components/admin/delivery/StoreDeliveryDurationCard';
 import RecalcularCoordenadasModal, {
   formatStoreAddressLines,
@@ -113,20 +114,18 @@ export default function EntregaPage() {
         }
       />
 
-      <StoreDeliveryDurationCard />
+      <div className="admin-delivery-cards-grid">
+        <StoreDeliveryDurationCard />
 
-      <div className="admin-card admin-store-block-card admin-compact-page-card">
-        <div className="admin-store-section-head">
-          <div className="admin-delivery-section-intro admin-delivery-section-intro--with-icon">
-            <i className="ph ph-map-trifold admin-delivery-section-ph-icon" aria-hidden="true" />
-            <div>
-              <h2>Áreas de entrega</h2>
-              <span>Taxa por distância em km a partir da loja.</span>
-            </div>
+        <div className="admin-card admin-store-block-card admin-compact-page-card">
+          <StoreSectionHead
+            iconNode={<i className="ph ph-map-trifold admin-kanban-phosphor-icon" aria-hidden="true" />}
+            title="Áreas de entrega"
+            hint="Taxa por distância em km a partir da loja."
+          />
+          <div className="admin-delivery-areas-body">
+            <DeliveryZonesCrud empresaId={empresa?.id} />
           </div>
-        </div>
-        <div className="admin-delivery-areas-body">
-          <DeliveryZonesCrud empresaId={empresa?.id} />
         </div>
       </div>
 

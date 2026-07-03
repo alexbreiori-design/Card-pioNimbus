@@ -7,6 +7,7 @@ import OrderTypeTabs from './OrderTypeTabs';
 import PhoneSearchInput from './PhoneSearchInput';
 import { useAdminData } from '@/hooks/useAdminData';
 import OrderCouponPicker from './OrderCouponPicker';
+import OrderCartList from './OrderCartList';
 import { currency, PAYMENT_METHODS } from './orderDraftUtils';
 import AdminIcon from '@/components/admin/AdminIcon';
 
@@ -173,11 +174,18 @@ export default function OrderLeftColumn({
         />
       </section>
 
+      {draft.cart.length > 0 ? (
+        <section className="admin-order-section admin-order-cart-section">
+          <h4 className="admin-order-section-title">
+            <AdminIcon name="cart" />
+            Itens adicionados
+          </h4>
+          <OrderCartList cart={draft.cart} setDraft={setDraft} />
+        </section>
+      ) : null}
+
       <section className="admin-order-section">
-        <h4 className="admin-order-section-title">
-          <AdminIcon name="cart" />
-          Detalhes da compra
-        </h4>
+        <h4 className="admin-order-section-title">Detalhes da compra</h4>
         <div className="admin-order-purchase-row">
           <MoneyInput
             label="Acréscimo"
@@ -191,8 +199,8 @@ export default function OrderLeftColumn({
             onChange={(desconto) => setDraft((d) => ({ ...d, desconto }))}
             className="admin-order-field-money"
           />
+          <OrderCouponPicker draft={draft} setDraft={setDraft} cupons={cupons} inline />
         </div>
-        <OrderCouponPicker draft={draft} setDraft={setDraft} cupons={cupons} />
       </section>
 
       <section className="admin-order-summary">
