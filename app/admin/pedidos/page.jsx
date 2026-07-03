@@ -25,6 +25,7 @@ import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOrders } from '@/hooks/useAdminOrders';
 import { useOrderPrint } from '@/context/OrderPrintContext';
 import OrderPrintPrepDialog from '@/components/admin/orders/OrderPrintPrepDialog';
+import OrderDeadlineDemoEdit from '@/components/admin/orders/OrderDeadlineDemoEdit';
 import { getOrderPrintOnPrepMode } from '@/lib/orderTicketPrefs';
 import { paymentLabelForOrder } from '@/lib/orders/mapAdminOrder';
 import { ensureCustomer, normalizePhone, updateCustomerStats, upsertClienteEndereco } from '@/lib/supabase/customers';
@@ -32,7 +33,8 @@ import { resolveEmpresaIdFromStore } from '@/lib/supabase/empresa';
 import { getEtaFromConfirmedAt } from '@/lib/deliveryDuration';
 import { buildOrderStatusNotifyUrl, buildOrderSummaryWhatsAppUrl } from '@/lib/orderWhatsApp';
 import { formatOrderAgePt } from '@/lib/orderTimeAgo';
-import { isOrderOverdue } from '@/lib/orders/orderDeadline';
+import { orderDeadlineCardClass } from '@/lib/orders/orderDeadline';
+import { useModelStoreDemoDeadline } from '@/hooks/useModelStoreDemoDeadline';
 import {
   buildAdminOrderCatalogProducts,
   buildAdminOrderCategories,
@@ -133,6 +135,7 @@ export default function PedidosPage() {
   const caixaBlocked = !isMobile && !caixaLoading && !caixaOpen;
 
   const storeSlug = data.loja?.slug || '';
+  const demoDeadlineEdit = useModelStoreDemoDeadline(storeSlug);
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('todos');
   const toast = useAdminToast();
@@ -603,11 +606,11 @@ export default function PedidosPage() {
                 ) : null}
                 {colOrders.map((order) => {
                   const flash = recentIds.includes(order.id);
-                  const overdue = isOrderOverdue(order);
+                  const deadlineCardClass = orderDeadlineCardClass(order);
                   return (
                     <div
                       key={order.id}
-                      className={`admin-order-card${overdue ? ' admin-order-card--overdue' : ''}`}
+                      className={`admin-order-card${deadlineCardClass ? ` ${deadlineCardClass}` : ''}`}
                       style={flash ? { boxShadow: '0 0 0 2px #4e48dd inset' } : undefined}
                       onClick={() => setDetailOrderId(order.id)}
                     >
@@ -626,7 +629,17 @@ export default function PedidosPage() {
                           <span className="admin-order-caixa-badge">Aguardando caixa</span>
                         ) : null}
                       </div>
-                      <div className="admin-order-meta">{deadlineLabel(order)}</div>
+                      <div className="admin-order-meta admin-order-card-deadline">
+                        <span>{deadlineLabel(order)}</span>
+                        {demoDeadlineEdit ? (
+                          <OrderDeadlineDemoEdit
+                            order={order}
+                            storeSlug={storeSlug}
+                            onUpdated={() => refreshOrders({ force: true, silent: true })}
+                            stopPropagation
+                          />
+                        ) : null}
+                      </div>
                       <div className="admin-order-card-footer">
                         <div className="admin-order-price">{currency(order.total)}</div>
                         <div className="admin-order-card-actions">
@@ -741,6 +754,9 @@ export default function PedidosPage() {
         }
         readOnly={Boolean(detailOrder?.arquivado)}
         overlayClassName={archiveOpen ? 'admin-confirm-overlay-top' : ''}
+        demoDeadlineEdit={demoDeadlineEdit}
+        storeSlug={storeSlug}
+        onDeadlineDemoUpdated={() => refreshOrders({ force: true, silent: true })}
         onClose={() => setDetailOrderId('')}
         canAdvance={detailOrder && detailOrder.status !== 'concluido' && detailOrder.status !== 'cancelado'}
         advanceLabel={

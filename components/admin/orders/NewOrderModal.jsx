@@ -7,7 +7,6 @@ import { findCustomerByPhone, listClienteEnderecos } from '@/lib/supabase/custom
 import { resolveEmpresaIdFromStore } from '@/lib/supabase/empresa';
 import OrderLeftColumn from './OrderLeftColumn';
 import OrderRightColumn from './OrderRightColumn';
-import OrderCartDock from './OrderCartDock';
 import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
 import AdminIcon from '@/components/admin/AdminIcon';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
@@ -141,7 +140,7 @@ export default function NewOrderModal({
     <>
       <div className="admin-confirm-overlay" onClick={requestClose}>
         <div
-          className={`admin-confirm-modal admin-new-order-modal${draft.cart.length ? ' has-cart' : ''}`}
+          className="admin-confirm-modal admin-new-order-modal"
           onClick={(e) => e.stopPropagation()}
         >
           <h3 className="admin-new-order-title">
@@ -170,7 +169,6 @@ export default function NewOrderModal({
                 onAddProduct={addProduct}
               />
             </div>
-            <OrderCartDock cart={draft.cart} setDraft={setDraft} />
           </div>
           <div className="admin-new-order-footer">
             <button type="button" className="admin-text-btn" onClick={requestClose}>

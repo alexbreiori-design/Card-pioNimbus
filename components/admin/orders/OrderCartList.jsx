@@ -1,13 +1,12 @@
 'use client';
 
-import AdminIcon from '@/components/admin/AdminIcon';
 import { currency } from './orderDraftUtils';
 
-export default function OrderCartDock({ cart, setDraft }) {
+export default function OrderCartList({ cart, setDraft }) {
   if (!cart.length) return null;
 
   return (
-    <div className="admin-new-order-cart-dock" aria-label="Itens do pedido">
+    <div className="admin-new-order-cart-list" aria-label="Itens do pedido">
       {cart.map((item) => (
         <div key={item.id} className="admin-new-order-cart-row">
           <div className="admin-new-order-cart-qty">

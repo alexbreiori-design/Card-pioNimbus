@@ -311,10 +311,12 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  background: rgba(255, 255, 255, 0.103);
-  backdrop-filter: blur(20px) saturate(1.15);
-  -webkit-backdrop-filter: blur(20px) saturate(1.15);
+  border: 1px solid rgba(255, 255, 255, 0.17);
+  background:
+    rgba(255, 255, 255, 0.14),
+    rgba(8, 10, 20, 0.28);
+  backdrop-filter: blur(14px) saturate(1.12);
+  -webkit-backdrop-filter: blur(14px) saturate(1.12);
 }
 
 .cardapio-v2-hero-glass-chip-inner {
@@ -455,16 +457,15 @@
 }
 
 .cardapio-v2-hero-chip-rotate {
-  position: relative;
-  display: inline-block;
+  display: inline-grid;
+  grid-template: 1fr / max-content;
+  justify-items: center;
+  align-items: center;
   vertical-align: top;
-  overflow: hidden;
-  transition: width 0.55s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .cardapio-v2-hero-chip-rotate-line {
-  display: block;
-  white-space: nowrap;
+  grid-area: 1 / 1;
   color: #fff;
   font-weight: 500;
   transition:
@@ -472,16 +473,27 @@
     transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.cardapio-v2-hero-chip-rotate-label {
+  white-space: nowrap;
+  text-align: center;
+}
+
+.cardapio-v2-hero-chip-rotate-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  white-space: nowrap;
+  text-align: center;
+}
+
 .cardapio-v2-hero-chip-rotate-line.is-hidden {
-  position: absolute;
-  inset: 0 auto auto 0;
   opacity: 0;
   transform: translateY(4px);
   pointer-events: none;
 }
 
 .cardapio-v2-hero-chip-rotate-line.is-visible {
-  position: relative;
   opacity: 1;
   transform: translateY(0);
 }
@@ -697,6 +709,19 @@
     width: auto;
     max-width: none;
     flex: 0 0 auto;
+  }
+
+  .cardapio-v2-hero-chips-row .cardapio-v2-hero-glass-chip-inner {
+    justify-content: center;
+  }
+
+  .cardapio-v2-hero-chips-row .cardapio-v2-hero-glass-chip-bg {
+    border-color: rgba(255, 255, 255, 0.19);
+    background:
+      rgba(255, 255, 255, 0.16),
+      rgba(6, 8, 18, 0.42);
+    backdrop-filter: blur(16px) saturate(1.15);
+    -webkit-backdrop-filter: blur(16px) saturate(1.15);
   }
 
   .cardapio-v2-hero-chip-rotate {

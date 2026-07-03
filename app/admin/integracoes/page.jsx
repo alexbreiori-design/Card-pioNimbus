@@ -108,7 +108,8 @@ export default function IntegracoesPage() {
     <div className="admin-content admin-content-pedidos admin-catalog-page admin-section-page admin-compact-card-page">
       <AdminPageHeader title="Integrações" icon="integration" />
 
-      <div className="admin-card admin-store-block-card admin-compact-page-card admin-integration-card">
+      <div className="admin-integration-cards-grid">
+        <div className="admin-card admin-store-block-card admin-compact-page-card admin-integration-card">
         <div className="admin-integration-meta-wrap admin-integration-meta-wrap-left">
           <Image
             className="admin-integration-meta-logo"
@@ -198,6 +199,9 @@ export default function IntegracoesPage() {
         {!hasPixel && !formOpen ? (
           <p className="admin-help-text admin-delivery-areas-empty">Nenhum Pixel conectado.</p>
         ) : null}
+        </div>
+
+        <GoogleAnalyticsIntegrationCard slug={slug} empresaLoading={empresaLoading} />
       </div>
 
       <AdminConfirmDialog
@@ -210,8 +214,6 @@ export default function IntegracoesPage() {
         onCancel={() => setRemoveConfirmOpen(false)}
         onConfirm={() => void handleRemove()}
       />
-
-      <GoogleAnalyticsIntegrationCard slug={slug} empresaLoading={empresaLoading} />
     </div>
   );
 }

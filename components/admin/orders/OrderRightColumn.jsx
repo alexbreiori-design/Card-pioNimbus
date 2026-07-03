@@ -72,6 +72,13 @@ export default function OrderRightColumn({
           ) : (
             filtered.map((p) => (
               <div key={p.id} className="admin-order-product-row">
+                <div className="admin-order-product-thumb-wrap">
+                  {p.imagemUrl ? (
+                    <img className="admin-order-product-thumb" src={p.imagemUrl} alt="" />
+                  ) : (
+                    <ImagePlaceholder size={64} />
+                  )}
+                </div>
                 <div className="admin-order-product-info">
                   <span className="admin-order-product-name">{p.nome}</span>
                   {productNeedsConfiguration(p) ? (
@@ -80,21 +87,14 @@ export default function OrderRightColumn({
                   {p.medida ? <div className="admin-order-meta">{p.medida}</div> : null}
                   <div className="admin-order-product-price">{currency(p.preco)}</div>
                 </div>
-                <div className="admin-order-product-side">
-                  {p.imagemUrl ? (
-                    <img className="admin-order-product-thumb" src={p.imagemUrl} alt="" />
-                  ) : (
-                    <ImagePlaceholder size={52} />
-                  )}
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn-primary admin-icon-add-btn"
-                    onClick={() => onAddProduct(p)}
-                    aria-label={`Adicionar ${p.nome}`}
-                  >
-                    <AdminIcon name="plus" />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-primary admin-icon-add-btn admin-order-product-add-btn"
+                  onClick={() => onAddProduct(p)}
+                  aria-label={`Adicionar ${p.nome}`}
+                >
+                  <AdminIcon name="plus" />
+                </button>
               </div>
             ))
           )}

@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { filterCuponsByQuery } from '@/lib/cupons';
 import { currency } from './orderDraftUtils';
 
-export default function OrderCouponPicker({ draft, setDraft, cupons = [] }) {
+export default function OrderCouponPicker({ draft, setDraft, cupons = [], inline = false }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
 
@@ -34,7 +34,7 @@ export default function OrderCouponPicker({ draft, setDraft, cupons = [] }) {
 
   if (draft.cupomId) {
     return (
-      <div className="admin-order-coupon-applied">
+      <div className={`admin-order-coupon-applied${inline ? ' admin-order-coupon-applied-inline' : ''}`}>
         <div className="admin-order-coupon-applied-info">
           <span className="admin-label">Cupom</span>
           <strong>{draft.cupomCodigo}</strong>
@@ -48,12 +48,14 @@ export default function OrderCouponPicker({ draft, setDraft, cupons = [] }) {
   }
 
   return (
-    <div className="admin-order-coupon-block">
+    <div className={`admin-order-coupon-block${inline ? ' admin-order-coupon-inline' : ''}`}>
       <div className="admin-order-coupon-trigger">
-        <span className="admin-label admin-order-coupon-label">Adicionar cupom</span>
-        <button type="button" className="admin-link-btn admin-order-coupon-add" onClick={() => setOpen((v) => !v)}>
-          +Adicionar
-        </button>
+        <span className="admin-label admin-order-coupon-label">Cupom</span>
+        <div className="admin-order-coupon-inline-field">
+          <button type="button" className="admin-link-btn admin-order-coupon-add" onClick={() => setOpen((v) => !v)}>
+            + Adicionar
+          </button>
+        </div>
       </div>
 
       {open ? (

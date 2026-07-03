@@ -3,7 +3,8 @@
 import CartItemOptsList from '@/components/cardapio/CartItemOptsList';
 import AdminIcon from '@/components/admin/AdminIcon';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
-import { isOrderOverdue } from '@/lib/orders/orderDeadline';
+import { orderDeadlineHighlightClass } from '@/lib/orders/orderDeadline';
+import OrderDeadlineDemoEdit from './OrderDeadlineDemoEdit';
 import OrderStatusTimeline from './OrderStatusTimeline';
 import { currency } from './orderDraftUtils';
 
@@ -51,6 +52,9 @@ export default function OrderDetailModal({
   advanceLabel,
   readOnly = false,
   overlayClassName = '',
+  demoDeadlineEdit = false,
+  storeSlug = '',
+  onDeadlineDemoUpdated,
 }) {
   const { overlayPointerDown, overlayClick } = useAdminOverlayClose({
     onClose,
@@ -59,7 +63,7 @@ export default function OrderDetailModal({
 
   if (!order) return null;
   const pay = paymentLabel || PAYMENT_LABEL[order.pagamento?.metodo] || order.pagamento?.metodo || '—';
-  const overdue = isOrderOverdue(order);
+  const deadlineClass = orderDeadlineHighlightClass(order);
 
   return (
     <div
@@ -87,9 +91,18 @@ export default function OrderDetailModal({
             <span>Total do pedido</span>
             <strong>{currency(order.total)}</strong>
           </div>
-          <div className={overdue ? 'is-overdue' : undefined}>
+          <div className={deadlineClass}>
             <span>Prazo</span>
-            <strong>{deadlineLabel(order)}</strong>
+            <strong className="admin-order-detail-deadline-value">
+              {deadlineLabel(order)}
+              {demoDeadlineEdit ? (
+                <OrderDeadlineDemoEdit
+                  order={order}
+                  storeSlug={storeSlug}
+                  onUpdated={onDeadlineDemoUpdated}
+                />
+              ) : null}
+            </strong>
           </div>
         </div>
 
