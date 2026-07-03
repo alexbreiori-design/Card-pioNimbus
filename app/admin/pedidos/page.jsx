@@ -32,6 +32,7 @@ import { resolveEmpresaIdFromStore } from '@/lib/supabase/empresa';
 import { getEtaFromConfirmedAt } from '@/lib/deliveryDuration';
 import { buildOrderStatusNotifyUrl, buildOrderSummaryWhatsAppUrl } from '@/lib/orderWhatsApp';
 import { formatOrderAgePt } from '@/lib/orderTimeAgo';
+import { isOrderOverdue } from '@/lib/orders/orderDeadline';
 import {
   buildAdminOrderCatalogProducts,
   buildAdminOrderCategories,
@@ -123,6 +124,7 @@ export default function PedidosPage() {
     cancelOrder,
     restoreArchived,
     createOrder,
+    updateOrder,
     refreshOrders,
   } = useAdminOrders();
   const { printOrder } = useOrderPrint();
@@ -136,6 +138,7 @@ export default function PedidosPage() {
   const toast = useAdminToast();
   const [createOpen, setCreateOpen] = useState(false);
   const [modalInitialDraft, setModalInitialDraft] = useState(null);
+  const [editingOrder, setEditingOrder] = useState(null);
   const [detailOrderId, setDetailOrderId] = useState('');
   const [recentIds, setRecentIds] = useState([]);
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -228,6 +231,7 @@ export default function PedidosPage() {
 
   function openNewOrderModal(initialDraft = null) {
     if (!guardCaixa()) return;
+    if (!initialDraft) setEditingOrder(null);
     setModalInitialDraft(initialDraft);
     setCreateOpen(true);
   }
@@ -295,8 +299,80 @@ export default function PedidosPage() {
   async function saveOrder(draft, printNow = false) {
     if (!guardCaixa()) return;
     const totals = computeOrderTotals(draft);
-    const eta = getEtaFromConfirmedAt(new Date().toISOString(), data.loja, draft.tipo);
     const phoneDigits = normalizePhone(draft.telefone);
+    const enderecoTexto =
+      draft.tipo === 'delivery'
+        ? `${draft.logradouro || ''}${draft.numero ? `, ${draft.numero}` : ''} - ${draft.bairro || ''} - ${draft.cidade || ''}`
+        : draft.tipo === 'retirada'
+          ? 'Retirada no balcão'
+          : 'Balcão';
+    const items = draft.cart.map((i) => ({
+      nome: i.nome,
+      qtd: i.qtd,
+      precoUnit: i.preco,
+      subtotal: i.qtd * i.preco,
+      obs: i.obs || '',
+      produtoId: i.produtoId || null,
+    }));
+
+    if (editingOrder) {
+      const updatedOrder = {
+        ...editingOrder,
+        tipo: draft.tipo,
+        clienteNome: draft.clienteNome,
+        clienteTelefone: phoneDigits,
+        enderecoTexto,
+        observacao: draft.observacao,
+        subtotal: totals.subtotal,
+        frete: totals.entrega,
+        acrescimo: totals.acrescimo,
+        desconto: totals.desconto,
+        cupomCodigo: draft.cupomCodigo || '',
+        total: totals.total,
+        pagamento: { metodo: draft.formaPagamento, recebido: totals.total, troco: 0 },
+        itens: items,
+      };
+
+      try {
+        const empresaId = await resolveEmpresaIdFromStore(storeSlug);
+        const customer = await ensureCustomer({
+          name: draft.clienteNome,
+          phone: draft.telefone,
+          empresaId,
+        });
+        updatedOrder.cliente_id = customer?.id || editingOrder.customer_id || null;
+        await updateOrder(updatedOrder, items);
+
+        if (customer?.id && empresaId && draft.tipo === 'delivery') {
+          await upsertClienteEndereco({
+            clienteId: customer.id,
+            empresaId,
+            patch: {
+              cep: draft.cep,
+              street: draft.logradouro,
+              number: draft.numero,
+              district: draft.bairro,
+              city: draft.cidade,
+              state: draft.estado,
+              complement: draft.complemento,
+              principal: true,
+            },
+          });
+        }
+      } catch (error) {
+        toast.error(error?.message || 'Erro ao atualizar pedido.');
+        return;
+      }
+
+      setCreateOpen(false);
+      setModalInitialDraft(null);
+      setEditingOrder(null);
+      toast.success(`Pedido #${updatedOrder.id} atualizado com sucesso.`);
+      if (printNow) printOrder(updatedOrder);
+      return;
+    }
+
+    const eta = getEtaFromConfirmedAt(new Date().toISOString(), data.loja, draft.tipo);
     const newOrder = {
       id: uid(),
       status: 'novo',
@@ -306,12 +382,7 @@ export default function PedidosPage() {
       createdAt: new Date().toISOString(),
       prazo: eta.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
       entregarAte: eta.toISOString(),
-      enderecoTexto:
-        draft.tipo === 'delivery'
-          ? `${draft.logradouro || ''}${draft.numero ? `, ${draft.numero}` : ''} - ${draft.bairro || ''} - ${draft.cidade || ''}`
-          : draft.tipo === 'retirada'
-            ? 'Retirada no balcão'
-            : 'Balcão',
+      enderecoTexto,
       observacao: draft.observacao,
       subtotal: totals.subtotal,
       frete: totals.entrega,
@@ -321,18 +392,9 @@ export default function PedidosPage() {
       total: totals.total,
       pagamento: { metodo: draft.formaPagamento, recebido: totals.total, troco: 0 },
       origem: 'admin_manual',
-      itens: [],
+      itens: items,
       caixaTurnoId: caixaTurno?.id || null,
     };
-    const items = draft.cart.map((i) => ({
-      nome: i.nome,
-      qtd: i.qtd,
-      precoUnit: i.preco,
-      subtotal: i.qtd * i.preco,
-      obs: i.obs || '',
-      produtoId: i.produtoId || null,
-    }));
-    newOrder.itens = items;
 
     try {
       const empresaId = await resolveEmpresaIdFromStore(storeSlug);
@@ -417,6 +479,7 @@ export default function PedidosPage() {
     setTimeout(() => setRecentIds((prev) => prev.filter((id) => id !== newOrder.id)), 2000);
     setCreateOpen(false);
     setModalInitialDraft(null);
+    setEditingOrder(null);
     toast.success(`Pedido #${newOrder.id} criado com sucesso.`);
     if (printNow) printOrder(newOrder);
   }
@@ -540,10 +603,11 @@ export default function PedidosPage() {
                 ) : null}
                 {colOrders.map((order) => {
                   const flash = recentIds.includes(order.id);
+                  const overdue = isOrderOverdue(order);
                   return (
                     <div
                       key={order.id}
-                      className="admin-order-card"
+                      className={`admin-order-card${overdue ? ' admin-order-card--overdue' : ''}`}
                       style={flash ? { boxShadow: '0 0 0 2px #4e48dd inset' } : undefined}
                       onClick={() => setDetailOrderId(order.id)}
                     >
@@ -657,11 +721,13 @@ export default function PedidosPage() {
         onClose={() => {
           setCreateOpen(false);
           setModalInitialDraft(null);
+          setEditingOrder(null);
         }}
         onSave={saveOrder}
         products={products}
         categorias={categorias}
         initialDraft={modalInitialDraft}
+        editingOrderId={editingOrder?.id || null}
       />
 
       <OrderDetailModal
@@ -692,6 +758,7 @@ export default function PedidosPage() {
         }}
         onEdit={() => {
           if (!detailOrder) return;
+          setEditingOrder(detailOrder);
           openNewOrderModal({
             ...EMPTY_ORDER_DRAFT,
             tipo: detailOrder.tipo,
@@ -710,7 +777,7 @@ export default function PedidosPage() {
             formaPagamento: detailOrder.pagamento?.metodo || 'dinheiro',
             cart: (detailOrder.itens || []).map((i) => ({
               id: uid(),
-              produtoId: '',
+              produtoId: i.produtoId || '',
               nome: i.nome,
               preco: Number(i.precoUnit || 0),
               qtd: Number(i.qtd || 1),

@@ -36,9 +36,29 @@ export default function CardapioHeroBanner() {
   const hasCover = Boolean(storeConfig?.capaUrl);
   const descricao = String(storeConfig?.descricao || '').trim();
 
-  const addressLine = useMemo(() => {
-    const formatted = formatStoreAddress(storeConfig);
-    return String(formatted || storeConfig?.endereco || '').trim();
+  const heroAddress = useMemo(() => {
+    const streetLine = [
+      storeConfig?.enderecoLogradouro,
+      storeConfig?.enderecoNumero ? `, ${storeConfig.enderecoNumero}` : '',
+    ]
+      .join('')
+      .trim();
+
+    const cityState = [storeConfig?.enderecoCidade, storeConfig?.enderecoEstado ? `/${storeConfig.enderecoEstado}` : '']
+      .filter(Boolean)
+      .join('');
+
+    const localityLine = [storeConfig?.enderecoBairro, cityState].filter(Boolean).join(' · ');
+
+    if (streetLine || localityLine) {
+      return {
+        line1: streetLine,
+        line2: localityLine,
+      };
+    }
+
+    const fallback = String(formatStoreAddress(storeConfig) || storeConfig?.endereco || '').trim();
+    return fallback ? { line1: fallback, line2: '' } : null;
   }, [storeConfig, formatStoreAddress]);
 
   const minOrderValue = minOrder > 0 ? formatPrice(minOrder) : 'Sem mínimo';
@@ -74,10 +94,15 @@ export default function CardapioHeroBanner() {
                 {isOpen ? 'Aberta' : 'Fechada'}
               </span>
             </div>
-            {addressLine ? (
+            {heroAddress ? (
               <p className="cardapio-v2-hero-address">
                 <V2Icon name="map-pin" fill className="cardapio-v2-hero-pin" />
-                <span>{addressLine}</span>
+                <span className="cardapio-v2-hero-address-text">
+                  {heroAddress.line1 ? <span className="cardapio-v2-hero-address-line">{heroAddress.line1}</span> : null}
+                  {heroAddress.line2 ? (
+                    <span className="cardapio-v2-hero-address-line">{heroAddress.line2}</span>
+                  ) : null}
+                </span>
               </p>
             ) : null}
           </div>

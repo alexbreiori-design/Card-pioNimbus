@@ -1,24 +1,17 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import CartItemOptsList from '@/components/cardapio/CartItemOptsList';
 import ImagePlaceholder from '@/components/admin/ImagePlaceholder';
 import AdminIcon from '@/components/admin/AdminIcon';
 import { productNeedsConfiguration } from '@/lib/admin/orderProductUtils';
 import { currency } from './orderDraftUtils';
 
 export default function OrderRightColumn({
-  draft,
-  setDraft,
   products,
   categorias = [],
   productSearch,
   setProductSearch,
   onAddProduct,
-  canSave,
-  onRequestClose,
-  onSave,
-  onSavePrint,
 }) {
   const [categoryFilter, setCategoryFilter] = useState('todos');
   const q = productSearch.trim().toLowerCase();
@@ -38,31 +31,6 @@ export default function OrderRightColumn({
 
   return (
     <div className="admin-new-order-col admin-new-order-col-right">
-      <div className="admin-new-order-right-top">
-        <button type="button" className="admin-text-btn" onClick={onRequestClose}>
-          Cancelar
-        </button>
-        <div className="admin-new-order-right-actions">
-          <button
-            type="button"
-            className={`admin-btn admin-btn-primary ${canSave ? '' : 'admin-btn-inactive'}`}
-            disabled={!canSave}
-            onClick={onSavePrint}
-          >
-            <AdminIcon name="printer" />
-            Salvar e imprimir
-          </button>
-          <button
-            type="button"
-            className={`admin-btn admin-btn-primary ${canSave ? '' : 'admin-btn-inactive'}`}
-            disabled={!canSave}
-            onClick={onSave}
-          >
-            Salvar
-          </button>
-        </div>
-      </div>
-
       <div className="admin-order-product-search">
         <label className="admin-label">Buscar produtos</label>
         <div className="admin-pedidos-search-wrap compact">
@@ -131,76 +99,6 @@ export default function OrderRightColumn({
             ))
           )}
         </div>
-
-        {draft.cart.length > 0 ? (
-          <div className="admin-order-cart">
-            <h4 className="admin-order-section-title">Itens do pedido</h4>
-            {draft.cart.map((item) => (
-              <div key={item.id} className="admin-order-cart-item">
-                <div className="admin-order-cart-item-head">
-                  <strong>
-                    {item.qtd}x {item.nome}
-                    {item.medida ? ` (${item.medida})` : ''}
-                  </strong>
-                  <span>{currency(item.qtd * item.preco)}</span>
-                </div>
-                <CartItemOptsList obs={item.obs} className="admin-order-cart-item-obs" />
-                <div className="admin-order-cart-item-actions">
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn-ghost"
-                    onClick={() =>
-                      setDraft((d) => ({
-                        ...d,
-                        cart: d.cart.map((x) =>
-                          x.id === item.id ? { ...x, qtd: Math.max(1, x.qtd - 1) } : x
-                        ),
-                      }))
-                    }
-                  >
-                    -
-                  </button>
-                  <span>{item.qtd}</span>
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn-ghost"
-                    onClick={() =>
-                      setDraft((d) => ({
-                        ...d,
-                        cart: d.cart.map((x) => (x.id === item.id ? { ...x, qtd: x.qtd + 1 } : x)),
-                      }))
-                    }
-                  >
-                    +
-                  </button>
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn-danger"
-                    onClick={() =>
-                      setDraft((d) => ({
-                        ...d,
-                        cart: d.cart.filter((x) => x.id !== item.id),
-                      }))
-                    }
-                  >
-                    Remover
-                  </button>
-                </div>
-                <input
-                  className="admin-input"
-                  placeholder="Observação do item"
-                  value={item.obs}
-                  onChange={(e) =>
-                    setDraft((d) => ({
-                      ...d,
-                      cart: d.cart.map((x) => (x.id === item.id ? { ...x, obs: e.target.value } : x)),
-                    }))
-                  }
-                />
-              </div>
-            ))}
-          </div>
-        ) : null}
       </div>
     </div>
   );

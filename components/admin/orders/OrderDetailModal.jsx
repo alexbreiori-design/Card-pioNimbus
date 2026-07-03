@@ -3,6 +3,7 @@
 import CartItemOptsList from '@/components/cardapio/CartItemOptsList';
 import AdminIcon from '@/components/admin/AdminIcon';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
+import { isOrderOverdue } from '@/lib/orders/orderDeadline';
 import OrderStatusTimeline from './OrderStatusTimeline';
 import { currency } from './orderDraftUtils';
 
@@ -58,6 +59,7 @@ export default function OrderDetailModal({
 
   if (!order) return null;
   const pay = paymentLabel || PAYMENT_LABEL[order.pagamento?.metodo] || order.pagamento?.metodo || '—';
+  const overdue = isOrderOverdue(order);
 
   return (
     <div
@@ -85,7 +87,7 @@ export default function OrderDetailModal({
             <span>Total do pedido</span>
             <strong>{currency(order.total)}</strong>
           </div>
-          <div>
+          <div className={overdue ? 'is-overdue' : undefined}>
             <span>Prazo</span>
             <strong>{deadlineLabel(order)}</strong>
           </div>
@@ -172,14 +174,19 @@ export default function OrderDetailModal({
         </div>
 
         <div className="admin-order-detail-actions">
-          {!readOnly && canAdvance ? (
-            <button type="button" className="admin-btn admin-btn-primary" onClick={onAdvance}>
-              {advanceLabel}
-            </button>
+          {!readOnly && whatsAppSummaryUrl ? (
+            <a
+              className="admin-btn admin-btn-whatsapp admin-btn-whatsapp-outline admin-order-detail-btn-compact"
+              href={whatsAppSummaryUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Enviar resumo
+            </a>
           ) : null}
           {!readOnly && whatsAppNotifyUrl ? (
             <a
-              className="admin-btn admin-btn-whatsapp"
+              className="admin-btn admin-btn-whatsapp admin-order-detail-btn-compact"
               href={whatsAppNotifyUrl}
               target="_blank"
               rel="noopener noreferrer"
@@ -187,30 +194,25 @@ export default function OrderDetailModal({
               Notificar status
             </a>
           ) : null}
-          {!readOnly && whatsAppSummaryUrl ? (
-            <a
-              className="admin-btn admin-btn-whatsapp admin-btn-whatsapp-outline"
-              href={whatsAppSummaryUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Enviar resumo no WhatsApp
-            </a>
+          {!readOnly && canAdvance ? (
+            <button type="button" className="admin-btn admin-btn-primary admin-order-detail-btn-compact" onClick={onAdvance}>
+              {advanceLabel}
+            </button>
           ) : null}
           {!readOnly ? (
             <>
-              <button type="button" className="admin-btn admin-btn-ghost" onClick={onEdit}>
+              <button type="button" className="admin-btn admin-btn-ghost admin-order-detail-btn-compact" onClick={onEdit}>
                 Editar pedido
               </button>
-              <button type="button" className="admin-btn admin-btn-ghost" onClick={onPrint}>
+              <button type="button" className="admin-btn admin-btn-ghost admin-order-detail-btn-compact" onClick={onPrint}>
                 Imprimir
               </button>
-              <button type="button" className="admin-btn admin-btn-danger" onClick={onCancel}>
+              <button type="button" className="admin-btn admin-btn-danger admin-order-detail-btn-compact" onClick={onCancel}>
                 Cancelar pedido
               </button>
             </>
           ) : (
-            <button type="button" className="admin-btn admin-btn-ghost" onClick={onPrint}>
+            <button type="button" className="admin-btn admin-btn-ghost admin-order-detail-btn-compact" onClick={onPrint}>
               Imprimir
             </button>
           )}

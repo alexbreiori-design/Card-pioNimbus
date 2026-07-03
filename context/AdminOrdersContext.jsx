@@ -18,6 +18,7 @@ import {
   fetchLatestOrdersUpdatedAt,
   insertAdminOrder,
   restoreArchivedOrder,
+  updateAdminOrder,
   updateAdminOrderStatus,
 } from '@/lib/orders/adminOrdersClient';
 import { maxOrdersUpdatedAt } from '@/lib/orders/mapAdminOrder';
@@ -169,6 +170,16 @@ export function AdminOrdersProvider({ children }) {
     [empresaId, refreshOrders]
   );
 
+  const updateOrder = useCallback(
+    async (order, items) => {
+      if (!empresaId) throw new Error('Empresa não identificada.');
+      if (!order?.dbId) throw new Error('Pedido não encontrado para edição.');
+      await updateAdminOrder({ empresaId, order, items });
+      await refreshOrders({ force: true, silent: true });
+    },
+    [empresaId, refreshOrders]
+  );
+
   const value = useMemo(
     () => ({
       orders,
@@ -180,6 +191,7 @@ export function AdminOrdersProvider({ children }) {
       archiveConcluded,
       restoreArchived,
       createOrder,
+      updateOrder,
       alertsActive,
       setAlertsActive,
     }),
@@ -193,6 +205,7 @@ export function AdminOrdersProvider({ children }) {
       archiveConcluded,
       restoreArchived,
       createOrder,
+      updateOrder,
       alertsActive,
     ]
   );

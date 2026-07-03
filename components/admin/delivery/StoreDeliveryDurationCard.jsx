@@ -66,7 +66,7 @@ export default function StoreDeliveryDurationCard() {
   return (
     <div className="admin-card admin-store-block-card admin-compact-page-card">
       <StoreSectionHead
-        iconNode={<i className="ph-fill ph-motorcycle admin-kanban-phosphor-icon" aria-hidden="true" />}
+        iconNode={<i className="ph ph-clock admin-kanban-phosphor-icon" aria-hidden="true" />}
         title="Tempo estimado de entrega"
         hint="Duração em horas e minutos (HH:MM). O horário «até …» nos pedidos é calculado a partir da confirmação."
       />

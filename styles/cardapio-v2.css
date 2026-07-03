@@ -44,7 +44,6 @@
     --v2-main-w: 1145px;
     --v2-cart-w: 405px;
     --v2-col-gap: 16px;
-    --v2-sidebar-height: calc(85dvh - 16px);
 
     display: grid;
     grid-template-columns: var(--v2-sidebar-w) minmax(0, var(--v2-main-w)) var(--v2-cart-w);
@@ -85,14 +84,29 @@
   flex-direction: column;
   width: 100%;
   max-width: 145px;
-  height: var(--v2-sidebar-height, calc(85dvh - 16px));
-  max-height: calc(100dvh - 16px - 12vh);
   padding: 12px 10px 14px;
   border-radius: 15px;
   background: linear-gradient(180deg, #000000 0%, #423932 100%);
   color: #f5f5f5;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
   overflow: hidden;
+}
+
+@media (min-width: 1100px) {
+  .cardapio-v2-sidebar {
+    height: auto;
+    max-height: calc(100dvh - 32px);
+  }
+
+  .cardapio-v2-sidebar-spacer {
+    display: none;
+  }
+
+  .cardapio-v2-sidebar-nav {
+    flex: 0 0 auto;
+    overflow-y: auto;
+    max-height: calc(100dvh - 180px);
+  }
 }
 
 .cardapio-v2-sidebar-brand {
@@ -392,7 +406,7 @@
 
 .cardapio-v2-hero-address {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   margin: 0;
   padding: 0;
@@ -400,6 +414,17 @@
   font-weight: 300;
   line-height: 1.35;
   color: rgba(255, 255, 255, 0.82);
+}
+
+.cardapio-v2-hero-address-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cardapio-v2-hero-address-line {
+  display: block;
 }
 
 .cardapio-v2-hero-pin {
@@ -431,31 +456,32 @@
 
 .cardapio-v2-hero-chip-rotate {
   position: relative;
-  display: inline-grid;
-  min-width: 6.75rem;
-  max-width: 34vw;
+  display: inline-block;
+  vertical-align: top;
   overflow: hidden;
+  transition: width 0.55s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .cardapio-v2-hero-chip-rotate-line {
-  grid-area: 1 / 1;
+  display: block;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   color: #fff;
   font-weight: 500;
   transition:
-    opacity 0.35s ease,
-    transform 0.35s ease;
+    opacity 0.55s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .cardapio-v2-hero-chip-rotate-line.is-hidden {
+  position: absolute;
+  inset: 0 auto auto 0;
   opacity: 0;
-  transform: translateY(5px);
+  transform: translateY(4px);
   pointer-events: none;
 }
 
 .cardapio-v2-hero-chip-rotate-line.is-visible {
+  position: relative;
   opacity: 1;
   transform: translateY(0);
 }
@@ -649,24 +675,38 @@
   }
 
   .cardapio-v2-hero-address span {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    display: block;
     overflow: hidden;
+  }
+
+  .cardapio-v2-hero-address-line {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .cardapio-v2-hero-chips-row {
+    gap: 6px;
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow: visible;
+  }
+
+  .cardapio-v2-hero-chips-row .cardapio-v2-hero-glass-chip {
+    width: auto;
+    max-width: none;
+    flex: 0 0 auto;
+  }
+
+  .cardapio-v2-hero-chip-rotate {
+    min-width: 0;
+    max-width: none;
   }
 
   .cardapio-v2-hero-pin {
     font-size: 14px;
     width: 14px;
-  }
-
-  .cardapio-v2-hero-chips-row {
-    gap: 6px;
-  }
-
-  .cardapio-v2-hero-chip-rotate {
-    min-width: 5.5rem;
-    max-width: 42vw;
   }
 
   .cardapio-v2-hero-actions {
