@@ -41,6 +41,15 @@ import { mergeEmpresaIntoLoja } from '@/lib/supabase/empresa';
 import { CATEGORY_LAYOUT_DEFAULT, resolveMarmitaSectionLayout } from '@/lib/cardapio/categoryLayouts';
 import { fetchPublicEmpresaCardapio } from '@/lib/supabase/publicEmpresa';
 import { initMetaPixel, sanitizeMetaPixelId, trackMetaEvent } from '@/lib/meta/pixel';
+import {
+  initGoogleAnalytics,
+  sanitizeGa4MeasurementId,
+  sanitizeGtmContainerId,
+  trackGoogleAddToCart,
+  trackGoogleBeginCheckout,
+  trackGooglePurchase,
+} from '@/lib/analytics/googleTags';
+import { normalizeProductDeepLinkId, syncProductQueryParam } from '@/lib/productDeepLink';
 import { MAX_PECA_TAMBEM } from '@/lib/productSuggestions';
 import { PROMO_CATEGORY_NAME } from '@/lib/promocoes';
 import {
@@ -222,12 +231,14 @@ export function CardapioProvider({
   slug = '',
   initialPublicPayload = null,
   initialEmpresa = null,
+  initialProductId = '',
 }) {
   const bootRef = useRef(undefined);
   if (bootRef.current === undefined) {
     bootRef.current = buildCardapioBootState(initialPublicPayload, initialEmpresa, slug);
   }
   const boot = bootRef.current;
+  const pendingProductIdRef = useRef(normalizeProductDeepLinkId(initialProductId));
 
   const [effectiveSlug, setEffectiveSlug] = useState(() => normalizeSlug(slug));
   const [storeConfig, setStoreConfig] = useState(() => boot?.loja ?? DEFAULT_ADMIN_DATA.loja);
@@ -532,6 +543,26 @@ export function CardapioProvider({
         if (resolvedPixelId) {
           loja = { ...loja, metaPixelId: resolvedPixelId };
           initMetaPixel(resolvedPixelId);
+        }
+
+        const resolvedGa4Id =
+          sanitizeGa4MeasurementId(loja?.ga4MeasurementId) ||
+          sanitizeGa4MeasurementId(parsed?.loja?.ga4MeasurementId) ||
+          '';
+        const resolvedGtmId =
+          sanitizeGtmContainerId(loja?.gtmContainerId) ||
+          sanitizeGtmContainerId(parsed?.loja?.gtmContainerId) ||
+          '';
+        if (resolvedGa4Id || resolvedGtmId) {
+          loja = {
+            ...loja,
+            ...(resolvedGa4Id ? { ga4MeasurementId: resolvedGa4Id } : {}),
+            ...(resolvedGtmId ? { gtmContainerId: resolvedGtmId } : {}),
+          };
+          initGoogleAnalytics({
+            ga4MeasurementId: resolvedGa4Id,
+            gtmContainerId: resolvedGtmId,
+          });
         }
 
         const resolved = resolveCardapioFromPublicPayload(parsed);
@@ -1316,6 +1347,21 @@ export function CardapioProvider({
     [dynamicProducts, promoCarouselProducts, storeConfig.aberta]
   );
 
+  useEffect(() => {
+    if (!storeReady || !pendingProductIdRef.current) return;
+    const productId = pendingProductIdRef.current;
+    pendingProductIdRef.current = '';
+    openProduct(productId);
+  }, [storeReady, openProduct, dynamicProducts.length, promoCarouselProducts.length]);
+
+  useEffect(() => {
+    if (!productOpen || !currentProduct?.id) {
+      syncProductQueryParam('');
+      return;
+    }
+    syncProductQueryParam(currentProduct.id);
+  }, [productOpen, currentProduct?.id]);
+
   const closeProductPopup = useCallback(() => {
     setProductOpen(false);
     setPopupHeaderCompact(false);
@@ -1394,6 +1440,18 @@ export function CardapioProvider({
       currency: 'BRL',
       num_items: currentQty,
     });
+    trackGoogleAddToCart({
+      currency: 'BRL',
+      value: unitPrice * currentQty,
+      items: [
+        {
+          item_id: String(currentProduct.id),
+          item_name: currentProduct.name,
+          quantity: currentQty,
+          price: unitPrice,
+        },
+      ],
+    });
   }, [currentProduct, selectedAddons, addonExtras, currentQty, closeProductPopup]);
 
   const addToCartCustom = useCallback(
@@ -1419,6 +1477,18 @@ export function CardapioProvider({
         value: unitPrice * qty,
         currency: 'BRL',
         num_items: qty,
+      });
+      trackGoogleAddToCart({
+        currency: 'BRL',
+        value: unitPrice * qty,
+        items: [
+          {
+            item_id: String(product.id),
+            item_name: product.name,
+            quantity: qty,
+            price: unitPrice,
+          },
+        ],
       });
     },
     [closeProductPopup]
@@ -1518,6 +1588,16 @@ export function CardapioProvider({
       value: cartTotal(),
       currency: 'BRL',
       num_items: cart.reduce((sum, item) => sum + item.qty, 0),
+    });
+    trackGoogleBeginCheckout({
+      currency: 'BRL',
+      value: cartTotal(),
+      items: cart.map((item) => ({
+        item_id: String(item.productId),
+        item_name: item.name,
+        quantity: item.qty,
+        price: item.price,
+      })),
     });
   }, [cart.length, cartSubtotal, cartTotal, profileDisplayName, profileDisplayPhone, storeConfig.aberta, storeConfig.pedidoMinimo, formatPrice]);
 
@@ -1850,6 +1930,17 @@ export function CardapioProvider({
           currency: 'BRL',
           num_items: cart.reduce((sum, item) => sum + item.qty, 0),
           order_id: orderNumber,
+        });
+        trackGooglePurchase({
+          transaction_id: orderNumber,
+          currency: 'BRL',
+          value: cartTotal(),
+          items: cart.map((item) => ({
+            item_id: String(item.productId),
+            item_name: item.name,
+            quantity: item.qty,
+            price: item.price,
+          })),
         });
         const subtotal = cartSubtotal();
         const taxaEntrega = checkoutData.delivery === 'entregar' ? Number(deliveryFee) || 0 : 0;

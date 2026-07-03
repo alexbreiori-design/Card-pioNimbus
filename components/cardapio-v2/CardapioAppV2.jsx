@@ -3,6 +3,7 @@
 import { Suspense } from 'react';
 import { useCardapio } from '@/context/CardapioContext';
 import MetaPixel from '@/components/cardapio/MetaPixel';
+import GoogleAnalytics from '@/components/cardapio/GoogleAnalytics';
 import CardapioContextMenuGuard from '@/components/cardapio/CardapioContextMenuGuard';
 import EnvironmentBanner from '@/components/shared/EnvironmentBanner';
 import CheckoutModal from '@/components/cardapio/CheckoutModal';
@@ -30,6 +31,10 @@ export default function CardapioAppV2() {
   return (
     <div className="cardapio-v2-root cardapio-theme-root cardapio-legacy-nav-hidden">
       <MetaPixel pixelId={storeConfig?.metaPixelId} />
+      <GoogleAnalytics
+        ga4MeasurementId={storeConfig?.ga4MeasurementId}
+        gtmContainerId={storeConfig?.gtmContainerId}
+      />
       <CardapioContextMenuGuard />
       <EnvironmentBanner className="nimbus-env-banner-cardapio" />
 

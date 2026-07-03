@@ -24,6 +24,8 @@ import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOrders } from '@/hooks/useAdminOrders';
 import { useOrderPrint } from '@/context/OrderPrintContext';
+import OrderPrintPrepDialog from '@/components/admin/orders/OrderPrintPrepDialog';
+import { getOrderPrintOnPrepMode } from '@/lib/orderTicketPrefs';
 import { paymentLabelForOrder } from '@/lib/orders/mapAdminOrder';
 import { ensureCustomer, normalizePhone, updateCustomerStats, upsertClienteEndereco } from '@/lib/supabase/customers';
 import { resolveEmpresaIdFromStore } from '@/lib/supabase/empresa';
@@ -145,6 +147,8 @@ export default function PedidosPage() {
   const [typeFilterOpen, setTypeFilterOpen] = useState(false);
   const [routesOpen, setRoutesOpen] = useState(false);
   const [searchExpanded, setSearchExpanded] = useState(false);
+  const [printPrepOpen, setPrintPrepOpen] = useState(false);
+  const [printPrepOrder, setPrintPrepOrder] = useState(null);
   const typeFilterRef = useRef(null);
   const searchRowRef = useRef(null);
   const searchInputRef = useRef(null);
@@ -235,6 +239,15 @@ export default function PedidosPage() {
     try {
       await patchOrderStatus(order, next);
       toast.success(`Pedido #${order.id} movido para ${STATUS_LABEL[next]}.`);
+      if (next === 'em_preparo') {
+        const updatedOrder = { ...order, status: next };
+        if (getOrderPrintOnPrepMode() === 'always') {
+          printOrder(updatedOrder);
+        } else {
+          setPrintPrepOrder(updatedOrder);
+          setPrintPrepOpen(true);
+        }
+      }
     } catch (error) {
       toast.error(error?.message || 'Erro ao atualizar pedido.');
     }
@@ -787,6 +800,20 @@ export default function PedidosPage() {
           </div>
         </div>
       ) : null}
+
+      <OrderPrintPrepDialog
+        open={printPrepOpen}
+        orderId={printPrepOrder?.id}
+        onSkip={() => {
+          setPrintPrepOpen(false);
+          setPrintPrepOrder(null);
+        }}
+        onConfirm={() => {
+          if (printPrepOrder) printOrder(printPrepOrder);
+          setPrintPrepOpen(false);
+          setPrintPrepOrder(null);
+        }}
+      />
 
       <DeliveryRoutesModal
         open={routesOpen}

@@ -2,7 +2,8 @@
 
 import { Suspense } from 'react';
 import { useCardapio } from '@/context/CardapioContext';
-import MetaPixel from './MetaPixel';
+import MetaPixel from '@/components/cardapio/MetaPixel';
+import GoogleAnalytics from '@/components/cardapio/GoogleAnalytics';
 import CardapioContextMenuGuard from './CardapioContextMenuGuard';
 import TopNav from './TopNav';
 import MainPage from './MainPage';
@@ -36,6 +37,10 @@ export default function CardapioApp() {
       >
         <EnvironmentBanner className="nimbus-env-banner-cardapio" />
         <MetaPixel pixelId={storeConfig?.metaPixelId} />
+        <GoogleAnalytics
+          ga4MeasurementId={storeConfig?.ga4MeasurementId}
+          gtmContainerId={storeConfig?.gtmContainerId}
+        />
         <CardapioContextMenuGuard />
         <TopNav />
         <MainPage />

@@ -5087,6 +5087,27 @@
   margin-bottom: 20px;
 }
 
+.admin-delivery-duration-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.admin-delivery-geocode-lead {
+  margin: 0 0 12px;
+}
+
+.admin-integration-ga-logo {
+  width: auto;
+  height: 32px;
+  object-fit: contain;
+}
+
+.admin-integration-analytics-actions {
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
 .admin-delivery-address-body {
   display: flex;
   flex-direction: column;

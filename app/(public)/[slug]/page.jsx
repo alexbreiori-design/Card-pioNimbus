@@ -8,6 +8,7 @@ import { normalizeSlug } from '@/lib/normalize';
 import { getSiteOrigin, getStorePublicUrl, toAbsoluteAssetUrl } from '@/lib/siteUrl';
 import { getEmpresaBySlug } from '@/lib/supabase/empresaServer';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
+import { readProductIdFromSearchParams } from '@/lib/productDeepLink';
 import { fetchPublicStoreCatalogRow } from '@/lib/supabase/storeStateServer';
 
 export async function generateMetadata({ params }) {
@@ -65,8 +66,9 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export default async function LojaPublicaPage({ params }) {
+export default async function LojaPublicaPage({ params, searchParams }) {
   const { slug } = await params;
+  const productId = readProductIdFromSearchParams(await searchParams);
   const safeSlug = normalizeSlug(slug);
   if (!safeSlug) notFound();
 
@@ -93,6 +95,7 @@ export default async function LojaPublicaPage({ params }) {
       slug={safeSlug}
       initialPublicPayload={catalog?.data ?? null}
       initialEmpresa={empresa}
+      initialProductId={productId}
     >
       {isCardapioPublicV2(empresa?.cardapio_publico_versao) ? <CardapioAppV2 /> : <CardapioApp />}
     </CardapioProvider>

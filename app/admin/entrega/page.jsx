@@ -3,36 +3,14 @@
 import { useCallback, useState } from 'react';
 import DeliveryZonesCrud from '@/components/admin/DeliveryZonesCrud';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
-import { formatCep } from '@/lib/cep/viacep';
+import StoreDeliveryDurationCard from '@/components/admin/delivery/StoreDeliveryDurationCard';
+import RecalcularCoordenadasModal, {
+  formatStoreAddressLines,
+  useDeliverySettingsMenu,
+} from '@/components/admin/delivery/RecalcularCoordenadasModal';
 import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useEmpresa } from '@/hooks/useEmpresa';
-
-function formatStoreAddressLines(loja) {
-  if (!loja) {
-    return { line1: '—', line2: '' };
-  }
-
-  const line1 = [
-    loja.enderecoLogradouro,
-    loja.enderecoNumero ? `, ${loja.enderecoNumero}` : '',
-    loja.enderecoBairro ? ` — ${loja.enderecoBairro}` : '',
-  ]
-    .join('')
-    .trim();
-
-  const cityState = [loja.enderecoCidade, loja.enderecoEstado ? `/${loja.enderecoEstado}` : '']
-    .filter(Boolean)
-    .join('');
-
-  const cep = loja.enderecoCep ? `CEP ${formatCep(loja.enderecoCep)}` : '';
-  const line2 = [cityState, cep].filter(Boolean).join(' · ');
-
-  return {
-    line1: line1 || loja.endereco || 'Endereço não informado.',
-    line2,
-  };
-}
 
 export default function EntregaPage() {
   const { data, ready } = useAdminData();
@@ -40,6 +18,13 @@ export default function EntregaPage() {
   const loja = data?.loja;
   const toast = useAdminToast();
   const [geocoding, setGeocoding] = useState(false);
+  const {
+    menuRef,
+    menuOpen,
+    setMenuOpen,
+    geocodeModalOpen,
+    setGeocodeModalOpen,
+  } = useDeliverySettingsMenu();
 
   const addressLines = formatStoreAddressLines(loja);
 
@@ -64,12 +49,13 @@ export default function EntregaPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Falha no geocoding.');
       toast.success('Coordenadas da loja atualizadas com sucesso.');
+      setGeocodeModalOpen(false);
     } catch (e) {
       toast.error(e?.message || 'Não foi possível recalcular as coordenadas.');
     } finally {
       setGeocoding(false);
     }
-  }, [slug, loja, toast]);
+  }, [slug, loja, toast, setGeocodeModalOpen]);
 
   if (!ready) return null;
 
@@ -82,29 +68,46 @@ export default function EntregaPage() {
       ) : null}
       <AdminPageHeader title="Entrega" icon="delivery" />
 
+      <StoreDeliveryDurationCard />
+
       <div className="admin-card admin-store-block-card">
         <div className="admin-store-section-head admin-delivery-address-head">
           <div className="admin-delivery-section-intro">
             <h2>Endereço da loja</h2>
             <span>Usado como origem das entregas. Edite em Minha loja.</span>
           </div>
-          <button
-            type="button"
-            className="admin-btn admin-btn-primary"
-            onClick={recalcularCoordenadas}
-            disabled={geocoding || empresaLoading || !slug}
-          >
-            {geocoding ? 'Recalculando…' : 'Recalcular coordenadas'}
-          </button>
+          <div className="admin-marmita-settings-menu-wrap" ref={menuRef}>
+            <button
+              type="button"
+              className="admin-marmita-settings-btn"
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-label="Configurações de entrega"
+              aria-expanded={menuOpen}
+            >
+              <i className="ph ph-gear" aria-hidden="true" />
+            </button>
+            {menuOpen ? (
+              <div className="admin-marmita-settings-menu" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="admin-marmita-settings-menu-item"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setGeocodeModalOpen(true);
+                  }}
+                >
+                  Recalcular coordenadas
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
         <div className="admin-delivery-address-body">
           <p className="admin-delivery-store-address-line1">{addressLines.line1}</p>
           {addressLines.line2 ? (
             <p className="admin-delivery-store-address-line2">{addressLines.line2}</p>
           ) : null}
-          <p className="admin-help-text admin-delivery-address-hint">
-            As coordenadas são salvas automaticamente ao salvar o endereço em Minha loja. O botão acima força uma nova consulta.
-          </p>
         </div>
       </div>
 
@@ -119,6 +122,14 @@ export default function EntregaPage() {
           <DeliveryZonesCrud empresaId={empresa?.id} />
         </div>
       </div>
+
+      <RecalcularCoordenadasModal
+        open={geocodeModalOpen}
+        onClose={() => setGeocodeModalOpen(false)}
+        addressLines={addressLines}
+        geocoding={geocoding}
+        onRecalcular={() => void recalcularCoordenadas()}
+      />
     </div>
   );
 }

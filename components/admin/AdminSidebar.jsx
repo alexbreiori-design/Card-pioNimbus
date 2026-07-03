@@ -15,6 +15,7 @@ import {
 import { isMarmitaSegment, isPizzariaSegment } from '@/lib/empresaSegmentos';
 import { NIMBUS_SUPPORT_LABEL, NIMBUS_SUPPORT_URL } from '@/lib/nimbusSupport';
 import { getStorePublicUrl } from '@/lib/siteUrl';
+import { STORE_REVIEWS_UI_ENABLED } from '@/lib/features';
 
 const BASE_NAV = [
   { href: '/admin/pedidos', label: 'Pedidos', icon: 'orders' },
@@ -129,7 +130,9 @@ export default function AdminSidebar({
   const [supportUrl, setSupportUrl] = useState(NIMBUS_SUPPORT_URL);
 
   const navItems = useMemo(() => {
-    const items = [...BASE_NAV];
+    const items = BASE_NAV.filter(
+      (item) => STORE_REVIEWS_UI_ENABLED || item.href !== '/admin/avaliacoes'
+    );
     const produtosIndex = items.findIndex((item) => item.href === '/admin/produtos');
     if (isPizzariaSegment(data?.loja?.segmento)) {
       items.splice(produtosIndex, 0, {

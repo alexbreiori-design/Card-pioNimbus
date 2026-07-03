@@ -9,6 +9,7 @@ import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import { META_STANDARD_EVENTS } from '@/lib/meta/pixel';
 import { sanitizeMetaPixelId } from '@/lib/meta/pixel';
+import { sanitizeGa4MeasurementId, sanitizeGtmContainerId } from '@/lib/analytics/googleTags';
 import { getEmpresaBySlug, mergeEmpresaIntoLoja, updateEmpresaBySlug } from '@/lib/supabase/empresa';
 
 export default function IntegracoesPage() {
@@ -208,6 +209,228 @@ export default function IntegracoesPage() {
         danger
         onCancel={() => setRemoveConfirmOpen(false)}
         onConfirm={() => void handleRemove()}
+      />
+
+      <GoogleAnalyticsIntegrationCard slug={slug} empresaLoading={empresaLoading} />
+    </div>
+  );
+}
+
+function GoogleAnalyticsIntegrationCard({ slug, empresaLoading }) {
+  const { data, saveData } = useAdminData();
+  const toast = useAdminToast();
+  const [savedGa4Id, setSavedGa4Id] = useState('');
+  const [savedGtmId, setSavedGtmId] = useState('');
+  const [draftGa4Id, setDraftGa4Id] = useState('');
+  const [draftGtmId, setDraftGtmId] = useState('');
+  const [formOpen, setFormOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
+
+  const applyLoadedAnalytics = useCallback((loja) => {
+    setSavedGa4Id(sanitizeGa4MeasurementId(loja?.ga4MeasurementId) || '');
+    setSavedGtmId(sanitizeGtmContainerId(loja?.gtmContainerId) || '');
+  }, []);
+
+  useEffect(() => {
+    if (!slug) {
+      applyLoadedAnalytics(data.loja);
+      return;
+    }
+    getEmpresaBySlug(slug)
+      .then((empresa) => {
+        applyLoadedAnalytics(mergeEmpresaIntoLoja(data.loja, empresa));
+      })
+      .catch(() => {
+        applyLoadedAnalytics(data.loja);
+      });
+  }, [slug, data.loja, applyLoadedAnalytics]);
+
+  const hasAnalytics = Boolean(savedGa4Id || savedGtmId);
+
+  async function persistAnalytics({ ga4Raw, gtmRaw }) {
+    if (!slug) {
+      toast.error('Configure o slug da loja em Minha loja.');
+      return false;
+    }
+    const ga4Id = sanitizeGa4MeasurementId(ga4Raw);
+    const gtmId = sanitizeGtmContainerId(gtmRaw);
+    setSaving(true);
+    try {
+      await updateEmpresaBySlug(slug, {
+        ga4_measurement_id: ga4Id,
+        gtm_container_id: gtmId,
+      });
+      saveData((prev) => ({
+        ...prev,
+        loja: {
+          ...prev.loja,
+          ga4MeasurementId: ga4Id || '',
+          gtmContainerId: gtmId || '',
+        },
+      }));
+      setSavedGa4Id(ga4Id || '');
+      setSavedGtmId(gtmId || '');
+      setDraftGa4Id(ga4Id || '');
+      setDraftGtmId(gtmId || '');
+      setFormOpen(false);
+      toast.success(ga4Id || gtmId ? 'Google Analytics salvo.' : 'Integração removida.');
+      return true;
+    } catch (error) {
+      toast.error(error?.message || 'Erro ao salvar Google Analytics.');
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSave() {
+    const ga4Id = sanitizeGa4MeasurementId(draftGa4Id);
+    const gtmId = sanitizeGtmContainerId(draftGtmId);
+    if (!ga4Id && !gtmId) {
+      toast.error('Informe um ID GA4 (G-...) e/ou um container GTM (GTM-...).');
+      return;
+    }
+    await persistAnalytics({ ga4Raw: draftGa4Id, gtmRaw: draftGtmId });
+  }
+
+  function openForm() {
+    setDraftGa4Id(savedGa4Id);
+    setDraftGtmId(savedGtmId);
+    setFormOpen(true);
+  }
+
+  function cancelForm() {
+    setDraftGa4Id(savedGa4Id);
+    setDraftGtmId(savedGtmId);
+    setFormOpen(false);
+  }
+
+  return (
+    <div className="admin-card admin-store-block-card admin-compact-page-card admin-integration-card">
+      <div className="admin-integration-meta-wrap admin-integration-meta-wrap-left">
+        <Image
+          className="admin-integration-ga-logo"
+          src="/images/GA4_Logo.webp"
+          alt="Google Analytics"
+          width={160}
+          height={40}
+          priority
+        />
+      </div>
+
+      <div className="admin-delivery-areas-toolbar">
+        <p className="admin-help-text admin-delivery-areas-hint">
+          Carregado somente no cardápio online. Eventos: page_view, add_to_cart, begin_checkout, purchase.
+        </p>
+        {!hasAnalytics && !formOpen ? (
+          <button type="button" className="admin-btn admin-btn-primary" onClick={openForm}>
+            + Conectar GA4 / GTM
+          </button>
+        ) : null}
+      </div>
+
+      {formOpen ? (
+        <form
+          className="admin-delivery-area-form admin-card"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleSave();
+          }}
+        >
+          <h3 className="admin-delivery-area-form-title">Google Analytics / Tag Manager</h3>
+          <div className="admin-form-group">
+            <label className="admin-label" htmlFor="ga4-measurement-id">
+              ID de medição GA4
+            </label>
+            <input
+              id="ga4-measurement-id"
+              className="admin-input"
+              placeholder="Ex: G-XXXXXXXXXX"
+              value={draftGa4Id}
+              onChange={(event) => setDraftGa4Id(event.target.value.toUpperCase())}
+              disabled={empresaLoading || saving}
+            />
+          </div>
+          <div className="admin-form-group">
+            <label className="admin-label" htmlFor="gtm-container-id">
+              Container GTM
+            </label>
+            <input
+              id="gtm-container-id"
+              className="admin-input"
+              placeholder="Ex: GTM-XXXXXXX"
+              value={draftGtmId}
+              onChange={(event) => setDraftGtmId(event.target.value.toUpperCase())}
+              disabled={empresaLoading || saving}
+            />
+          </div>
+          <div className="admin-delivery-area-form-actions">
+            <button type="button" className="admin-btn" onClick={cancelForm} disabled={saving}>
+              Cancelar
+            </button>
+            <button type="submit" className="admin-btn admin-btn-primary" disabled={saving || empresaLoading}>
+              Salvar
+            </button>
+          </div>
+        </form>
+      ) : null}
+
+      {hasAnalytics && !formOpen ? (
+        <div className="admin-sparse-list">
+          {savedGa4Id ? (
+            <div className="admin-sparse-row">
+              <div className="admin-sparse-row-main">
+                <span className="admin-sparse-row-code">GA4 {savedGa4Id}</span>
+                <span className="admin-sparse-row-sep" aria-hidden="true">
+                  ·
+                </span>
+                <span className="admin-sparse-row-detail">Medição ativa no cardápio</span>
+              </div>
+            </div>
+          ) : null}
+          {savedGtmId ? (
+            <div className="admin-sparse-row">
+              <div className="admin-sparse-row-main">
+                <span className="admin-sparse-row-code">GTM {savedGtmId}</span>
+                <span className="admin-sparse-row-sep" aria-hidden="true">
+                  ·
+                </span>
+                <span className="admin-sparse-row-detail">Container ativo no cardápio</span>
+              </div>
+            </div>
+          ) : null}
+          <div className="admin-sparse-row-actions admin-integration-analytics-actions">
+            <button type="button" className="admin-link-btn" onClick={openForm}>
+              Editar
+            </button>
+            <button
+              type="button"
+              className="admin-link-btn admin-link-btn-danger"
+              onClick={() => setRemoveConfirmOpen(true)}
+            >
+              Remover
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {!hasAnalytics && !formOpen ? (
+        <p className="admin-help-text admin-delivery-areas-empty">Nenhuma integração Google conectada.</p>
+      ) : null}
+
+      <AdminConfirmDialog
+        open={removeConfirmOpen}
+        title="Remover GA4 / GTM"
+        message="O rastreamento Google deixará de funcionar no cardápio até conectar novamente. Deseja remover?"
+        confirmLabel="Remover"
+        cancelLabel="Cancelar"
+        danger
+        onCancel={() => setRemoveConfirmOpen(false)}
+        onConfirm={() => {
+          setRemoveConfirmOpen(false);
+          void persistAnalytics({ ga4Raw: '', gtmRaw: '' });
+        }}
       />
     </div>
   );
