@@ -260,7 +260,6 @@ export default function CatalogManager({ mode = 'produtos' }) {
   const [selectedCat, setSelectedCat] = useState(TAB_ALL);
   const [ordering, setOrdering] = useState(false);
   const [collapsedCats, setCollapsedCats] = useState(() => new Set());
-  const [newCatName, setNewCatName] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState('');
   const [categoryMenuId, setCategoryMenuId] = useState('');
@@ -277,6 +276,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
   const [pickerSearch, setPickerSearch] = useState('');
   const [comboPickerOpen, setComboPickerOpen] = useState(false);
   const [comboSearch, setComboSearch] = useState('');
+  const [comboPriceManual, setComboPriceManual] = useState(false);
   const [pecaTambemPickerOpen, setPecaTambemPickerOpen] = useState(false);
   const [pecaTambemSearch, setPecaTambemSearch] = useState('');
 
@@ -356,29 +356,27 @@ export default function CatalogManager({ mode = 'produtos' }) {
     });
   }
 
-  function addCategory() {
-    const nome = newCatName.trim();
-    if (!nome) return;
-    const baseCategory = {
-      id: uid(isProdutos ? 'cat' : 'add-cat'),
-      nome,
-      ativo: true,
-      ordem: data[catKey]?.length || 0,
-    };
-    const nextCategory = isProdutos
-      ? { ...baseCategory, icone: 'burger', exibicaoCardapio: CATEGORY_LAYOUT_DEFAULT }
-      : {
-          ...baseCategory,
-          obrigatorio: false,
-          min: 0,
-          max: 99,
-          tipoSelecao: 'multipla',
-        };
-    saveData((prev) => ({
-      ...prev,
-      [catKey]: [...prev[catKey], nextCategory],
-    }));
-    setNewCatName('');
+  function openNewCategory() {
+    if (isProdutos) {
+      setEditingCategory({
+        isNew: true,
+        id: uid('cat'),
+        nome: '',
+        icone: 'burger',
+        exibicaoCardapio: CATEGORY_LAYOUT_DEFAULT,
+      });
+    } else {
+      setEditingCategory({
+        isNew: true,
+        id: uid('add-cat'),
+        nome: '',
+        obrigatorio: false,
+        min: 0,
+        max: 99,
+        tipoSelecao: 'multipla',
+      });
+    }
+    setCategoryMenuId('');
   }
 
   function openEditCategory(cat) {
@@ -405,6 +403,41 @@ export default function CatalogManager({ mode = 'produtos' }) {
   function saveCategoryName() {
     const nome = editingCategory?.nome?.trim();
     if (!nome) return;
+
+    if (editingCategory.isNew) {
+      const baseCategory = {
+        id: editingCategory.id,
+        nome,
+        ativo: true,
+        ordem: data[catKey]?.length || 0,
+      };
+      const nextCategory = isProdutos
+        ? {
+            ...baseCategory,
+            icone: editingCategory.icone || 'burger',
+            exibicaoCardapio: editingCategory.exibicaoCardapio || CATEGORY_LAYOUT_DEFAULT,
+          }
+        : (() => {
+            const min = Math.max(0, Number(editingCategory.min || 0));
+            let max = Math.max(min, Number(editingCategory.max || min));
+            if (editingCategory.tipoSelecao === 'simples') max = 1;
+            return {
+              ...baseCategory,
+              obrigatorio: editingCategory.obrigatorio === true,
+              min,
+              max,
+              tipoSelecao: editingCategory.tipoSelecao === 'simples' ? 'simples' : 'multipla',
+            };
+          })();
+
+      saveData((prev) => ({
+        ...prev,
+        [catKey]: [...prev[catKey], nextCategory],
+      }));
+      setEditingCategory(null);
+      return;
+    }
+
     saveData((prev) => ({
       ...prev,
       [catKey]: prev[catKey].map((cat) => {
@@ -509,6 +542,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
     setSaveError('');
     setComboSearch('');
     setComboPickerOpen(false);
+    setComboPriceManual(false);
     setPecaTambemSearch('');
     setPecaTambemPickerOpen(false);
     setModalOpen(true);
@@ -525,6 +559,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
     setSaveError('');
     setComboSearch('');
     setComboPickerOpen(false);
+    setComboPriceManual(true);
     setPecaTambemSearch('');
     setPecaTambemPickerOpen(false);
     setModalOpen(true);
@@ -538,6 +573,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
     setPickerSearch('');
     setComboPickerOpen(false);
     setComboSearch('');
+    setComboPriceManual(false);
     setPecaTambemPickerOpen(false);
     setPecaTambemSearch('');
   }
@@ -608,9 +644,9 @@ export default function CatalogManager({ mode = 'produtos' }) {
       estoque: form.estoque || '',
       entregaRetirada: form.entregaRetirada,
       mesaBalcao: form.mesaBalcao,
-      ingredientesRemoviveis: form.tipo === 'combo' ? false : form.ingredientesRemoviveis,
+      ingredientesRemoviveis: false,
       adicionaisHabilitados: form.tipo === 'combo' ? false : form.adicionaisHabilitados,
-      remocoes: form.tipo === 'combo' ? EMPTY_SELECTION : selectionFrom(form.remocoes),
+      remocoes: EMPTY_SELECTION,
       adicionais: form.tipo === 'combo' ? EMPTY_SELECTION : selectionFrom(form.adicionais),
       adicionaisConfig: form.tipo === 'combo' ? EMPTY_ADDON_RULES : addonRules,
       comboConfig:
@@ -780,10 +816,23 @@ export default function CatalogManager({ mode = 'produtos' }) {
     });
   }
 
-  function updateComboConfig(updater) {
+  function withComboPriceSuggestion(cfg, manual = comboPriceManual) {
+    if (manual) return cfg;
+    const total = cfg.itens.reduce(
+      (sum, item) => sum + Number(item.preco || 0) * Number(item.quantidade || 1),
+      0
+    );
+    if (!cfg.itens.length) {
+      return { ...cfg, precoCombo: '' };
+    }
+    return { ...cfg, precoCombo: formatComboPriceBr(suggestedComboPrice(total)) };
+  }
+
+  function updateComboConfig(updater, options = {}) {
+    const manual = options.manual ?? comboPriceManual;
     setForm((prev) => ({
       ...prev,
-      comboConfig: updater(normalizeComboConfig(prev.comboConfig)),
+      comboConfig: withComboPriceSuggestion(updater(normalizeComboConfig(prev.comboConfig)), manual),
     }));
   }
 
@@ -825,23 +874,17 @@ export default function CatalogManager({ mode = 'produtos' }) {
   function addProdutoToCombo(product) {
     updateComboConfig((cfg) => {
       if (cfg.itens.some((item) => item.produtoId === product.id)) return cfg;
-      const nextItens = [
-        ...cfg.itens,
-        {
-          produtoId: product.id,
-          nome: product.nome,
-          preco: Number(product.preco || 0),
-          quantidade: 1,
-        },
-      ];
-      const total = nextItens.reduce((sum, item) => sum + Number(item.preco || 0) * Number(item.quantidade || 1), 0);
       return {
         ...cfg,
-        itens: nextItens,
-        precoCombo:
-          cfg.precoCombo === '' || cfg.precoCombo === null || cfg.precoCombo === undefined
-            ? formatComboPriceBr(suggestedComboPrice(total))
-            : cfg.precoCombo,
+        itens: [
+          ...cfg.itens,
+          {
+            produtoId: product.id,
+            nome: product.nome,
+            preco: Number(product.preco || 0),
+            quantidade: 1,
+          },
+        ],
       };
     });
   }
@@ -894,7 +937,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
           ))}
         </div>
         <div className="admin-catalog-top-actions">
-          <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setNewCatName((v) => (v ? '' : ' '))}>
+          <button type="button" className="admin-btn admin-btn-ghost" onClick={openNewCategory}>
             <AdminIcon name="plus" />
             Nova categoria
           </button>
@@ -904,13 +947,6 @@ export default function CatalogManager({ mode = 'produtos' }) {
           </button>
         </div>
       </div>
-
-      {newCatName !== '' ? (
-        <div className="admin-card admin-new-category-card">
-          <input className="admin-input" placeholder={isProdutos ? 'Ex: Burgers artesanais' : 'Ex: Molhos extras'} value={newCatName === ' ' ? '' : newCatName} onChange={(e) => setNewCatName(e.target.value)} />
-          <button type="button" className="admin-btn admin-btn-primary" onClick={addCategory}>Salvar</button>
-        </div>
-      ) : null}
 
       {ordering ? (
         <div className="admin-card admin-sortable-panel">
@@ -1242,9 +1278,10 @@ export default function CatalogManager({ mode = 'produtos' }) {
                         <input
                           className="admin-input"
                           value={normalizeComboConfig(form.comboConfig).precoCombo}
-                          onChange={(e) =>
-                            updateComboConfig((cfg) => ({ ...cfg, precoCombo: e.target.value }))
-                          }
+                          onChange={(e) => {
+                            setComboPriceManual(true);
+                            updateComboConfig((cfg) => ({ ...cfg, precoCombo: e.target.value }), { manual: true });
+                          }}
                           placeholder={formatComboPriceBr(comboTotals.sugestao)}
                         />
                       </div>
@@ -1274,7 +1311,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
                   <div className="admin-product-links">
                     {form.tipo !== 'combo' ? (
                       <div className="admin-product-config-row">
-                        <div>
+                        <div className="admin-product-config-copy">
                           <strong>Peça também (cardápio)</strong>
                           <p>
                             Sugestões na sacola ao adicionar este produto (máximo {MAX_PECA_TAMBEM}).
@@ -1312,21 +1349,10 @@ export default function CatalogManager({ mode = 'produtos' }) {
                       </div>
                     ) : null}
                     {form.tipo !== 'combo' ? (
-                      <div className="admin-product-config-row">
-                        <div>
-                          <strong>Remocao de ingredientes</strong>
-                          <p>Itens selecionados poderao ser removidos pelo cliente.</p>
-                        </div>
-                        <button type="button" className="admin-select-link" onClick={() => setPickerType('remocoes')}>
-                          Selecionar ({countSelection(form.remocoes)})
-                        </button>
-                      </div>
-                    ) : null}
-                    {form.tipo !== 'combo' ? (
                       <>
                         <div className="admin-product-config-row">
-                          <div>
-                            <strong>Adicionais, complementos, modificadores.</strong>
+                          <div className="admin-product-config-copy">
+                            <strong>Adicionais, complementos, modificadores</strong>
                             <p>Configure grupos de adicionais para aparecer no produto.</p>
                           </div>
                           <button type="button" className="admin-select-link" onClick={() => setPickerType('adicionais')}>
@@ -1360,7 +1386,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
                                           checked={rule.tipoSelecao === 'simples'}
                                           onChange={() => setGroupRule(group.id, { tipoSelecao: 'simples', min: Math.min(1, Number(rule.min || 0)), max: 1 })}
                                         />
-                                        Simples
+                                        Escolha simples
                                       </label>
                                       <label>
                                         <input
@@ -1369,25 +1395,34 @@ export default function CatalogManager({ mode = 'produtos' }) {
                                           checked={rule.tipoSelecao !== 'simples'}
                                           onChange={() => setGroupRule(group.id, { tipoSelecao: 'multipla', max: Math.max(Number(rule.max || 99), Number(rule.min || 0)) })}
                                         />
-                                        Multipla
+                                        Múltipla escolha
                                       </label>
-                                      <input
-                                        type="number"
-                                        min={0}
-                                        max={rule.tipoSelecao === 'simples' ? 1 : Math.max(99, itemCount)}
-                                        className="admin-input"
-                                        value={rule.min}
-                                        onChange={(e) => setGroupRule(group.id, { min: Number(e.target.value || 0) })}
-                                      />
-                                      <input
-                                        type="number"
-                                        min={rule.tipoSelecao === 'simples' ? 1 : 0}
-                                        max={Math.max(99, itemCount)}
-                                        className="admin-input"
-                                        value={rule.max}
-                                        onChange={(e) => setGroupRule(group.id, { max: Number(e.target.value || 0) })}
-                                        disabled={rule.tipoSelecao === 'simples'}
-                                      />
+                                      <div className="admin-addon-group-minmax">
+                                        <div className="admin-form-group">
+                                          <label className="admin-label">Mínimo</label>
+                                          <input
+                                            type="number"
+                                            min={0}
+                                            max={rule.tipoSelecao === 'simples' ? 1 : Math.max(99, itemCount)}
+                                            className="admin-input"
+                                            value={rule.min}
+                                            disabled={rule.tipoSelecao === 'simples'}
+                                            onChange={(e) => setGroupRule(group.id, { min: Number(e.target.value || 0) })}
+                                          />
+                                        </div>
+                                        <div className="admin-form-group">
+                                          <label className="admin-label">Máximo</label>
+                                          <input
+                                            type="number"
+                                            min={rule.tipoSelecao === 'simples' ? 1 : 0}
+                                            max={Math.max(99, itemCount)}
+                                            className="admin-input"
+                                            value={rule.max}
+                                            onChange={(e) => setGroupRule(group.id, { max: Number(e.target.value || 0) })}
+                                            disabled={rule.tipoSelecao === 'simples'}
+                                          />
+                                        </div>
+                                      </div>
                                     </div>
                                     {min >= 1 ? (
                                       <label className="admin-option-row">
@@ -1691,11 +1726,23 @@ export default function CatalogManager({ mode = 'produtos' }) {
             className="admin-confirm-modal admin-category-edit-modal"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3>{isProdutos ? 'Editar categoria' : 'Editar categoria de adicional'}</h3>
+            <h3>
+              {editingCategory.isNew
+                ? isProdutos
+                  ? 'Nova categoria'
+                  : 'Nova categoria de adicional'
+                : isProdutos
+                  ? 'Editar categoria'
+                  : 'Editar categoria de adicional'}
+            </h3>
             <p>
-              {isProdutos
-                ? 'Altere o nome, o ícone e a exibição da categoria no cardápio.'
-                : 'Configure nome e regras padrão de seleção para esta categoria de adicionais.'}
+              {editingCategory.isNew
+                ? isProdutos
+                  ? 'Defina o nome, o ícone e a exibição da categoria no cardápio.'
+                  : 'Configure nome e regras padrão de seleção para esta categoria de adicionais.'
+                : isProdutos
+                  ? 'Altere o nome, o ícone e a exibição da categoria no cardápio.'
+                  : 'Configure nome e regras padrão de seleção para esta categoria de adicionais.'}
             </p>
             <div className="admin-form-group">
               <label className="admin-label">Nome</label>
@@ -1721,7 +1768,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
               </>
             ) : (
               <div className="admin-addon-category-rules">
-                <label className="admin-option-row">
+                <label className="admin-category-rule-option admin-category-rule-option-full">
                   <input
                     type="checkbox"
                     checked={editingCategory.obrigatorio === true}
@@ -1731,31 +1778,40 @@ export default function CatalogManager({ mode = 'produtos' }) {
                   />
                   <span>Obrigatório</span>
                 </label>
-                <div className="admin-addon-group-controls">
-                  <label className="admin-option-row">
+                <div className="admin-category-rule-pair">
+                  <label className="admin-category-rule-option">
                     <input
                       type="radio"
                       name="cat-tipo-selecao"
                       checked={editingCategory.tipoSelecao !== 'simples'}
                       onChange={() =>
-                        setEditingCategory((cat) => ({ ...cat, tipoSelecao: 'multipla', max: Math.max(Number(cat.max || 1), Number(cat.min || 0)) }))
+                        setEditingCategory((cat) => ({
+                          ...cat,
+                          tipoSelecao: 'multipla',
+                          max: Math.max(Number(cat.max || 1), Number(cat.min || 0)),
+                        }))
                       }
                     />
                     <span>Múltipla escolha</span>
                   </label>
-                  <label className="admin-option-row">
+                  <label className="admin-category-rule-option">
                     <input
                       type="radio"
                       name="cat-tipo-selecao"
                       checked={editingCategory.tipoSelecao === 'simples'}
                       onChange={() =>
-                        setEditingCategory((cat) => ({ ...cat, tipoSelecao: 'simples', min: Math.min(1, Number(cat.min || 0)), max: 1 }))
+                        setEditingCategory((cat) => ({
+                          ...cat,
+                          tipoSelecao: 'simples',
+                          min: Math.min(1, Number(cat.min || 0)),
+                          max: 1,
+                        }))
                       }
                     />
                     <span>Escolha simples</span>
                   </label>
                 </div>
-                <div className="admin-catalog-form-grid">
+                <div className="admin-category-rule-pair">
                   <div className="admin-form-group">
                     <label className="admin-label">Mínimo</label>
                     <input

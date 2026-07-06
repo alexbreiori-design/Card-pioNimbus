@@ -974,10 +974,6 @@ export default function MarmitaManager() {
         icon="products"
         actions={
           <div className="admin-marmita-header-actions">
-            <button type="button" className="admin-btn admin-btn-primary" onClick={() => openNew()}>
-              <AdminIcon name="plus" />
-              Nova marmita
-            </button>
             <div className="admin-marmita-settings-menu-wrap" ref={settingsMenuRef}>
               <button
                 type="button"
