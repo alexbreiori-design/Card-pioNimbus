@@ -195,7 +195,15 @@ export default function StoresPanel({ initialSelectedSlug = null, onSelectedSlug
 
       <CreateStoreModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={handleCreated} />
       <CreateStoreSuccess result={successResult} onClose={() => setSuccessResult(null)} />
-      <StoreDetailDrawer slug={selectedSlug} onClose={closeDrawer} />
+      <StoreDetailDrawer
+        slug={selectedSlug}
+        onClose={closeDrawer}
+        onSlugRenamed={(nextSlug) => {
+          setSelectedSlug(nextSlug);
+          onSelectedSlugChange?.(nextSlug);
+          loadStores(query, { silent: true });
+        }}
+      />
     </div>
   );
 }

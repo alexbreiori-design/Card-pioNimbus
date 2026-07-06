@@ -3,7 +3,9 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { isModeloSegment, MODELO_SEGMENTO_ID } from '@/lib/empresaSegmentos';
+import { isModeloSegment, MODELO_SEGMENTO_ID, getSegmentoLabel } from '@/lib/empresaSegmentos';
+import { isModelStoreSlug } from '@/lib/superAdmin/modelStore';
+import { getStorePublicHost, getStorePublicUrl } from '@/lib/siteUrl';
 import ColorPalettePicker, { extractPaletteFromLogoUrl } from '@/components/admin/ColorPalettePicker';
 import CoverImageAdjustModal from '@/components/admin/CoverImageAdjustModal';
 import ImagePlaceholder from '@/components/admin/ImagePlaceholder';
@@ -217,6 +219,11 @@ export default function MinhaLojaPage() {
 
   if (!ready || !draft) return null;
 
+  const storeSlug = slug || draft.slug || data.loja?.slug || '';
+  const canEditSegment = isModelStoreSlug(storeSlug);
+  const cardapioUrl = storeSlug ? getStorePublicUrl(storeSlug) : '';
+  const cardapioHost = storeSlug ? getStorePublicHost(storeSlug) : '';
+
   function setLojaField(field, value) {
     setDraft((prev) => ({ ...prev, [field]: value }));
   }
@@ -385,10 +392,20 @@ export default function MinhaLojaPage() {
 
       await saveData((prev) => ({
         ...prev,
-        loja: { ...prev.loja, ...nextLoja, endereco: enderecoText || prev.loja.endereco },
+        loja: {
+          ...prev.loja,
+          ...nextLoja,
+          slug: storeSlug || prev.loja.slug,
+          segmento: canEditSegment ? nextLoja.segmento : prev.loja.segmento,
+          endereco: enderecoText || prev.loja.endereco,
+        },
       }));
       if (slug) {
-        await updateEmpresaBySlug(slug, lojaPatchToEmpresa(nextLoja));
+        const empresaPatch = lojaPatchToEmpresa(nextLoja);
+        if (!canEditSegment) {
+          delete empresaPatch.segmento;
+        }
+        await updateEmpresaBySlug(slug, empresaPatch);
         try {
           const geoRes = await fetch('/api/geocode', {
             method: 'POST',
@@ -491,9 +508,7 @@ export default function MinhaLojaPage() {
           <div className="admin-store-segment-row">
             <div className="admin-form-group admin-store-segment-field">
               <label className="admin-label">Segmento</label>
-              {superAdmin && isModeloSegment(draft.segmento) ? (
-                <div className="admin-store-modelo-active">Modelo (testes Nimbus)</div>
-              ) : (
+              {canEditSegment ? (
                 <SegmentCombobox
                   value={draft.segmento || ''}
                   onChange={(segmento) => {
@@ -502,6 +517,10 @@ export default function MinhaLojaPage() {
                   }}
                   disabled={saving}
                 />
+              ) : (
+                <div className="admin-store-readonly-field">
+                  {getSegmentoLabel(draft.segmento) || '—'}
+                </div>
               )}
             </div>
             {superAdmin ? (
@@ -530,11 +549,19 @@ export default function MinhaLojaPage() {
             </div>
             <div className="admin-form-group">
               <label className="admin-label">Link do cardápio</label>
-              <input
-                className="admin-input"
-                value={draft.slug || ''}
-                onChange={(e) => setLojaField('slug', e.target.value.toLowerCase().replace(/\s+/g, '-'))}
-              />
+              {cardapioUrl ? (
+                <a
+                  href={cardapioUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="admin-store-cardapio-link"
+                  title="Abrir cardápio público"
+                >
+                  {cardapioHost}
+                </a>
+              ) : (
+                <div className="admin-store-readonly-field">—</div>
+              )}
             </div>
           </div>
           <div className="admin-store-dados-row-2 admin-store-dados-row-2-v2">

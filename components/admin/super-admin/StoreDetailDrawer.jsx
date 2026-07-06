@@ -9,11 +9,14 @@ import { activityStatusLabel } from '@/lib/superAdmin/storeActivity';
 import { generateTempPassword } from '@/lib/superAdmin';
 import { buildCardapioV2Path } from '@/lib/cardapioV2';
 import { isCardapioPublicV2 } from '@/lib/cardapioPublicVersion';
+import SegmentCombobox from '@/components/admin/SegmentCombobox';
+import { getStorePublicHost, getStorePublicUrl } from '@/lib/siteUrl';
 import StoreCatalogImportPanel from './StoreCatalogImportPanel';
 import styles from './StoreDetailModal.module.css';
 
 const TABS = [
   { id: 'resumo', label: 'Resumo' },
+  { id: 'informacoes', label: 'Informações' },
   { id: 'metricas', label: 'Métricas' },
   { id: 'equipe', label: 'Equipe' },
   { id: 'notas', label: 'Notas' },
@@ -142,7 +145,7 @@ function IconWhatsApp() {
   );
 }
 
-export default function StoreDetailDrawer({ slug, onClose }) {
+export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed }) {
   const toast = useAdminToast();
   const { overlayPointerDown, overlayClick } = useAdminOverlayClose({
     onClose,
@@ -167,6 +170,8 @@ export default function StoreDetailDrawer({ slug, onClose }) {
   const [ownerContactEditing, setOwnerContactEditing] = useState(false);
   const [ownerEmail, setOwnerEmail] = useState('');
   const [ownerPhone, setOwnerPhone] = useState('');
+  const [infoSegmento, setInfoSegmento] = useState('');
+  const [infoSlug, setInfoSlug] = useState('');
 
   function syncOwnerContactDraft(nextStore) {
     setOwnerEmail(nextStore?.owner?.email || '');
@@ -198,6 +203,8 @@ export default function StoreDetailDrawer({ slug, onClose }) {
       setResponsavelNimbus(payload.store.responsavel_nimbus || '');
       setContratoInicio(formatDateOnly(payload.store.contrato_inicio));
       setContratoFim(formatDateOnly(payload.store.contrato_fim));
+      setInfoSegmento(payload.store.segmento || '');
+      setInfoSlug(payload.store.slug || '');
       syncOwnerContactDraft(payload.store);
       setOwnerContactEditing(false);
     } catch (loadError) {
@@ -243,6 +250,38 @@ export default function StoreDetailDrawer({ slug, onClose }) {
         throw new Error(payload.error || 'Não foi possível salvar.');
       }
       await loadStore(slug);
+    } catch (saveError) {
+      setError(saveError?.message || 'Erro ao salvar.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveStoreInfo() {
+    if (!slug) return;
+    setSaving(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/super-admin/stores/${encodeURIComponent(slug)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          segmento: infoSegmento,
+          slug: infoSlug,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || 'Não foi possível salvar as informações da loja.');
+      }
+
+      const nextSlug = payload.store?.slug || slug;
+      if (payload.store?.previousSlug && nextSlug !== slug) {
+        onSlugRenamed?.(nextSlug);
+      }
+
+      await loadStore(nextSlug);
+      toast.success('Informações da loja salvas.');
     } catch (saveError) {
       setError(saveError?.message || 'Erro ao salvar.');
     } finally {
@@ -763,6 +802,65 @@ export default function StoreDetailDrawer({ slug, onClose }) {
               </div>
 
             </>
+          ) : null}
+
+          {store && tab === 'informacoes' ? (
+            <div className={styles.notesLayout}>
+              <p className={`${styles.muted} ${styles.tabIntro}`}>
+                Segmento e slug definem módulos do admin e o endereço público do cardápio. Alterações
+                aqui substituem o que o lojista vê em Minha loja.
+              </p>
+
+              <section className={styles.crmPanel}>
+                <h3 className={styles.panelTitle}>Identidade da loja</h3>
+                <div className={styles.crmGrid}>
+                  <label className={styles.formField}>
+                    <span className={styles.formLabel}>Segmento</span>
+                    <SegmentCombobox
+                      value={infoSegmento}
+                      onChange={setInfoSegmento}
+                      disabled={saving}
+                    />
+                  </label>
+                  <label className={styles.formField}>
+                    <span className={styles.formLabel}>Slug</span>
+                    <input
+                      className={styles.formInput}
+                      value={infoSlug}
+                      onChange={(event) =>
+                        setInfoSlug(event.target.value.toLowerCase().replace(/\s+/g, '-'))
+                      }
+                      placeholder="minha-loja"
+                      disabled={saving || store.isModel}
+                    />
+                  </label>
+                </div>
+                {infoSlug ? (
+                  <p className={styles.muted}>
+                    Cardápio público:{' '}
+                    <a
+                      href={getStorePublicUrl(infoSlug)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {getStorePublicHost(infoSlug)}
+                    </a>
+                  </p>
+                ) : null}
+                {store.isModel ? (
+                  <p className={styles.muted}>A loja modelo não pode ter o slug alterado.</p>
+                ) : null}
+              </section>
+
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                disabled={saving}
+                onClick={saveStoreInfo}
+              >
+                {saving ? 'Salvando...' : 'Salvar informações'}
+              </button>
+            </div>
           ) : null}
 
           {store && tab === 'metricas' ? (
