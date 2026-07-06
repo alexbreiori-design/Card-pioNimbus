@@ -57,6 +57,8 @@ export async function PATCH(request, { params }) {
       responsavel_nimbus: body.responsavel_nimbus,
       contrato_inicio: body.contrato_inicio,
       contrato_fim: body.contrato_fim,
+      segmento: body.segmento,
+      slug: body.slug,
     });
 
     return NextResponse.json({ ok: true, store: updated });

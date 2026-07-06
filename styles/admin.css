@@ -6558,6 +6558,40 @@
   margin-bottom: 2px;
 }
 
+.admin-store-readonly-field {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #d5dae2;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: var(--admin-text);
+  font-size: 14px;
+}
+
+.admin-store-cardapio-link {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #d5dae2;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: var(--admin-brand);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  user-select: all;
+  word-break: break-all;
+}
+
+.admin-store-cardapio-link:hover {
+  border-color: #c5d0e4;
+  background: #f1f5f9;
+  text-decoration: underline;
+}
+
 .admin-toggle-row {
   gap: 8px;
   font-size: 13px;
