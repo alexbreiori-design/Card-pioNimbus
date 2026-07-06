@@ -6,8 +6,7 @@ import AdminProductPickerModal from '@/components/admin/AdminProductPickerModal'
 import ImagePlaceholder from '@/components/admin/ImagePlaceholder';
 import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
-import { buildAdminPromoProducts } from '@/lib/admin/buildAdminCatalogProducts';
-import { PIZZA_CATEGORY_NAME, PIZZA_VIRTUAL_CATEGORY_ID } from '@/lib/pizza/pizzaIds';
+import { buildAdminPromoProducts, buildAdminPromoCategories } from '@/lib/admin/buildAdminCatalogProducts';
 
 function uid() {
   return `promo-${Date.now()}${Math.floor(Math.random() * 1000)}`;
@@ -69,14 +68,10 @@ export default function PromocoesCrud() {
     [produtos, draft.produtoId]
   );
 
-  const promoCategories = useMemo(() => {
-    const cats = (data.categorias || []).filter((item) => item.ativo !== false);
-    const extras = [];
-    if (produtos.some((item) => item.categoriaId === PIZZA_VIRTUAL_CATEGORY_ID)) {
-      extras.push({ id: PIZZA_VIRTUAL_CATEGORY_ID, nome: PIZZA_CATEGORY_NAME });
-    }
-    return [...extras, ...cats];
-  }, [data.categorias, produtos]);
+  const promoCategories = useMemo(
+    () => buildAdminPromoCategories(data, produtos),
+    [data, produtos]
+  );
 
   function resetForm() {
     setDraft(emptyDraft());
@@ -213,7 +208,7 @@ export default function PromocoesCrud() {
               <label className="admin-label">Produto</label>
               {selectedProduct ? (
                 <div className="admin-promo-selected-product">
-                  <ProductThumb product={selectedProduct} size={56} />
+                  <ProductThumb product={selectedProduct} size={112} />
                   <div className="admin-promo-selected-product-info">
                     <strong>{selectedProduct.nome}</strong>
                     <span>{formatCurrency(selectedProduct.preco)}</span>
@@ -278,7 +273,7 @@ export default function PromocoesCrud() {
             const product = productById(promo.produtoId);
             return (
               <div key={promo.id} className="admin-sparse-row admin-sparse-row-media admin-crud-list-row">
-                <ProductThumb product={product} size={48} />
+                <ProductThumb product={product} size={96} />
                 <div className="admin-sparse-row-main admin-sparse-row-main-stack">
                   <span className="admin-sparse-row-code">{productName(promo.produtoId)}</span>
                   <span className="admin-promo-price-row">
