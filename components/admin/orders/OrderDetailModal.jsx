@@ -134,6 +134,15 @@ export default function OrderDetailModal({
                 <strong>{addressText(order)}</strong>
               </div>
             </div>
+            {order.entregadorNome ? (
+              <div className="admin-order-detail-row">
+                <i className="ph ph-motorcycle admin-order-detail-phosphor" aria-hidden="true" />
+                <div>
+                  <span>Entregador</span>
+                  <strong>{order.entregadorNome}</strong>
+                </div>
+              </div>
+            ) : null}
             <div className="admin-order-detail-row">
               <AdminIcon name="coupon" />
               <div>

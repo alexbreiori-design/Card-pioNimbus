@@ -538,6 +538,39 @@ export default function ReportsDashboard() {
                 </div>
               </article>
             </section>
+
+            <section className="admin-reports-bottom-grid" style={{ marginTop: 16 }}>
+              <article className="admin-reports-card" style={{ gridColumn: '1 / -1' }}>
+                <h3 className="admin-reports-widget-title is-brand">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                  Entregas por entregador
+                </h3>
+                {(report.entregadores || []).length ? (
+                  <div className="admin-reports-summary-list">
+                    {report.entregadores.map((row) => (
+                      <div key={row.id || row.nome} className="admin-reports-summary-row">
+                        <div>
+                          <span>{row.nome}</span>
+                          <strong>{formatCurrency(row.faturamento)}</strong>
+                        </div>
+                        <span>
+                          {formatNumber(row.pedidos)} ped. · ticket {formatCurrency(row.ticketMedio)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="admin-reports-empty">
+                    Nenhum delivery concluído com entregador no período.
+                  </div>
+                )}
+              </article>
+            </section>
           </>
         ) : null}
 

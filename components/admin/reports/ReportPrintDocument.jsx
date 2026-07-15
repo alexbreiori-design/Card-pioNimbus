@@ -219,6 +219,32 @@ export default function ReportPrintDocument({ report, storeName }) {
           </section>
         </div>
 
+        {(report.entregadores || []).length ? (
+          <section className="report-print-section">
+            <h2>Entregas por entregador</h2>
+            <table className="report-print-table">
+              <thead>
+                <tr>
+                  <th>Entregador</th>
+                  <th>Pedidos</th>
+                  <th>Faturamento</th>
+                  <th>Ticket médio</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.entregadores.map((row) => (
+                  <tr key={row.id || row.nome}>
+                    <td>{row.nome}</td>
+                    <td>{formatNumber(row.pedidos)}</td>
+                    <td>{formatCurrency(row.faturamento)}</td>
+                    <td>{formatCurrency(row.ticketMedio)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        ) : null}
+
         <footer className="report-print-footer">
           <span>Cardápio Digital Nimbus</span>
           <span>{generatedLabel}</span>

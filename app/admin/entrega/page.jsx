@@ -4,6 +4,8 @@ import { useCallback, useState } from 'react';
 import DeliveryZonesCrud from '@/components/admin/DeliveryZonesCrud';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import StoreSectionHead from '@/components/admin/StoreSectionHead';
+import EntregadoresCrud from '@/components/admin/delivery/EntregadoresCrud';
+import EntregadorHistoricoPanel from '@/components/admin/delivery/EntregadorHistoricoPanel';
 import StoreDeliveryDurationCard from '@/components/admin/delivery/StoreDeliveryDurationCard';
 import RecalcularCoordenadasModal, {
   formatStoreAddressLines,
@@ -126,6 +128,28 @@ export default function EntregaPage() {
           <div className="admin-delivery-areas-body">
             <DeliveryZonesCrud empresaId={empresa?.id} />
           </div>
+        </div>
+      </div>
+
+      <div className="admin-card admin-store-block-card admin-compact-page-card admin-entregadores-card">
+        <StoreSectionHead
+          iconNode={<i className="ph ph-motorcycle admin-kanban-phosphor-icon" aria-hidden="true" />}
+          title="Entregadores"
+          hint="Quem leva as rotas. Use ao montar a rota em Pedidos."
+        />
+        <div className="admin-delivery-areas-body">
+          <EntregadoresCrud empresaId={empresa?.id} />
+        </div>
+      </div>
+
+      <div className="admin-card admin-store-block-card admin-compact-page-card admin-entregadores-card">
+        <StoreSectionHead
+          iconNode={<i className="ph ph-clock-counter-clockwise admin-kanban-phosphor-icon" aria-hidden="true" />}
+          title="Histórico por entregador"
+          hint="Rotas ativas e concluídas vinculadas a cada entregador."
+        />
+        <div className="admin-delivery-areas-body">
+          <EntregadorHistoricoPanel empresaId={empresa?.id} />
         </div>
       </div>
 

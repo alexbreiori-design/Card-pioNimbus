@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import {
   fetchDeliveryMapData,
   getEmpresaForRoutes,
+  listActiveDeliveryRoutes,
+  listActiveEntregadores,
+  listDeliveryRoutes,
   mapStoreOrigin,
 } from '@/lib/delivery/deliveryRoutesServer';
 import { normalizeSlug } from '@/lib/normalize';
@@ -12,6 +15,8 @@ export async function GET(request) {
   const url = new URL(request.url);
   const slug = normalizeSlug(url.searchParams.get('slug') || '');
   const geocode = url.searchParams.get('geocode') !== '0';
+  const history = url.searchParams.get('history') === '1';
+  const entregadorId = String(url.searchParams.get('entregadorId') || '').trim();
 
   if (!slug) {
     return NextResponse.json({ ok: false, error: 'Slug obrigatório.' }, { status: 400 });
@@ -29,7 +34,32 @@ export async function GET(request) {
       return NextResponse.json({ ok: false, error: 'Loja não encontrada.' }, { status: 404 });
     }
 
-    const mapData = await fetchDeliveryMapData(supabase, empresa.id, { geocodeMissing: geocode });
+    if (history) {
+      const [{ data: allDrivers }, historico] = await Promise.all([
+        supabase
+          .from('entregadores')
+          .select('id, nome, telefone, ativo')
+          .eq('empresa_id', empresa.id)
+          .order('nome', { ascending: true }),
+        listDeliveryRoutes(supabase, empresa.id, {
+          status: 'all',
+          limit: 80,
+          entregadorId,
+        }),
+      ]);
+
+      return NextResponse.json({
+        ok: true,
+        entregadores: allDrivers || [],
+        historico,
+      });
+    }
+
+    const [mapData, entregadores, rotasAtivas] = await Promise.all([
+      fetchDeliveryMapData(supabase, empresa.id, { geocodeMissing: geocode }),
+      listActiveEntregadores(supabase, empresa.id),
+      listActiveDeliveryRoutes(supabase, empresa.id),
+    ]);
     const store = mapStoreOrigin(empresa);
 
     return NextResponse.json({
@@ -38,6 +68,8 @@ export async function GET(request) {
       orders: mapData.orders,
       pendingGeocode: mapData.pendingGeocode,
       geocodedCount: mapData.geocodedCount,
+      entregadores,
+      rotasAtivas,
     });
   } catch (error) {
     const status = error?.status || 500;

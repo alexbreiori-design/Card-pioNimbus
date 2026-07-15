@@ -19,6 +19,7 @@ const APEX_RESERVED_SEGMENTS = new Set([
   'termos',
   'privacidade',
   'dashboard',
+  'rota',
 ]);
 
 const PASSTHROUGH_PREFIXES = ['/api', '/_next'];

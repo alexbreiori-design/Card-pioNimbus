@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createDeliveryRoute, getEmpresaForRoutes } from '@/lib/delivery/deliveryRoutesServer';
+import { concludeDeliveryRoute, getEmpresaForRoutes } from '@/lib/delivery/deliveryRoutesServer';
 import { normalizeSlug } from '@/lib/normalize';
 import { requireStoreAdmin } from '@/lib/supabase/membership';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
@@ -13,11 +13,10 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const slug = normalizeSlug(body.slug || '');
-    const pedidoDbIds = Array.isArray(body.pedidoDbIds) ? body.pedidoDbIds : [];
-    const entregadorId = body.entregadorId || '';
+    const rotaId = String(body.rotaId || '').trim();
 
-    if (!slug) {
-      return NextResponse.json({ ok: false, error: 'Slug obrigatório.' }, { status: 400 });
+    if (!slug || !rotaId) {
+      return NextResponse.json({ ok: false, error: 'Slug e rota obrigatórios.' }, { status: 400 });
     }
 
     await requireStoreAdmin(slug);
@@ -26,21 +25,12 @@ export async function POST(request) {
       return NextResponse.json({ ok: false, error: 'Loja não encontrada.' }, { status: 404 });
     }
 
-    const result = await createDeliveryRoute(supabase, empresa, pedidoDbIds, entregadorId);
-
-    return NextResponse.json({
-      ok: true,
-      titulo: result.titulo,
-      mapsUrl: result.mapsUrl,
-      rotaId: result.rota.id,
-                      orderedStops: result.orderedStops,
-      entregador: result.entregador,
-      driverUrl: result.driverUrl || '',
-    });
+    const rota = await concludeDeliveryRoute(supabase, empresa.id, rotaId);
+    return NextResponse.json({ ok: true, rota });
   } catch (error) {
     const status = error?.status || 500;
     return NextResponse.json(
-      { ok: false, error: error?.message || 'Erro ao criar rota.' },
+      { ok: false, error: error?.message || 'Erro ao concluir rota.' },
       { status }
     );
   }

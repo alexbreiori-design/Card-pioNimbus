@@ -138,6 +138,7 @@ export default function PedidosPage() {
   const demoDeadlineEdit = useModelStoreDemoDeadline(storeSlug);
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('todos');
+  const [entregadorFilter, setEntregadorFilter] = useState('todos');
   const toast = useAdminToast();
   const [createOpen, setCreateOpen] = useState(false);
   const [modalInitialDraft, setModalInitialDraft] = useState(null);
@@ -215,12 +216,28 @@ export default function PedidosPage() {
         const qOk =
           !q ||
           String(o.id).toLowerCase().includes(q) ||
-          String(o.clienteNome || '').toLowerCase().includes(q);
+          String(o.clienteNome || '').toLowerCase().includes(q) ||
+          String(o.entregadorNome || '').toLowerCase().includes(q);
         const tOk = typeFilter === 'todos' || o.tipo === typeFilter;
-        return qOk && tOk && o.status !== 'cancelado';
+        const eOk =
+          entregadorFilter === 'todos' ||
+          (entregadorFilter === 'sem' && !o.entregadorId) ||
+          o.entregadorId === entregadorFilter;
+        return qOk && tOk && eOk && o.status !== 'cancelado';
       }),
-    [orders, query, typeFilter]
+    [orders, query, typeFilter, entregadorFilter]
   );
+
+  const entregadorFilterOptions = useMemo(() => {
+    const byId = new Map();
+    orders.forEach((order) => {
+      if (!order.entregadorId || !order.entregadorNome) return;
+      byId.set(order.entregadorId, order.entregadorNome);
+    });
+    return [...byId.entries()]
+      .map(([id, nome]) => ({ id, nome }))
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  }, [orders]);
 
   const countsByType = useMemo(
     () => ({
@@ -534,7 +551,7 @@ export default function PedidosPage() {
             <div className="admin-pedidos-filter-wrap" ref={typeFilterRef}>
               <button
                 type="button"
-                className={`admin-pedidos-filter-btn${typeFilter !== 'todos' ? ' is-active' : ''}`}
+                className={`admin-pedidos-filter-btn${typeFilter !== 'todos' || entregadorFilter !== 'todos' ? ' is-active' : ''}`}
                 onClick={() => setTypeFilterOpen((open) => !open)}
                 aria-label="Filtrar pedidos"
                 aria-expanded={typeFilterOpen}
@@ -543,6 +560,7 @@ export default function PedidosPage() {
               </button>
               {typeFilterOpen ? (
                 <div className="admin-pedidos-filter-menu" role="menu">
+                  <div className="admin-pedidos-filter-section-label">Tipo</div>
                   {TYPE_FILTER_OPTIONS.map((t) => (
                     <button
                       key={t.key}
@@ -558,6 +576,36 @@ export default function PedidosPage() {
                       <span className="admin-tab-count">{countsByType[t.key]}</span>
                     </button>
                   ))}
+                  {entregadorFilterOptions.length ? (
+                    <>
+                      <div className="admin-pedidos-filter-section-label">Entregador</div>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={`admin-pedidos-filter-option${entregadorFilter === 'todos' ? ' is-active' : ''}`}
+                        onClick={() => {
+                          setEntregadorFilter('todos');
+                          setTypeFilterOpen(false);
+                        }}
+                      >
+                        <span>Todos os entregadores</span>
+                      </button>
+                      {entregadorFilterOptions.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          role="menuitem"
+                          className={`admin-pedidos-filter-option${entregadorFilter === item.id ? ' is-active' : ''}`}
+                          onClick={() => {
+                            setEntregadorFilter(item.id);
+                            setTypeFilterOpen(false);
+                          }}
+                        >
+                          <span>{item.nome}</span>
+                        </button>
+                      ))}
+                    </>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -627,6 +675,12 @@ export default function PedidosPage() {
                         ) : null}
                         {order.aguardandoCaixa ? (
                           <span className="admin-order-caixa-badge">Aguardando caixa</span>
+                        ) : null}
+                        {order.entregadorNome ? (
+                          <span className="admin-order-entregador-chip" title="Entregador da rota">
+                            <i className="ph ph-motorcycle" aria-hidden="true" />
+                            {order.entregadorNome}
+                          </span>
                         ) : null}
                       </div>
                       <div className="admin-order-meta admin-order-card-deadline">
