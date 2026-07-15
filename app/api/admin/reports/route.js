@@ -38,7 +38,7 @@ export async function GET(request) {
     const { data: pedidos, error: pedidosError } = await supabase
       .from('pedidos')
       .select(
-        'id, status, tipo, origem, subtotal, taxa_entrega, desconto, total, forma_pagamento_codigo, cupom_codigo, created_at, status_concluido_em'
+        'id, status, tipo, origem, subtotal, taxa_entrega, desconto, total, forma_pagamento_codigo, cupom_codigo, created_at, status_concluido_em, entregador_id'
       )
       .eq('empresa_id', empresa.id)
       .eq('status', 'concluido')
@@ -48,7 +48,11 @@ export async function GET(request) {
 
     const pedidoRows = pedidos || [];
     const pedidoIds = pedidoRows.map((row) => row.id);
+    const entregadorIds = [
+      ...new Set(pedidoRows.map((row) => row.entregador_id).filter(Boolean)),
+    ];
     let itemRows = [];
+    const entregadorNames = {};
 
     if (pedidoIds.length) {
       const { data: itens, error: itensError } = await supabase
@@ -60,6 +64,19 @@ export async function GET(request) {
       itemRows = itens || [];
     }
 
+    if (entregadorIds.length) {
+      const { data: drivers, error: driversError } = await supabase
+        .from('entregadores')
+        .select('id, nome')
+        .eq('empresa_id', empresa.id)
+        .in('id', entregadorIds);
+      if (!driversError) {
+        (drivers || []).forEach((item) => {
+          entregadorNames[item.id] = item.nome;
+        });
+      }
+    }
+
     const periodDays = normalizeReportPeriodDays(period);
 
     const report = buildStoreReport({
@@ -67,6 +84,7 @@ export async function GET(request) {
       itens: itemRows,
       periodDays,
       filters: { origem, tipo, pagamento },
+      entregadorNames,
     });
 
     return NextResponse.json({

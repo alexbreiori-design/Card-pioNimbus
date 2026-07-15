@@ -70,6 +70,9 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged }) 
   const [store, setStore] = useState(null);
   const [orders, setOrders] = useState([]);
   const [pendingGeocode, setPendingGeocode] = useState([]);
+  const [entregadores, setEntregadores] = useState([]);
+  const [rotasAtivas, setRotasAtivas] = useState([]);
+  const [selectedEntregadorId, setSelectedEntregadorId] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
   const [filters, setFilters] = useState({
     em_preparo: true,
@@ -89,6 +92,13 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged }) 
       setStore(json.store);
       setOrders(json.orders || []);
       setPendingGeocode(json.pendingGeocode || []);
+      setEntregadores(json.entregadores || []);
+      setRotasAtivas(json.rotasAtivas || []);
+      setSelectedEntregadorId((prev) => {
+        const list = json.entregadores || [];
+        if (prev && list.some((item) => item.id === prev)) return prev;
+        return list.length === 1 ? list[0].id : '';
+      });
       if (json.geocodedCount > 0) {
         toast.success(`${json.geocodedCount} endereço(s) localizado(s) no mapa.`);
       }
@@ -224,20 +234,33 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged }) 
       toast.error('Selecione ao menos um pedido no mapa.');
       return;
     }
+    if (!selectedEntregadorId) {
+      toast.error('Selecione o entregador responsável pela rota.');
+      return;
+    }
     setCreating(true);
     try {
       const res = await fetch('/api/admin/delivery-routes/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug, pedidoDbIds: selectedIds }),
+        body: JSON.stringify({
+          slug,
+          pedidoDbIds: selectedIds,
+          entregadorId: selectedEntregadorId,
+        }),
       });
       const json = await res.json();
       if (!res.ok || !json.ok) throw new Error(json.error || 'Erro ao criar rota.');
 
       await navigator.clipboard.writeText(
-        buildRouteShareMessage(json.titulo, json.mapsUrl)
+        buildRouteShareMessage(
+          json.titulo,
+          json.mapsUrl,
+          json.entregador?.nome,
+          json.driverUrl || ''
+        )
       );
-      toast.success(`${json.titulo} criada · link copiado.`);
+      toast.success(`${json.titulo} · ${json.entregador?.nome || 'rota'} · link copiado.`);
       setSelectedIds([]);
       await loadMapData();
       onRoutesChanged?.();
@@ -245,6 +268,23 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged }) 
       toast.error(error?.message || 'Erro ao criar rota.');
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleConcludeRoute(rotaId) {
+    try {
+      const res = await fetch('/api/admin/delivery-routes/conclude', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug, rotaId }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Erro ao concluir rota.');
+      toast.success('Rota marcada como concluída.');
+      await loadMapData();
+      onRoutesChanged?.();
+    } catch (error) {
+      toast.error(error?.message || 'Erro ao concluir rota.');
     }
   }
 
@@ -262,7 +302,7 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged }) 
         <header className="admin-delivery-routes-header">
           <div>
             <h2 id="delivery-routes-title">Rotas de entrega</h2>
-            <p>Monte rotas de até {MAX_STOPS_PER_ROUTE} pedidos e envie o link do Google Maps.</p>
+            <p>Monte rotas de até {MAX_STOPS_PER_ROUTE} pedidos. O link copiado inclui Maps e “marcar entregue” para o entregador (sem app).</p>
           </div>
           <button type="button" className="admin-order-detail-close" onClick={onClose} aria-label="Fechar">
             ×
@@ -288,6 +328,89 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged }) 
             <div className="admin-delivery-routes-legend">
               <span>Toque no mapa ou na lista para selecionar (máx. {MAX_STOPS_PER_ROUTE}).</span>
             </div>
+
+            <div className="admin-form-group admin-delivery-routes-driver">
+              <label className="admin-label" htmlFor="delivery-route-entregador">
+                Entregador
+              </label>
+              {entregadores.length ? (
+                <select
+                  id="delivery-route-entregador"
+                  className="admin-input"
+                  value={selectedEntregadorId}
+                  onChange={(e) => setSelectedEntregadorId(e.target.value)}
+                >
+                  <option value="">Selecione…</option>
+                  {entregadores.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.nome}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="admin-help-text">
+                  Cadastre entregadores em <strong>Entrega</strong> antes de criar a rota.
+                </p>
+              )}
+            </div>
+
+            {rotasAtivas.length ? (
+              <div className="admin-delivery-routes-active">
+                <div className="admin-delivery-routes-active-title">Rotas ativas</div>
+                <ul className="admin-delivery-routes-active-list">
+                  {rotasAtivas.map((rota) => (
+                    <li key={rota.id} className="admin-delivery-routes-active-item">
+                      <div>
+                        <strong>{rota.entregadorNome || 'Sem entregador'}</strong>
+                        <span>
+                          {rota.titulo} · {rota.pedidoCount} pedido
+                          {rota.pedidoCount === 1 ? '' : 's'}
+                        </span>
+                      </div>
+                      <div className="admin-delivery-routes-active-actions">
+                        {rota.driverUrl ? (
+                          <button
+                            type="button"
+                            className="admin-link-btn"
+                            onClick={() => {
+                              void navigator.clipboard.writeText(
+                                buildRouteShareMessage(
+                                  rota.titulo,
+                                  rota.mapsUrl,
+                                  rota.entregadorNome,
+                                  rota.driverUrl
+                                )
+                              );
+                              toast.success('Link do entregador copiado.');
+                            }}
+                          >
+                            Link
+                          </button>
+                        ) : null}
+                        {rota.mapsUrl ? (
+                          <a
+                            href={rota.mapsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="admin-link-btn"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            Maps
+                          </a>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="admin-link-btn"
+                          onClick={() => void handleConcludeRoute(rota.id)}
+                        >
+                          Concluir
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
 
             <div className="admin-delivery-routes-list">
               {loading ? (
@@ -349,7 +472,7 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged }) 
             <button
               type="button"
               className="admin-btn admin-btn-primary"
-              disabled={creating || !selectedIds.length}
+              disabled={creating || !selectedIds.length || !selectedEntregadorId}
               onClick={() => void handleCreateRoute()}
             >
               {creating ? 'Criando rota…' : 'Criar rota e copiar link'}

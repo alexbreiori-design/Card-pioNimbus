@@ -11772,14 +11772,121 @@ textarea.admin-input::placeholder {
 }
 
 .admin-order-caixa-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   margin-left: 6px;
-  padding: 1px 6px;
+  padding: 2px 8px;
   border-radius: 999px;
-  background: #fff7ed;
-  color: #c2410c;
-  font-size: 10px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.admin-order-entregador-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ede9fe;
+  color: #5b21b6;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.admin-order-entregador-chip i {
+  font-size: 13px;
+}
+
+.admin-pedidos-filter-section-label {
+  padding: 8px 12px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.admin-entregadores-card {
+  margin-top: 16px;
+}
+
+.admin-entregador-form-grid {
+  grid-template-columns: 1.2fr 1fr;
+}
+
+.admin-delivery-routes-driver {
+  margin: 10px 0 12px;
+}
+
+.admin-delivery-routes-active {
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.admin-delivery-routes-active-title {
+  font-size: 12px;
   font-weight: 700;
+  color: #475569;
+  margin-bottom: 8px;
+}
+
+.admin-delivery-routes-active-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.admin-delivery-routes-active-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.admin-delivery-routes-active-item strong {
+  display: block;
+  font-size: 13px;
+}
+
+.admin-delivery-routes-active-item span {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.admin-delivery-routes-active-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.admin-delivery-history {
+  margin-top: 4px;
+}
+
+.admin-delivery-history-filter {
+  max-width: 260px;
+  min-width: 180px;
+}
+
+.admin-order-detail-phosphor {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 18px;
 }
 
 .admin-nav {
