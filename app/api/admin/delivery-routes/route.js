@@ -45,6 +45,8 @@ export async function GET(request) {
           status: 'all',
           limit: 80,
           entregadorId,
+          withStops: true,
+          syncConclude: false,
         }),
       ]);
 

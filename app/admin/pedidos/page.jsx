@@ -295,7 +295,7 @@ export default function PedidosPage() {
     if (!order) return;
     try {
       await restoreArchived(order);
-      toast.success(`Pedido #${orderId} restaurado em Saiu para entrega.`);
+      toast.success(`Pedido #${orderId} restaurado em Preparo.`);
     } catch (error) {
       toast.error(error?.message || 'Erro ao restaurar pedido.');
     }
@@ -303,7 +303,7 @@ export default function PedidosPage() {
 
   const concludedOrders = useMemo(() => {
     return allOrders
-      .filter((o) => o.arquivado && o.status === 'concluido')
+      .filter((o) => o.status === 'concluido')
       .filter((o) => {
         if (!archiveDateFrom && !archiveDateTo) return true;
         const created = new Date(o.createdAt || 0).getTime();
@@ -956,6 +956,16 @@ export default function PedidosPage() {
         open={routesOpen}
         onClose={() => setRoutesOpen(false)}
         onRoutesChanged={() => void refreshOrders({ force: true, silent: true })}
+        onViewOrder={(order) => {
+          if (!order?.dbId && !order?.codigo) return;
+          setRoutesOpen(false);
+          const match = allOrders.find(
+            (item) =>
+              (order.dbId && item.dbId === order.dbId) ||
+              String(item.id) === String(order.codigo)
+          );
+          if (match) setDetailOrderId(match.id);
+        }}
       />
     </div>
   );

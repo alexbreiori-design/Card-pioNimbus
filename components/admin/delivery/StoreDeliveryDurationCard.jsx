@@ -11,7 +11,7 @@ import {
 } from '@/lib/deliveryDuration';
 import { applyScheduleOpenStatus } from '@/lib/storeHours';
 
-export default function StoreDeliveryDurationCard() {
+export default function StoreDeliveryDurationCard({ compact = false }) {
   const { data, saveData, ready } = useAdminData();
   const toast = useAdminToast();
   const [draft, setDraft] = useState({ tempoEntregaDelivery: '', tempoEntregaRetirada: '' });
@@ -62,6 +62,53 @@ export default function StoreDeliveryDurationCard() {
   }
 
   if (!ready) return null;
+
+  if (compact) {
+    return (
+      <section className="admin-card admin-delivery-duration-strip" aria-label="Tempo estimado de entrega">
+        <div className="admin-delivery-duration-strip-inner">
+          <div className="admin-delivery-duration-strip-copy">
+            <strong>Tempo estimado</strong>
+            <span>HH:MM a partir da confirmação do pedido.</span>
+          </div>
+          <div className="admin-delivery-duration-strip-fields">
+            <label className="admin-delivery-duration-strip-field">
+              <span>Delivery</span>
+              <input
+                className="admin-input"
+                inputMode="numeric"
+                maxLength={5}
+                value={draft.tempoEntregaDelivery || ''}
+                onChange={(e) => setDurationField('tempoEntregaDelivery', e.target.value)}
+                onBlur={() => blurDurationField('tempoEntregaDelivery')}
+                placeholder="00:45"
+              />
+            </label>
+            <label className="admin-delivery-duration-strip-field">
+              <span>Retirada</span>
+              <input
+                className="admin-input"
+                inputMode="numeric"
+                maxLength={5}
+                value={draft.tempoEntregaRetirada || ''}
+                onChange={(e) => setDurationField('tempoEntregaRetirada', e.target.value)}
+                onBlur={() => blurDurationField('tempoEntregaRetirada')}
+                placeholder="00:30"
+              />
+            </label>
+            <button
+              type="button"
+              className="admin-btn admin-btn-primary"
+              onClick={() => void saveDurations()}
+              disabled={saving}
+            >
+              {saving ? 'Salvando…' : 'Salvar'}
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <div className="admin-card admin-store-block-card admin-compact-page-card">

@@ -116,41 +116,45 @@ export default function EntregaPage() {
         }
       />
 
-      <div className="admin-delivery-cards-grid">
-        <StoreDeliveryDurationCard />
+      <div className="admin-delivery-layout">
+        <section className="admin-delivery-cards-grid admin-delivery-primary-grid" aria-label="Operação de entrega">
+          <div className="admin-card admin-store-block-card admin-compact-page-card">
+            <StoreSectionHead
+              iconNode={<i className="ph ph-motorcycle admin-kanban-phosphor-icon" aria-hidden="true" />}
+              title="Entregadores"
+              hint="Quem leva as rotas. Use ao montar a rota em Pedidos."
+            />
+            <div className="admin-delivery-areas-body">
+              <EntregadoresCrud empresaId={empresa?.id} />
+            </div>
+          </div>
 
-        <div className="admin-card admin-store-block-card admin-compact-page-card">
+          <div className="admin-card admin-store-block-card admin-compact-page-card">
+            <StoreSectionHead
+              iconNode={<i className="ph ph-map-trifold admin-kanban-phosphor-icon" aria-hidden="true" />}
+              title="Áreas de entrega"
+              hint="Taxa por distância em km a partir da loja."
+            />
+            <div className="admin-delivery-areas-body">
+              <DeliveryZonesCrud empresaId={empresa?.id} />
+            </div>
+          </div>
+        </section>
+
+        <StoreDeliveryDurationCard compact />
+
+        <section className="admin-card admin-store-block-card admin-compact-page-card admin-delivery-history-section">
           <StoreSectionHead
-            iconNode={<i className="ph ph-map-trifold admin-kanban-phosphor-icon" aria-hidden="true" />}
-            title="Áreas de entrega"
-            hint="Taxa por distância em km a partir da loja."
+            iconNode={
+              <i className="ph ph-clock-counter-clockwise admin-kanban-phosphor-icon" aria-hidden="true" />
+            }
+            title="Histórico por entregador"
+            hint="Consulta de rotas ativas e concluídas."
           />
           <div className="admin-delivery-areas-body">
-            <DeliveryZonesCrud empresaId={empresa?.id} />
+            <EntregadorHistoricoPanel empresaId={empresa?.id} />
           </div>
-        </div>
-      </div>
-
-      <div className="admin-card admin-store-block-card admin-compact-page-card admin-entregadores-card">
-        <StoreSectionHead
-          iconNode={<i className="ph ph-motorcycle admin-kanban-phosphor-icon" aria-hidden="true" />}
-          title="Entregadores"
-          hint="Quem leva as rotas. Use ao montar a rota em Pedidos."
-        />
-        <div className="admin-delivery-areas-body">
-          <EntregadoresCrud empresaId={empresa?.id} />
-        </div>
-      </div>
-
-      <div className="admin-card admin-store-block-card admin-compact-page-card admin-entregadores-card">
-        <StoreSectionHead
-          iconNode={<i className="ph ph-clock-counter-clockwise admin-kanban-phosphor-icon" aria-hidden="true" />}
-          title="Histórico por entregador"
-          hint="Rotas ativas e concluídas vinculadas a cada entregador."
-        />
-        <div className="admin-delivery-areas-body">
-          <EntregadorHistoricoPanel empresaId={empresa?.id} />
-        </div>
+        </section>
       </div>
 
       <RecalcularCoordenadasModal
