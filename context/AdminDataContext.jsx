@@ -72,7 +72,11 @@ export function AdminDataProvider({ children }) {
   }, []);
 
   const uploadStoreImage = useCallback(
-    (storeSlug, dataUrl, folder) => uploadMenuAssetIfNeeded(storeSlug, dataUrl, { folder }),
+    (storeSlug, dataUrl, folder, fieldKey) =>
+      uploadMenuAssetIfNeeded(storeSlug, dataUrl, {
+        folder,
+        preserveTransparency: fieldKey === 'logoComandaUrl',
+      }),
     []
   );
 

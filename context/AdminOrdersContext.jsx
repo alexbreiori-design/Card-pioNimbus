@@ -164,8 +164,9 @@ export function AdminOrdersProvider({ children }) {
   const createOrder = useCallback(
     async (order, items) => {
       if (!empresaId) throw new Error('Empresa não identificada.');
-      await insertAdminOrder({ empresaId, order, items });
+      const created = await insertAdminOrder({ empresaId, order, items });
       await refreshOrders({ force: true, silent: true });
+      return created;
     },
     [empresaId, refreshOrders]
   );

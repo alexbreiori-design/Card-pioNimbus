@@ -134,7 +134,6 @@ export async function POST(request) {
       .insert({
         empresa_id: empresa.id,
         cliente_id: cliente.id,
-        codigo: String(order.id),
         status: order.status || 'novo',
         tipo: validated.tipo === 'delivery' ? 'delivery' : 'retirada',
         origem: 'cardapio_online',
@@ -158,7 +157,7 @@ export async function POST(request) {
         caixa_turno_id: activeTurno?.id || null,
         aguardando_caixa: !activeTurno,
       })
-      .select('id')
+      .select('id, codigo')
       .single();
     if (pedidoError) throw pedidoError;
 
@@ -177,7 +176,12 @@ export async function POST(request) {
       if (itemsError) throw itemsError;
     }
 
-    return NextResponse.json({ ok: true, pedidoId: pedido.id, clienteId: cliente.id });
+    return NextResponse.json({
+      ok: true,
+      pedidoId: pedido.id,
+      codigo: pedido.codigo,
+      clienteId: cliente.id,
+    });
   } catch (error) {
     const message = error?.message || 'Erro ao registrar pedido.';
     const status = message.includes('inválid') || message.includes('mínimo') || message.includes('fechada')

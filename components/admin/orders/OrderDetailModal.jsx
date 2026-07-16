@@ -76,7 +76,6 @@ export default function OrderDetailModal({
         <div className="admin-order-detail-head">
           <div>
             <span className="admin-order-detail-kicker">Pedido #{order.id}</span>
-            <h2>{order.clienteNome}</h2>
             <span className={`admin-order-detail-status admin-order-detail-status-${order.status}`}>
               {STATUS_LABEL[order.status] || order.status}
             </span>
