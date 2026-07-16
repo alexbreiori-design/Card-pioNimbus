@@ -50,23 +50,19 @@ export default function OrderTicket({ order, store = {}, widthMm = 80, mode = 'p
   return (
     <div className={rootClass} aria-hidden={mode === 'print' ? 'true' : undefined}>
       <div className="order-ticket">
-        <header className="order-ticket-center">
+        <header className="order-ticket-center order-ticket-header">
           {store.logoComandaUrl ? (
             <img src={store.logoComandaUrl} alt="" className="order-ticket-logo" />
           ) : null}
           <p className="order-ticket-store">{store.nome || 'Minha loja'}</p>
           {store.telefone || store.whatsapp ? (
-            <p className="order-ticket-muted">{store.telefone || store.whatsapp}</p>
+            <p className="order-ticket-store-phone">
+              {fmtPhone(store.telefone || store.whatsapp)}
+            </p>
           ) : null}
         </header>
 
-        <hr className="order-ticket-divider" />
-
-        <div className="order-ticket-block">
-          <div className="order-ticket-row">
-            <span>Pedido</span>
-            <strong>#{order.id}</strong>
-          </div>
+        <section className="order-ticket-section order-ticket-meta">
           <div className="order-ticket-row">
             <span>Data</span>
             <span>{formatDateTime(order.createdAt)}</span>
@@ -75,26 +71,13 @@ export default function OrderTicket({ order, store = {}, widthMm = 80, mode = 'p
             <span>Prazo</span>
             <strong>{deadlineLabel(order)}</strong>
           </div>
+        </section>
+
+        <div className="order-ticket-inverse order-ticket-order-number">
+          PEDIDO {order.id}
         </div>
 
-        <hr className="order-ticket-divider" />
-
-        <div className="order-ticket-block">
-          <div className="order-ticket-block-title">Cliente</div>
-          <div>{order.clienteNome || '—'}</div>
-          {order.clienteTelefone ? <div>{fmtPhone(order.clienteTelefone)}</div> : null}
-        </div>
-
-        <hr className="order-ticket-divider" />
-
-        <div className="order-ticket-block">
-          <div className="order-ticket-block-title">{TIPO_LABEL[order.tipo] || order.tipo}</div>
-          <div>{addressText(order)}</div>
-        </div>
-
-        <hr className="order-ticket-divider" />
-
-        <div className="order-ticket-block">
+        <section className="order-ticket-section">
           <div className="order-ticket-block-title">Itens</div>
           {(order.itens || []).length === 0 ? (
             <div className="order-ticket-muted">Sem itens</div>
@@ -111,21 +94,30 @@ export default function OrderTicket({ order, store = {}, widthMm = 80, mode = 'p
               </div>
             ))
           )}
-        </div>
+        </section>
 
         {order.observacao ? (
-          <>
-            <hr className="order-ticket-divider" />
-            <div className="order-ticket-block">
-              <div className="order-ticket-block-title">Observações</div>
-              <div>{order.observacao}</div>
-            </div>
-          </>
+          <section className="order-ticket-section">
+            <div className="order-ticket-block-title">Observações</div>
+            <div className="order-ticket-observation">{order.observacao}</div>
+          </section>
         ) : null}
 
-        <hr className="order-ticket-divider" />
+        <section className="order-ticket-section">
+          <div className="order-ticket-block-title">Cliente</div>
+          <div>{order.clienteNome || '—'}</div>
+          {order.clienteTelefone ? <div>{fmtPhone(order.clienteTelefone)}</div> : null}
+        </section>
 
-        <div className="order-ticket-block">
+        <section className="order-ticket-section">
+          <div className="order-ticket-block-title">
+            {TIPO_LABEL[order.tipo] || order.tipo}
+          </div>
+          <div>{addressText(order)}</div>
+        </section>
+
+        <section className="order-ticket-section">
+          <div className="order-ticket-block-title">Pagamento</div>
           {order.subtotal > 0 ? (
             <div className="order-ticket-row">
               <span>Subtotal</span>
@@ -154,20 +146,19 @@ export default function OrderTicket({ order, store = {}, widthMm = 80, mode = 'p
             <span>TOTAL</span>
             <span>{currency(order.total)}</span>
           </div>
-        </div>
+        </section>
 
-        <hr className="order-ticket-divider" />
-
-        <div className="order-ticket-block">
+        <section className="order-ticket-section">
+          <div className="order-ticket-block-title">Forma de pagamento</div>
           <div className="order-ticket-row">
-            <span>Pagamento</span>
             <strong>{pay}</strong>
           </div>
-        </div>
+        </section>
 
-        <hr className="order-ticket-divider" />
-
-        <p className="order-ticket-center order-ticket-muted">Obrigado pela preferência!</p>
+        <footer className="order-ticket-footer">
+          <span>Powered by</span>
+          <strong>www.cardapionimbus.com.br</strong>
+        </footer>
       </div>
     </div>
   );

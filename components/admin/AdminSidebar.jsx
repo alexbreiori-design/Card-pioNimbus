@@ -195,7 +195,7 @@ export default function AdminSidebar({
       ? 'Loja aberta. Desative para fechar agora.'
       : 'Fechada pelo horário. Ative para liberar manualmente.';
   const cardapioHref = storeSlug ? getStorePublicUrl(storeSlug) : '';
-  const showStoreName = !collapsed && !compactViewport;
+  const showStoreName = !collapsed;
 
   const logoNode = logoUrl ? (
     <img src={logoUrl} alt="Logo da loja" />
@@ -242,34 +242,36 @@ export default function AdminSidebar({
           ) : null}
         </div>
         <AdminStoreSwitcher collapsed={collapsed} />
-        <div
-          className={`admin-toggle-row admin-store-toggle-compact${compactViewport ? ' is-label-hidden' : ''}`}
-          title={toggleTitle}
-        >
-          <span className={`admin-store-toggle-label ${aberta ? 'open' : 'closed'}`}>
-            {aberta ? 'Aberta' : 'Fechada'}
-          </span>
-          <label className="admin-switch admin-store-toggle-switch">
-            <input
-              type="checkbox"
-              checked={aberta}
-              disabled={storeToggleBusy}
-              onChange={handleStoreToggle}
-              aria-label={aberta ? 'Loja aberta' : 'Loja fechada'}
-            />
-            <span className="admin-switch-slider" />
-          </label>
+        <div className="admin-sidebar-operations">
+          <div
+            className="admin-toggle-row admin-store-toggle-compact"
+            title={toggleTitle}
+          >
+            <span className={`admin-store-toggle-label ${aberta ? 'open' : 'closed'}`}>
+              {aberta ? 'Aberta' : 'Fechada'}
+            </span>
+            <label className="admin-switch admin-store-toggle-switch">
+              <input
+                type="checkbox"
+                checked={aberta}
+                disabled={storeToggleBusy}
+                onChange={handleStoreToggle}
+                aria-label={aberta ? 'Loja aberta' : 'Loja fechada'}
+              />
+              <span className="admin-switch-slider" />
+            </label>
+          </div>
+          <CaixaSidebarStatus
+            collapsed={collapsed}
+            compact={compactViewport && !collapsed}
+            onManageClick={() => setCaixaManageModal(true)}
+          />
         </div>
         {storeToggleError && !collapsed ? (
           <p className="admin-store-open-error" role="alert">
             {storeToggleError}
           </p>
         ) : null}
-        <CaixaSidebarStatus
-          collapsed={collapsed}
-          compact={compactViewport && !collapsed}
-          onManageClick={() => setCaixaManageModal(true)}
-        />
         <CaixaManageModal
           open={caixaManageModal}
           onClose={() => setCaixaManageModal(false)}

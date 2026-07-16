@@ -13,7 +13,7 @@
   --admin-green: #16a34a;
   --admin-red: #dc2626;
   --admin-radius: 12px;
-  --admin-sidebar-w: 338px;
+  --admin-sidebar-w: 286px;
   --admin-sidebar-collapsed: 92px;
 }
 
@@ -965,22 +965,35 @@
 .admin-orders-page .admin-kanban {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   width: 100%;
+  align-items: stretch;
 }
 
 .admin-orders-page .admin-kanban-col {
-  min-height: calc(100vh - 320px);
-  border: 1px solid #e2e6ef;
+  --kanban-column-border: #e2e6ef;
+  border: 2px solid var(--kanban-column-border);
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.86);
   box-shadow: 0 16px 40px rgba(41, 49, 79, 0.04);
   overflow: hidden;
 }
 
+.admin-orders-page .admin-kanban-col.blue {
+  --kanban-column-border: #93c5fd;
+}
+
+.admin-orders-page .admin-kanban-col.amber {
+  --kanban-column-border: #fcd34d;
+}
+
+.admin-orders-page .admin-kanban-col.green {
+  --kanban-column-border: #86efac;
+}
+
 .admin-orders-page .admin-kanban-col-header {
   min-height: 100px;
   margin-bottom: 0;
   padding: 22px 24px;
-  border-bottom: 1px solid #e2e6ef;
+  border-bottom: 1px solid var(--kanban-column-border);
   border-radius: 0;
   background: rgba(255, 255, 255, 0.92);
 }
@@ -1098,6 +1111,16 @@
   margin-bottom: 0;
   line-height: 1.25;
   grid-column: 1 / -1;
+}
+
+.admin-order-card-number {
+  color: var(--admin-primary);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.admin-order-card-title-separator {
+  color: var(--admin-text-mid);
 }
 
 .admin-order-card-phone {
@@ -7351,10 +7374,13 @@ textarea.admin-input::placeholder {
 }
 
 .admin-order-detail-kicker {
-  font-size: 12px;
-  color: #64748b;
+  display: block;
+  margin-bottom: 8px;
+  color: var(--admin-primary);
+  font-size: 20px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
 }
 
 .admin-order-detail-status {
@@ -12399,12 +12425,8 @@ textarea.admin-input::placeholder {
 
 @media (max-width: 1366px) {
   :root {
-    --admin-sidebar-w: 260px;
+    --admin-sidebar-w: 248px;
     --admin-sidebar-collapsed: 92px;
-  }
-
-  .admin-orders-page .admin-kanban-col {
-    min-height: calc(100vh - 220px);
   }
 
   .admin-orders-page .admin-kanban-col-header {
@@ -12415,6 +12437,47 @@ textarea.admin-input::placeholder {
   .admin-kanban-icon {
     width: 40px;
     height: 40px;
+  }
+}
+
+@media (min-width: 901px) {
+  .admin-main:has(.admin-orders-page) {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .admin-orders-page {
+    display: flex;
+    min-height: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+    flex-direction: column;
+  }
+
+  .admin-orders-page .admin-pedidos-body {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    flex-direction: column;
+  }
+
+  .admin-orders-page .admin-kanban-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .admin-orders-page .admin-kanban,
+  .admin-orders-page .admin-kanban-col {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .admin-orders-page .admin-kanban-col {
+    overflow-x: hidden;
+    overflow-y: auto;
+    border-bottom: 0;
+    border-radius: 16px 16px 0 0;
   }
 }
 
@@ -12625,10 +12688,10 @@ textarea.admin-input::placeholder {
   flex-basis: 52px;
 }
 
-.admin-viewport-compact .admin-store-name-block,
-.admin-viewport-compact .admin-store-cardapio-hint,
-.admin-sidebar.is-compact-viewport .admin-store-name-block,
-.admin-sidebar.is-compact-viewport .admin-store-cardapio-hint {
+.admin-viewport-compact .admin-sidebar.collapsed .admin-store-name-block,
+.admin-viewport-compact .admin-sidebar.collapsed .admin-store-cardapio-hint,
+.admin-sidebar.is-compact-viewport.collapsed .admin-store-name-block,
+.admin-sidebar.is-compact-viewport.collapsed .admin-store-cardapio-hint {
   display: none;
 }
 
@@ -13230,5 +13293,145 @@ textarea.admin-input::placeholder {
 .admin-review-status--rejeitada {
   background: rgba(231, 76, 60, 0.12);
   color: #b53a2d;
+}
+
+/* Sidebar compacta: identidade horizontal e controles operacionais lado a lado */
+.admin-sidebar:not(.collapsed) .admin-sidebar-header {
+  display: grid;
+  grid-template-columns: minmax(118px, 1.2fr) minmax(82px, 0.8fr);
+  gap: 8px 10px;
+  padding: 14px 16px 12px;
+}
+
+.admin-sidebar:not(.collapsed) .admin-store-badge {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  margin: 0;
+  text-align: left;
+}
+
+.admin-sidebar:not(.collapsed) .admin-store-avatar {
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  flex-basis: 56px;
+  border-radius: 12px;
+}
+
+.admin-sidebar:not(.collapsed) .admin-store-name-block {
+  align-items: flex-start;
+  min-width: 0;
+  max-width: none;
+}
+
+.admin-sidebar:not(.collapsed) .admin-store-name {
+  max-width: 176px;
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-sidebar:not(.collapsed) .admin-store-cardapio-hint {
+  display: none;
+}
+
+.admin-sidebar:not(.collapsed) .admin-store-switcher {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.admin-sidebar:not(.collapsed) .admin-sidebar-operations {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(118px, 1.2fr) minmax(82px, 0.8fr);
+  align-items: start;
+  gap: 10px;
+}
+
+.admin-sidebar:not(.collapsed) .admin-store-toggle-compact {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  justify-content: flex-end;
+  width: auto;
+  margin: 0;
+  min-height: 30px;
+  padding: 0;
+  gap: 7px;
+}
+
+.admin-sidebar:not(.collapsed) .admin-store-toggle-label {
+  font-size: 12px;
+}
+
+.admin-sidebar:not(.collapsed) .admin-store-open-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: left;
+}
+
+.admin-sidebar:not(.collapsed) .admin-caixa-sidebar-wrap {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.admin-sidebar:not(.collapsed) .admin-caixa-sidebar-main {
+  justify-content: flex-start;
+  gap: 0;
+}
+
+.admin-sidebar:not(.collapsed) .admin-caixa-sidebar-main .admin-caixa-dot {
+  display: none;
+}
+
+.admin-sidebar:not(.collapsed) .admin-caixa-sidebar-btn {
+  width: 100%;
+  min-height: 30px;
+  padding: 0 9px;
+  font-size: 11px;
+}
+
+.admin-sidebar:not(.collapsed) .admin-caixa-sidebar-caption {
+  margin-top: 4px;
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 1.25;
+  text-align: center;
+  text-overflow: ellipsis;
+}
+
+.admin-sidebar.collapsed .admin-sidebar-operations {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.admin-sidebar.is-compact-viewport:not(.collapsed) .admin-store-avatar {
+  width: 50px;
+  height: 50px;
+  min-width: 50px;
+  flex-basis: 50px;
+}
+
+.admin-sidebar.is-compact-viewport:not(.collapsed) .admin-store-name {
+  max-width: 146px;
+  font-size: 15px;
+}
+
+.admin-sidebar.is-compact-viewport:not(.collapsed) .admin-store-toggle-label {
+  font-size: 11px;
 }
 

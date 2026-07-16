@@ -1661,7 +1661,7 @@ export function CardapioProvider({
   }, []);
 
   const persistCompletedOrder = useCallback(
-    async ({ orderNumber, customerName, customerPhone }) => {
+    async ({ customerName, customerPhone }) => {
       const createdAt = new Date().toISOString();
       const orderTipo = checkoutData.delivery === 'entregar' ? 'delivery' : 'retirada';
       const eta = getEtaFromConfirmedAt(createdAt, storeConfig, orderTipo);
@@ -1685,7 +1685,7 @@ export function CardapioProvider({
       }
       const localCustomerId = `cliente-${phoneDigits || Date.now()}`;
       const adminOrder = {
-        id: orderNumber,
+        id: '',
         status: 'novo',
         tipo: checkoutData.delivery === 'entregar' ? 'delivery' : 'retirada',
         clienteNome: customerName,
@@ -1739,7 +1739,7 @@ export function CardapioProvider({
         autoImported: true,
       };
       const publicOrder = {
-        id: orderNumber,
+        id: '',
         status: 'novo',
         tipo: adminOrder.tipo,
         createdAt,
@@ -1808,6 +1808,14 @@ export function CardapioProvider({
       if (!apiRes.ok || !apiJson.ok) {
         throw new Error(apiJson.error || 'Não foi possível registrar o pedido.');
       }
+      if (!apiJson.codigo) {
+        throw new Error('O pedido foi salvo, mas não recebeu um número operacional.');
+      }
+
+      adminOrder.id = apiJson.codigo;
+      adminOrder.dbId = apiJson.pedidoId;
+      publicOrder.id = apiJson.codigo;
+      publicOrder.dbId = apiJson.pedidoId;
 
       storeSnapshotRef.current = nextState;
       window.dispatchEvent(new CustomEvent('admin-data-updated', { detail: nextState }));
@@ -1916,13 +1924,12 @@ export function CardapioProvider({
     } else if (checkoutStep === 4) {
       if (checkoutSubmittingRef.current) return;
       checkoutSubmittingRef.current = true;
-      const orderNumber = String(Date.now()).slice(-10);
       try {
-        await persistCompletedOrder({
-          orderNumber,
+        const completedOrder = await persistCompletedOrder({
           customerName: checkoutData.name,
           customerPhone: checkoutData.phone,
         });
+        const orderNumber = completedOrder.id;
         trackMetaEvent('Purchase', {
           content_ids: cart.map((item) => String(item.productId)),
           content_type: 'product',

@@ -101,10 +101,6 @@ const PAYMENT_LABEL = {
   dinheiro: 'Dinheiro',
 };
 
-function uid() {
-  return `${Date.now()}${Math.floor(Math.random() * 1000)}`;
-}
-
 function deadlineLabel(order) {
   if (order.tipo === 'delivery') return `Entregar até ${order.prazo || '--:--'}`;
   return `Retirar até ${order.prazo || '--:--'}`;
@@ -394,7 +390,7 @@ export default function PedidosPage() {
 
     const eta = getEtaFromConfirmedAt(new Date().toISOString(), data.loja, draft.tipo);
     const newOrder = {
-      id: uid(),
+      id: '',
       status: 'novo',
       tipo: draft.tipo,
       clienteNome: draft.clienteNome,
@@ -426,7 +422,9 @@ export default function PedidosPage() {
       const customerId = customer?.id || null;
       newOrder.cliente_id = customerId;
 
-      await createOrder(newOrder, items);
+      const created = await createOrder(newOrder, items);
+      newOrder.id = created.codigo;
+      newOrder.dbId = created.id;
       await refreshCaixa({ silent: true });
 
       if (customerId && empresaId) {
@@ -633,7 +631,7 @@ export default function PedidosPage() {
           {COLS.map((col) => {
             const colOrders = filteredOrders.filter((o) => o.status === col.key);
             return (
-              <div key={col.key} className="admin-kanban-col">
+              <div key={col.key} className={`admin-kanban-col ${col.tone}`}>
                 <div className="admin-kanban-col-header">
                   <div className="admin-kanban-title">
                     <span className={`admin-kanban-icon ${col.tone}`}>
@@ -663,13 +661,17 @@ export default function PedidosPage() {
                       onClick={() => setDetailOrderId(order.id)}
                     >
                       <h4 className="admin-order-card-title">
+                        <span className="admin-order-card-number">Pedido #{order.id}</span>
+                        <span className="admin-order-card-title-separator" aria-hidden="true">
+                          -
+                        </span>
                         <span>{order.clienteNome}</span>
                         {order.clienteTelefone ? (
                           <span className="admin-order-card-phone">{fmtPhone(order.clienteTelefone)}</span>
                         ) : null}
                       </h4>
                       <div className="admin-order-meta">
-                        #{order.id} · {TIPO_LABEL[order.tipo]}
+                        {TIPO_LABEL[order.tipo]}
                         {order.createdAt ? (
                           <span className="admin-order-age"> · {formatOrderAgePt(order.createdAt)}</span>
                         ) : null}
