@@ -5,9 +5,104 @@ import { createPortal } from 'react-dom';
 import { buildReportCsv } from '@/lib/admin/reports/reportCsv';
 import { formatCurrency, formatNumber, formatPct } from '@/lib/admin/reports/reportFormatters';
 import { useAdminData } from '@/hooks/useAdminData';
+import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import ReportPrintDocument from '@/components/admin/reports/ReportPrintDocument';
 import CaixaHistoricoPanel from '@/components/admin/caixa/CaixaHistoricoPanel';
 import { CaixaStatusChip } from '@/components/admin/caixa/CaixaPanels';
+
+function formatDeliveryWhen(value) {
+  if (!value) return '—';
+  try {
+    return new Date(value).toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return '—';
+  }
+}
+
+function EntregadorDeliveriesModal({ row, periodLabel, onClose }) {
+  const { overlayPointerDown, overlayClick } = useAdminOverlayClose({
+    onClose,
+    isDirty: false,
+  });
+
+  if (!row) return null;
+
+  const entregas = Array.isArray(row.entregas) ? row.entregas : [];
+
+  return (
+    <div
+      className="admin-confirm-overlay"
+      role="presentation"
+      onPointerDown={overlayPointerDown}
+      onClick={overlayClick}
+    >
+      <div
+        className="admin-order-detail-modal admin-delivery-history-modal admin-reports-entregador-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reports-entregador-modal-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="admin-order-detail-head">
+          <div>
+            <span className="admin-order-detail-kicker">
+              Conferência · {periodLabel || 'Período'}
+            </span>
+            <h2 id="reports-entregador-modal-title">{row.nome}</h2>
+            <p className="admin-help-text" style={{ margin: '6px 0 0' }}>
+              {formatNumber(row.pedidos)} entrega{row.pedidos === 1 ? '' : 's'} · taxa total{' '}
+              {formatCurrency(row.taxaEntrega)} · média {formatCurrency(row.taxaMedia ?? 0)}
+            </p>
+          </div>
+          <button type="button" className="admin-order-detail-close" onClick={onClose} aria-label="Fechar">
+            ×
+          </button>
+        </div>
+
+        <div className="admin-delivery-history-modal-body">
+          <div className="admin-reports-entregador-modal-totals" aria-hidden="true">
+            <span>
+              Entregas: <strong>{formatNumber(row.pedidos)}</strong>
+            </span>
+            <span>
+              Taxa total: <strong>{formatCurrency(row.taxaEntrega)}</strong>
+            </span>
+            <span>
+              Taxa média: <strong>{formatCurrency(row.taxaMedia ?? 0)}</strong>
+            </span>
+          </div>
+
+          {entregas.length === 0 ? (
+            <p className="admin-help-text">Nenhuma entrega detalhada neste período.</p>
+          ) : (
+            <ul className="admin-delivery-history-modal-stops">
+              {entregas.map((entrega) => (
+                <li key={entrega.id || entrega.codigo}>
+                  <div>
+                    <strong>
+                      #{entrega.codigo} · {entrega.clienteNome}
+                    </strong>
+                    <span>{entrega.enderecoTexto || 'Sem endereço'}</span>
+                    <span>
+                      {formatDeliveryWhen(entrega.concluidoEm)} · pedido{' '}
+                      {formatCurrency(entrega.total)}
+                    </span>
+                  </div>
+                  <em>{formatCurrency(entrega.taxaEntrega)}</em>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function downloadCsv(filename, content) {
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
@@ -78,7 +173,7 @@ const KPI_CONFIG = [
 
 export default function ReportsDashboard() {
   const { activeSlug, data } = useAdminData();
-  const [period, setPeriod] = useState(7);
+  const [period, setPeriod] = useState(0);
   const [origem, setOrigem] = useState('all');
   const [tipo, setTipo] = useState('all');
   const [pagamento, setPagamento] = useState('all');
@@ -87,6 +182,7 @@ export default function ReportsDashboard() {
   const [error, setError] = useState('');
   const [printJob, setPrintJob] = useState(null);
   const [portalReady, setPortalReady] = useState(false);
+  const [entregadorDetail, setEntregadorDetail] = useState(null);
 
   useEffect(() => {
     setPortalReady(typeof document !== 'undefined');
@@ -121,6 +217,10 @@ export default function ReportsDashboard() {
   useEffect(() => {
     loadReport();
   }, [loadReport]);
+
+  useEffect(() => {
+    setEntregadorDetail(null);
+  }, [period, origem, tipo, pagamento]);
 
   useEffect(() => {
     if (period !== 0) return undefined;
@@ -195,7 +295,7 @@ export default function ReportsDashboard() {
             <div>
               <h1 className="admin-reports-title">Relatórios de vendas</h1>
               <p className="admin-reports-subtitle">
-                {report?.periodLabel || 'Últimos 7 dias'} · {report?.compareLabel || 'Comparado ao período anterior'}
+                {report?.periodLabel || 'Hoje'} · {report?.compareLabel || 'Comparado com ontem'}
               </p>
               <CaixaStatusChip />
             </div>
@@ -553,15 +653,21 @@ export default function ReportsDashboard() {
                 {(report.entregadores || []).length ? (
                   <div className="admin-reports-summary-list">
                     {report.entregadores.map((row) => (
-                      <div key={row.id || row.nome} className="admin-reports-summary-row">
+                      <button
+                        key={row.id || row.nome}
+                        type="button"
+                        className="admin-reports-summary-row is-clickable"
+                        onClick={() => setEntregadorDetail(row)}
+                      >
                         <div>
                           <span>{row.nome}</span>
-                          <strong>{formatCurrency(row.faturamento)}</strong>
+                          <strong>{formatCurrency(row.taxaEntrega)}</strong>
                         </div>
                         <span>
-                          {formatNumber(row.pedidos)} ped. · ticket {formatCurrency(row.ticketMedio)}
+                          {formatNumber(row.pedidos)} ped. · taxa média{' '}
+                          {formatCurrency(row.taxaMedia ?? 0)}
                         </span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 ) : (
@@ -576,6 +682,17 @@ export default function ReportsDashboard() {
 
         <CaixaHistoricoPanel />
       </div>
+
+      {portalReady && entregadorDetail
+        ? createPortal(
+            <EntregadorDeliveriesModal
+              row={entregadorDetail}
+              periodLabel={report?.periodLabel || 'Hoje'}
+              onClose={() => setEntregadorDetail(null)}
+            />,
+            document.body
+          )
+        : null}
 
       {portalReady && printJob
         ? createPortal(

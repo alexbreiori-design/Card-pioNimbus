@@ -8,7 +8,7 @@ import { getServiceClient } from '@/lib/supabase/serviceRole';
 export async function GET(request) {
   const url = new URL(request.url);
   const slug = normalizeSlug(url.searchParams.get('slug') || '');
-  const period = Number(url.searchParams.get('period') || 7);
+  const period = Number(url.searchParams.get('period') ?? 0);
   const origem = String(url.searchParams.get('origem') || 'all');
   const tipo = String(url.searchParams.get('tipo') || 'all');
   const pagamento = String(url.searchParams.get('pagamento') || 'all');
@@ -38,7 +38,7 @@ export async function GET(request) {
     const { data: pedidos, error: pedidosError } = await supabase
       .from('pedidos')
       .select(
-        'id, status, tipo, origem, subtotal, taxa_entrega, desconto, total, forma_pagamento_codigo, cupom_codigo, created_at, status_concluido_em, entregador_id'
+        'id, codigo, status, tipo, origem, subtotal, taxa_entrega, desconto, total, forma_pagamento_codigo, cupom_codigo, created_at, status_concluido_em, entregador_id, cliente_nome, endereco_texto'
       )
       .eq('empresa_id', empresa.id)
       .eq('status', 'concluido')

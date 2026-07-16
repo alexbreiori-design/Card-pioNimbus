@@ -227,8 +227,8 @@ export default function ReportPrintDocument({ report, storeName }) {
                 <tr>
                   <th>Entregador</th>
                   <th>Pedidos</th>
-                  <th>Faturamento</th>
-                  <th>Ticket médio</th>
+                  <th>Taxa de entrega</th>
+                  <th>Taxa média</th>
                 </tr>
               </thead>
               <tbody>
@@ -236,8 +236,8 @@ export default function ReportPrintDocument({ report, storeName }) {
                   <tr key={row.id || row.nome}>
                     <td>{row.nome}</td>
                     <td>{formatNumber(row.pedidos)}</td>
-                    <td>{formatCurrency(row.faturamento)}</td>
-                    <td>{formatCurrency(row.ticketMedio)}</td>
+                    <td>{formatCurrency(row.taxaEntrega)}</td>
+                    <td>{formatCurrency(row.taxaMedia ?? 0)}</td>
                   </tr>
                 ))}
               </tbody>
