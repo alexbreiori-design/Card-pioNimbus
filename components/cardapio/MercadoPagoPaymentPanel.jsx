@@ -68,6 +68,12 @@ export default function MercadoPagoPaymentPanel({ amount }) {
           {onlinePayment.error}
         </div>
       ) : null}
+      {onlinePaymentConfig?.sandbox ? (
+        <p className="checkout-field-hint">
+          Modo teste: no e-mail do cartão use algo como{' '}
+          <strong>test_payer_1@testuser.com</strong>.
+        </p>
+      ) : null}
       {isPix ? (
         <button
           type="button"
@@ -79,7 +85,12 @@ export default function MercadoPagoPaymentPanel({ amount }) {
         </button>
       ) : sdkReady ? (
         <Payment
-          initialization={{ amount: Number(amount) }}
+          initialization={{
+            amount: Number(amount),
+            payer: checkoutData.email
+              ? { email: String(checkoutData.email).trim() }
+              : undefined,
+          }}
           customization={{
             paymentMethods: {
               creditCard: 'all',

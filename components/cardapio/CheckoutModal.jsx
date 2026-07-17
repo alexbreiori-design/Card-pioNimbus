@@ -59,6 +59,7 @@ export default function CheckoutModal() {
     setCheckoutPhone,
     checkoutEmail,
     setCheckoutEmail,
+    onlinePaymentConfig,
     STEP_LABELS,
     PAYMENT_METHODS,
     PAY_LABELS,
@@ -380,7 +381,38 @@ export default function CheckoutModal() {
           </span>
         );
       });
-      return <>{options}</>;
+      const showOnlineEmail =
+        ['pix_online', 'credito_online'].includes(checkoutData.payment);
+      return (
+        <>
+          {options}
+          {showOnlineEmail ? (
+            <div className="form-group" style={{ marginTop: 14 }}>
+              <label className="form-label" htmlFor="checkoutOnlineEmail">
+                E-mail para pagamento
+              </label>
+              <input
+                id="checkoutOnlineEmail"
+                className="form-input"
+                type="email"
+                autoComplete="email"
+                placeholder={
+                  onlinePaymentConfig?.sandbox
+                    ? 'ex: test_payer_1@testuser.com'
+                    : 'seu@email.com'
+                }
+                value={checkoutEmail}
+                onChange={(e) => setCheckoutEmail(e.target.value)}
+              />
+              <small className="checkout-field-hint">
+                {onlinePaymentConfig?.sandbox
+                  ? 'Conta de teste: use um e-mail terminando em @testuser.com.'
+                  : 'Necessário para Pix/cartão online.'}
+              </small>
+            </div>
+          ) : null}
+        </>
+      );
     }
 
     if (checkoutStep === 4) {

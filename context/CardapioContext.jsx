@@ -2125,12 +2125,13 @@ export function CardapioProvider({
         void showAlert('Selecione uma forma de pagamento.');
         return;
       }
-      if (
-        ['pix_online', 'credito_online'].includes(checkoutData.payment) &&
-        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(checkoutData.email || '')
-      ) {
-        void showAlert('Informe um e-mail válido para pagar online.');
-        return;
+      const onlineEmail = String(checkoutEmail || checkoutData.email || '').trim();
+      if (['pix_online', 'credito_online'].includes(checkoutData.payment)) {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(onlineEmail)) {
+          void showAlert('Informe um e-mail válido para pagar online.');
+          return;
+        }
+        setCheckoutData((d) => ({ ...d, email: onlineEmail }));
       }
       if (checkoutData.payment === 'dinheiro') {
         if (!checkoutData.trocoAnswer) {
@@ -2142,6 +2143,7 @@ export function CardapioProvider({
           return;
         }
       }
+      setOnlinePayment(null);
       setCheckoutStep(4);
     } else if (checkoutStep === 4) {
       if (['pix_online', 'credito_online'].includes(checkoutData.payment)) return;
@@ -2186,6 +2188,7 @@ export function CardapioProvider({
 
   const checkoutBack = useCallback(() => {
     if (checkoutStep > 1 && !checkoutSuccess) {
+      if (checkoutStep === 4) setOnlinePayment(null);
       setCheckoutStep((s) => s - 1);
     }
   }, [checkoutStep, checkoutSuccess]);

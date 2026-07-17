@@ -56,6 +56,23 @@ export async function POST(request) {
         { status: 409 }
       );
     }
+    const sandboxAccount =
+      account.metadata?.live_mode === false ||
+      String(account.public_key || '').startsWith('TEST-') ||
+      String(account.accessToken || '').startsWith('TEST-');
+    if (
+      String(account.public_key || '').startsWith('TEST-') &&
+      !String(account.accessToken || '').startsWith('TEST-')
+    ) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            'Conta Mercado Pago em estado inválido (mistura teste/produção). Desconecte e reconecte a integração.',
+        },
+        { status: 409 }
+      );
+    }
 
     const checkoutToken = createCheckoutToken();
     const { data: inserted, error: insertError } = await supabase
@@ -81,18 +98,35 @@ export async function POST(request) {
     if (insertError) throw insertError;
     paymentRow = inserted;
 
+    let payerEmail = String(
+      body.cardData?.payer?.email || body.email || prepared.customer.email || ''
+    ).trim();
+    if (sandboxAccount && payerEmail && !payerEmail.toLowerCase().endsWith('@testuser.com')) {
+      payerEmail = `test_payer_${String(Date.now()).slice(-8)}@testuser.com`;
+    }
+    const cardData =
+      body.cardData && sandboxAccount && payerEmail
+        ? {
+            ...body.cardData,
+            payer: {
+              ...(body.cardData.payer || {}),
+              email: payerEmail,
+            },
+          }
+        : body.cardData;
+
     const remote = await createMercadoPagoPayment({
       accessToken: account.accessToken,
       amount: prepared.validated.total,
       method,
       payer: {
         name: prepared.customer.name || prepared.order.clienteNome,
-        email: body.email || prepared.customer.email,
+        email: payerEmail,
       },
       externalReference: paymentRow.id,
       idempotencyKey: paymentRow.idempotency_key,
       notificationUrl: `${getSiteOrigin()}/api/pagamentos/webhook/mercado_pago`,
-      cardData: body.cardData,
+      cardData,
     });
     const pix = extractMercadoPagoPix(remote);
     const status = mapMercadoPagoStatus(remote.status);
