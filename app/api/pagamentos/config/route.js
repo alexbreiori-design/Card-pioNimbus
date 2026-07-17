@@ -36,6 +36,7 @@ export async function GET(request) {
             provider: account.provider,
             publicKey: account.public_key,
             methods: account.metodos || {},
+            sandbox: account.metadata?.live_mode === false || String(account.public_key || '').startsWith('TEST-'),
           }
         : null,
     });
