@@ -15,7 +15,6 @@ import {
 } from '@/lib/payments/paymentServer';
 import { requirePaymentFeatureForEmpresa } from '@/lib/payments/paymentFeature';
 import { preparePublicOrder } from '@/lib/orders/publicOrderServer';
-import { getSiteOrigin } from '@/lib/siteUrl';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 
 export async function POST(request) {
@@ -56,24 +55,8 @@ export async function POST(request) {
         { status: 409 }
       );
     }
-    const sandboxAccount =
-      account.metadata?.live_mode === false ||
-      String(account.public_key || '').startsWith('TEST-') ||
-      String(account.accessToken || '').startsWith('TEST-');
-    if (
-      String(account.public_key || '').startsWith('TEST-') &&
-      !String(account.accessToken || '').startsWith('TEST-')
-    ) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            'Conta Mercado Pago em estado inválido (mistura teste/produção). Desconecte e reconecte a integração.',
-        },
-        { status: 409 }
-      );
-    }
 
+    const sandboxAccount = account.metadata?.live_mode === false;
     const checkoutToken = createCheckoutToken();
     const { data: inserted, error: insertError } = await supabase
       .from('pagamentos')
@@ -102,10 +85,10 @@ export async function POST(request) {
       body.cardData?.payer?.email || body.email || prepared.customer.email || ''
     ).trim();
     if (sandboxAccount && payerEmail && !payerEmail.toLowerCase().endsWith('@testuser.com')) {
-      payerEmail = `test_payer_${String(Date.now()).slice(-8)}@testuser.com`;
+      payerEmail = `test_user_${String(Date.now()).slice(-10)}@testuser.com`;
     }
     const cardData =
-      body.cardData && sandboxAccount && payerEmail
+      body.cardData && payerEmail
         ? {
             ...body.cardData,
             payer: {
@@ -125,23 +108,24 @@ export async function POST(request) {
       },
       externalReference: paymentRow.id,
       idempotencyKey: paymentRow.idempotency_key,
-      notificationUrl: `${getSiteOrigin()}/api/pagamentos/webhook/mercado_pago`,
       cardData,
     });
     const pix = extractMercadoPagoPix(remote);
-    const status = mapMercadoPagoStatus(remote.status);
+    const paymentTx = remote?.transactions?.payments?.[0];
+    const status = mapMercadoPagoStatus(remote);
     const now = new Date().toISOString();
     const { data: updated, error: updateError } = await supabase
       .from('pagamentos')
       .update({
         provider_payment_id: String(remote.id),
-        provider_status: remote.status || null,
-        status_detail: remote.status_detail || null,
+        provider_status: remote.status || paymentTx?.status || null,
+        status_detail: paymentTx?.status_detail || remote.status_detail || null,
         status,
         qr_code: pix.qrCode,
         qr_code_base64: pix.qrCodeBase64,
         ticket_url: pix.ticketUrl,
-        approved_at: status === 'aprovado' ? remote.date_approved || now : null,
+        approved_at:
+          status === 'aprovado' ? remote.last_updated_date || now : null,
         updated_at: now,
       })
       .eq('id', paymentRow.id)
