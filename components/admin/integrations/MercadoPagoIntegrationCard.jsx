@@ -11,6 +11,10 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [accessToken, setAccessToken] = useState("");
+  const [publicKey, setPublicKey] = useState("");
+  const [isTestCredentials, setIsTestCredentials] = useState(true);
 
   const loadAccount = useCallback(async () => {
     if (!slug) return;
@@ -55,7 +59,7 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
     queueMicrotask(() => void loadAccount());
   }, [loadAccount, toast]);
 
-  function connect() {
+  function connectOAuth() {
     if (!slug) {
       toast.error("Configure o slug da loja antes de conectar.");
       return;
@@ -63,6 +67,43 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
     window.location.assign(
       `/api/pagamentos/oauth/mercado_pago?slug=${encodeURIComponent(slug)}`,
     );
+  }
+
+  async function connectWithCredentials(event) {
+    event.preventDefault();
+    if (!slug) {
+      toast.error("Configure o slug da loja antes de conectar.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const response = await fetch("/api/admin/payments/account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug,
+          accessToken: accessToken.trim(),
+          publicKey: publicKey.trim(),
+          isTestCredentials,
+        }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok || !json.ok)
+        throw new Error(json.error || "Erro ao salvar credenciais.");
+      setAccount(json.account);
+      setFormOpen(false);
+      setAccessToken("");
+      setPublicKey("");
+      toast.success(
+        isTestCredentials
+          ? "Credenciais de teste salvas."
+          : "Credenciais salvas.",
+      );
+    } catch (error) {
+      toast.error(error?.message || "Erro ao salvar credenciais.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function disconnect() {
@@ -135,22 +176,97 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
 
       <div className="admin-delivery-areas-toolbar">
         <p className="admin-help-text admin-delivery-areas-hint">
-          O valor das vendas vai diretamente para a conta Mercado Pago da loja.
-          {connected && account?.liveMode === false
-            ? " Esta loja está vinculada em modo sandbox (contas de teste)."
-            : ""}
+          Para testar: use Access Token e Public Key em{" "}
+          <strong>Testes → Credenciais de teste</strong> (token{" "}
+          <code>APP_USR-...</code>). OAuth fica para conta real em produção.
         </p>
-        {!connected ? (
+      </div>
+
+      {!connected && !formOpen ? (
+        <div className="admin-delivery-area-form-actions" style={{ marginTop: 12 }}>
           <button
             type="button"
             className="admin-btn admin-btn-primary"
-            onClick={connect}
+            onClick={() => setFormOpen(true)}
             disabled={loading || empresaLoading}
           >
-            Conectar Mercado Pago
+            Usar credenciais (teste/produção)
           </button>
-        ) : null}
-      </div>
+          <button
+            type="button"
+            className="admin-btn"
+            onClick={connectOAuth}
+            disabled={loading || empresaLoading}
+          >
+            Conectar via OAuth
+          </button>
+        </div>
+      ) : null}
+
+      {formOpen && !connected ? (
+        <form
+          className="admin-delivery-area-form admin-card"
+          onSubmit={(event) => void connectWithCredentials(event)}
+        >
+          <h3 className="admin-delivery-area-form-title">
+            Credenciais Mercado Pago
+          </h3>
+          <label className="admin-payment-method-toggle" style={{ marginBottom: 12 }}>
+            <input
+              type="checkbox"
+              checked={isTestCredentials}
+              onChange={(event) => setIsTestCredentials(event.target.checked)}
+              disabled={saving}
+            />
+            <span>São credenciais de teste (sandbox)</span>
+          </label>
+          <div className="admin-form-group">
+            <label className="admin-label" htmlFor="mp-public-key">
+              Public Key
+            </label>
+            <input
+              id="mp-public-key"
+              className="admin-input"
+              value={publicKey}
+              onChange={(event) => setPublicKey(event.target.value)}
+              placeholder="APP_USR-... ou TEST-..."
+              disabled={saving}
+              autoComplete="off"
+            />
+          </div>
+          <div className="admin-form-group">
+            <label className="admin-label" htmlFor="mp-access-token">
+              Access Token
+            </label>
+            <input
+              id="mp-access-token"
+              className="admin-input"
+              value={accessToken}
+              onChange={(event) => setAccessToken(event.target.value)}
+              placeholder="APP_USR-..."
+              disabled={saving}
+              autoComplete="off"
+            />
+          </div>
+          <div className="admin-delivery-area-form-actions">
+            <button
+              type="button"
+              className="admin-btn"
+              onClick={() => setFormOpen(false)}
+              disabled={saving}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="admin-btn admin-btn-primary"
+              disabled={saving || !accessToken.trim() || !publicKey.trim()}
+            >
+              {saving ? "Salvando…" : "Salvar"}
+            </button>
+          </div>
+        </form>
+      ) : null}
 
       {connected ? (
         <div className="admin-payment-methods">
@@ -187,7 +303,7 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
         </div>
       ) : null}
 
-      {!connected && !loading ? (
+      {!connected && !loading && !formOpen ? (
         <p className="admin-help-text admin-delivery-areas-empty">
           Nenhuma conta Mercado Pago conectada.
         </p>

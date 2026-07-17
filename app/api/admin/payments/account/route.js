@@ -3,11 +3,13 @@ import { normalizeSlug } from '@/lib/normalize';
 import {
   disconnectPaymentAccount,
   getPaymentAccount,
+  saveMercadoPagoAccount,
 } from '@/lib/payments/paymentServer';
 import {
   isPaymentFeatureEnabledForEmpresa,
   requirePaymentFeatureForEmpresa,
 } from '@/lib/payments/paymentFeature';
+import { validateMercadoPagoAccessToken } from '@/lib/payments/providers/mercadoPago';
 import { requireStoreAdmin } from '@/lib/supabase/membership';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 
@@ -49,12 +51,67 @@ export async function GET(request) {
             methods: account.metodos || {},
             connectedAt: account.connected_at,
             liveMode: account.metadata?.live_mode !== false,
+            connectionMode: account.metadata?.connection_mode || 'oauth',
           }
         : null,
     });
   } catch (error) {
     return NextResponse.json(
       { ok: false, error: error?.message || 'Erro ao carregar integração.' },
+      { status: error?.status || 500 }
+    );
+  }
+}
+
+export async function POST(request) {
+  const body = await request.json().catch(() => ({}));
+  const slug = normalizeSlug(body.slug || '');
+  const accessToken = String(body.accessToken || '').trim();
+  const publicKey = String(body.publicKey || '').trim();
+  const isTestCredentials = body.isTestCredentials !== false;
+
+  try {
+    await requireStoreAdmin(slug);
+    const supabase = getServiceClient();
+    if (!supabase) throw Object.assign(new Error('Serviço indisponível.'), { status: 503 });
+    const empresa = await resolveEmpresa(supabase, slug);
+    if (!empresa) {
+      return NextResponse.json({ ok: false, error: 'Loja não encontrada.' }, { status: 404 });
+    }
+    await requirePaymentFeatureForEmpresa(supabase, empresa.id);
+    if (!accessToken || !publicKey) {
+      return NextResponse.json(
+        { ok: false, error: 'Informe Access Token e Public Key.' },
+        { status: 400 }
+      );
+    }
+
+    const me = await validateMercadoPagoAccessToken(accessToken);
+    const account = await saveMercadoPagoAccount(supabase, empresa.id, {
+      access_token: accessToken,
+      public_key: publicKey,
+      refresh_token: null,
+      user_id: me?.id || null,
+      live_mode: !isTestCredentials,
+      sandbox: isTestCredentials,
+      connection_mode: isTestCredentials ? 'credentials_test' : 'credentials',
+      scope: me?.nickname || null,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      account: {
+        provider: account.provider,
+        status: account.status,
+        methods: account.metodos || {},
+        connectedAt: account.connected_at,
+        liveMode: account.metadata?.live_mode !== false,
+        connectionMode: account.metadata?.connection_mode || 'credentials',
+      },
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { ok: false, error: error?.message || 'Erro ao salvar credenciais.' },
       { status: error?.status || 500 }
     );
   }

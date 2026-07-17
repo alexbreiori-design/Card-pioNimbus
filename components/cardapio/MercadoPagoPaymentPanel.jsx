@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
-import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
+import { initMercadoPago, CardPayment } from '@mercadopago/sdk-react';
 import { useCardapio } from '@/context/CardapioContext';
 
 export default function MercadoPagoPaymentPanel({ amount }) {
@@ -34,20 +34,34 @@ export default function MercadoPagoPaymentPanel({ amount }) {
   if (payment) {
     return (
       <section className="checkout-online-payment" aria-live="polite">
-        {isPix && payment.qrCodeBase64 ? (
+        {isPix && (payment.qrCodeBase64 || payment.qrCode) ? (
           <>
             <h3>Pague o Pix para confirmar</h3>
-            <Image
-              className="checkout-online-qr"
-              src={`data:image/png;base64,${payment.qrCodeBase64}`}
-              alt="QR Code Pix"
-              width={220}
-              height={220}
-              unoptimized
-            />
-            <button type="button" className="btn-copy-pix" onClick={copyPix}>
-              {copied ? 'Código copiado!' : 'Copiar Pix copia e cola'}
-            </button>
+            {payment.qrCodeBase64 ? (
+              <Image
+                className="checkout-online-qr"
+                src={`data:image/png;base64,${payment.qrCodeBase64}`}
+                alt="QR Code Pix"
+                width={220}
+                height={220}
+                unoptimized
+              />
+            ) : null}
+            {payment.qrCode ? (
+              <button type="button" className="btn-copy-pix" onClick={copyPix}>
+                {copied ? 'Código copiado!' : 'Copiar Pix copia e cola'}
+              </button>
+            ) : null}
+            {payment.ticketUrl ? (
+              <a
+                className="btn-copy-pix"
+                href={payment.ticketUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Abrir instruções Pix
+              </a>
+            ) : null}
           </>
         ) : null}
         <p className="checkout-online-waiting">
@@ -70,8 +84,8 @@ export default function MercadoPagoPaymentPanel({ amount }) {
       ) : null}
       {onlinePaymentConfig?.sandbox ? (
         <p className="checkout-field-hint">
-          Modo teste: no e-mail do cartão use algo como{' '}
-          <strong>test_payer_1@testuser.com</strong>.
+          Modo teste: use e-mail <strong>test@testuser.com</strong> (ou outro{' '}
+          <strong>@testuser.com</strong>).
         </p>
       ) : null}
       {isPix ? (
@@ -84,21 +98,23 @@ export default function MercadoPagoPaymentPanel({ amount }) {
           {onlinePayment?.loading ? 'Gerando Pix…' : 'Gerar QR Code Pix'}
         </button>
       ) : sdkReady ? (
-        <Payment
+        <CardPayment
           initialization={{
             amount: Number(amount),
             payer: checkoutData.email
               ? { email: String(checkoutData.email).trim() }
               : undefined,
           }}
-          customization={{
-            paymentMethods: {
-              creditCard: 'all',
-              debitCard: 'all',
-            },
+          onSubmit={async (formData, additionalData) => {
+            await submitOnlinePayment({
+              ...formData,
+              payment_type_id:
+                additionalData?.paymentTypeId ||
+                formData?.payment_type_id ||
+                'credit_card',
+            });
           }}
-          onSubmit={({ formData }) => submitOnlinePayment(formData)}
-          onError={(error) => console.error('Mercado Pago Brick:', error)}
+          onError={(error) => console.error('Mercado Pago Card Brick:', error)}
         />
       ) : (
         <p>Carregando pagamento seguro…</p>
