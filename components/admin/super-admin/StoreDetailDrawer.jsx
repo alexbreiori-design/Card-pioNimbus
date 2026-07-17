@@ -217,15 +217,19 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed }) {
 
   useEffect(() => {
     if (!slug) {
-      setStore(null);
-      setError('');
-      setTab('resumo');
+      queueMicrotask(() => {
+        setStore(null);
+        setError('');
+        setTab('resumo');
+      });
       return undefined;
     }
 
-    setTab('resumo');
-    setOwnerContactEditing(false);
-    loadStore(slug);
+    queueMicrotask(() => {
+      setTab('resumo');
+      setOwnerContactEditing(false);
+      loadStore(slug);
+    });
     return undefined;
   }, [slug]);
 
@@ -377,6 +381,36 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed }) {
       toast.success(useV2 ? 'Cardápio público v2 ativado.' : 'Cardápio público v1 restaurado.');
     } catch (versionError) {
       toast.error(versionError?.message || 'Erro ao atualizar versão do cardápio.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function togglePaymentIntegrations(enabled) {
+    if (!slug || !store) return;
+    const confirmed = window.confirm(
+      enabled
+        ? `Liberar integrações e pagamentos online para "${store.nome}"? O lojista passará a ver a seção Pagamentos em Integrações.`
+        : `Bloquear pagamentos online para "${store.nome}"? Novos pagamentos e conexões serão impedidos, mas uma conta já conectada será preservada.`
+    );
+    if (!confirmed) return;
+
+    setSaving(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/super-admin/stores/${encodeURIComponent(slug)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pagamentos_online_habilitados: enabled }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || 'Não foi possível atualizar a liberação de pagamentos.');
+      }
+      await loadStore(slug);
+      toast.success(enabled ? 'Pagamentos online liberados.' : 'Pagamentos online bloqueados.');
+    } catch (paymentError) {
+      toast.error(paymentError?.message || 'Erro ao atualizar pagamentos.');
     } finally {
       setSaving(false);
     }
@@ -758,6 +792,24 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed }) {
                           antes de ativar aqui.
                         </>
                       )}
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <section className={styles.panelAccent}>
+                <div className={styles.remoteRow}>
+                  <AdminAvailabilitySwitch
+                    checked={Boolean(store.pagamentos_online_habilitados)}
+                    onChange={togglePaymentIntegrations}
+                    label="Integrações de pagamentos"
+                  />
+                  <div className={styles.remoteCopy}>
+                    <p className={styles.remoteTitle}>Pagamentos online</p>
+                    <p className={styles.remoteHint}>
+                      {store.pagamentos_online_habilitados
+                        ? 'Liberado — a loja pode conectar um provedor e oferecer Pix ou cartão online.'
+                        : 'Bloqueado — a seção Pagamentos fica oculta e as APIs recusam novas operações.'}
                     </p>
                   </div>
                 </div>
