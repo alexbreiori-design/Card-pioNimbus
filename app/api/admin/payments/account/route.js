@@ -48,6 +48,7 @@ export async function GET(request) {
             status: account.status,
             methods: account.metodos || {},
             connectedAt: account.connected_at,
+            liveMode: account.metadata?.live_mode !== false,
           }
         : null,
     });
