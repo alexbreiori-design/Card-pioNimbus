@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useMemo, useState } from 'react';
 import { buildOrderWhatsAppMessage, buildSendOrderToStoreUrl } from '@/lib/storeWhatsApp';
 import { calculateCupomDiscount } from '@/lib/cupons';
@@ -13,6 +14,11 @@ import CartItemOptsList from '@/components/cardapio/CartItemOptsList';
 import { useCardapio } from '@/context/CardapioContext';
 import { IconBack, IconClose, IconContinue, IconStepCheck } from './icons';
 
+const MercadoPagoPaymentPanel = dynamic(
+  () => import('@/components/cardapio/MercadoPagoPaymentPanel'),
+  { ssr: false }
+);
+
 function PaymentIcon({ id }) {
   const svgProps = {
     viewBox: '0 0 24 24',
@@ -22,7 +28,7 @@ function PaymentIcon({ id }) {
     strokeLinecap: 'round',
     strokeLinejoin: 'round',
   };
-  if (id === 'pix') {
+  if (id === 'pix' || id === 'pix_online') {
     return (
       <svg {...svgProps}>
         <rect x="2" y="5" width="20" height="14" rx="2" />
@@ -51,6 +57,8 @@ export default function CheckoutModal() {
     setCheckoutName,
     checkoutPhone,
     setCheckoutPhone,
+    checkoutEmail,
+    setCheckoutEmail,
     STEP_LABELS,
     PAYMENT_METHODS,
     PAY_LABELS,
@@ -122,6 +130,7 @@ export default function CheckoutModal() {
   const taxaEntrega = checkoutData.delivery === 'entregar' ? Number(deliveryFee) || 0 : 0;
   const cupomOff = calculateCupomDiscount(appliedCupom, subtotal);
   const total = Math.max(0, subtotal + taxaEntrega - cupomOff);
+  const isOnlinePayment = ['pix_online', 'credito_online'].includes(checkoutData.payment);
   const showPixInfo = checkoutData.payment === 'pix' && Boolean(storeConfig?.chavePix);
   const storeAddress = formatStoreAddress(storeConfig);
 
@@ -219,6 +228,20 @@ export default function CheckoutModal() {
               value={checkoutName}
               onChange={(e) => setCheckoutName(e.target.value)}
             />
+          </div>
+          <div className="form-group">
+            <label className="form-label">E-mail</label>
+            <input
+              className="form-input"
+              type="email"
+              autoComplete="email"
+              placeholder="Necessário para pagamento online"
+              value={checkoutEmail}
+              onChange={(e) => setCheckoutEmail(e.target.value)}
+            />
+            <small className="checkout-field-hint">
+              Usado somente se você escolher pagar agora.
+            </small>
           </div>
         </>
       );
@@ -474,6 +497,7 @@ export default function CheckoutModal() {
               <span className="confirm-pay-total-value">{formatPrice(total)}</span>
             </div>
           </section>
+          {isOnlinePayment ? <MercadoPagoPaymentPanel amount={total} /> : null}
         </div>
       );
     }
@@ -544,7 +568,7 @@ export default function CheckoutModal() {
         >
           {renderStepBody()}
         </div>
-        {!checkoutSuccess && (
+        {!checkoutSuccess && !(checkoutStep === 4 && isOnlinePayment) && (
           <div className="checkout-footer">
             <button type="button" className="btn-checkout-continue" onClick={checkoutNext}>
               <span>{btnLabel}</span>

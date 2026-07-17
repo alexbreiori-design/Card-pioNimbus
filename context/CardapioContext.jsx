@@ -67,23 +67,33 @@ const STORE_ADDRESS = DEFAULT_ADMIN_DATA.loja.endereco;
 const STEP_LABELS = ['Dados', 'Entrega', 'Pagamento', 'Confirmar'];
 
 const PUBLIC_PAYMENT_METHODS_BASE = [
-  { id: 'pix', label: 'Pix', group: 'Pagar online' },
+  { id: 'pix', label: 'Pix (enviar comprovante)', group: 'Pagar na entrega' },
   { id: 'dinheiro', label: 'Dinheiro', group: 'Pagar na entrega' },
   { id: 'credito', label: 'Cartão de crédito', group: 'Pagar na entrega' },
   { id: 'debito', label: 'Cartão de débito', group: 'Pagar na entrega' },
 ];
 
-function buildPublicPaymentMethods(exibirPixCardapio = true) {
-  if (exibirPixCardapio === false) {
-    return PUBLIC_PAYMENT_METHODS_BASE.filter((method) => method.id !== 'pix');
+function buildPublicPaymentMethods(exibirPixCardapio = true, onlineAccount = null) {
+  const offline = exibirPixCardapio === false
+    ? PUBLIC_PAYMENT_METHODS_BASE.filter((method) => method.id !== 'pix')
+    : PUBLIC_PAYMENT_METHODS_BASE;
+  if (!onlineAccount) return offline;
+  const online = [];
+  if (onlineAccount.methods?.pix !== false) {
+    online.push({ id: 'pix_online', label: 'Pix online', group: 'Pagar agora' });
   }
-  return PUBLIC_PAYMENT_METHODS_BASE;
+  if (onlineAccount.methods?.credit_card !== false && onlineAccount.publicKey) {
+    online.push({ id: 'credito_online', label: 'Cartão online', group: 'Pagar agora' });
+  }
+  return [...online, ...offline];
 }
 
 const PAY_LABELS = {
   pix: 'Pix',
+  pix_online: 'Pix online',
   dinheiro: 'Dinheiro',
   credito: 'Cartão de crédito',
+  credito_online: 'Cartão online',
   debito: 'Cartão de débito',
 };
 const PROFILE_STORAGE_KEY = 'cardapio_profile_v1';
@@ -289,6 +299,7 @@ export function CardapioProvider({
   const [checkoutData, setCheckoutData] = useState({
     name: '',
     phone: '',
+    email: '',
     delivery: 'retirar',
     payment: '',
     trocoAnswer: '',
@@ -299,7 +310,10 @@ export function CardapioProvider({
   const [checkoutOrderNumber, setCheckoutOrderNumber] = useState('');
   const [checkoutName, setCheckoutName] = useState('');
   const [checkoutPhone, setCheckoutPhone] = useState('');
+  const [checkoutEmail, setCheckoutEmail] = useState('');
   const [checkoutAddressConfirmed, setCheckoutAddressConfirmed] = useState(false);
+  const [onlinePaymentConfig, setOnlinePaymentConfig] = useState(null);
+  const [onlinePayment, setOnlinePayment] = useState(null);
   const [addressFlowContext, setAddressFlowContext] = useState('header');
 
   const [cepOpen, setCepOpen] = useState(false);
@@ -376,9 +390,26 @@ export function CardapioProvider({
   }, []);
 
   const paymentMethods = useMemo(
-    () => buildPublicPaymentMethods(storeConfig.exibirPixCardapio),
-    [storeConfig.exibirPixCardapio]
+    () => buildPublicPaymentMethods(storeConfig.exibirPixCardapio, onlinePaymentConfig),
+    [storeConfig.exibirPixCardapio, onlinePaymentConfig]
   );
+
+  useEffect(() => {
+    const storeSlug = normalizeSlug(storeConfig.slug || effectiveSlug || slug);
+    if (!storeSlug) return;
+    let cancelled = false;
+    fetch(`/api/pagamentos/config?slug=${encodeURIComponent(storeSlug)}`, { cache: 'no-store' })
+      .then((response) => response.json())
+      .then((json) => {
+        if (!cancelled) setOnlinePaymentConfig(json?.ok ? json.account : null);
+      })
+      .catch(() => {
+        if (!cancelled) setOnlinePaymentConfig(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveSlug, slug, storeConfig.slug]);
 
   useEffect(() => {
     if (storeConfig.exibirPixCardapio === false && checkoutData.payment === 'pix') {
@@ -1573,6 +1604,7 @@ export function CardapioProvider({
     setCheckoutData({
       name: knownName,
       phone: knownPhone,
+      email: '',
       delivery: 'retirar',
       payment: '',
       trocoAnswer: '',
@@ -1580,6 +1612,8 @@ export function CardapioProvider({
     });
     setCheckoutName(knownName);
     setCheckoutPhone(knownPhone);
+    setCheckoutEmail('');
+    setOnlinePayment(null);
     setCheckoutOrderNumber('');
     setCheckoutOpen(true);
     trackMetaEvent('InitiateCheckout', {
@@ -1607,12 +1641,17 @@ export function CardapioProvider({
   }, [openCheckout]);
 
   const closeCheckout = useCallback(() => {
+    if (onlinePayment?.payment?.id) {
+      void showAlert('Aguarde a confirmação do pagamento antes de fechar esta tela.');
+      return;
+    }
     setCheckoutOpen(false);
     setCheckoutSuccess(false);
     setCheckoutSuccessSnapshot(null);
     setCheckoutOrderNumber('');
     setCheckoutAddressConfirmed(false);
-  }, []);
+    setOnlinePayment(null);
+  }, [onlinePayment?.payment?.id, showAlert]);
 
   const selectDelivery = useCallback(
     (opt) => {
@@ -1661,8 +1700,9 @@ export function CardapioProvider({
   }, []);
 
   const persistCompletedOrder = useCallback(
-    async ({ customerName, customerPhone }) => {
+    async ({ customerName, customerPhone, cardData = null }) => {
       const createdAt = new Date().toISOString();
+      const isOnlinePayment = ['pix_online', 'credito_online'].includes(checkoutData.payment);
       const orderTipo = checkoutData.delivery === 'entregar' ? 'delivery' : 'retirada';
       const eta = getEtaFromConfirmedAt(createdAt, storeConfig, orderTipo);
       const subtotal = cartSubtotal();
@@ -1780,6 +1820,7 @@ export function CardapioProvider({
         id: previousCustomer?.id || localCustomerId,
         name: customerName,
         phone: phoneDigits,
+        email: checkoutData.email || '',
         total_orders: Number(previousCustomer?.total_orders || 0) + 1,
         total_spent: Number(previousCustomer?.total_spent || 0) + total,
         last_order_at: createdAt,
@@ -1799,33 +1840,207 @@ export function CardapioProvider({
       });
 
       const safeSlug = normalizeSlug(storeConfig.slug || effectiveSlug || slug || nextState.loja?.slug);
-      const apiRes = await fetch('/api/public-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug: safeSlug, order: adminOrder, customer: nextCustomer }),
-      });
+      const apiRes = await fetch(
+        isOnlinePayment ? '/api/pagamentos/criar' : '/api/public-order',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            slug: safeSlug,
+            order: adminOrder,
+            customer: nextCustomer,
+            ...(isOnlinePayment
+              ? {
+                  method: checkoutData.payment === 'pix_online' ? 'pix' : 'credit_card',
+                  email: checkoutData.email,
+                  cardData,
+                }
+              : {}),
+          }),
+        }
+      );
       const apiJson = await apiRes.json().catch(() => ({}));
       if (!apiRes.ok || !apiJson.ok) {
         throw new Error(apiJson.error || 'Não foi possível registrar o pedido.');
       }
-      if (!apiJson.codigo) {
+      const orderResult = isOnlinePayment ? apiJson.order : apiJson;
+      if (isOnlinePayment && !orderResult) {
+        if (['recusado', 'cancelado', 'expirado', 'erro'].includes(apiJson.payment?.status)) {
+          throw new Error(
+            apiJson.payment?.statusDetail ||
+              'O pagamento não foi aprovado. Revise os dados e tente novamente.'
+          );
+        }
+        return {
+          pending: true,
+          payment: apiJson.payment,
+          publicOrder,
+        };
+      }
+      if (!orderResult?.codigo) {
         throw new Error('O pedido foi salvo, mas não recebeu um número operacional.');
       }
 
-      adminOrder.id = apiJson.codigo;
-      adminOrder.dbId = apiJson.pedidoId;
-      publicOrder.id = apiJson.codigo;
-      publicOrder.dbId = apiJson.pedidoId;
+      adminOrder.id = orderResult.codigo;
+      adminOrder.dbId = orderResult.pedidoId || orderResult.id;
+      publicOrder.id = orderResult.codigo;
+      publicOrder.dbId = orderResult.pedidoId || orderResult.id;
 
       storeSnapshotRef.current = nextState;
       window.dispatchEvent(new CustomEvent('admin-data-updated', { detail: nextState }));
       window.dispatchEvent(new CustomEvent('cardapio-public-orders-updated'));
       await hydratePublicOrders({ force: true });
 
-      return publicOrder;
+      return { ...publicOrder, payment: apiJson.payment || null };
     },
     [PAY_LABELS, appliedCupom, cart, cartSubtotal, checkoutAddressConfirmed, checkoutData, deliveryFee, deliveryMeta, effectiveSlug, hydratePublicOrders, persistStoreSnapshot, savedAddress, slug, storeConfig]
   );
+
+  const completeCheckoutOrder = useCallback(
+    async (completedOrder) => {
+      const orderNumber = completedOrder.id;
+      trackMetaEvent('Purchase', {
+        content_ids: cart.map((item) => String(item.productId)),
+        content_type: 'product',
+        value: cartTotal(),
+        currency: 'BRL',
+        num_items: cart.reduce((sum, item) => sum + item.qty, 0),
+        order_id: orderNumber,
+      });
+      trackGooglePurchase({
+        transaction_id: orderNumber,
+        currency: 'BRL',
+        value: cartTotal(),
+        items: cart.map((item) => ({
+          item_id: String(item.productId),
+          item_name: item.name,
+          quantity: item.qty,
+          price: item.price,
+        })),
+      });
+      const subtotal = cartSubtotal();
+      const taxaEntrega = checkoutData.delivery === 'entregar' ? Number(deliveryFee) || 0 : 0;
+      const cupomOff = calculateCupomDiscount(appliedCupom, subtotal);
+      const total = Math.max(0, subtotal + taxaEntrega - cupomOff);
+      const addressText =
+        checkoutData.delivery === 'entregar' && savedAddress && checkoutAddressConfirmed
+          ? `${savedAddress.rua}${savedAddress.num ? `, ${savedAddress.num}` : ''} — ${savedAddress.bairro}`
+          : '';
+      setCheckoutSuccessSnapshot({
+        orderNumber,
+        customerName: checkoutData.name,
+        customerPhone: checkoutData.phone,
+        payment: checkoutData.payment,
+        delivery: checkoutData.delivery,
+        addressText,
+        items: cart.map((item) => ({
+          name: item.name,
+          qty: item.qty,
+          opts: item.opts || [],
+          lineTotal: formatPrice(item.price * item.qty),
+        })),
+        subtotal,
+        taxaEntrega,
+        cupomOff,
+        total,
+      });
+      setCheckoutOrderNumber(orderNumber);
+      setCart([]);
+      setAppliedCupom(null);
+      setOnlinePayment(null);
+      setCheckoutSuccess(true);
+      await hydratePublicOrders({ force: true });
+    },
+    [
+      appliedCupom,
+      cart,
+      cartSubtotal,
+      cartTotal,
+      checkoutAddressConfirmed,
+      checkoutData,
+      deliveryFee,
+      formatPrice,
+      hydratePublicOrders,
+      savedAddress,
+    ]
+  );
+
+  const submitOnlinePayment = useCallback(
+    async (cardData = null) => {
+      if (onlinePayment?.loading || onlinePayment?.payment) return;
+      setOnlinePayment({ loading: true, error: '', payment: null, publicOrder: null });
+      try {
+        const result = await persistCompletedOrder({
+          customerName: checkoutData.name,
+          customerPhone: checkoutData.phone,
+          cardData,
+        });
+        if (result.pending) {
+          setOnlinePayment({
+            loading: false,
+            error: '',
+            payment: result.payment,
+            publicOrder: result.publicOrder,
+          });
+          return;
+        }
+        await completeCheckoutOrder(result);
+      } catch (error) {
+        setOnlinePayment({
+          loading: false,
+          error: error?.message || 'Não foi possível iniciar o pagamento.',
+          payment: null,
+          publicOrder: null,
+        });
+        throw error;
+      }
+    },
+    [checkoutData.name, checkoutData.phone, completeCheckoutOrder, onlinePayment, persistCompletedOrder]
+  );
+
+  useEffect(() => {
+    const payment = onlinePayment?.payment;
+    if (!payment?.id || !payment?.token || !['pendente', 'processando'].includes(payment.status)) {
+      return undefined;
+    }
+    let cancelled = false;
+    const checkStatus = async () => {
+      try {
+        const response = await fetch(
+          `/api/pagamentos/${encodeURIComponent(payment.id)}/status?token=${encodeURIComponent(payment.token)}`,
+          { cache: 'no-store' }
+        );
+        const json = await response.json().catch(() => ({}));
+        if (cancelled || !response.ok || !json.ok) return;
+        if (json.payment?.status === 'aprovado' && json.order?.codigo) {
+          const completed = {
+            ...(onlinePayment.publicOrder || {}),
+            id: json.order.codigo,
+            dbId: json.order.id,
+          };
+          setOnlinePayment(null);
+          await completeCheckoutOrder(completed);
+          return;
+        }
+        if (['recusado', 'cancelado', 'expirado', 'erro'].includes(json.payment?.status)) {
+          setOnlinePayment({
+            loading: false,
+            error: 'O pagamento não foi aprovado. Revise os dados e tente novamente.',
+            payment: null,
+            publicOrder: null,
+          });
+        }
+      } catch {
+        // O webhook continua processando; a próxima consulta tenta novamente.
+      }
+    };
+    void checkStatus();
+    const interval = window.setInterval(checkStatus, 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [completeCheckoutOrder, onlinePayment]);
 
   const checkoutNext = useCallback(async () => {
     if (checkoutStep === 1) {
@@ -1895,7 +2110,7 @@ export function CardapioProvider({
         );
       } catch {}
       void persistClientSnapshot({ name, phone: formattedPhone });
-      setCheckoutData((d) => ({ ...d, name, phone: formattedPhone }));
+      setCheckoutData((d) => ({ ...d, name, phone: formattedPhone, email: checkoutEmail.trim() }));
       setCheckoutStep(2);
     } else if (checkoutStep === 2) {
       if (checkoutData.delivery === 'entregar' && !checkoutAddressConfirmed) {
@@ -1910,6 +2125,13 @@ export function CardapioProvider({
         void showAlert('Selecione uma forma de pagamento.');
         return;
       }
+      if (
+        ['pix_online', 'credito_online'].includes(checkoutData.payment) &&
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(checkoutData.email || '')
+      ) {
+        void showAlert('Informe um e-mail válido para pagar online.');
+        return;
+      }
       if (checkoutData.payment === 'dinheiro') {
         if (!checkoutData.trocoAnswer) {
           void showAlert('Informe se precisa de troco.');
@@ -1922,6 +2144,7 @@ export function CardapioProvider({
       }
       setCheckoutStep(4);
     } else if (checkoutStep === 4) {
+      if (['pix_online', 'credito_online'].includes(checkoutData.payment)) return;
       if (checkoutSubmittingRef.current) return;
       checkoutSubmittingRef.current = true;
       try {
@@ -1929,56 +2152,7 @@ export function CardapioProvider({
           customerName: checkoutData.name,
           customerPhone: checkoutData.phone,
         });
-        const orderNumber = completedOrder.id;
-        trackMetaEvent('Purchase', {
-          content_ids: cart.map((item) => String(item.productId)),
-          content_type: 'product',
-          value: cartTotal(),
-          currency: 'BRL',
-          num_items: cart.reduce((sum, item) => sum + item.qty, 0),
-          order_id: orderNumber,
-        });
-        trackGooglePurchase({
-          transaction_id: orderNumber,
-          currency: 'BRL',
-          value: cartTotal(),
-          items: cart.map((item) => ({
-            item_id: String(item.productId),
-            item_name: item.name,
-            quantity: item.qty,
-            price: item.price,
-          })),
-        });
-        const subtotal = cartSubtotal();
-        const taxaEntrega = checkoutData.delivery === 'entregar' ? Number(deliveryFee) || 0 : 0;
-        const cupomOff = calculateCupomDiscount(appliedCupom, subtotal);
-        const total = Math.max(0, subtotal + taxaEntrega - cupomOff);
-        const addressText =
-          checkoutData.delivery === 'entregar' && savedAddress && checkoutAddressConfirmed
-            ? `${savedAddress.rua}${savedAddress.num ? `, ${savedAddress.num}` : ''} — ${savedAddress.bairro}`
-            : '';
-        setCheckoutSuccessSnapshot({
-          orderNumber,
-          customerName: checkoutData.name,
-          customerPhone: checkoutData.phone,
-          payment: checkoutData.payment,
-          delivery: checkoutData.delivery,
-          addressText,
-          items: cart.map((item) => ({
-            name: item.name,
-            qty: item.qty,
-            opts: item.opts || [],
-            lineTotal: formatPrice(item.price * item.qty),
-          })),
-          subtotal,
-          taxaEntrega,
-          cupomOff,
-          total,
-        });
-        setCheckoutOrderNumber(orderNumber);
-        setCart([]);
-        setAppliedCupom(null);
-        setCheckoutSuccess(true);
+        await completeCheckoutOrder(completedOrder);
       } catch (error) {
         void showAlert(error?.message || 'Não foi possível enviar o pedido. Tente novamente.');
       } finally {
@@ -1989,6 +2163,7 @@ export function CardapioProvider({
     checkoutStep,
     checkoutName,
     checkoutPhone,
+    checkoutEmail,
     checkoutData,
     checkoutAddressConfirmed,
     savedAddress,
@@ -1997,6 +2172,7 @@ export function CardapioProvider({
     cart,
     cartTotal,
     persistCompletedOrder,
+    completeCheckoutOrder,
     persistClientSnapshot,
     showAlert,
     cartSubtotal,
@@ -2199,6 +2375,11 @@ export function CardapioProvider({
       setCheckoutName,
       checkoutPhone,
       setCheckoutPhone,
+      checkoutEmail,
+      setCheckoutEmail,
+      onlinePaymentConfig,
+      onlinePayment,
+      submitOnlinePayment,
       checkoutAddressConfirmed,
       addressFlowContext,
       cepOpen,
@@ -2268,6 +2449,10 @@ export function CardapioProvider({
       checkoutOrderNumber,
       checkoutName,
       checkoutPhone,
+      checkoutEmail,
+      onlinePaymentConfig,
+      onlinePayment,
+      submitOnlinePayment,
       checkoutAddressConfirmed,
       addressFlowContext,
       cepOpen,

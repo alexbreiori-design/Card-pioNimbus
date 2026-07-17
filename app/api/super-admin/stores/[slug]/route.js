@@ -59,6 +59,7 @@ export async function PATCH(request, { params }) {
       contrato_fim: body.contrato_fim,
       segmento: body.segmento,
       slug: body.slug,
+      pagamentos_online_habilitados: body.pagamentos_online_habilitados,
     });
 
     return NextResponse.json({ ok: true, store: updated });

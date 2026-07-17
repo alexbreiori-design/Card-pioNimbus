@@ -2397,6 +2397,56 @@ body {
   transition: background 0.2s;
 }
 .btn-copy-pix:hover { background: var(--brand-light); }
+
+.checkout-field-hint {
+  display: block;
+  margin-top: 5px;
+  color: var(--text-light);
+  font-size: 11px;
+}
+
+.checkout-online-payment {
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--white);
+}
+
+.checkout-online-payment > h3 {
+  margin: 0 0 5px;
+  color: var(--text-dark);
+  font-size: 16px;
+}
+
+.checkout-online-payment > p {
+  margin: 0 0 14px;
+  color: var(--text-mid);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.checkout-online-qr {
+  display: block;
+  width: min(220px, 100%);
+  height: auto;
+  margin: 14px auto;
+}
+
+.checkout-online-error {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 9px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 12px;
+}
+
+.checkout-online-payment .checkout-online-waiting {
+  margin: 14px 0 0;
+  text-align: center;
+  font-weight: 600;
+}
 .btn-checkout-whatsapp {
   display: flex;
   align-items: center;
