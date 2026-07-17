@@ -125,13 +125,20 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
         <span
           className={`admin-payment-status ${connected ? "is-connected" : ""}`}
         >
-          {connected ? "Conectado" : "Não conectado"}
+          {connected
+            ? account?.liveMode === false
+              ? "Conectado (teste)"
+              : "Conectado"
+            : "Não conectado"}
         </span>
       </div>
 
       <div className="admin-delivery-areas-toolbar">
         <p className="admin-help-text admin-delivery-areas-hint">
           O valor das vendas vai diretamente para a conta Mercado Pago da loja.
+          {connected && account?.liveMode === false
+            ? " Esta loja está vinculada em modo sandbox (contas de teste)."
+            : ""}
         </p>
         {!connected ? (
           <button
