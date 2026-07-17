@@ -143,6 +143,35 @@ export default function IntegracoesPage() {
       <AdminPageHeader title="Integrações" icon="integration" />
 
       <div className="admin-integration-sections">
+        {paymentIntegrationsEnabled ? (
+          <section
+            className="admin-integration-section"
+            aria-labelledby="payment-integrations-title"
+          >
+            <div className="admin-integration-section-header">
+              <h2 id="payment-integrations-title">Pagamentos</h2>
+              <p>Receba pagamentos online diretamente na conta da sua empresa.</p>
+            </div>
+
+            <div className="admin-integration-cards-grid admin-integration-cards-grid-payments">
+              <MercadoPagoIntegrationCard
+                slug={slug}
+                empresaLoading={empresaLoading}
+              />
+              <PaymentProviderComingSoonCard
+                logo="/images/pagarme-logo.png"
+                name="Pagar.me"
+                description="Pix e cartão com recebimento pela sua conta Pagar.me."
+              />
+              <PaymentProviderComingSoonCard
+                logo="/images/PagBank-logo.png"
+                name="PagBank"
+                description="Pix e cartão com recebimento pela sua conta PagBank."
+              />
+            </div>
+          </section>
+        ) : null}
+
         <section
           className="admin-integration-section"
           aria-labelledby="marketing-integrations-title"
@@ -277,35 +306,6 @@ export default function IntegracoesPage() {
             />
           </div>
         </section>
-
-        {paymentIntegrationsEnabled ? (
-          <section
-            className="admin-integration-section"
-            aria-labelledby="payment-integrations-title"
-          >
-            <div className="admin-integration-section-header">
-              <h2 id="payment-integrations-title">Pagamentos</h2>
-              <p>Receba pagamentos online diretamente na conta da sua empresa.</p>
-            </div>
-
-            <div className="admin-integration-cards-grid">
-              <MercadoPagoIntegrationCard
-                slug={slug}
-                empresaLoading={empresaLoading}
-              />
-              <PaymentProviderComingSoonCard
-                logo="/images/pagarme-logo.png"
-                name="Pagar.me"
-                description="Pix e cartão com recebimento pela sua conta Pagar.me."
-              />
-              <PaymentProviderComingSoonCard
-                logo="/images/PagBank-logo.png"
-                name="PagBank"
-                description="Pix e cartão com recebimento pela sua conta PagBank."
-              />
-            </div>
-          </section>
-        ) : null}
       </div>
 
       <AdminConfirmDialog

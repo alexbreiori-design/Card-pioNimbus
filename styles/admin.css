@@ -5635,6 +5635,10 @@
   align-items: stretch;
 }
 
+.admin-integration-cards-grid-payments {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .admin-section-page
   .admin-integration-cards-grid
   .admin-integration-card.admin-compact-page-card {
@@ -5652,6 +5656,12 @@
 .admin-section-icon .admin-kanban-phosphor-icon {
   font-size: 20px;
   line-height: 1;
+}
+
+@media (max-width: 1100px) {
+  .admin-integration-cards-grid-payments {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 960px) {
