@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import { initMercadoPago, CardPayment } from '@mercadopago/sdk-react';
 import { useCardapio } from '@/context/CardapioContext';
 
+const SANDBOX_EMAIL = 'test@testuser.com';
+
 export default function MercadoPagoPaymentPanel({ amount }) {
   const {
     checkoutData,
@@ -15,6 +17,9 @@ export default function MercadoPagoPaymentPanel({ amount }) {
   const [sdkReady, setSdkReady] = useState(false);
   const [copied, setCopied] = useState(false);
   const isPix = checkoutData.payment === 'pix_online';
+  const payerEmail = onlinePaymentConfig?.sandbox
+    ? SANDBOX_EMAIL
+    : String(checkoutData.email || '').trim() || undefined;
 
   useEffect(() => {
     if (!onlinePaymentConfig?.publicKey || isPix) return;
@@ -54,12 +59,12 @@ export default function MercadoPagoPaymentPanel({ amount }) {
             ) : null}
             {payment.ticketUrl ? (
               <a
-                className="btn-copy-pix"
+                className="checkout-pix-instructions-link"
                 href={payment.ticketUrl}
                 target="_blank"
                 rel="noreferrer"
               >
-                Abrir instruções Pix
+                Abrir instruções do Pix
               </a>
             ) : null}
           </>
@@ -84,8 +89,10 @@ export default function MercadoPagoPaymentPanel({ amount }) {
       ) : null}
       {onlinePaymentConfig?.sandbox ? (
         <p className="checkout-field-hint">
-          Modo teste: use e-mail <strong>test@testuser.com</strong> (ou outro{' '}
-          <strong>@testuser.com</strong>).
+          Modo teste: e-mail <strong>{SANDBOX_EMAIL}</strong>. No cartão use
+          titular <strong>APRO</strong>, CPF <strong>12345678909</strong>, CVV{' '}
+          <strong>123</strong> e validade <strong>11/30</strong> (ex.: Visa{' '}
+          <strong>4235 6477 2802 5682</strong>).
         </p>
       ) : null}
       {isPix ? (
@@ -101,13 +108,15 @@ export default function MercadoPagoPaymentPanel({ amount }) {
         <CardPayment
           initialization={{
             amount: Number(amount),
-            payer: checkoutData.email
-              ? { email: String(checkoutData.email).trim() }
-              : undefined,
+            payer: payerEmail ? { email: payerEmail } : undefined,
           }}
           onSubmit={async (formData, additionalData) => {
             await submitOnlinePayment({
               ...formData,
+              payer: {
+                ...(formData?.payer || {}),
+                email: payerEmail || formData?.payer?.email,
+              },
               payment_type_id:
                 additionalData?.paymentTypeId ||
                 formData?.payment_type_id ||
