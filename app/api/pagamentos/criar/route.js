@@ -84,8 +84,12 @@ export async function POST(request) {
     let payerEmail = String(
       body.cardData?.payer?.email || body.email || prepared.customer.email || ''
     ).trim();
-    if (sandboxAccount && payerEmail && !payerEmail.toLowerCase().endsWith('@testuser.com')) {
-      payerEmail = `test_user_${String(Date.now()).slice(-10)}@testuser.com`;
+    // No sandbox o MP exige comprador @testuser.com; o e-mail do token do Brick
+    // precisa ser o mesmo enviado na order (não reescrever para outro aleatório).
+    if (sandboxAccount) {
+      payerEmail = payerEmail.toLowerCase().endsWith('@testuser.com')
+        ? payerEmail
+        : 'test@testuser.com';
     }
     const cardData =
       body.cardData && payerEmail
@@ -98,6 +102,18 @@ export async function POST(request) {
           }
         : body.cardData;
 
+    const { data: empresaRow } = await supabase
+      .from('empresas')
+      .select('nome')
+      .eq('id', prepared.empresa.id)
+      .maybeSingle();
+    const { data: existingCliente } = await supabase
+      .from('clientes')
+      .select('created_at')
+      .eq('empresa_id', prepared.empresa.id)
+      .eq('telefone', prepared.phone)
+      .maybeSingle();
+
     const remote = await createMercadoPagoPayment({
       accessToken: account.accessToken,
       amount: prepared.validated.total,
@@ -105,10 +121,16 @@ export async function POST(request) {
       payer: {
         name: prepared.customer.name || prepared.order.clienteNome,
         email: payerEmail,
+        phone: prepared.phone,
       },
       externalReference: paymentRow.id,
       idempotencyKey: paymentRow.idempotency_key,
       cardData,
+      order: prepared.order,
+      validated: prepared.validated,
+      storeName: empresaRow?.nome || prepared.slug,
+      registrationDate: existingCliente?.created_at || new Date().toISOString(),
+      sandbox: sandboxAccount,
     });
     const pix = extractMercadoPagoPix(remote);
     const paymentTx = remote?.transactions?.payments?.[0];
