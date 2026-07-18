@@ -7,6 +7,10 @@ import StoreSectionHead from '@/components/admin/StoreSectionHead';
 import EntregadoresCrud from '@/components/admin/delivery/EntregadoresCrud';
 import EntregadorHistoricoPanel from '@/components/admin/delivery/EntregadorHistoricoPanel';
 import StoreDeliveryDurationCard from '@/components/admin/delivery/StoreDeliveryDurationCard';
+import {
+  AdminContentReveal,
+  AdminEntregaSkeleton,
+} from '@/components/admin/AdminSkeleton';
 import RecalcularCoordenadasModal, {
   formatStoreAddressLines,
   useDeliverySettingsMenu,
@@ -69,7 +73,21 @@ export default function EntregaPage() {
     }
   }, [slug, loja, toast, setGeocodeModalOpen]);
 
-  if (!ready) return null;
+  if (!ready) {
+    return (
+      <div className="admin-content admin-content-pedidos admin-catalog-page admin-section-page admin-delivery-page admin-compact-card-page">
+        <AdminPageHeader
+          title="Entrega"
+          iconNode={
+            <span className="admin-page-title-icon">
+              <EntregaPageIcon />
+            </span>
+          }
+        />
+        <AdminEntregaSkeleton />
+      </div>
+    );
+  }
 
   return (
     <div className="admin-content admin-content-pedidos admin-catalog-page admin-section-page admin-delivery-page admin-compact-card-page">
@@ -116,7 +134,7 @@ export default function EntregaPage() {
         }
       />
 
-      <div className="admin-delivery-layout">
+      <AdminContentReveal ready className="admin-delivery-layout">
         <section className="admin-delivery-cards-grid admin-delivery-primary-grid" aria-label="Operação de entrega">
           <div className="admin-card admin-store-block-card admin-compact-page-card">
             <StoreSectionHead
@@ -155,7 +173,7 @@ export default function EntregaPage() {
             <EntregadorHistoricoPanel empresaId={empresa?.id} />
           </div>
         </section>
-      </div>
+      </AdminContentReveal>
 
       <RecalcularCoordenadasModal
         open={geocodeModalOpen}

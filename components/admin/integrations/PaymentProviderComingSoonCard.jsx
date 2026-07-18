@@ -4,9 +4,15 @@ export default function PaymentProviderComingSoonCard({
   logo,
   name,
   description,
+  locked = false,
 }) {
   return (
-    <div className="admin-card admin-store-block-card admin-compact-page-card admin-integration-card admin-payment-provider-card is-coming-soon">
+    <div
+      className={`admin-card admin-store-block-card admin-compact-page-card admin-integration-card admin-payment-provider-card is-coming-soon${
+        locked ? " is-locked" : ""
+      }`}
+      aria-disabled={locked || undefined}
+    >
       <div className="admin-integration-meta-wrap admin-integration-meta-wrap-left">
         <Image
           className="admin-payment-provider-logo"
@@ -15,12 +21,18 @@ export default function PaymentProviderComingSoonCard({
           width={180}
           height={48}
         />
-        <span className="admin-payment-status">Em breve</span>
+        <span
+          className={`admin-payment-status${locked ? " is-unavailable" : ""}`}
+        >
+          {locked ? "Indisponível" : "Em breve"}
+        </span>
       </div>
 
       <p className="admin-help-text admin-delivery-areas-hint">{description}</p>
       <p className="admin-help-text admin-delivery-areas-empty">
-        Esta integração será disponibilizada em uma próxima etapa.
+        {locked
+          ? "Outro provedor já está conectado. Desconecte-o para liberar esta opção no futuro."
+          : "Esta integração será disponibilizada em uma próxima etapa."}
       </p>
     </div>
   );

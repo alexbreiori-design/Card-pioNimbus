@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import AdminAvailabilitySwitch from '@/components/admin/AdminAvailabilitySwitch';
+import { AdminListSkeleton } from '@/components/admin/AdminSkeleton';
 import { useAdminToast } from '@/context/AdminToastContext';
 import {
   createZona,
@@ -210,7 +211,7 @@ export default function DeliveryZonesCrud({ empresaId }) {
       ) : null}
 
       {loading ? (
-        <p className="admin-help-text">Carregando áreas…</p>
+        <AdminListSkeleton rows={3} />
       ) : areas.length === 0 ? (
         <p className="admin-help-text admin-delivery-areas-empty">Nenhuma área cadastrada.</p>
       ) : (

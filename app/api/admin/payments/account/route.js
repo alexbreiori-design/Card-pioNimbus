@@ -43,7 +43,8 @@ export async function GET(request) {
     }
     const account = await getPaymentAccount(supabase, empresa.id);
     let recentOrders = [];
-    if (account) {
+    // Order IDs só para loja-teste (medição de qualidade / sandbox).
+    if (account && allowsManualPaymentCredentials(slug)) {
       const { data: recent } = await supabase
         .from('pagamentos')
         .select('provider_payment_id, status, metodo, valor, created_at')
@@ -51,7 +52,7 @@ export async function GET(request) {
         .eq('provider', 'mercado_pago')
         .not('provider_payment_id', 'is', null)
         .order('created_at', { ascending: false })
-        .limit(8);
+        .limit(2);
       recentOrders = (recent || []).map((row) => ({
         orderId: row.provider_payment_id,
         status: row.status,

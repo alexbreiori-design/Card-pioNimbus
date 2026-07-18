@@ -6,7 +6,35 @@ import AdminConfirmDialog from "@/components/admin/AdminConfirmDialog";
 import { useAdminToast } from "@/context/AdminToastContext";
 import { allowsManualPaymentCredentials } from "@/lib/runtimeEnvironment";
 
-export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
+function formatPaymentStatusLabel(status) {
+  const map = {
+    aprovado: "Aprovado",
+    pendente: "Pendente",
+    processando: "Processando",
+    cancelado: "Cancelado",
+    expirado: "Expirado",
+    recusado: "Recusado",
+    erro: "Erro",
+    estornado: "Estornado",
+  };
+  return map[String(status || "").toLowerCase()] || String(status || "—");
+}
+
+function formatOrderWhen(iso) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${day}/${month} ${hours}:${minutes}`;
+}
+
+export default function MercadoPagoIntegrationCard({
+  slug,
+  empresaLoading,
+  onConnectedChange,
+}) {
   const toast = useAdminToast();
   const [account, setAccount] = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
@@ -32,12 +60,14 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
         throw new Error(json.error || "Erro ao carregar integração.");
       setAccount(json.account);
       setRecentOrders(Array.isArray(json.recentOrders) ? json.recentOrders : []);
+      onConnectedChange?.(json.account?.status === "ativo");
     } catch (error) {
       toast.error(error?.message || "Erro ao carregar Mercado Pago.");
+      onConnectedChange?.(false);
     } finally {
       setLoading(false);
     }
-  }, [slug, toast]);
+  }, [slug, toast, onConnectedChange]);
 
   useEffect(() => {
     queueMicrotask(() => void loadAccount());
@@ -100,6 +130,7 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
       if (!response.ok || !json.ok)
         throw new Error(json.error || "Erro ao salvar credenciais.");
       setAccount(json.account);
+      onConnectedChange?.(true);
       setFormOpen(false);
       setAccessToken("");
       setPublicKey("");
@@ -128,33 +159,11 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
       if (!response.ok || !json.ok)
         throw new Error(json.error || "Erro ao desconectar.");
       setAccount(null);
+      setRecentOrders([]);
+      onConnectedChange?.(false);
       toast.success("Mercado Pago desconectado.");
     } catch (error) {
       toast.error(error?.message || "Erro ao desconectar Mercado Pago.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function updateMethod(key, checked) {
-    const methods = { ...(account?.methods || {}), [key]: checked };
-    if (!methods.pix && !methods.credit_card) {
-      toast.error("Mantenha ao menos um método online ativo.");
-      return;
-    }
-    setSaving(true);
-    try {
-      const response = await fetch("/api/admin/payments/account", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, methods }),
-      });
-      const json = await response.json().catch(() => ({}));
-      if (!response.ok || !json.ok)
-        throw new Error(json.error || "Erro ao atualizar métodos.");
-      setAccount((current) => ({ ...current, methods: json.methods }));
-    } catch (error) {
-      toast.error(error?.message || "Erro ao atualizar métodos.");
     } finally {
       setSaving(false);
     }
@@ -184,26 +193,31 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
       </div>
 
       {!connected && !formOpen ? (
-        <div className="admin-delivery-area-form-actions" style={{ marginTop: 12 }}>
-          <button
-            type="button"
-            className="admin-btn admin-btn-primary"
-            onClick={connectOAuth}
-            disabled={loading || empresaLoading}
-          >
-            Conectar
-          </button>
-          {allowManualCredentials ? (
+        <>
+          <p className="admin-help-text admin-delivery-areas-hint">
+            Pix e cartão com recebimento pela sua conta Mercado Pago.
+          </p>
+          <div className="admin-delivery-area-form-actions" style={{ marginTop: 12 }}>
             <button
               type="button"
-              className="admin-btn"
-              onClick={() => setFormOpen(true)}
+              className="admin-btn admin-btn-primary"
+              onClick={connectOAuth}
               disabled={loading || empresaLoading}
             >
-              Usar credenciais (teste)
+              Conectar
             </button>
-          ) : null}
-        </div>
+            {allowManualCredentials ? (
+              <button
+                type="button"
+                className="admin-btn"
+                onClick={() => setFormOpen(true)}
+                disabled={loading || empresaLoading}
+              >
+                Usar credenciais (teste)
+              </button>
+            ) : null}
+          </div>
+        </>
       ) : null}
 
       {allowManualCredentials && formOpen && !connected ? (
@@ -273,31 +287,12 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
 
       {connected ? (
         <div className="admin-payment-methods">
-          <label className="admin-payment-method-toggle">
-            <input
-              type="checkbox"
-              checked={account.methods?.pix !== false}
-              onChange={(event) =>
-                void updateMethod("pix", event.target.checked)
-              }
-              disabled={saving}
-            />
-            <span>Pix online</span>
-          </label>
-          <label className="admin-payment-method-toggle">
-            <input
-              type="checkbox"
-              checked={account.methods?.credit_card !== false}
-              onChange={(event) =>
-                void updateMethod("credit_card", event.target.checked)
-              }
-              disabled={saving}
-            />
-            <span>Cartão online</span>
-          </label>
+          <p className="admin-help-text admin-delivery-areas-hint" style={{ margin: 0, flex: 1 }}>
+            Pix e cartão online ativos no cardápio.
+          </p>
           <button
             type="button"
-            className="admin-link-btn admin-link-btn-danger"
+            className="admin-btn admin-btn-danger"
             onClick={() => setDisconnectOpen(true)}
             disabled={saving}
           >
@@ -306,21 +301,21 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
         </div>
       ) : null}
 
-      {connected && recentOrders.length > 0 ? (
-        <div className="admin-delivery-areas-toolbar" style={{ marginTop: 16 }}>
-          <p className="admin-help-text admin-delivery-areas-hint">
-            Últimos Order IDs (Mercado Pago) — use na medição de qualidade:
-          </p>
-          <ul className="admin-help-text" style={{ margin: "8px 0 0", paddingLeft: 18 }}>
-            {recentOrders.map((row) => (
-              <li key={`${row.orderId}-${row.createdAt}`} style={{ marginBottom: 6 }}>
-                <code style={{ wordBreak: "break-all" }}>{row.orderId}</code>
-                {" · "}
-                {row.method === "pix" ? "Pix" : "Cartão"} · {row.status}
+      {allowManualCredentials && connected && recentOrders.length > 0 ? (
+        <ul className="admin-payment-order-list">
+          {recentOrders.map((row) => {
+            const methodLabel = row.method === "pix" ? "Pix" : "Cartão";
+            const statusLabel = formatPaymentStatusLabel(row.status);
+            const whenLabel = formatOrderWhen(row.createdAt);
+            return (
+              <li key={`${row.orderId}-${row.createdAt}`} className="admin-payment-order-row">
+                <span className="admin-payment-order-text">
+                  Order ID - {methodLabel} - {statusLabel}
+                  {whenLabel ? ` - ${whenLabel}` : ""}
+                </span>
                 <button
                   type="button"
                   className="admin-link-btn"
-                  style={{ marginLeft: 8 }}
                   onClick={async () => {
                     await navigator.clipboard.writeText(row.orderId);
                     setCopiedOrderId(row.orderId);
@@ -330,15 +325,9 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
                   {copiedOrderId === row.orderId ? "Copiado" : "Copiar"}
                 </button>
               </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {!connected && !loading && !formOpen ? (
-        <p className="admin-help-text admin-delivery-areas-empty">
-          Nenhuma conta Mercado Pago conectada.
-        </p>
+            );
+          })}
+        </ul>
       ) : null}
 
       <AdminConfirmDialog

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import AdminAvailabilitySwitch from '@/components/admin/AdminAvailabilitySwitch';
+import { AdminListSkeleton } from '@/components/admin/AdminSkeleton';
 import { useAdminToast } from '@/context/AdminToastContext';
 import {
   createEntregador,
@@ -186,7 +187,7 @@ export default function EntregadoresCrud({ empresaId }) {
       ) : null}
 
       {loading ? (
-        <p className="admin-help-text">Carregando entregadores…</p>
+        <AdminListSkeleton rows={3} />
       ) : items.length === 0 ? (
         <p className="admin-help-text admin-delivery-areas-empty">Nenhum entregador cadastrado.</p>
       ) : (

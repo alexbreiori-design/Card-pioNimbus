@@ -975,7 +975,14 @@ export default function CatalogManager({ mode = 'produtos' }) {
             renderItemPreview={(item) => (
               <div className="admin-grouped-sort-item-preview">
                 {item.imagemUrl ? (
-                  <img className="admin-grouped-sort-item-img" src={item.imagemUrl} alt="" />
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    className="admin-grouped-sort-item-img"
+                    src={item.imagemUrl}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                  />
                 ) : (
                   <ImagePlaceholder size={48} />
                 )}
@@ -1080,8 +1087,15 @@ export default function CatalogManager({ mode = 'produtos' }) {
               {!collapsedCats.has(cat.id) && catItems.length ? (
                 catItems.map((item) => (
                   <div key={item.id} className="admin-catalog-item-row">
-                    {item.imagemUrl ? (
-                      <img className="admin-catalog-item-img" src={item.imagemUrl} alt="" />
+                  {item.imagemUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        className="admin-catalog-item-img"
+                        src={item.imagemUrl}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                      />
                     ) : (
                       <ImagePlaceholder size={112} />
                     )}
@@ -1578,7 +1592,12 @@ export default function CatalogManager({ mode = 'produtos' }) {
                           const itemChecked = pickerSelection.itemIds.includes(item.id);
                           return (
                             <div key={item.id} className="admin-picker-item">
-                              {item.imagemUrl ? <img src={item.imagemUrl} alt="" /> : <ImagePlaceholder size={48} />}
+                              {item.imagemUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={item.imagemUrl} alt="" loading="lazy" decoding="async" />
+                              ) : (
+                                <ImagePlaceholder size={48} />
+                              )}
                               <div>
                                 <strong>{item.nome}</strong>
                                 <p>{item.descricao || 'Sem descricao'}</p>
@@ -1628,7 +1647,12 @@ export default function CatalogManager({ mode = 'produtos' }) {
                     const exists = normalizeComboConfig(form.comboConfig).itens.some((comboItem) => comboItem.produtoId === item.id);
                     return (
                       <div key={item.id} className="admin-picker-item">
-                        {item.imagemUrl ? <img src={item.imagemUrl} alt="" /> : <ImagePlaceholder size={48} />}
+                        {item.imagemUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={item.imagemUrl} alt="" loading="lazy" decoding="async" />
+                              ) : (
+                                <ImagePlaceholder size={48} />
+                              )}
                         <div>
                           <strong>{item.nome}</strong>
                           <p>{item.descricao || 'Sem descricao'}</p>
@@ -1686,7 +1710,12 @@ export default function CatalogManager({ mode = 'produtos' }) {
                     const selected = normalizePecaTambemIds(form.pecaTambemIds).includes(item.id);
                     return (
                       <div key={item.id} className="admin-picker-item">
-                        {item.imagemUrl ? <img src={item.imagemUrl} alt="" /> : <ImagePlaceholder size={48} />}
+                        {item.imagemUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={item.imagemUrl} alt="" loading="lazy" decoding="async" />
+                              ) : (
+                                <ImagePlaceholder size={48} />
+                              )}
                         <div>
                           <strong>{item.nome}</strong>
                           <p>{item.descricao || 'Sem descricao'}</p>

@@ -2489,6 +2489,90 @@ body {
   transition: background 0.2s;
 }
 .btn-copy-pix:hover { background: var(--brand-light); }
+.btn-copy-pix:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.checkout-pix-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: max(8px, env(safe-area-inset-top, 0px)) 12px env(safe-area-inset-bottom, 0px);
+  background: rgba(15, 18, 24, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.checkout-pix-overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+@media (min-width: 600px) {
+  .checkout-pix-overlay {
+    align-items: center;
+    padding: 16px;
+  }
+}
+
+.checkout-pix-modal {
+  width: 100%;
+  max-width: 420px;
+  max-height: min(92dvh, 100svh - 8px);
+  overflow-y: auto;
+  background: var(--white);
+  border-radius: 20px 20px 0 0;
+  padding: 22px 20px 20px;
+  box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.18);
+  text-align: center;
+}
+@media (min-width: 600px) {
+  .checkout-pix-modal {
+    border-radius: 20px;
+    max-height: min(88dvh, 640px);
+  }
+}
+
+.checkout-pix-modal h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.checkout-pix-timer {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--brand);
+  font-variant-numeric: tabular-nums;
+}
+
+.btn-checkout-cancel-pix {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-checkout-cancel-pix:hover {
+  background: #b91c1c;
+}
+.btn-checkout-cancel-pix:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
 
 .checkout-pix-instructions-link {
   display: block;
@@ -2603,6 +2687,9 @@ body {
   padding: 20px;
 }
 .generic-overlay.open { opacity: 1; pointer-events: all; }
+.generic-overlay.app-dialog-overlay {
+  z-index: 1400;
+}
 
 .modal-card {
   background: var(--white);
@@ -2701,6 +2788,12 @@ body {
   transition: background 0.2s;
 }
 .btn-modal-confirm:hover { background: var(--brand-hover); }
+.btn-modal-confirm.is-danger {
+  background: #dc2626;
+}
+.btn-modal-confirm.is-danger:hover {
+  background: #b91c1c;
+}
 
 /* ─── CUPOM POPUP ─── */
 .cupom-input-wrap {

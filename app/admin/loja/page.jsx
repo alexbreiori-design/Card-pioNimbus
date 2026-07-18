@@ -11,6 +11,10 @@ import CoverImageAdjustModal from '@/components/admin/CoverImageAdjustModal';
 import ImagePlaceholder from '@/components/admin/ImagePlaceholder';
 import SegmentCombobox from '@/components/admin/SegmentCombobox';
 import StoreSectionHead from '@/components/admin/StoreSectionHead';
+import {
+  AdminContentReveal,
+  AdminLojaSkeleton,
+} from '@/components/admin/AdminSkeleton';
 import { formatCep } from '@/lib/cep/viacep';
 import { useCepLookup } from '@/hooks/useCepLookup';
 import { useAdminData } from '@/hooks/useAdminData';
@@ -217,7 +221,19 @@ export default function MinhaLojaPage() {
     };
   }, [ready, slug, lojaSyncKey]);
 
-  if (!ready || !draft) return null;
+  if (!ready || !draft) {
+    return (
+      <div className="admin-content admin-content-pedidos admin-store-page admin-store-page-v2">
+        <div className="admin-store-actions-row admin-store-actions-sticky">
+          <div />
+          <button type="button" className="admin-btn admin-btn-primary" disabled>
+            Salvar alterações
+          </button>
+        </div>
+        <AdminLojaSkeleton />
+      </div>
+    );
+  }
 
   const storeSlug = slug || draft.slug || data.loja?.slug || '';
   const canEditSegment = isModelStoreSlug(storeSlug);
@@ -448,6 +464,7 @@ export default function MinhaLojaPage() {
         </button>
       </div>
 
+      <AdminContentReveal ready>
       <div className="admin-card admin-store-profile-card">
         <div className="admin-store-cover-block">
           <div
@@ -915,6 +932,7 @@ export default function MinhaLojaPage() {
           onCancel={cancelCoverAdjust}
         />
       ) : null}
+      </AdminContentReveal>
     </div>
   );
 }
