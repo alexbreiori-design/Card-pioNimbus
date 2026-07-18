@@ -300,7 +300,7 @@ export function CardapioProvider({
     name: '',
     phone: '',
     email: '',
-    delivery: 'retirar',
+    delivery: '',
     payment: '',
     trocoAnswer: '',
     trocoValue: '',
@@ -315,6 +315,7 @@ export function CardapioProvider({
   const [onlinePaymentConfig, setOnlinePaymentConfig] = useState(null);
   const [onlinePayment, setOnlinePayment] = useState(null);
   const [addressFlowContext, setAddressFlowContext] = useState('header');
+  const checkoutCustomerLookupRef = useRef({ phone: '', inflight: false });
 
   const [cepOpen, setCepOpen] = useState(false);
   const [addressOpen, setAddressOpen] = useState(false);
@@ -1605,7 +1606,7 @@ export function CardapioProvider({
       name: knownName,
       phone: knownPhone,
       email: '',
-      delivery: 'retirar',
+      delivery: '',
       payment: '',
       trocoAnswer: '',
       trocoValue: '',
@@ -1613,6 +1614,7 @@ export function CardapioProvider({
     setCheckoutName(knownName);
     setCheckoutPhone(knownPhone);
     setCheckoutEmail('');
+    checkoutCustomerLookupRef.current = { phone: '', inflight: false };
     setOnlinePayment(null);
     setCheckoutOrderNumber('');
     setCheckoutOpen(true);
@@ -1677,6 +1679,69 @@ export function CardapioProvider({
     setCepValue(savedAddress?.cep || profileAddress?.cep || '');
     setCepOpen(true);
   }, [savedAddress, profileAddress]);
+
+  const lookupCheckoutCustomerByPhone = useCallback(
+    async (phoneValue, { overwriteName = false } = {}) => {
+      const phone = String(phoneValue || '').trim();
+      if (!isCompleteMobilePhoneBr(phone)) {
+        checkoutCustomerLookupRef.current = { phone: '', inflight: false };
+        return null;
+      }
+      const digits = normalizePhone(phone);
+      if (
+        checkoutCustomerLookupRef.current.phone === digits ||
+        checkoutCustomerLookupRef.current.inflight
+      ) {
+        return null;
+      }
+
+      const storeSlug = normalizeSlug(storeConfig.slug || effectiveSlug || slug);
+      if (!storeSlug) return null;
+
+      checkoutCustomerLookupRef.current = { phone: digits, inflight: true };
+      try {
+        const res = await fetch(
+          `/api/public-customer?slug=${encodeURIComponent(storeSlug)}&phone=${encodeURIComponent(digits)}`
+        );
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok || !json.customer) return null;
+
+        if (json.customer.name) {
+          const name = String(json.customer.name).trim();
+          if (name) {
+            if (overwriteName) setCheckoutName(name);
+            else setCheckoutName((current) => (String(current || '').trim() ? current : name));
+          }
+        }
+        if (json.customer.address?.rua) {
+          const nextProfileAddress = {
+            rua: json.customer.address.rua || '',
+            num: json.customer.address.num || '',
+            bairro: json.customer.address.bairro || '',
+            cidade: json.customer.address.cidade || '',
+            estado: json.customer.address.estado || '',
+            cep: json.customer.address.cep || '',
+            comp: json.customer.address.comp || '',
+            ref: json.customer.address.ref || '',
+          };
+          setProfileAddress(nextProfileAddress);
+          setAddrForm((current) => ({ ...current, ...nextProfileAddress }));
+          setCepValue(nextProfileAddress.cep || '');
+          setSavedAddress(null);
+          setCheckoutAddressConfirmed(false);
+        }
+        return json.customer;
+      } catch {
+        checkoutCustomerLookupRef.current = { phone: '', inflight: false };
+        return null;
+      } finally {
+        if (checkoutCustomerLookupRef.current.phone === digits) {
+          checkoutCustomerLookupRef.current.inflight = false;
+        }
+      }
+    },
+    [effectiveSlug, slug, storeConfig.slug]
+  );
 
   const selectPayment = useCallback((id) => {
     setCheckoutData((d) => ({
@@ -1928,6 +1993,7 @@ export function CardapioProvider({
           : '';
       setCheckoutSuccessSnapshot({
         orderNumber,
+        mpOrderId: completedOrder.mpOrderId || completedOrder.payment?.providerOrderId || null,
         customerName: checkoutData.name,
         customerPhone: checkoutData.phone,
         payment: checkoutData.payment,
@@ -1984,7 +2050,10 @@ export function CardapioProvider({
           });
           return;
         }
-        await completeCheckoutOrder(result);
+        await completeCheckoutOrder({
+          ...result,
+          mpOrderId: result.payment?.providerOrderId || result.mpOrderId || null,
+        });
       } catch (error) {
         setOnlinePayment({
           loading: false,
@@ -2017,6 +2086,11 @@ export function CardapioProvider({
             ...(onlinePayment.publicOrder || {}),
             id: json.order.codigo,
             dbId: json.order.id,
+            mpOrderId: json.payment?.providerOrderId || onlinePayment.payment?.providerOrderId || null,
+            payment: {
+              ...(onlinePayment.payment || {}),
+              ...(json.payment || {}),
+            },
           };
           setOnlinePayment(null);
           await completeCheckoutOrder(completed);
@@ -2057,14 +2131,19 @@ export function CardapioProvider({
       const storeSlug = normalizeSlug(storeConfig.slug || effectiveSlug || slug);
       if (storeSlug) {
         try {
+          const digits = normalizePhone(phone);
           const res = await fetch(
-            `/api/public-customer?slug=${encodeURIComponent(storeSlug)}&phone=${encodeURIComponent(normalizePhone(phone))}`
+            `/api/public-customer?slug=${encodeURIComponent(storeSlug)}&phone=${encodeURIComponent(digits)}`
           );
-          const json = await res.json();
+          const json = await res.json().catch(() => ({}));
           if (res.ok && json.ok && json.customer) {
+            checkoutCustomerLookupRef.current = { phone: digits, inflight: false };
             if (json.customer.name) {
-              name = json.customer.name.trim();
-              setCheckoutName(name);
+              const customerName = String(json.customer.name).trim();
+              if (customerName && !name) {
+                name = customerName;
+                setCheckoutName(customerName);
+              }
             }
             if (json.customer.address?.rua) {
               nextProfileAddress = {
@@ -2110,9 +2189,13 @@ export function CardapioProvider({
         );
       } catch {}
       void persistClientSnapshot({ name, phone: formattedPhone });
-      setCheckoutData((d) => ({ ...d, name, phone: formattedPhone, email: checkoutEmail.trim() }));
+      setCheckoutData((d) => ({ ...d, name, phone: formattedPhone }));
       setCheckoutStep(2);
     } else if (checkoutStep === 2) {
+      if (!checkoutData.delivery) {
+        void showAlert('Selecione se deseja receber ou retirar o pedido.');
+        return;
+      }
       if (checkoutData.delivery === 'entregar' && !checkoutAddressConfirmed) {
         setAddressFlowContext('checkout');
         setCepValue(savedAddress?.cep || profileAddress?.cep || '');
@@ -2380,6 +2463,7 @@ export function CardapioProvider({
       setCheckoutPhone,
       checkoutEmail,
       setCheckoutEmail,
+      lookupCheckoutCustomerByPhone,
       onlinePaymentConfig,
       onlinePayment,
       submitOnlinePayment,
@@ -2453,6 +2537,7 @@ export function CardapioProvider({
       checkoutName,
       checkoutPhone,
       checkoutEmail,
+      lookupCheckoutCustomerByPhone,
       onlinePaymentConfig,
       onlinePayment,
       submitOnlinePayment,

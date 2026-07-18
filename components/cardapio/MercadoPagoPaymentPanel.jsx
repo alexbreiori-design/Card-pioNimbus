@@ -16,6 +16,7 @@ export default function MercadoPagoPaymentPanel({ amount }) {
   } = useCardapio();
   const [sdkReady, setSdkReady] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedOrderId, setCopiedOrderId] = useState(false);
   const isPix = checkoutData.payment === 'pix_online';
   const payerEmail = onlinePaymentConfig?.sandbox
     ? SANDBOX_EMAIL
@@ -33,6 +34,13 @@ export default function MercadoPagoPaymentPanel({ amount }) {
     await navigator.clipboard.writeText(code);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function copyOrderId(orderId) {
+    if (!orderId) return;
+    await navigator.clipboard.writeText(orderId);
+    setCopiedOrderId(true);
+    window.setTimeout(() => setCopiedOrderId(false), 2000);
   }
 
   const payment = onlinePayment?.payment;
@@ -72,6 +80,18 @@ export default function MercadoPagoPaymentPanel({ amount }) {
         <p className="checkout-online-waiting">
           Aguardando confirmação do Mercado Pago. Não feche esta tela.
         </p>
+        {onlinePaymentConfig?.sandbox && payment.providerOrderId ? (
+          <p className="checkout-field-hint">
+            Order ID (teste): <code>{payment.providerOrderId}</code>{' '}
+            <button
+              type="button"
+              className="btn-copy-pix"
+              onClick={() => void copyOrderId(payment.providerOrderId)}
+            >
+              {copiedOrderId ? 'Copiado!' : 'Copiar Order ID'}
+            </button>
+          </p>
+        ) : null}
       </section>
     );
   }

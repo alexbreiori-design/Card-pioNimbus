@@ -163,6 +163,7 @@ export async function POST(request) {
         token: checkoutToken,
         status: updated.status,
         statusDetail: updated.status_detail,
+        providerOrderId: updated.provider_payment_id || null,
         qrCode: updated.qr_code,
         qrCodeBase64: updated.qr_code_base64,
         ticketUrl: updated.ticket_url,

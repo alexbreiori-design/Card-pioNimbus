@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { buildOrderWhatsAppMessage, buildSendOrderToStoreUrl } from '@/lib/storeWhatsApp';
 import { calculateCupomDiscount } from '@/lib/cupons';
 import {
@@ -9,7 +9,11 @@ import {
   getCheckoutTipoFromDeliveryMode,
   getEtaFromConfirmedAt,
 } from '@/lib/deliveryDuration';
-import { MOBILE_PHONE_MASK, formatMobilePhoneBr } from '@/lib/phoneBr';
+import {
+  MOBILE_PHONE_MASK,
+  formatMobilePhoneBr,
+  isCompleteMobilePhoneBr,
+} from '@/lib/phoneBr';
 import CartItemOptsList from '@/components/cardapio/CartItemOptsList';
 import { useCardapio } from '@/context/CardapioContext';
 import { IconBack, IconClose, IconContinue, IconStepCheck } from './icons';
@@ -59,6 +63,7 @@ export default function CheckoutModal() {
     setCheckoutPhone,
     checkoutEmail,
     setCheckoutEmail,
+    lookupCheckoutCustomerByPhone,
     onlinePaymentConfig,
     STEP_LABELS,
     PAYMENT_METHODS,
@@ -85,6 +90,12 @@ export default function CheckoutModal() {
   } = useCardapio();
 
   const [pixCopied, setPixCopied] = useState(false);
+
+  useEffect(() => {
+    if (!checkoutOpen || checkoutStep !== 1) return;
+    if (!isCompleteMobilePhoneBr(checkoutPhone)) return;
+    void lookupCheckoutCustomerByPhone(checkoutPhone);
+  }, [checkoutOpen, checkoutStep, checkoutPhone, lookupCheckoutCustomerByPhone]);
 
   const whatsAppOrderUrl = useMemo(() => {
     if (!checkoutSuccessSnapshot) return null;
@@ -173,6 +184,11 @@ export default function CheckoutModal() {
             <br />
             Nº do pedido: <strong>{checkoutSuccessSnapshot?.orderNumber || checkoutOrderNumber || '—'}</strong>
           </div>
+          {checkoutSuccessSnapshot?.mpOrderId ? (
+            <div className="success-sub checkout-field-hint" style={{ marginTop: 8 }}>
+              Order ID (Mercado Pago): <code>{checkoutSuccessSnapshot.mpOrderId}</code>
+            </div>
+          ) : null}
           {showPixBlock ? (
             <div className="checkout-success-pix">
               <div className="checkout-pix-title">Pague via Pix</div>
@@ -217,7 +233,11 @@ export default function CheckoutModal() {
               autoComplete="tel"
               placeholder={MOBILE_PHONE_MASK}
               value={checkoutPhone}
-              onChange={(e) => setCheckoutPhone(formatMobilePhoneBr(e.target.value))}
+              onChange={(e) => {
+                const next = formatMobilePhoneBr(e.target.value);
+                setCheckoutPhone(next);
+                void lookupCheckoutCustomerByPhone(next);
+              }}
             />
           </div>
           <div className="form-group">
@@ -229,20 +249,6 @@ export default function CheckoutModal() {
               value={checkoutName}
               onChange={(e) => setCheckoutName(e.target.value)}
             />
-          </div>
-          <div className="form-group">
-            <label className="form-label">E-mail</label>
-            <input
-              className="form-input"
-              type="email"
-              autoComplete="email"
-              placeholder="Necessário para pagamento online"
-              value={checkoutEmail}
-              onChange={(e) => setCheckoutEmail(e.target.value)}
-            />
-            <small className="checkout-field-hint">
-              Usado somente se você escolher pagar agora.
-            </small>
           </div>
         </>
       );
@@ -311,20 +317,15 @@ export default function CheckoutModal() {
     }
 
     if (checkoutStep === 3) {
-      let lastGroup = '';
-      const options = PAYMENT_METHODS.map((m) => {
-        const groupHeader =
-          m.group !== lastGroup ? (
-            <div key={`group-${m.group}`} className="payment-section-label">
-              {m.group}
-            </div>
-          ) : null;
-        lastGroup = m.group;
+      const onlineMethods = PAYMENT_METHODS.filter((m) => m.group === 'Pagar agora');
+      const offlineMethods = PAYMENT_METHODS.filter((m) => m.group !== 'Pagar agora');
+      const showOnlineEmail = ['pix_online', 'credito_online'].includes(checkoutData.payment);
+
+      const renderPaymentOption = (m) => {
         const isDinheiro = m.id === 'dinheiro';
         const isSelected = checkoutData.payment === m.id;
         return (
           <span key={m.id} style={{ display: 'contents' }}>
-            {groupHeader}
             <div
               className={`payment-option ${isSelected ? 'selected' : ''}`}
               onClick={() => selectPayment(m.id)}
@@ -380,36 +381,48 @@ export default function CheckoutModal() {
             ) : null}
           </span>
         );
-      });
-      const showOnlineEmail =
-        ['pix_online', 'credito_online'].includes(checkoutData.payment);
+      };
+
+      const onlineEmailField = showOnlineEmail ? (
+        <div className="form-group checkout-online-email">
+          <label className="form-label" htmlFor="checkoutOnlineEmail">
+            E-mail para pagamento
+          </label>
+          <input
+            id="checkoutOnlineEmail"
+            className="form-input"
+            type="email"
+            autoComplete="email"
+            placeholder={
+              onlinePaymentConfig?.sandbox
+                ? 'ex: test@testuser.com'
+                : 'seu@email.com'
+            }
+            value={checkoutEmail}
+            onChange={(e) => setCheckoutEmail(e.target.value)}
+          />
+          <small className="checkout-field-hint">
+            {onlinePaymentConfig?.sandbox
+              ? 'Conta de teste: use um e-mail terminando em @testuser.com.'
+              : 'Exigido pelo Mercado Pago para Pix e cartão online.'}
+          </small>
+        </div>
+      ) : null;
+
       return (
         <>
-          {options}
-          {showOnlineEmail ? (
-            <div className="form-group" style={{ marginTop: 14 }}>
-              <label className="form-label" htmlFor="checkoutOnlineEmail">
-                E-mail para pagamento
-              </label>
-              <input
-                id="checkoutOnlineEmail"
-                className="form-input"
-                type="email"
-                autoComplete="email"
-                placeholder={
-                  onlinePaymentConfig?.sandbox
-                    ? 'ex: test_payer_1@testuser.com'
-                    : 'seu@email.com'
-                }
-                value={checkoutEmail}
-                onChange={(e) => setCheckoutEmail(e.target.value)}
-              />
-              <small className="checkout-field-hint">
-                {onlinePaymentConfig?.sandbox
-                  ? 'Conta de teste: use um e-mail terminando em @testuser.com.'
-                  : 'Necessário para Pix/cartão online.'}
-              </small>
-            </div>
+          {onlineMethods.length > 0 ? (
+            <>
+              <div className="payment-section-label">Pagar agora</div>
+              {onlineMethods.map(renderPaymentOption)}
+              {onlineEmailField}
+            </>
+          ) : null}
+          {offlineMethods.length > 0 ? (
+            <>
+              <div className="payment-section-label">Pagar na entrega</div>
+              {offlineMethods.map(renderPaymentOption)}
+            </>
           ) : null}
         </>
       );
