@@ -8,6 +8,16 @@ import { useCardapio } from '@/context/CardapioContext';
 
 const SANDBOX_EMAIL = 'test@testuser.com';
 const MP_JS_V2 = 'https://sdk.mercadopago.com/js/v2';
+const MP_SECURITY_JS = 'https://www.mercadopago.com/v2/security.js';
+
+function readMercadoPagoDeviceId() {
+  if (typeof window === 'undefined') return '';
+  const fromGlobal = window.MP_DEVICE_SESSION_ID;
+  if (fromGlobal) return String(fromGlobal);
+  const el = document.getElementById('deviceId');
+  if (el?.value) return String(el.value);
+  return '';
+}
 
 export default function MercadoPagoPaymentPanel({ amount }) {
   const {
@@ -24,12 +34,26 @@ export default function MercadoPagoPaymentPanel({ amount }) {
     ? SANDBOX_EMAIL
     : String(checkoutData.email || '').trim() || undefined;
   const needsCardSdk = Boolean(onlinePaymentConfig?.publicKey) && !isPix;
+  const showOnlinePanel = Boolean(onlinePaymentConfig?.publicKey);
 
   useEffect(() => {
     if (!needsCardSdk) return;
     initMercadoPago(onlinePaymentConfig.publicKey, { locale: 'pt-BR' });
     queueMicrotask(() => setSdkReady(true));
   }, [needsCardSdk, onlinePaymentConfig?.publicKey]);
+
+  useEffect(() => {
+    if (!showOnlinePanel || typeof document === 'undefined') return undefined;
+    if (document.querySelector('script[data-mp-security="1"]')) return undefined;
+    const script = document.createElement('script');
+    script.src = MP_SECURITY_JS;
+    script.async = true;
+    script.setAttribute('view', 'checkout');
+    script.setAttribute('output', 'deviceId');
+    script.dataset.mpSecurity = '1';
+    document.body.appendChild(script);
+    return undefined;
+  }, [showOnlinePanel]);
 
   async function copyPix() {
     const code = onlinePayment?.payment?.qrCode;
@@ -44,6 +68,29 @@ export default function MercadoPagoPaymentPanel({ amount }) {
     await navigator.clipboard.writeText(orderId);
     setCopiedOrderId(true);
     window.setTimeout(() => setCopiedOrderId(false), 2000);
+  }
+
+  async function payWithCard(formData, additionalData) {
+    await submitOnlinePayment({
+      ...formData,
+      deviceId: readMercadoPagoDeviceId(),
+      payer: {
+        ...(formData?.payer || {}),
+        email: payerEmail || formData?.payer?.email,
+        identification:
+          formData?.payer?.identification || formData?.identification || undefined,
+      },
+      payment_type_id:
+        additionalData?.paymentTypeId ||
+        formData?.payment_type_id ||
+        'credit_card',
+    });
+  }
+
+  async function payWithPix() {
+    await submitOnlinePayment({
+      deviceId: readMercadoPagoDeviceId(),
+    });
   }
 
   const payment = onlinePayment?.payment;
@@ -101,7 +148,12 @@ export default function MercadoPagoPaymentPanel({ amount }) {
 
   return (
     <section className="checkout-online-payment">
-      {needsCardSdk ? <Script src={MP_JS_V2} strategy="afterInteractive" /> : null}
+      {showOnlinePanel ? (
+        <>
+          <Script src={MP_JS_V2} strategy="afterInteractive" />
+          <input type="hidden" id="deviceId" name="deviceId" defaultValue="" />
+        </>
+      ) : null}
       <h3>{isPix ? 'Pagamento via Pix' : 'Pagamento com cartão'}</h3>
       <p>
         O pedido será enviado à loja somente depois da aprovação do pagamento.
@@ -123,7 +175,7 @@ export default function MercadoPagoPaymentPanel({ amount }) {
         <button
           type="button"
           className="btn-checkout-continue"
-          onClick={() => void submitOnlinePayment()}
+          onClick={() => void payWithPix()}
           disabled={onlinePayment?.loading}
         >
           {onlinePayment?.loading ? 'Gerando Pix…' : 'Gerar QR Code Pix'}
@@ -135,17 +187,7 @@ export default function MercadoPagoPaymentPanel({ amount }) {
             payer: payerEmail ? { email: payerEmail } : undefined,
           }}
           onSubmit={async (formData, additionalData) => {
-            await submitOnlinePayment({
-              ...formData,
-              payer: {
-                ...(formData?.payer || {}),
-                email: payerEmail || formData?.payer?.email,
-              },
-              payment_type_id:
-                additionalData?.paymentTypeId ||
-                formData?.payment_type_id ||
-                'credit_card',
-            });
+            await payWithCard(formData, additionalData);
           }}
           onError={(error) => console.error('Mercado Pago Card Brick:', error)}
         />

@@ -10,6 +10,7 @@ import {
   requirePaymentFeatureForEmpresa,
 } from '@/lib/payments/paymentFeature';
 import { validateMercadoPagoAccessToken } from '@/lib/payments/providers/mercadoPago';
+import { allowsManualPaymentCredentials } from '@/lib/runtimeEnvironment';
 import { requireStoreAdmin } from '@/lib/supabase/membership';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 
@@ -98,6 +99,12 @@ export async function POST(request) {
       return NextResponse.json({ ok: false, error: 'Loja não encontrada.' }, { status: 404 });
     }
     await requirePaymentFeatureForEmpresa(supabase, empresa.id);
+    if (!allowsManualPaymentCredentials(slug)) {
+      return NextResponse.json(
+        { ok: false, error: 'Esta loja só pode conectar via OAuth.' },
+        { status: 403 }
+      );
+    }
     if (!accessToken || !publicKey) {
       return NextResponse.json(
         { ok: false, error: 'Informe Access Token e Public Key.' },

@@ -131,6 +131,7 @@ export async function POST(request) {
       storeName: empresaRow?.nome || prepared.slug,
       registrationDate: existingCliente?.created_at || new Date().toISOString(),
       sandbox: sandboxAccount,
+      deviceId: String(body.deviceId || body.cardData?.deviceId || '').trim() || null,
     });
     const pix = extractMercadoPagoPix(remote);
     const paymentTx = remote?.transactions?.payments?.[0];
