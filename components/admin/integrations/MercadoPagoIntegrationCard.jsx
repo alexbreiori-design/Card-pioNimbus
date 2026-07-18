@@ -179,9 +179,10 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
 
       <div className="admin-delivery-areas-toolbar">
         <p className="admin-help-text admin-delivery-areas-hint">
-          Para testar: use Access Token e Public Key em{" "}
-          <strong>Testes → Credenciais de teste</strong> (token{" "}
-          <code>APP_USR-...</code>). OAuth fica para conta real em produção.
+          <strong>Produção:</strong> use <strong>Conectar via OAuth</strong> para
+          cada loja autorizar a própria conta (sem colar Access Token).{' '}
+          <strong>Teste:</strong> use credenciais APP_USR do painel. No webhook do
+          MP, marque também <strong>Vinculação de aplicações</strong> (mp-connect).
         </p>
       </div>
 
@@ -190,18 +191,18 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
           <button
             type="button"
             className="admin-btn admin-btn-primary"
-            onClick={() => setFormOpen(true)}
-            disabled={loading || empresaLoading}
-          >
-            Usar credenciais (teste/produção)
-          </button>
-          <button
-            type="button"
-            className="admin-btn"
             onClick={connectOAuth}
             disabled={loading || empresaLoading}
           >
             Conectar via OAuth
+          </button>
+          <button
+            type="button"
+            className="admin-btn"
+            onClick={() => setFormOpen(true)}
+            disabled={loading || empresaLoading}
+          >
+            Usar credenciais (teste)
           </button>
         </div>
       ) : null}

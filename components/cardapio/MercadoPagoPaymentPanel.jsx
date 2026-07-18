@@ -1,11 +1,13 @@
 'use client';
 
 import Image from 'next/image';
+import Script from 'next/script';
 import { useEffect, useState } from 'react';
 import { initMercadoPago, CardPayment } from '@mercadopago/sdk-react';
 import { useCardapio } from '@/context/CardapioContext';
 
 const SANDBOX_EMAIL = 'test@testuser.com';
+const MP_JS_V2 = 'https://sdk.mercadopago.com/js/v2';
 
 export default function MercadoPagoPaymentPanel({ amount }) {
   const {
@@ -21,12 +23,13 @@ export default function MercadoPagoPaymentPanel({ amount }) {
   const payerEmail = onlinePaymentConfig?.sandbox
     ? SANDBOX_EMAIL
     : String(checkoutData.email || '').trim() || undefined;
+  const needsCardSdk = Boolean(onlinePaymentConfig?.publicKey) && !isPix;
 
   useEffect(() => {
-    if (!onlinePaymentConfig?.publicKey || isPix) return;
+    if (!needsCardSdk) return;
     initMercadoPago(onlinePaymentConfig.publicKey, { locale: 'pt-BR' });
     queueMicrotask(() => setSdkReady(true));
-  }, [isPix, onlinePaymentConfig?.publicKey]);
+  }, [needsCardSdk, onlinePaymentConfig?.publicKey]);
 
   async function copyPix() {
     const code = onlinePayment?.payment?.qrCode;
@@ -98,6 +101,7 @@ export default function MercadoPagoPaymentPanel({ amount }) {
 
   return (
     <section className="checkout-online-payment">
+      {needsCardSdk ? <Script src={MP_JS_V2} strategy="afterInteractive" /> : null}
       <h3>{isPix ? 'Pagamento via Pix' : 'Pagamento com cartão'}</h3>
       <p>
         O pedido será enviado à loja somente depois da aprovação do pagamento.
