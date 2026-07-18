@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import AdminConfirmDialog from "@/components/admin/AdminConfirmDialog";
 import { useAdminToast } from "@/context/AdminToastContext";
+import { allowsManualPaymentCredentials } from "@/lib/runtimeEnvironment";
 
 export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
   const toast = useAdminToast();
@@ -17,6 +18,7 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
   const [publicKey, setPublicKey] = useState("");
   const [isTestCredentials, setIsTestCredentials] = useState(true);
   const [copiedOrderId, setCopiedOrderId] = useState("");
+  const allowManualCredentials = allowsManualPaymentCredentials(slug);
 
   const loadAccount = useCallback(async () => {
     if (!slug) return;
@@ -74,6 +76,10 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
 
   async function connectWithCredentials(event) {
     event.preventDefault();
+    if (!allowManualCredentials) {
+      toast.error("Esta loja só pode conectar via OAuth.");
+      return;
+    }
     if (!slug) {
       toast.error("Configure o slug da loja antes de conectar.");
       return;
@@ -177,15 +183,6 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
         </span>
       </div>
 
-      <div className="admin-delivery-areas-toolbar">
-        <p className="admin-help-text admin-delivery-areas-hint">
-          <strong>Produção:</strong> use <strong>Conectar via OAuth</strong> para
-          cada loja autorizar a própria conta (sem colar Access Token).{' '}
-          <strong>Teste:</strong> use credenciais APP_USR do painel. No webhook do
-          MP, marque também <strong>Vinculação de aplicações</strong> (mp-connect).
-        </p>
-      </div>
-
       {!connected && !formOpen ? (
         <div className="admin-delivery-area-form-actions" style={{ marginTop: 12 }}>
           <button
@@ -194,20 +191,22 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
             onClick={connectOAuth}
             disabled={loading || empresaLoading}
           >
-            Conectar via OAuth
+            Conectar
           </button>
-          <button
-            type="button"
-            className="admin-btn"
-            onClick={() => setFormOpen(true)}
-            disabled={loading || empresaLoading}
-          >
-            Usar credenciais (teste)
-          </button>
+          {allowManualCredentials ? (
+            <button
+              type="button"
+              className="admin-btn"
+              onClick={() => setFormOpen(true)}
+              disabled={loading || empresaLoading}
+            >
+              Usar credenciais (teste)
+            </button>
+          ) : null}
         </div>
       ) : null}
 
-      {formOpen && !connected ? (
+      {allowManualCredentials && formOpen && !connected ? (
         <form
           className="admin-delivery-area-form admin-card"
           onSubmit={(event) => void connectWithCredentials(event)}

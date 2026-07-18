@@ -1919,6 +1919,10 @@ export function CardapioProvider({
                   method: checkoutData.payment === 'pix_online' ? 'pix' : 'credit_card',
                   email: checkoutData.email,
                   cardData,
+                  deviceId:
+                    cardData?.deviceId ||
+                    (typeof window !== 'undefined' ? window.MP_DEVICE_SESSION_ID : null) ||
+                    null,
                 }
               : {}),
           }),
