@@ -44,6 +44,7 @@ export async function GET(request, { params }) {
         id: current.id,
         status: current.status,
         statusDetail: current.status_detail,
+        providerOrderId: current.provider_payment_id || null,
         expiresAt: current.expires_at,
       },
       order,

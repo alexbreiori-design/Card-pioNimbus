@@ -8,6 +8,7 @@ import { useAdminToast } from "@/context/AdminToastContext";
 export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
   const toast = useAdminToast();
   const [account, setAccount] = useState(null);
+  const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
@@ -15,6 +16,7 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
   const [accessToken, setAccessToken] = useState("");
   const [publicKey, setPublicKey] = useState("");
   const [isTestCredentials, setIsTestCredentials] = useState(true);
+  const [copiedOrderId, setCopiedOrderId] = useState("");
 
   const loadAccount = useCallback(async () => {
     if (!slug) return;
@@ -27,6 +29,7 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
       if (!response.ok || !json.ok)
         throw new Error(json.error || "Erro ao carregar integração.");
       setAccount(json.account);
+      setRecentOrders(Array.isArray(json.recentOrders) ? json.recentOrders : []);
     } catch (error) {
       toast.error(error?.message || "Erro ao carregar Mercado Pago.");
     } finally {
@@ -300,6 +303,35 @@ export default function MercadoPagoIntegrationCard({ slug, empresaLoading }) {
           >
             Desconectar
           </button>
+        </div>
+      ) : null}
+
+      {connected && recentOrders.length > 0 ? (
+        <div className="admin-delivery-areas-toolbar" style={{ marginTop: 16 }}>
+          <p className="admin-help-text admin-delivery-areas-hint">
+            Últimos Order IDs (Mercado Pago) — use na medição de qualidade:
+          </p>
+          <ul className="admin-help-text" style={{ margin: "8px 0 0", paddingLeft: 18 }}>
+            {recentOrders.map((row) => (
+              <li key={`${row.orderId}-${row.createdAt}`} style={{ marginBottom: 6 }}>
+                <code style={{ wordBreak: "break-all" }}>{row.orderId}</code>
+                {" · "}
+                {row.method === "pix" ? "Pix" : "Cartão"} · {row.status}
+                <button
+                  type="button"
+                  className="admin-link-btn"
+                  style={{ marginLeft: 8 }}
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(row.orderId);
+                    setCopiedOrderId(row.orderId);
+                    window.setTimeout(() => setCopiedOrderId(""), 2000);
+                  }}
+                >
+                  {copiedOrderId === row.orderId ? "Copiado" : "Copiar"}
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
 
