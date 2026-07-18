@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { verifyMercadoPagoWebhook } from '@/lib/payments/providers/mercadoPago';
-import { syncMercadoPagoPayment } from '@/lib/payments/paymentServer';
+import {
+  handleMercadoPagoConnectWebhook,
+  syncMercadoPagoPayment,
+} from '@/lib/payments/paymentServer';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 
 export async function POST(request, { params }) {
@@ -10,6 +13,12 @@ export async function POST(request, { params }) {
   }
   const body = await request.json().catch(() => ({}));
   const url = new URL(request.url);
+  const topic =
+    url.searchParams.get('type') ||
+    url.searchParams.get('topic') ||
+    body?.type ||
+    body?.topic ||
+    '';
   const dataId =
     url.searchParams.get('data.id') ||
     url.searchParams.get('id') ||
@@ -24,7 +33,15 @@ export async function POST(request, { params }) {
   if (!supabase) {
     return NextResponse.json({ ok: false }, { status: 503 });
   }
+
   try {
+    if (String(topic).toLowerCase() === 'mp-connect') {
+      const action = String(body?.action || '');
+      const userId = body?.user_id || body?.data?.id || dataId;
+      await handleMercadoPagoConnectWebhook(supabase, { action, userId });
+      return NextResponse.json({ ok: true, topic: 'mp-connect' });
+    }
+
     const { data: payment, error } = await supabase
       .from('pagamentos')
       .select('*')

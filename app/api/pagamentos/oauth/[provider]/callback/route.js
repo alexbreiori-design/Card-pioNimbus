@@ -54,7 +54,11 @@ export async function GET(request, { params }) {
 
     const redirectUri = `${getSiteOrigin()}/api/pagamentos/oauth/mercado_pago/callback`;
     const tokenData = await exchangeMercadoPagoCode({ code, redirectUri });
-    await saveMercadoPagoAccount(supabase, empresa.id, tokenData);
+    await saveMercadoPagoAccount(supabase, empresa.id, {
+      ...tokenData,
+      connection_mode: 'oauth',
+      live_mode: tokenData.live_mode !== false,
+    });
     return NextResponse.redirect(integrationsUrl('connected'));
   } catch (error) {
     return NextResponse.redirect(
