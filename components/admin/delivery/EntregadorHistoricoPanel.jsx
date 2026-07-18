@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
+import { AdminListSkeleton } from '@/components/admin/AdminSkeleton';
 import { buildRouteShareMessage } from '@/lib/delivery/routeShareMessage';
 
 function formatWhen(value) {
@@ -167,7 +168,7 @@ export default function EntregadorHistoricoPanel({ empresaId }) {
       </div>
 
       {loading ? (
-        <p className="admin-help-text">Carregando histórico…</p>
+        <AdminListSkeleton rows={4} />
       ) : historico.length === 0 ? (
         <p className="admin-help-text admin-delivery-areas-empty">Nenhuma rota encontrada.</p>
       ) : (

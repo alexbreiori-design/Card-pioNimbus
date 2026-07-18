@@ -318,7 +318,7 @@ export default function PizzaSaboresPanel() {
               renderItem={(sabor) => (
                 <>
                   {sabor.imagemUrl ? (
-                    <img className="admin-catalog-item-img" src={sabor.imagemUrl} alt="" />
+                    <img className="admin-catalog-item-img" src={sabor.imagemUrl} alt="" loading="lazy" decoding="async" />
                   ) : (
                     <ImagePlaceholder size={112} />
                   )}
@@ -348,7 +348,7 @@ export default function PizzaSaboresPanel() {
             visibleSabores.map((sabor) => (
               <div key={sabor.id} className="admin-catalog-item-row admin-pizza-sabor-row">
                 {sabor.imagemUrl ? (
-                  <img className="admin-catalog-item-img" src={sabor.imagemUrl} alt="" />
+                  <img className="admin-catalog-item-img" src={sabor.imagemUrl} alt="" loading="lazy" decoding="async" />
                 ) : (
                   <ImagePlaceholder size={112} />
                 )}

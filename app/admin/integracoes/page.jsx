@@ -9,6 +9,10 @@ import AdminConfirmDialog from "@/components/admin/AdminConfirmDialog";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import MercadoPagoIntegrationCard from "@/components/admin/integrations/MercadoPagoIntegrationCard";
 import PaymentProviderComingSoonCard from "@/components/admin/integrations/PaymentProviderComingSoonCard";
+import {
+  AdminContentReveal,
+  AdminIntegracoesSkeleton,
+} from "@/components/admin/AdminSkeleton";
 import { META_STANDARD_EVENTS } from "@/lib/meta/pixel";
 import { sanitizeMetaPixelId } from "@/lib/meta/pixel";
 import {
@@ -33,6 +37,8 @@ export default function IntegracoesPage() {
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const [editingPixel, setEditingPixel] = useState(false);
   const [paymentIntegrationsEnabled, setPaymentIntegrationsEnabled] = useState(false);
+  const [paymentProviderConnected, setPaymentProviderConnected] = useState(false);
+  const [paymentsCheckDone, setPaymentsCheckDone] = useState(false);
 
   const applyLoadedPixel = useCallback((loja) => {
     const safe = sanitizeMetaPixelId(loja?.metaPixelId) || "";
@@ -55,8 +61,14 @@ export default function IntegracoesPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    queueMicrotask(() => setPaymentIntegrationsEnabled(false));
-    if (!slug) return () => controller.abort();
+    queueMicrotask(() => {
+      setPaymentIntegrationsEnabled(false);
+      setPaymentsCheckDone(false);
+    });
+    if (!slug) {
+      queueMicrotask(() => setPaymentsCheckDone(true));
+      return () => controller.abort();
+    }
 
     fetch(`/api/admin/payments/account?slug=${encodeURIComponent(slug)}`, {
       cache: "no-store",
@@ -66,10 +78,14 @@ export default function IntegracoesPage() {
       .then((payload) => {
         if (!controller.signal.aborted) {
           setPaymentIntegrationsEnabled(payload?.ok === true && payload?.enabled === true);
+          setPaymentsCheckDone(true);
         }
       })
       .catch(() => {
-        if (!controller.signal.aborted) setPaymentIntegrationsEnabled(false);
+        if (!controller.signal.aborted) {
+          setPaymentIntegrationsEnabled(false);
+          setPaymentsCheckDone(true);
+        }
       });
 
     return () => controller.abort();
@@ -142,7 +158,10 @@ export default function IntegracoesPage() {
     <div className="admin-content admin-content-pedidos admin-catalog-page admin-section-page admin-compact-card-page">
       <AdminPageHeader title="Integrações" icon="integration" />
 
-      <div className="admin-integration-sections">
+      {!paymentsCheckDone ? (
+        <AdminIntegracoesSkeleton />
+      ) : (
+        <AdminContentReveal ready className="admin-integration-sections">
         {paymentIntegrationsEnabled ? (
           <section
             className="admin-integration-section"
@@ -157,16 +176,19 @@ export default function IntegracoesPage() {
               <MercadoPagoIntegrationCard
                 slug={slug}
                 empresaLoading={empresaLoading}
+                onConnectedChange={setPaymentProviderConnected}
               />
               <PaymentProviderComingSoonCard
                 logo="/images/pagarme-logo.png"
                 name="Pagar.me"
                 description="Pix e cartão com recebimento pela sua conta Pagar.me."
+                locked={paymentProviderConnected}
               />
               <PaymentProviderComingSoonCard
                 logo="/images/PagBank-logo.png"
                 name="PagBank"
                 description="Pix e cartão com recebimento pela sua conta PagBank."
+                locked={paymentProviderConnected}
               />
             </div>
           </section>
@@ -306,7 +328,8 @@ export default function IntegracoesPage() {
             />
           </div>
         </section>
-      </div>
+        </AdminContentReveal>
+      )}
 
       <AdminConfirmDialog
         open={removeConfirmOpen}

@@ -78,6 +78,103 @@
   opacity: 1;
 }
 
+/* Page skeletons + fade-in */
+.admin-content-reveal {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  pointer-events: none;
+}
+.admin-content-reveal.is-ready {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.admin-skeleton-block {
+  display: block;
+  background: linear-gradient(90deg, #eef0f4 0%, #f7f8fa 45%, #eef0f4 100%);
+  background-size: 200% 100%;
+  animation: admin-skeleton-shimmer 1.35s ease-in-out infinite;
+  border-radius: 10px;
+  min-height: 12px;
+}
+
+@keyframes admin-skeleton-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.admin-skeleton-lines {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-skeleton-line {
+  height: 12px;
+  width: 100%;
+}
+.admin-skeleton-line.is-short {
+  width: 58%;
+}
+
+.admin-skeleton-card-body {
+  margin-top: 16px;
+}
+
+.admin-loja-skeleton {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-loja-skeleton-cover {
+  width: 100%;
+  aspect-ratio: 5 / 1;
+  min-height: 120px;
+  border-radius: 14px;
+}
+
+.admin-loja-skeleton-row {
+  display: grid;
+  grid-template-columns: 118px 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.admin-loja-skeleton-logo {
+  width: 118px;
+  height: 118px;
+  border-radius: 14px;
+}
+
+.admin-list-skeleton {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-list-skeleton-row {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.admin-list-skeleton-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+
+.admin-reports-kpi.is-skeleton {
+  min-height: 132px;
+}
+
+@media (max-width: 720px) {
+  .admin-loja-skeleton-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-shell {
   display: flex;
   min-height: 100vh;
@@ -5619,7 +5716,7 @@
   margin: 0;
   color: var(--admin-text);
   font-size: 20px;
-  font-weight: 750;
+  font-weight: 600;
 }
 
 .admin-integration-section-header p {
@@ -7369,6 +7466,57 @@ textarea.admin-input::placeholder {
   background: color-mix(in srgb, var(--admin-card-bg, #fff) 94%, #f8fafc);
 }
 
+.admin-payment-provider-card.is-locked {
+  position: relative;
+  background: #f7f8fa;
+  border-style: dashed;
+  border-color: #d7dbe3;
+  box-shadow: none;
+  opacity: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+.admin-payment-provider-card.is-locked .admin-payment-provider-logo {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.admin-payment-provider-card.is-locked .admin-delivery-areas-hint,
+.admin-payment-provider-card.is-locked .admin-delivery-areas-empty {
+  color: #8b93a3;
+}
+
+.admin-payment-status.is-unavailable {
+  border-color: #d7dbe3;
+  background: #eef0f4;
+  color: #6b7280;
+}
+
+.admin-payment-order-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--admin-border);
+  display: grid;
+  gap: 10px;
+}
+
+.admin-payment-order-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--admin-text-mid);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.admin-payment-order-text {
+  min-width: 0;
+  line-height: 1.35;
+}
+
 .admin-payment-provider-card.is-coming-soon .admin-delivery-areas-empty {
   margin-top: 18px;
 }
@@ -7416,6 +7564,10 @@ textarea.admin-input::placeholder {
   border-top: 1px solid var(--admin-border);
 }
 
+.admin-payment-methods .admin-btn-danger {
+  margin-left: auto;
+}
+
 .admin-payment-method-toggle {
   display: inline-flex;
   align-items: center;
@@ -7430,10 +7582,6 @@ textarea.admin-input::placeholder {
   width: 16px;
   height: 16px;
   accent-color: var(--admin-primary);
-}
-
-.admin-payment-methods .admin-link-btn-danger {
-  margin-left: auto;
 }
 
 .admin-integration-help {

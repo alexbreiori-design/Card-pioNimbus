@@ -642,7 +642,7 @@ export default function MarmitaManager() {
           aria-label={`Editar ${item.tagAdmin || item.nomePublico}`}
         >
           {item.imagemUrl ? (
-            <img className="admin-catalog-item-img" src={item.imagemUrl} alt="" />
+            <img className="admin-catalog-item-img" src={item.imagemUrl} alt="" loading="lazy" decoding="async" />
           ) : (
             <ImagePlaceholder size={112} />
           )}

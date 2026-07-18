@@ -274,7 +274,7 @@ export default function PizzaCategoriasPanel() {
               renderItem={(cat) => (
                 <>
                   {cat.imagemUrl ? (
-                    <img className="admin-catalog-item-img" src={cat.imagemUrl} alt="" />
+                    <img className="admin-catalog-item-img" src={cat.imagemUrl} alt="" loading="lazy" decoding="async" />
                   ) : (
                     <ImagePlaceholder size={112} />
                   )}
@@ -306,7 +306,7 @@ export default function PizzaCategoriasPanel() {
               return (
                 <div key={cat.id} className="admin-catalog-item-row admin-pizza-cat-row">
                   {cat.imagemUrl ? (
-                    <img className="admin-catalog-item-img" src={cat.imagemUrl} alt="" />
+                    <img className="admin-catalog-item-img" src={cat.imagemUrl} alt="" loading="lazy" decoding="async" />
                   ) : (
                     <ImagePlaceholder size={112} />
                   )}

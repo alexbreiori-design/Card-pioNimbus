@@ -374,6 +374,7 @@ export function CardapioProvider({
   const effectiveSlugRef = useRef(effectiveSlug);
   effectiveSlugRef.current = effectiveSlug;
   const checkoutSubmittingRef = useRef(false);
+  const cancelOnlinePaymentRef = useRef(null);
   const storeClosedNoticeShownRef = useRef(false);
   const [dialog, setDialog] = useState(null);
 
@@ -382,6 +383,7 @@ export function CardapioProvider({
       setDialog({
         title,
         message,
+        confirmLabel: 'OK',
         onConfirm: () => {
           setDialog(null);
           resolve(true);
@@ -389,6 +391,37 @@ export function CardapioProvider({
       });
     });
   }, []);
+
+  const showConfirm = useCallback(
+    (
+      message,
+      {
+        title = 'Confirmar',
+        confirmLabel = 'Confirmar',
+        cancelLabel = 'Voltar',
+        danger = false,
+      } = {}
+    ) => {
+      return new Promise((resolve) => {
+        setDialog({
+          title,
+          message,
+          confirmLabel,
+          cancelLabel,
+          danger,
+          onConfirm: () => {
+            setDialog(null);
+            resolve(true);
+          },
+          onCancel: () => {
+            setDialog(null);
+            resolve(false);
+          },
+        });
+      });
+    },
+    []
+  );
 
   const paymentMethods = useMemo(
     () => buildPublicPaymentMethods(storeConfig.exibirPixCardapio, onlinePaymentConfig),
@@ -1642,10 +1675,24 @@ export function CardapioProvider({
     openCheckout();
   }, [openCheckout]);
 
-  const closeCheckout = useCallback(() => {
+  const closeCheckout = useCallback(async () => {
     if (onlinePayment?.payment?.id) {
-      void showAlert('Aguarde a confirmação do pagamento antes de fechar esta tela.');
-      return;
+      const confirmed = await showConfirm(
+        'Há um pagamento Pix em andamento. Se sair agora, o pagamento será cancelado. Deseja continuar?',
+        {
+          title: 'Cancelar pagamento?',
+          confirmLabel: 'Cancelar pagamento',
+          cancelLabel: 'Continuar pagando',
+          danger: true,
+        }
+      );
+      if (!confirmed) return;
+      try {
+        await cancelOnlinePaymentRef.current?.({ clearQuietly: true });
+      } catch {
+        void showAlert('Não foi possível cancelar o pagamento. Tente novamente.');
+        return;
+      }
     }
     setCheckoutOpen(false);
     setCheckoutSuccess(false);
@@ -1653,7 +1700,7 @@ export function CardapioProvider({
     setCheckoutOrderNumber('');
     setCheckoutAddressConfirmed(false);
     setOnlinePayment(null);
-  }, [onlinePayment?.payment?.id, showAlert]);
+  }, [onlinePayment?.payment?.id, showAlert, showConfirm]);
 
   const selectDelivery = useCallback(
     (opt) => {
@@ -2071,6 +2118,35 @@ export function CardapioProvider({
     [checkoutData.name, checkoutData.phone, completeCheckoutOrder, onlinePayment, persistCompletedOrder]
   );
 
+  const cancelOnlinePayment = useCallback(async ({ clearQuietly = false } = {}) => {
+    const payment = onlinePayment?.payment;
+    if (!payment?.id || !payment?.token) {
+      setOnlinePayment(null);
+      return;
+    }
+    const response = await fetch(`/api/pagamentos/${encodeURIComponent(payment.id)}/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: payment.token }),
+    });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok || !json.ok) {
+      throw new Error(json.error || 'Não foi possível cancelar o pagamento.');
+    }
+    if (clearQuietly) {
+      setOnlinePayment(null);
+      return;
+    }
+    setOnlinePayment({
+      loading: false,
+      error: 'Pagamento cancelado. Você pode gerar um novo Pix ou escolher outra forma.',
+      payment: null,
+      publicOrder: null,
+    });
+  }, [onlinePayment]);
+
+  cancelOnlinePaymentRef.current = cancelOnlinePayment;
+
   useEffect(() => {
     const payment = onlinePayment?.payment;
     if (!payment?.id || !payment?.token || !['pendente', 'processando'].includes(payment.status)) {
@@ -2275,10 +2351,36 @@ export function CardapioProvider({
 
   const checkoutBack = useCallback(() => {
     if (checkoutStep > 1 && !checkoutSuccess) {
+      if (checkoutStep === 4 && onlinePayment?.payment?.id) {
+        void showConfirm(
+          'Há um pagamento Pix em andamento. Se voltar agora, o pagamento será cancelado. Deseja continuar?',
+          {
+            title: 'Cancelar pagamento?',
+            confirmLabel: 'Cancelar pagamento',
+            cancelLabel: 'Continuar pagando',
+            danger: true,
+          }
+        ).then((confirmed) => {
+          if (!confirmed) return;
+          void cancelOnlinePayment({ clearQuietly: true })
+            .then(() => setCheckoutStep((s) => s - 1))
+            .catch(() => {
+              void showAlert('Não foi possível cancelar o pagamento. Tente novamente.');
+            });
+        });
+        return;
+      }
       if (checkoutStep === 4) setOnlinePayment(null);
       setCheckoutStep((s) => s - 1);
     }
-  }, [checkoutStep, checkoutSuccess]);
+  }, [
+    cancelOnlinePayment,
+    checkoutStep,
+    checkoutSuccess,
+    onlinePayment?.payment?.id,
+    showAlert,
+    showConfirm,
+  ]);
 
   const dismissCheckoutSuccess = useCallback(() => {
     setCheckoutSuccess(false);
@@ -2471,6 +2573,7 @@ export function CardapioProvider({
       onlinePaymentConfig,
       onlinePayment,
       submitOnlinePayment,
+      cancelOnlinePayment,
       checkoutAddressConfirmed,
       addressFlowContext,
       cepOpen,
@@ -2545,6 +2648,7 @@ export function CardapioProvider({
       onlinePaymentConfig,
       onlinePayment,
       submitOnlinePayment,
+      cancelOnlinePayment,
       checkoutAddressConfirmed,
       addressFlowContext,
       cepOpen,
@@ -2664,12 +2768,17 @@ export function CardapioProvider({
           <CardapioContext.Provider value={value}>
             {children}
             {dialog ? (
-              <div className="generic-overlay open" role="presentation">
+              <div className="generic-overlay open app-dialog-overlay" role="presentation">
                 <div className="modal-card app-dialog-card" role="dialog" aria-modal="true">
                   <div className="modal-topbar">
                     <div style={{ width: 30 }} />
                     <div className="modal-topbar-title">{dialog.title}</div>
-                    <button type="button" className="modal-close" onClick={dialog.onConfirm} aria-label="Fechar">
+                    <button
+                      type="button"
+                      className="modal-close"
+                      onClick={dialog.onCancel || dialog.onConfirm}
+                      aria-label="Fechar"
+                    >
                       ×
                     </button>
                   </div>
@@ -2677,8 +2786,17 @@ export function CardapioProvider({
                     <p className="app-dialog-message">{dialog.message}</p>
                   </div>
                   <div className="modal-footer">
-                    <button type="button" className="btn-modal-confirm" onClick={dialog.onConfirm}>
-                      OK
+                    {dialog.onCancel ? (
+                      <button type="button" className="btn-modal-back" onClick={dialog.onCancel}>
+                        {dialog.cancelLabel || 'Voltar'}
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className={`btn-modal-confirm${dialog.danger ? ' is-danger' : ''}`}
+                      onClick={dialog.onConfirm}
+                    >
+                      {dialog.confirmLabel || 'OK'}
                     </button>
                   </div>
                 </div>

@@ -9,6 +9,10 @@ import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import ReportPrintDocument from '@/components/admin/reports/ReportPrintDocument';
 import CaixaHistoricoPanel from '@/components/admin/caixa/CaixaHistoricoPanel';
 import { CaixaStatusChip } from '@/components/admin/caixa/CaixaPanels';
+import {
+  AdminContentReveal,
+  AdminReportsBodySkeleton,
+} from '@/components/admin/AdminSkeleton';
 
 function formatDeliveryWhen(value) {
   if (!value) return '—';
@@ -415,11 +419,11 @@ export default function ReportsDashboard() {
           </div>
         </section>
 
-        {loading ? <div className="admin-reports-loading">Carregando relatório...</div> : null}
+        {loading ? <AdminReportsBodySkeleton /> : null}
         {error ? <div className="admin-reports-error">{error}</div> : null}
 
         {!loading && !error && report ? (
-          <>
+          <AdminContentReveal ready>
             <section className="admin-reports-kpi-grid" aria-label="Indicadores">
               {KPI_CONFIG.map((item) => (
                 <KpiCard
@@ -677,7 +681,7 @@ export default function ReportsDashboard() {
                 )}
               </article>
             </section>
-          </>
+          </AdminContentReveal>
         ) : null}
 
         <CaixaHistoricoPanel />

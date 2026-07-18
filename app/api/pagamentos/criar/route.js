@@ -74,7 +74,7 @@ export async function POST(request) {
         },
         customer_payload: prepared.customer,
         expires_at:
-          method === 'pix' ? new Date(Date.now() + 30 * 60 * 1000).toISOString() : null,
+          method === 'pix' ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null,
       })
       .select('*')
       .single();
