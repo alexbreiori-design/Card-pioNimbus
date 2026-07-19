@@ -4,6 +4,10 @@ import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import AdminConfirmDialog from "@/components/admin/AdminConfirmDialog";
 import { useAdminToast } from "@/context/AdminToastContext";
+import { getRuntimeEnvironment } from "@/lib/runtimeEnvironment";
+
+const runtimeEnv = getRuntimeEnvironment();
+const allowSandboxToggle = runtimeEnv === "local" || runtimeEnv === "staging";
 
 export default function AsaasIntegrationCard({
   slug,
@@ -18,7 +22,7 @@ export default function AsaasIntegrationCard({
   const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [apiKey, setApiKey] = useState("");
-  const [isSandbox, setIsSandbox] = useState(true);
+  const [isSandbox, setIsSandbox] = useState(allowSandboxToggle);
 
   const loadAccount = useCallback(async () => {
     if (!slug) return;
@@ -55,6 +59,7 @@ export default function AsaasIntegrationCard({
       toast.error("Informe a API Key do Asaas.");
       return;
     }
+    const useSandbox = allowSandboxToggle && isSandbox;
     setSaving(true);
     try {
       const response = await fetch("/api/admin/payments/account", {
@@ -64,7 +69,7 @@ export default function AsaasIntegrationCard({
           slug,
           provider: "asaas",
           apiKey: apiKey.trim(),
-          isSandbox,
+          isSandbox: useSandbox,
         }),
       });
       const json = await response.json().catch(() => ({}));
@@ -74,7 +79,7 @@ export default function AsaasIntegrationCard({
       onConnectedChange?.(true);
       setFormOpen(false);
       setApiKey("");
-      toast.success(isSandbox ? "Asaas (sandbox) conectado." : "Asaas conectado.");
+      toast.success(useSandbox ? "Asaas (sandbox) conectado." : "Asaas conectado.");
     } catch (error) {
       toast.error(error?.message || "Erro ao conectar Asaas.");
     } finally {
@@ -105,6 +110,7 @@ export default function AsaasIntegrationCard({
   }
 
   const connected = account?.status === "ativo";
+  const showSandboxStatus = allowSandboxToggle && account?.liveMode === false;
 
   return (
     <div
@@ -128,7 +134,7 @@ export default function AsaasIntegrationCard({
           }`}
         >
           {connected
-            ? account?.liveMode === false
+            ? showSandboxStatus
               ? "Conectado (sandbox)"
               : "Conectado"
             : locked
@@ -140,8 +146,7 @@ export default function AsaasIntegrationCard({
       {!connected && !formOpen ? (
         <>
           <p className="admin-help-text admin-delivery-areas-hint">
-            Pix e cartão com recebimento pela sua conta Asaas. Basta colar a API
-            Key — sem configurar webhook no painel Asaas.
+            Pix e cartão com recebimento pela sua conta Asaas.
           </p>
           {locked ? (
             <p className="admin-help-text admin-delivery-areas-empty">
@@ -169,18 +174,19 @@ export default function AsaasIntegrationCard({
         >
           <h3 className="admin-delivery-area-form-title">API Key Asaas</h3>
           <p className="admin-help-text" style={{ marginTop: 0 }}>
-            No painel Asaas: Integrações → API Key. Cole a chave aqui — o webhook
-            é configurado automaticamente pelo Nimbus.
+            No painel Asaas: Integrações → API Key. Cole a chave aqui.
           </p>
-          <label className="admin-payment-method-toggle" style={{ marginBottom: 12 }}>
-            <input
-              type="checkbox"
-              checked={isSandbox}
-              onChange={(event) => setIsSandbox(event.target.checked)}
-              disabled={saving}
-            />
-            <span>Ambiente sandbox (teste)</span>
-          </label>
+          {allowSandboxToggle ? (
+            <label className="admin-payment-method-toggle" style={{ marginBottom: 12 }}>
+              <input
+                type="checkbox"
+                checked={isSandbox}
+                onChange={(event) => setIsSandbox(event.target.checked)}
+                disabled={saving}
+              />
+              <span>Ambiente sandbox (teste)</span>
+            </label>
+          ) : null}
           <div className="admin-form-group">
             <label className="admin-label" htmlFor="asaas-api-key">
               API Key
