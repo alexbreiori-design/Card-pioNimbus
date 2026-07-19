@@ -34,7 +34,6 @@ function addressText(order) {
 
 export default function OrderDetailModal({
   order,
-  paymentLabel,
   whatsAppNotifyUrl = null,
   whatsAppSummaryUrl = null,
   onClose,
@@ -57,7 +56,6 @@ export default function OrderDetailModal({
 
   if (!order) return null;
   const payBadge = paymentStatusBadgeForOrder(order);
-  const pay = paymentLabel || payBadge.methodLabel;
   const deadlineClass = orderDeadlineHighlightClass(order);
 
   return (
@@ -141,14 +139,11 @@ export default function OrderDetailModal({
               <AdminIcon name="coupon" />
               <div>
                 <span>Pagamento</span>
-                <strong>{pay}</strong>
-                <div>
-                  <span
-                    className={`admin-order-detail-pay-badge admin-order-detail-pay-badge--${payBadge.kind}`}
-                  >
-                    {payBadge.label}
-                  </span>
-                </div>
+                <span
+                  className={`admin-order-detail-pay-badge admin-order-detail-pay-badge--${payBadge.kind}`}
+                >
+                  {payBadge.detailLabel}
+                </span>
               </div>
             </div>
           </div>

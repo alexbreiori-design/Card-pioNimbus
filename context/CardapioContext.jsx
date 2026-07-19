@@ -1838,8 +1838,10 @@ export function CardapioProvider({
         ? `${addressSnapshot.rua}${addressSnapshot.num ? `, ${addressSnapshot.num}` : ''} - ${addressSnapshot.bairro} - ${addressSnapshot.cidade || ''}`
         : formatStoreAddress(storeConfig);
       let observacao = '';
+      let trocoPara = 0;
       if (checkoutData.payment === 'dinheiro' && checkoutData.trocoAnswer === 'sim') {
         const trocoAmount = parseMoneyBrInput(checkoutData.trocoValue);
+        trocoPara = trocoAmount;
         observacao = `Precisa de troco para ${formatPrice(trocoAmount)}`;
       }
       const localCustomerId = `cliente-${phoneDigits || Date.now()}`;
@@ -1894,7 +1896,8 @@ export function CardapioProvider({
         cupomCodigo: appliedCupom?.codigo || '',
         total,
         historico: [{ status: 'novo', at: createdAt }],
-        pagamento: { metodo: checkoutData.payment, recebido: total, troco: 0 },
+        pagamento: { metodo: checkoutData.payment, recebido: total, troco: trocoPara },
+        trocoPara,
         autoImported: true,
       };
       const publicOrder = {
