@@ -12800,14 +12800,6 @@ textarea.admin-input::placeholder {
   color: #9a3412;
 }
 
-.admin-order-card--paid {
-  border-left: 3px solid #16a34a !important;
-}
-
-.admin-order-card--unpaid {
-  border-left: 3px solid #ea580c !important;
-}
-
 .admin-order-detail-pay-badge {
   display: inline-flex;
   align-items: center;
@@ -12816,6 +12808,10 @@ textarea.admin-input::placeholder {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
+  line-height: 1.35;
+  max-width: 100%;
+  text-align: left;
+  white-space: normal;
 }
 
 .admin-order-detail-pay-badge--paid {

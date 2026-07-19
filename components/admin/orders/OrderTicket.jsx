@@ -3,7 +3,7 @@
 import CartItemOptsList from '@/components/cardapio/CartItemOptsList';
 import '@/styles/orderTicket.css';
 import { currency, fmtPhone } from './orderDraftUtils';
-import { paymentLabelForOrder, paymentStatusBadgeForOrder } from '@/lib/orders/mapAdminOrder';
+import { paymentStatusBadgeForOrder } from '@/lib/orders/mapAdminOrder';
 
 const TIPO_LABEL = { delivery: 'Delivery', retirada: 'Retirada', balcao: 'Balcão' };
 
@@ -40,7 +40,6 @@ function addressText(order) {
 export default function OrderTicket({ order, store = {}, widthMm = 80, mode = 'print' }) {
   if (!order) return null;
 
-  const pay = paymentLabelForOrder(order);
   const payBadge = paymentStatusBadgeForOrder(order);
   const widthClass = widthMm === 58 ? 'order-ticket--58' : 'order-ticket--80';
   const rootClass =
@@ -76,10 +75,6 @@ export default function OrderTicket({ order, store = {}, widthMm = 80, mode = 'p
 
         <div className="order-ticket-inverse order-ticket-order-number">
           PEDIDO {order.id}
-        </div>
-
-        <div className={`order-ticket-pay-status order-ticket-pay-status--${payBadge.kind}`}>
-          {payBadge.label.toUpperCase()}
         </div>
 
         <section className="order-ticket-section">
@@ -158,7 +153,7 @@ export default function OrderTicket({ order, store = {}, widthMm = 80, mode = 'p
         <section className="order-ticket-section">
           <div className="order-ticket-block-title">Forma de pagamento</div>
           <div className="order-ticket-row">
-            <strong>{pay}</strong>
+            <strong>{payBadge.detailLabel}</strong>
           </div>
           <div className="order-ticket-pay-hint">
             {payBadge.kind === 'paid'

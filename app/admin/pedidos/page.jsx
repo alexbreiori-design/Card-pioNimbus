@@ -27,7 +27,7 @@ import { useOrderPrint } from '@/context/OrderPrintContext';
 import OrderPrintPrepDialog from '@/components/admin/orders/OrderPrintPrepDialog';
 import OrderDeadlineDemoEdit from '@/components/admin/orders/OrderDeadlineDemoEdit';
 import { getOrderPrintOnPrepMode } from '@/lib/orderTicketPrefs';
-import { paymentLabelForOrder, paymentStatusBadgeForOrder } from '@/lib/orders/mapAdminOrder';
+import { paymentStatusBadgeForOrder } from '@/lib/orders/mapAdminOrder';
 import { ensureCustomer, normalizePhone, updateCustomerStats, upsertClienteEndereco } from '@/lib/supabase/customers';
 import { resolveEmpresaIdFromStore } from '@/lib/supabase/empresa';
 import { getEtaFromConfirmedAt } from '@/lib/deliveryDuration';
@@ -503,7 +503,6 @@ export default function PedidosPage() {
   }
 
   const detailOrder = allOrders.find((o) => o.id === detailOrderId);
-  const paymentLabel = paymentLabelForOrder(detailOrder);
 
   return (
     <div className="admin-content admin-content-pedidos admin-orders-page">
@@ -657,9 +656,7 @@ export default function PedidosPage() {
                   return (
                     <div
                       key={order.id}
-                      className={`admin-order-card${deadlineCardClass ? ` ${deadlineCardClass}` : ''}${
-                        payBadge.kind === 'paid' ? ' admin-order-card--paid' : ' admin-order-card--unpaid'
-                      }`}
+                      className={`admin-order-card${deadlineCardClass ? ` ${deadlineCardClass}` : ''}`}
                       style={flash ? { boxShadow: '0 0 0 2px #4e48dd inset' } : undefined}
                       onClick={() => setDetailOrderId(order.id)}
                     >
@@ -810,7 +807,6 @@ export default function PedidosPage() {
 
       <OrderDetailModal
         order={detailOrder}
-        paymentLabel={paymentLabel}
         whatsAppNotifyUrl={
           detailOrder && !detailOrder.arquivado ? buildOrderStatusNotifyUrl(detailOrder) : null
         }
