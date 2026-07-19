@@ -125,32 +125,6 @@
   letter-spacing: 0.03em;
 }
 
-.order-ticket-pay-status {
-  box-sizing: border-box;
-  width: 100%;
-  margin: 0 0 2px;
-  padding: 7px 5px;
-  text-align: center;
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  line-height: 1.15;
-  border: 2px solid #000;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
-}
-
-.order-ticket-pay-status--paid {
-  color: #fff;
-  background: #000;
-}
-
-.order-ticket-pay-status--on_delivery {
-  color: #000;
-  background: #fff;
-  border-style: solid;
-}
-
 .order-ticket-pay-hint {
   margin-top: 4px;
   font-size: 12px;
