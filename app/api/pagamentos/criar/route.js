@@ -5,12 +5,21 @@ import {
   hashCheckoutToken,
 } from '@/lib/payments/crypto';
 import {
+  createAsaasPayment,
+  extractAsaasPix,
+  findOrCreateAsaasCustomer,
+  getAsaasPixQrCode,
+  mapAsaasStatus,
+} from '@/lib/payments/providers/asaas';
+import {
   createMercadoPagoPayment,
   extractMercadoPagoPix,
   mapMercadoPagoStatus,
 } from '@/lib/payments/providers/mercadoPago';
 import {
   finalizeApprovedPayment,
+  getPaymentAccount,
+  getUsableAsaasAccount,
   getUsableMercadoPagoAccount,
 } from '@/lib/payments/paymentServer';
 import { requirePaymentFeatureForEmpresa } from '@/lib/payments/paymentFeature';
@@ -42,27 +51,27 @@ export async function POST(request) {
       customer: body.customer,
     });
     await requirePaymentFeatureForEmpresa(supabase, prepared.empresa.id);
-    const account = await getUsableMercadoPagoAccount(supabase, prepared.empresa.id);
-    if (!account) {
+    const active = await getPaymentAccount(supabase, prepared.empresa.id);
+    if (!active) {
       return NextResponse.json(
         { ok: false, error: 'Pagamento online indisponível para esta loja.' },
         { status: 409 }
       );
     }
-    if (account.metodos?.[method] === false) {
+    if (active.metodos?.[method] === false) {
       return NextResponse.json(
         { ok: false, error: 'Método de pagamento indisponível.' },
         { status: 409 }
       );
     }
 
-    const sandboxAccount = account.metadata?.live_mode === false;
+    const provider = active.provider;
     const checkoutToken = createCheckoutToken();
     const { data: inserted, error: insertError } = await supabase
       .from('pagamentos')
       .insert({
         empresa_id: prepared.empresa.id,
-        provider: 'mercado_pago',
+        provider,
         checkout_token_hash: hashCheckoutToken(checkoutToken),
         metodo: method,
         status: 'pendente',
@@ -81,82 +90,168 @@ export async function POST(request) {
     if (insertError) throw insertError;
     paymentRow = inserted;
 
-    let payerEmail = String(
-      body.cardData?.payer?.email || body.email || prepared.customer.email || ''
-    ).trim();
-    // No sandbox o MP exige comprador @testuser.com; o e-mail do token do Brick
-    // precisa ser o mesmo enviado na order (não reescrever para outro aleatório).
-    if (sandboxAccount) {
-      payerEmail = payerEmail.toLowerCase().endsWith('@testuser.com')
-        ? payerEmail
-        : 'test@testuser.com';
-    }
-    const cardData =
-      body.cardData && payerEmail
-        ? {
-            ...body.cardData,
-            payer: {
-              ...(body.cardData.payer || {}),
-              email: payerEmail,
-            },
-          }
-        : body.cardData;
+    let updated;
+    let pedido = null;
 
-    const { data: empresaRow } = await supabase
-      .from('empresas')
-      .select('nome')
-      .eq('id', prepared.empresa.id)
-      .maybeSingle();
-    const { data: existingCliente } = await supabase
-      .from('clientes')
-      .select('created_at')
-      .eq('empresa_id', prepared.empresa.id)
-      .eq('telefone', prepared.phone)
-      .maybeSingle();
-
-    const remote = await createMercadoPagoPayment({
-      accessToken: account.accessToken,
-      amount: prepared.validated.total,
-      method,
-      payer: {
+    if (provider === 'asaas') {
+      const account = await getUsableAsaasAccount(supabase, prepared.empresa.id);
+      if (!account) {
+        throw Object.assign(new Error('Conta Asaas desconectada.'), { status: 409 });
+      }
+      const payerEmail = String(
+        body.cardData?.payer?.email || body.email || prepared.customer.email || ''
+      ).trim();
+      const payerDocument = String(
+        body.cardData?.payer?.identification?.number ||
+          body.cardData?.identification?.number ||
+          body.cardData?.creditCardHolderInfo?.cpfCnpj ||
+          body.cpfCnpj ||
+          prepared.customer.cpf ||
+          prepared.customer.cpfCnpj ||
+          ''
+      ).replace(/\D/g, '');
+      if (!payerDocument) {
+        throw Object.assign(new Error('Informe o CPF ou CNPJ para pagar com Asaas.'), {
+          status: 400,
+        });
+      }
+      const customer = await findOrCreateAsaasCustomer({
+        apiKey: account.accessToken,
+        sandbox: account.sandbox,
         name: prepared.customer.name || prepared.order.clienteNome,
         email: payerEmail,
         phone: prepared.phone,
-      },
-      externalReference: paymentRow.id,
-      idempotencyKey: paymentRow.idempotency_key,
-      cardData,
-      order: prepared.order,
-      validated: prepared.validated,
-      storeName: empresaRow?.nome || prepared.slug,
-      registrationDate: existingCliente?.created_at || new Date().toISOString(),
-      sandbox: sandboxAccount,
-      deviceId: String(body.deviceId || body.cardData?.deviceId || '').trim() || null,
-    });
-    const pix = extractMercadoPagoPix(remote);
-    const paymentTx = remote?.transactions?.payments?.[0];
-    const status = mapMercadoPagoStatus(remote);
-    const now = new Date().toISOString();
-    const { data: updated, error: updateError } = await supabase
-      .from('pagamentos')
-      .update({
-        provider_payment_id: String(remote.id),
-        provider_status: remote.status || paymentTx?.status || null,
-        status_detail: paymentTx?.status_detail || remote.status_detail || null,
-        status,
-        qr_code: pix.qrCode,
-        qr_code_base64: pix.qrCodeBase64,
-        ticket_url: pix.ticketUrl,
-        approved_at:
-          status === 'aprovado' ? remote.last_updated_date || now : null,
-        updated_at: now,
-      })
-      .eq('id', paymentRow.id)
-      .select('*')
-      .single();
-    if (updateError) throw updateError;
+        cpfCnpj: payerDocument,
+      });
 
-    const pedido = status === 'aprovado' ? await finalizeApprovedPayment(supabase, updated) : null;
+      const creditCard = body.cardData?.creditCard || body.cardData?.card || null;
+      const creditCardHolderInfo =
+        body.cardData?.creditCardHolderInfo || body.cardData?.holderInfo || null;
+      const remote = await createAsaasPayment({
+        apiKey: account.accessToken,
+        sandbox: account.sandbox,
+        customerId: customer.id,
+        amount: prepared.validated.total,
+        method,
+        description: `Pedido ${prepared.slug}`,
+        externalReference: paymentRow.id,
+        creditCard: method === 'credit_card' ? creditCard : null,
+        creditCardHolderInfo: method === 'credit_card' ? creditCardHolderInfo : null,
+        remoteIp:
+          request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+          request.headers.get('x-real-ip') ||
+          null,
+      });
+
+      let pix = { qrCode: null, qrCodeBase64: null, ticketUrl: null };
+      if (method === 'pix') {
+        const qr = await getAsaasPixQrCode(account.accessToken, remote.id, {
+          sandbox: account.sandbox,
+        });
+        pix = extractAsaasPix(qr);
+      }
+      const status = mapAsaasStatus(remote);
+      const now = new Date().toISOString();
+      const { data, error: updateError } = await supabase
+        .from('pagamentos')
+        .update({
+          provider_payment_id: String(remote.id),
+          provider_status: remote.status || null,
+          status_detail: remote.invoiceUrl || null,
+          status,
+          qr_code: pix.qrCode,
+          qr_code_base64: pix.qrCodeBase64,
+          ticket_url: pix.ticketUrl,
+          approved_at: status === 'aprovado' ? remote.paymentDate || now : null,
+          updated_at: now,
+        })
+        .eq('id', paymentRow.id)
+        .select('*')
+        .single();
+      if (updateError) throw updateError;
+      updated = data;
+      pedido = status === 'aprovado' ? await finalizeApprovedPayment(supabase, updated) : null;
+    } else {
+      const account = await getUsableMercadoPagoAccount(supabase, prepared.empresa.id);
+      if (!account) {
+        throw Object.assign(new Error('Conta Mercado Pago desconectada.'), { status: 409 });
+      }
+      const sandboxAccount = account.metadata?.live_mode === false;
+      let payerEmail = String(
+        body.cardData?.payer?.email || body.email || prepared.customer.email || ''
+      ).trim();
+      if (sandboxAccount) {
+        payerEmail = payerEmail.toLowerCase().endsWith('@testuser.com')
+          ? payerEmail
+          : 'test@testuser.com';
+      }
+      const cardData =
+        body.cardData && payerEmail
+          ? {
+              ...body.cardData,
+              payer: {
+                ...(body.cardData.payer || {}),
+                email: payerEmail,
+              },
+            }
+          : body.cardData;
+
+      const { data: empresaRow } = await supabase
+        .from('empresas')
+        .select('nome')
+        .eq('id', prepared.empresa.id)
+        .maybeSingle();
+      const { data: existingCliente } = await supabase
+        .from('clientes')
+        .select('created_at')
+        .eq('empresa_id', prepared.empresa.id)
+        .eq('telefone', prepared.phone)
+        .maybeSingle();
+
+      const remote = await createMercadoPagoPayment({
+        accessToken: account.accessToken,
+        amount: prepared.validated.total,
+        method,
+        payer: {
+          name: prepared.customer.name || prepared.order.clienteNome,
+          email: payerEmail,
+          phone: prepared.phone,
+        },
+        externalReference: paymentRow.id,
+        idempotencyKey: paymentRow.idempotency_key,
+        cardData,
+        order: prepared.order,
+        validated: prepared.validated,
+        storeName: empresaRow?.nome || prepared.slug,
+        registrationDate: existingCliente?.created_at || new Date().toISOString(),
+        sandbox: sandboxAccount,
+        deviceId: String(body.deviceId || body.cardData?.deviceId || '').trim() || null,
+      });
+      const pix = extractMercadoPagoPix(remote);
+      const paymentTx = remote?.transactions?.payments?.[0];
+      const status = mapMercadoPagoStatus(remote);
+      const now = new Date().toISOString();
+      const { data, error: updateError } = await supabase
+        .from('pagamentos')
+        .update({
+          provider_payment_id: String(remote.id),
+          provider_status: remote.status || paymentTx?.status || null,
+          status_detail: paymentTx?.status_detail || remote.status_detail || null,
+          status,
+          qr_code: pix.qrCode,
+          qr_code_base64: pix.qrCodeBase64,
+          ticket_url: pix.ticketUrl,
+          approved_at: status === 'aprovado' ? remote.last_updated_date || now : null,
+          updated_at: now,
+        })
+        .eq('id', paymentRow.id)
+        .select('*')
+        .single();
+      if (updateError) throw updateError;
+      updated = data;
+      pedido = status === 'aprovado' ? await finalizeApprovedPayment(supabase, updated) : null;
+    }
+
     return NextResponse.json({
       ok: true,
       payment: {

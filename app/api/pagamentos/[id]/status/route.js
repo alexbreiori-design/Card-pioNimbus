@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { checkoutTokenMatches } from '@/lib/payments/crypto';
-import { syncMercadoPagoPayment } from '@/lib/payments/paymentServer';
+import {
+  syncAsaasPayment,
+  syncMercadoPagoPayment,
+} from '@/lib/payments/paymentServer';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 
 export async function GET(request, { params }) {
@@ -24,7 +27,10 @@ export async function GET(request, { params }) {
     let current = payment;
     let pedido = null;
     if (payment.provider_payment_id && ['pendente', 'processando'].includes(payment.status)) {
-      const synced = await syncMercadoPagoPayment(supabase, payment);
+      const synced =
+        payment.provider === 'asaas'
+          ? await syncAsaasPayment(supabase, payment)
+          : await syncMercadoPagoPayment(supabase, payment);
       current = synced.payment;
       pedido = synced.pedido;
     }

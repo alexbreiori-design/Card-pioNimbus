@@ -8,6 +8,7 @@ import { useEmpresa } from "@/hooks/useEmpresa";
 import AdminConfirmDialog from "@/components/admin/AdminConfirmDialog";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import MercadoPagoIntegrationCard from "@/components/admin/integrations/MercadoPagoIntegrationCard";
+import AsaasIntegrationCard from "@/components/admin/integrations/AsaasIntegrationCard";
 import PaymentProviderComingSoonCard from "@/components/admin/integrations/PaymentProviderComingSoonCard";
 import {
   AdminContentReveal,
@@ -177,11 +178,12 @@ export default function IntegracoesPage() {
                 slug={slug}
                 empresaLoading={empresaLoading}
                 onConnectedChange={setPaymentProviderConnected}
+                locked={paymentProviderConnected}
               />
-              <PaymentProviderComingSoonCard
-                logo="/images/pagarme-logo.png"
-                name="Pagar.me"
-                description="Pix e cartão com recebimento pela sua conta Pagar.me."
+              <AsaasIntegrationCard
+                slug={slug}
+                empresaLoading={empresaLoading}
+                onConnectedChange={setPaymentProviderConnected}
                 locked={paymentProviderConnected}
               />
               <PaymentProviderComingSoonCard

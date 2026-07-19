@@ -2637,6 +2637,29 @@ body {
   text-align: center;
   font-weight: 600;
 }
+
+.checkout-asaas-card-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.checkout-asaas-card-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.checkout-asaas-card-row:last-of-type {
+  grid-template-columns: 1.4fr 0.6fr;
+}
+
+@media (max-width: 480px) {
+  .checkout-asaas-card-row,
+  .checkout-asaas-card-row:last-of-type {
+    grid-template-columns: 1fr;
+  }
+}
 .btn-checkout-whatsapp {
   display: flex;
   align-items: center;
