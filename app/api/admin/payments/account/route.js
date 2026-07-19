@@ -12,7 +12,7 @@ import {
 } from '@/lib/payments/paymentFeature';
 import { validateAsaasApiKey } from '@/lib/payments/providers/asaas';
 import { validateMercadoPagoAccessToken } from '@/lib/payments/providers/mercadoPago';
-import { allowsManualPaymentCredentials } from '@/lib/runtimeEnvironment';
+import { allowsManualPaymentCredentials, getRuntimeEnvironment } from '@/lib/runtimeEnvironment';
 import { requireStoreAdmin } from '@/lib/supabase/membership';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 
@@ -103,7 +103,10 @@ export async function POST(request) {
 
     if (provider === 'asaas') {
       const apiKey = String(body.apiKey || body.accessToken || '').trim();
-      const isSandbox = body.isSandbox === true || body.isTestCredentials === true;
+      const runtimeEnv = getRuntimeEnvironment();
+      const allowSandbox = runtimeEnv === 'local' || runtimeEnv === 'staging';
+      const isSandbox =
+        allowSandbox && (body.isSandbox === true || body.isTestCredentials === true);
       if (!apiKey) {
         return NextResponse.json({ ok: false, error: 'Informe a API Key do Asaas.' }, { status: 400 });
       }
