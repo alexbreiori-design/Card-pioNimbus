@@ -3,7 +3,7 @@
 import CartItemOptsList from '@/components/cardapio/CartItemOptsList';
 import '@/styles/orderTicket.css';
 import { currency, fmtPhone } from './orderDraftUtils';
-import { paymentLabelForOrder } from '@/lib/orders/mapAdminOrder';
+import { paymentLabelForOrder, paymentStatusBadgeForOrder } from '@/lib/orders/mapAdminOrder';
 
 const TIPO_LABEL = { delivery: 'Delivery', retirada: 'Retirada', balcao: 'Balcão' };
 
@@ -41,6 +41,7 @@ export default function OrderTicket({ order, store = {}, widthMm = 80, mode = 'p
   if (!order) return null;
 
   const pay = paymentLabelForOrder(order);
+  const payBadge = paymentStatusBadgeForOrder(order);
   const widthClass = widthMm === 58 ? 'order-ticket--58' : 'order-ticket--80';
   const rootClass =
     mode === 'preview'
@@ -77,6 +78,10 @@ export default function OrderTicket({ order, store = {}, widthMm = 80, mode = 'p
           PEDIDO {order.id}
         </div>
 
+        <div className={`order-ticket-pay-status order-ticket-pay-status--${payBadge.kind}`}>
+          {payBadge.label.toUpperCase()}
+        </div>
+
         <section className="order-ticket-section">
           <div className="order-ticket-block-title">Itens</div>
           {(order.itens || []).length === 0 ? (
@@ -88,7 +93,9 @@ export default function OrderTicket({ order, store = {}, widthMm = 80, mode = 'p
                   <span className="order-ticket-item-name">
                     {item.qtd}x {item.nome}
                   </span>
-                  <span className="order-ticket-item-price">{currency(item.subtotal ?? item.qtd * item.precoUnit)}</span>
+                  <span className="order-ticket-item-price">
+                    {currency(item.subtotal ?? item.qtd * item.precoUnit)}
+                  </span>
                 </div>
                 <CartItemOptsList obs={item.obs} className="order-ticket-item-obs" />
               </div>
@@ -152,6 +159,11 @@ export default function OrderTicket({ order, store = {}, widthMm = 80, mode = 'p
           <div className="order-ticket-block-title">Forma de pagamento</div>
           <div className="order-ticket-row">
             <strong>{pay}</strong>
+          </div>
+          <div className="order-ticket-pay-hint">
+            {payBadge.kind === 'paid'
+              ? 'Já pago no cardápio — não cobrar do cliente.'
+              : 'Cobrar do cliente na entrega/retirada.'}
           </div>
         </section>
 
