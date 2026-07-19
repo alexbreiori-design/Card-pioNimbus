@@ -369,17 +369,6 @@ export default function MinhaLojaPage() {
     }));
   }
 
-  async function copyPixKey() {
-    const key = String(draft.chavePix || '').trim();
-    if (!key) return;
-    try {
-      await navigator.clipboard.writeText(key);
-      toast.success('Chave Pix copiada.');
-    } catch {
-      toast.error('Não foi possível copiar a chave Pix.');
-    }
-  }
-
   async function save() {
     setSaving(true);
     const durations = resolveLojaDurations(draft);
@@ -701,68 +690,6 @@ export default function MinhaLojaPage() {
             <span className="admin-store-descricao-counter">
               {descricaoLength}/{DESCRICAO_MAX}
             </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="admin-card admin-store-section-card">
-        <StoreSectionHead
-          icon="pix"
-          title="Pagamento Pix (checkout)"
-          hint="Exibido no cardápio online somente quando o cliente escolher Pix."
-        />
-        <div className="admin-store-section-body">
-          <div className="admin-form-group admin-store-pix-toggle-row">
-            <div>
-              <label className="admin-label" htmlFor="exibir-pix-cardapio">
-                Exibir Pix no cardápio online
-              </label>
-              <p className="admin-help-text" style={{ margin: '4px 0 0' }}>
-                Desmarcado, o checkout mostra apenas pagamento na entrega (dinheiro e cartão).
-              </p>
-            </div>
-            <label className="admin-switch" htmlFor="exibir-pix-cardapio">
-              <input
-                id="exibir-pix-cardapio"
-                type="checkbox"
-                checked={draft.exibirPixCardapio !== false}
-                onChange={(e) => setLojaField('exibirPixCardapio', e.target.checked)}
-              />
-              <span className="admin-switch-slider" />
-            </label>
-          </div>
-          <div className="admin-form-group">
-            <label className="admin-label">Chave Pix</label>
-            <div className="admin-input-icon-wrap">
-              <input
-                className="admin-input admin-input-with-icon"
-                value={draft.chavePix || ''}
-                onChange={(e) => setLojaField('chavePix', e.target.value)}
-                placeholder="E-mail, CPF, CNPJ ou telefone"
-              />
-              <button
-                type="button"
-                className="admin-input-icon-btn admin-input-icon-btn-brand"
-                onClick={copyPixKey}
-                disabled={!draft.chavePix}
-                title="Copiar chave Pix"
-                aria-label="Copiar chave Pix"
-              >
-                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                  <rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" strokeWidth="2" />
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" fill="none" stroke="currentColor" strokeWidth="2" />
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div className="admin-form-group">
-            <label className="admin-label">Descrição da chave Pix</label>
-            <input
-              className="admin-input"
-              value={draft.descricaoChavePix || ''}
-              onChange={(e) => setLojaField('descricaoChavePix', e.target.value)}
-              placeholder="Ex: Pix CPF — Razão social"
-            />
           </div>
         </div>
       </div>

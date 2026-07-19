@@ -16,10 +16,15 @@ import {
 } from '@/lib/phoneBr';
 import CartItemOptsList from '@/components/cardapio/CartItemOptsList';
 import { useCardapio } from '@/context/CardapioContext';
+import { formatCpfCnpjInput } from '@/lib/cpfCnpj';
 import { IconBack, IconClose, IconContinue, IconStepCheck } from './icons';
 
 const MercadoPagoPaymentPanel = dynamic(
   () => import('@/components/cardapio/MercadoPagoPaymentPanel'),
+  { ssr: false }
+);
+const AsaasPaymentPanel = dynamic(
+  () => import('@/components/cardapio/AsaasPaymentPanel'),
   { ssr: false }
 );
 
@@ -63,6 +68,8 @@ export default function CheckoutModal() {
     setCheckoutPhone,
     checkoutEmail,
     setCheckoutEmail,
+    checkoutCpfCnpj,
+    setCheckoutCpfCnpj,
     lookupCheckoutCustomerByPhone,
     onlinePaymentConfig,
     STEP_LABELS,
@@ -319,7 +326,10 @@ export default function CheckoutModal() {
     if (checkoutStep === 3) {
       const onlineMethods = PAYMENT_METHODS.filter((m) => m.group === 'Pagar agora');
       const offlineMethods = PAYMENT_METHODS.filter((m) => m.group !== 'Pagar agora');
-      const showOnlineEmail = ['pix_online', 'credito_online'].includes(checkoutData.payment);
+      const isOnlinePay = ['pix_online', 'credito_online'].includes(checkoutData.payment);
+      const isAsaas = onlinePaymentConfig?.provider === 'asaas';
+      const showOnlineEmail = isOnlinePay && !isAsaas;
+      const showAsaasCpf = isOnlinePay && isAsaas;
 
       const renderPaymentOption = (m) => {
         const isDinheiro = m.id === 'dinheiro';
@@ -394,9 +404,7 @@ export default function CheckoutModal() {
             type="email"
             autoComplete="email"
             placeholder={
-              onlinePaymentConfig?.sandbox
-                ? 'ex: test@testuser.com'
-                : 'seu@email.com'
+              onlinePaymentConfig?.sandbox ? 'ex: test@testuser.com' : 'seu@email.com'
             }
             value={checkoutEmail}
             onChange={(e) => setCheckoutEmail(e.target.value)}
@@ -409,6 +417,26 @@ export default function CheckoutModal() {
         </div>
       ) : null;
 
+      const onlineCpfField = showAsaasCpf ? (
+        <div className="form-group checkout-online-email">
+          <label className="form-label" htmlFor="checkoutOnlineCpf">
+            CPF ou CNPJ
+          </label>
+          <input
+            id="checkoutOnlineCpf"
+            className="form-input"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="000.000.000-00"
+            value={checkoutCpfCnpj}
+            onChange={(e) => setCheckoutCpfCnpj(formatCpfCnpjInput(e.target.value))}
+          />
+          <small className="checkout-field-hint">
+            Obrigatório pelo Asaas para Pix e cartão online.
+          </small>
+        </div>
+      ) : null;
+
       return (
         <>
           {onlineMethods.length > 0 ? (
@@ -416,6 +444,7 @@ export default function CheckoutModal() {
               <div className="payment-section-label">Pagar agora</div>
               {onlineMethods.map(renderPaymentOption)}
               {onlineEmailField}
+              {onlineCpfField}
             </>
           ) : null}
           {offlineMethods.length > 0 ? (
@@ -542,7 +571,13 @@ export default function CheckoutModal() {
               <span className="confirm-pay-total-value">{formatPrice(total)}</span>
             </div>
           </section>
-          {isOnlinePayment ? <MercadoPagoPaymentPanel amount={total} /> : null}
+          {isOnlinePayment ? (
+            onlinePaymentConfig?.provider === 'asaas' ? (
+              <AsaasPaymentPanel />
+            ) : (
+              <MercadoPagoPaymentPanel amount={total} />
+            )
+          ) : null}
         </div>
       );
     }

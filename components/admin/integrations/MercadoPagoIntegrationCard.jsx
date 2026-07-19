@@ -34,6 +34,7 @@ export default function MercadoPagoIntegrationCard({
   slug,
   empresaLoading,
   onConnectedChange,
+  locked = false,
 }) {
   const toast = useAdminToast();
   const [account, setAccount] = useState(null);
@@ -58,8 +59,12 @@ export default function MercadoPagoIntegrationCard({
       const json = await response.json().catch(() => ({}));
       if (!response.ok || !json.ok)
         throw new Error(json.error || "Erro ao carregar integração.");
-      setAccount(json.account);
-      setRecentOrders(Array.isArray(json.recentOrders) ? json.recentOrders : []);
+      setAccount(json.account?.provider === "mercado_pago" ? json.account : null);
+      setRecentOrders(
+        json.account?.provider === "mercado_pago" && Array.isArray(json.recentOrders)
+          ? json.recentOrders
+          : [],
+      );
       onConnectedChange?.(json.account?.status === "ativo");
     } catch (error) {
       toast.error(error?.message || "Erro ao carregar Mercado Pago.");
@@ -153,7 +158,7 @@ export default function MercadoPagoIntegrationCard({
       const response = await fetch("/api/admin/payments/account", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug }),
+        body: JSON.stringify({ slug, provider: "mercado_pago" }),
       });
       const json = await response.json().catch(() => ({}));
       if (!response.ok || !json.ok)
@@ -171,7 +176,12 @@ export default function MercadoPagoIntegrationCard({
 
   const connected = account?.status === "ativo";
   return (
-    <div className="admin-card admin-store-block-card admin-compact-page-card admin-integration-card admin-payment-provider-card">
+    <div
+      className={`admin-card admin-store-block-card admin-compact-page-card admin-integration-card admin-payment-provider-card${
+        locked && !connected ? " is-locked" : ""
+      }`}
+      aria-disabled={locked && !connected ? true : undefined}
+    >
       <div className="admin-integration-meta-wrap admin-integration-meta-wrap-left">
         <Image
           className="admin-payment-provider-logo"
@@ -182,13 +192,17 @@ export default function MercadoPagoIntegrationCard({
           priority
         />
         <span
-          className={`admin-payment-status ${connected ? "is-connected" : ""}`}
+          className={`admin-payment-status ${
+            connected ? "is-connected" : locked ? "is-unavailable" : ""
+          }`}
         >
           {connected
             ? account?.liveMode === false
               ? "Conectado (teste)"
               : "Conectado"
-            : "Não conectado"}
+            : locked
+              ? "Indisponível"
+              : "Não conectado"}
         </span>
       </div>
 
@@ -197,30 +211,36 @@ export default function MercadoPagoIntegrationCard({
           <p className="admin-help-text admin-delivery-areas-hint">
             Pix e cartão com recebimento pela sua conta Mercado Pago.
           </p>
-          <div className="admin-delivery-area-form-actions" style={{ marginTop: 12 }}>
-            <button
-              type="button"
-              className="admin-btn admin-btn-primary"
-              onClick={connectOAuth}
-              disabled={loading || empresaLoading}
-            >
-              Conectar
-            </button>
-            {allowManualCredentials ? (
+          {locked ? (
+            <p className="admin-help-text admin-delivery-areas-empty">
+              Outro provedor já está conectado. Desconecte-o para liberar o Mercado Pago.
+            </p>
+          ) : (
+            <div className="admin-delivery-area-form-actions" style={{ marginTop: 12 }}>
               <button
                 type="button"
-                className="admin-btn"
-                onClick={() => setFormOpen(true)}
+                className="admin-btn admin-btn-primary"
+                onClick={connectOAuth}
                 disabled={loading || empresaLoading}
               >
-                Usar credenciais (teste)
+                Conectar
               </button>
-            ) : null}
-          </div>
+              {allowManualCredentials ? (
+                <button
+                  type="button"
+                  className="admin-btn"
+                  onClick={() => setFormOpen(true)}
+                  disabled={loading || empresaLoading}
+                >
+                  Usar credenciais (teste)
+                </button>
+              ) : null}
+            </div>
+          )}
         </>
       ) : null}
 
-      {allowManualCredentials && formOpen && !connected ? (
+      {allowManualCredentials && !locked && formOpen && !connected ? (
         <form
           className="admin-delivery-area-form admin-card"
           onSubmit={(event) => void connectWithCredentials(event)}
