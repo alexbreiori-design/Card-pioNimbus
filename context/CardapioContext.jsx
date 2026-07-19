@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { formatMarmitaCartObs } from '@/lib/marmita/marmitaWizard';
 import { formatPrice } from '@/lib/utils/format';
+import { digitsOnly, formatCpfCnpjInput, isValidCpfCnpj } from '@/lib/cpfCnpj';
 import { fetchViaCep } from '@/lib/cep/viacep';
 import { calculateCupomDiscount, findCupomByCode } from '@/lib/cupons';
 import { applyBrandThemeTargets } from '@/lib/brandTheme';
@@ -82,8 +83,10 @@ function buildPublicPaymentMethods(exibirPixCardapio = true, onlineAccount = nul
   if (onlineAccount.methods?.pix !== false) {
     online.push({ id: 'pix_online', label: 'Pix online', group: 'Pagar agora' });
   }
-  if (onlineAccount.methods?.credit_card !== false && onlineAccount.publicKey) {
-    online.push({ id: 'credito_online', label: 'Cartão online', group: 'Pagar agora' });
+  if (onlineAccount.methods?.credit_card !== false) {
+    if (onlineAccount.provider === 'asaas' || onlineAccount.publicKey) {
+      online.push({ id: 'credito_online', label: 'Cartão online', group: 'Pagar agora' });
+    }
   }
   return [...online, ...offline];
 }
@@ -300,6 +303,7 @@ export function CardapioProvider({
     name: '',
     phone: '',
     email: '',
+    cpfCnpj: '',
     delivery: '',
     payment: '',
     trocoAnswer: '',
@@ -311,6 +315,7 @@ export function CardapioProvider({
   const [checkoutName, setCheckoutName] = useState('');
   const [checkoutPhone, setCheckoutPhone] = useState('');
   const [checkoutEmail, setCheckoutEmail] = useState('');
+  const [checkoutCpfCnpj, setCheckoutCpfCnpj] = useState('');
   const [checkoutAddressConfirmed, setCheckoutAddressConfirmed] = useState(false);
   const [onlinePaymentConfig, setOnlinePaymentConfig] = useState(null);
   const [onlinePayment, setOnlinePayment] = useState(null);
@@ -1639,6 +1644,7 @@ export function CardapioProvider({
       name: knownName,
       phone: knownPhone,
       email: '',
+      cpfCnpj: '',
       delivery: '',
       payment: '',
       trocoAnswer: '',
@@ -1647,6 +1653,7 @@ export function CardapioProvider({
     setCheckoutName(knownName);
     setCheckoutPhone(knownPhone);
     setCheckoutEmail('');
+    setCheckoutCpfCnpj('');
     checkoutCustomerLookupRef.current = { phone: '', inflight: false };
     setOnlinePayment(null);
     setCheckoutOrderNumber('');
@@ -1933,6 +1940,8 @@ export function CardapioProvider({
         name: customerName,
         phone: phoneDigits,
         email: checkoutData.email || '',
+        cpf: digitsOnly(checkoutData.cpfCnpj || ''),
+        cpfCnpj: digitsOnly(checkoutData.cpfCnpj || ''),
         total_orders: Number(previousCustomer?.total_orders || 0) + 1,
         total_spent: Number(previousCustomer?.total_spent || 0) + total,
         last_order_at: createdAt,
@@ -1965,6 +1974,7 @@ export function CardapioProvider({
               ? {
                   method: checkoutData.payment === 'pix_online' ? 'pix' : 'credit_card',
                   email: checkoutData.email,
+                  cpfCnpj: digitsOnly(checkoutData.cpfCnpj || ''),
                   cardData,
                   deviceId:
                     cardData?.deviceId ||
@@ -2289,12 +2299,25 @@ export function CardapioProvider({
         return;
       }
       const onlineEmail = String(checkoutEmail || checkoutData.email || '').trim();
+      const onlineCpfCnpj = String(checkoutCpfCnpj || checkoutData.cpfCnpj || '').trim();
       if (['pix_online', 'credito_online'].includes(checkoutData.payment)) {
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(onlineEmail)) {
-          void showAlert('Informe um e-mail válido para pagar online.');
-          return;
+        if (onlinePaymentConfig?.provider === 'asaas') {
+          if (!isValidCpfCnpj(onlineCpfCnpj)) {
+            void showAlert('Informe um CPF ou CNPJ válido para pagar com Asaas.');
+            return;
+          }
+          setCheckoutData((d) => ({
+            ...d,
+            cpfCnpj: digitsOnly(onlineCpfCnpj),
+            email: '',
+          }));
+        } else {
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(onlineEmail)) {
+            void showAlert('Informe um e-mail válido para pagar online.');
+            return;
+          }
+          setCheckoutData((d) => ({ ...d, email: onlineEmail, cpfCnpj: '' }));
         }
-        setCheckoutData((d) => ({ ...d, email: onlineEmail }));
       }
       if (checkoutData.payment === 'dinheiro') {
         if (!checkoutData.trocoAnswer) {
@@ -2329,8 +2352,10 @@ export function CardapioProvider({
     checkoutName,
     checkoutPhone,
     checkoutEmail,
+    checkoutCpfCnpj,
     checkoutData,
     checkoutAddressConfirmed,
+    onlinePaymentConfig,
     savedAddress,
     profileAddress,
     profileImage,
@@ -2567,10 +2592,12 @@ export function CardapioProvider({
       setCheckoutName,
       checkoutPhone,
       setCheckoutPhone,
-      checkoutEmail,
-      setCheckoutEmail,
-      lookupCheckoutCustomerByPhone,
-      onlinePaymentConfig,
+    checkoutEmail,
+    setCheckoutEmail,
+    checkoutCpfCnpj,
+    setCheckoutCpfCnpj,
+    lookupCheckoutCustomerByPhone,
+    onlinePaymentConfig,
       onlinePayment,
       submitOnlinePayment,
       cancelOnlinePayment,
@@ -2644,6 +2671,7 @@ export function CardapioProvider({
       checkoutName,
       checkoutPhone,
       checkoutEmail,
+      checkoutCpfCnpj,
       lookupCheckoutCustomerByPhone,
       onlinePaymentConfig,
       onlinePayment,

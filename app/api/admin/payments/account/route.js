@@ -3,12 +3,14 @@ import { normalizeSlug } from '@/lib/normalize';
 import {
   disconnectPaymentAccount,
   getPaymentAccount,
+  saveAsaasAccount,
   saveMercadoPagoAccount,
 } from '@/lib/payments/paymentServer';
 import {
   isPaymentFeatureEnabledForEmpresa,
   requirePaymentFeatureForEmpresa,
 } from '@/lib/payments/paymentFeature';
+import { validateAsaasApiKey } from '@/lib/payments/providers/asaas';
 import { validateMercadoPagoAccessToken } from '@/lib/payments/providers/mercadoPago';
 import { allowsManualPaymentCredentials } from '@/lib/runtimeEnvironment';
 import { requireStoreAdmin } from '@/lib/supabase/membership';
@@ -87,9 +89,7 @@ export async function GET(request) {
 export async function POST(request) {
   const body = await request.json().catch(() => ({}));
   const slug = normalizeSlug(body.slug || '');
-  const accessToken = String(body.accessToken || '').trim();
-  const publicKey = String(body.publicKey || '').trim();
-  const isTestCredentials = body.isTestCredentials !== false;
+  const provider = String(body.provider || 'mercado_pago').trim();
 
   try {
     await requireStoreAdmin(slug);
@@ -100,6 +100,43 @@ export async function POST(request) {
       return NextResponse.json({ ok: false, error: 'Loja não encontrada.' }, { status: 404 });
     }
     await requirePaymentFeatureForEmpresa(supabase, empresa.id);
+
+    if (provider === 'asaas') {
+      const apiKey = String(body.apiKey || body.accessToken || '').trim();
+      const isSandbox = body.isSandbox === true || body.isTestCredentials === true;
+      if (!apiKey) {
+        return NextResponse.json({ ok: false, error: 'Informe a API Key do Asaas.' }, { status: 400 });
+      }
+      const { me, sandbox } = await validateAsaasApiKey(apiKey, { sandbox: isSandbox });
+      const account = await saveAsaasAccount(supabase, empresa.id, {
+        access_token: apiKey,
+        user_id: me?.id || me?.person?.id || null,
+        wallet_id: me?.walletId || null,
+        account_name: me?.name || me?.companyName || null,
+        live_mode: !sandbox,
+        sandbox,
+      });
+      return NextResponse.json({
+        ok: true,
+        account: {
+          provider: account.provider,
+          status: account.status,
+          methods: account.metodos || {},
+          connectedAt: account.connected_at,
+          liveMode: account.metadata?.live_mode !== false,
+          connectionMode: account.metadata?.connection_mode || 'api_key',
+        },
+      });
+    }
+
+    if (provider !== 'mercado_pago') {
+      return NextResponse.json({ ok: false, error: 'Provedor não suportado.' }, { status: 400 });
+    }
+
+    const accessToken = String(body.accessToken || '').trim();
+    const publicKey = String(body.publicKey || '').trim();
+    const isTestCredentials = body.isTestCredentials !== false;
+
     if (!allowsManualPaymentCredentials(slug)) {
       return NextResponse.json(
         { ok: false, error: 'Esta loja só pode conectar via OAuth.' },
@@ -155,7 +192,11 @@ export async function DELETE(request) {
     if (!empresa) {
       return NextResponse.json({ ok: false, error: 'Loja não encontrada.' }, { status: 404 });
     }
-    await disconnectPaymentAccount(supabase, empresa.id, 'mercado_pago');
+    const provider = String(body.provider || 'mercado_pago').trim();
+    if (!['mercado_pago', 'asaas'].includes(provider)) {
+      return NextResponse.json({ ok: false, error: 'Provedor inválido.' }, { status: 400 });
+    }
+    await disconnectPaymentAccount(supabase, empresa.id, provider);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json(
@@ -191,7 +232,6 @@ export async function PATCH(request) {
       .from('empresa_pagamento_contas')
       .update({ metodos: methods, updated_at: new Date().toISOString() })
       .eq('empresa_id', empresa.id)
-      .eq('provider', 'mercado_pago')
       .eq('status', 'ativo');
     if (error) throw error;
     return NextResponse.json({ ok: true, methods });

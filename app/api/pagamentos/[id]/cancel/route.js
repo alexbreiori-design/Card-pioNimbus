@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { checkoutTokenMatches } from '@/lib/payments/crypto';
-import { cancelPendingMercadoPagoPayment } from '@/lib/payments/paymentServer';
+import {
+  cancelPendingAsaasPayment,
+  cancelPendingMercadoPagoPayment,
+} from '@/lib/payments/paymentServer';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 
 export async function POST(request, { params }) {
@@ -38,7 +41,10 @@ export async function POST(request, { params }) {
       });
     }
 
-    const updated = await cancelPendingMercadoPagoPayment(supabase, payment);
+    const updated =
+      payment.provider === 'asaas'
+        ? await cancelPendingAsaasPayment(supabase, payment)
+        : await cancelPendingMercadoPagoPayment(supabase, payment);
     return NextResponse.json({
       ok: true,
       payment: {
