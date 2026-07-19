@@ -122,7 +122,7 @@ export default function AsaasPaymentPanel() {
           </div>
         ) : null}
         {onlinePaymentConfig?.sandbox ? (
-          <p className="checkout-field-hint">Modo sandbox Asaas ativo.</p>
+          <p className="checkout-field-hint">Modo sandbox ativo (ambiente de teste).</p>
         ) : null}
 
         {isPix ? (

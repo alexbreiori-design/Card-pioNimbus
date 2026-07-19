@@ -17,6 +17,7 @@ import {
 import CartItemOptsList from '@/components/cardapio/CartItemOptsList';
 import { useCardapio } from '@/context/CardapioContext';
 import { formatCpfCnpjInput } from '@/lib/cpfCnpj';
+import { allowsManualPaymentCredentials } from '@/lib/runtimeEnvironment';
 import { IconBack, IconClose, IconContinue, IconStepCheck } from './icons';
 
 const MercadoPagoPaymentPanel = dynamic(
@@ -191,9 +192,11 @@ export default function CheckoutModal() {
             <br />
             Nº do pedido: <strong>{checkoutSuccessSnapshot?.orderNumber || checkoutOrderNumber || '—'}</strong>
           </div>
-          {checkoutSuccessSnapshot?.mpOrderId ? (
+          {checkoutSuccessSnapshot?.mpOrderId &&
+          (onlinePaymentConfig?.sandbox ||
+            allowsManualPaymentCredentials(storeConfig?.slug)) ? (
             <div className="success-sub checkout-field-hint" style={{ marginTop: 8 }}>
-              Order ID (Mercado Pago): <code>{checkoutSuccessSnapshot.mpOrderId}</code>
+              Order ID (teste): <code>{checkoutSuccessSnapshot.mpOrderId}</code>
             </div>
           ) : null}
           {showPixBlock ? (
@@ -412,7 +415,7 @@ export default function CheckoutModal() {
           <small className="checkout-field-hint">
             {onlinePaymentConfig?.sandbox
               ? 'Conta de teste: use um e-mail terminando em @testuser.com.'
-              : 'Exigido pelo Mercado Pago para Pix e cartão online.'}
+              : 'Obrigatório para pagamentos online.'}
           </small>
         </div>
       ) : null;
@@ -432,7 +435,7 @@ export default function CheckoutModal() {
             onChange={(e) => setCheckoutCpfCnpj(formatCpfCnpjInput(e.target.value))}
           />
           <small className="checkout-field-hint">
-            Obrigatório pelo Asaas para Pix e cartão online.
+            Obrigatório para pagamentos online.
           </small>
         </div>
       ) : null;

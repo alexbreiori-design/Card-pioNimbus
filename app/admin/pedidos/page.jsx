@@ -27,7 +27,7 @@ import { useOrderPrint } from '@/context/OrderPrintContext';
 import OrderPrintPrepDialog from '@/components/admin/orders/OrderPrintPrepDialog';
 import OrderDeadlineDemoEdit from '@/components/admin/orders/OrderDeadlineDemoEdit';
 import { getOrderPrintOnPrepMode } from '@/lib/orderTicketPrefs';
-import { paymentLabelForOrder } from '@/lib/orders/mapAdminOrder';
+import { paymentLabelForOrder, paymentStatusBadgeForOrder } from '@/lib/orders/mapAdminOrder';
 import { ensureCustomer, normalizePhone, updateCustomerStats, upsertClienteEndereco } from '@/lib/supabase/customers';
 import { resolveEmpresaIdFromStore } from '@/lib/supabase/empresa';
 import { getEtaFromConfirmedAt } from '@/lib/deliveryDuration';
@@ -653,10 +653,13 @@ export default function PedidosPage() {
                 {colOrders.map((order) => {
                   const flash = recentIds.includes(order.id);
                   const deadlineCardClass = orderDeadlineCardClass(order);
+                  const payBadge = paymentStatusBadgeForOrder(order);
                   return (
                     <div
                       key={order.id}
-                      className={`admin-order-card${deadlineCardClass ? ` ${deadlineCardClass}` : ''}`}
+                      className={`admin-order-card${deadlineCardClass ? ` ${deadlineCardClass}` : ''}${
+                        payBadge.kind === 'paid' ? ' admin-order-card--paid' : ' admin-order-card--unpaid'
+                      }`}
                       style={flash ? { boxShadow: '0 0 0 2px #4e48dd inset' } : undefined}
                       onClick={() => setDetailOrderId(order.id)}
                     >
@@ -675,6 +678,12 @@ export default function PedidosPage() {
                         {order.createdAt ? (
                           <span className="admin-order-age"> · {formatOrderAgePt(order.createdAt)}</span>
                         ) : null}
+                        <span
+                          className={`admin-order-pay-badge admin-order-pay-badge--${payBadge.kind}`}
+                          title={payBadge.methodLabel}
+                        >
+                          {payBadge.label}
+                        </span>
                         {order.aguardandoCaixa ? (
                           <span className="admin-order-caixa-badge">Aguardando caixa</span>
                         ) : null}
