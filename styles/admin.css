@@ -12779,6 +12779,55 @@ textarea.admin-input::placeholder {
   font-weight: 600;
 }
 
+.admin-order-pay-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.admin-order-pay-badge--paid {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.admin-order-pay-badge--on_delivery {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.admin-order-card--paid {
+  border-left: 3px solid #16a34a !important;
+}
+
+.admin-order-card--unpaid {
+  border-left: 3px solid #ea580c !important;
+}
+
+.admin-order-detail-pay-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-order-detail-pay-badge--paid {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.admin-order-detail-pay-badge--on_delivery {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
 .admin-order-entregador-chip {
   display: inline-flex;
   align-items: center;

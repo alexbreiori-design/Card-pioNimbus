@@ -48,17 +48,17 @@
 
 .order-ticket-logo {
   display: block;
-  margin: 0 auto 8px;
-  max-width: 48mm;
-  max-height: 18mm;
+  margin: 0 auto 6px;
+  max-width: 32mm;
+  max-height: 12mm;
   width: auto;
   height: auto;
   object-fit: contain;
 }
 
 .order-ticket--58 .order-ticket-logo {
-  max-width: 36mm;
-  max-height: 14mm;
+  max-width: 24mm;
+  max-height: 9mm;
 }
 
 .order-ticket-store {
@@ -123,6 +123,39 @@
   font-weight: 800;
   line-height: 1.1;
   letter-spacing: 0.03em;
+}
+
+.order-ticket-pay-status {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0 0 2px;
+  padding: 7px 5px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  border: 2px solid #000;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.order-ticket-pay-status--paid {
+  color: #fff;
+  background: #000;
+}
+
+.order-ticket-pay-status--on_delivery {
+  color: #000;
+  background: #fff;
+  border-style: solid;
+}
+
+.order-ticket-pay-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 .order-ticket-header {

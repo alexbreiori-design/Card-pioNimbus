@@ -4,6 +4,7 @@ import CartItemOptsList from '@/components/cardapio/CartItemOptsList';
 import AdminIcon from '@/components/admin/AdminIcon';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import { orderDeadlineHighlightClass } from '@/lib/orders/orderDeadline';
+import { paymentStatusBadgeForOrder } from '@/lib/orders/mapAdminOrder';
 import OrderDeadlineDemoEdit from './OrderDeadlineDemoEdit';
 import OrderStatusTimeline from './OrderStatusTimeline';
 import { currency } from './orderDraftUtils';
@@ -15,13 +16,6 @@ const STATUS_LABEL = {
   saiu_entrega: 'Saiu para entrega',
   concluido: 'Concluído',
   cancelado: 'Cancelado',
-};
-const PAYMENT_LABEL = {
-  debito: 'Débito',
-  credito: 'Crédito',
-  pix: 'Pix',
-  dinheiro: 'Dinheiro',
-  vale: 'Vale refeição',
 };
 
 function deadlineLabel(order) {
@@ -62,7 +56,8 @@ export default function OrderDetailModal({
   });
 
   if (!order) return null;
-  const pay = paymentLabel || PAYMENT_LABEL[order.pagamento?.metodo] || order.pagamento?.metodo || '—';
+  const payBadge = paymentStatusBadgeForOrder(order);
+  const pay = paymentLabel || payBadge.methodLabel;
   const deadlineClass = orderDeadlineHighlightClass(order);
 
   return (
@@ -147,6 +142,13 @@ export default function OrderDetailModal({
               <div>
                 <span>Pagamento</span>
                 <strong>{pay}</strong>
+                <div>
+                  <span
+                    className={`admin-order-detail-pay-badge admin-order-detail-pay-badge--${payBadge.kind}`}
+                  >
+                    {payBadge.label}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
