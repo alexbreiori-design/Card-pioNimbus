@@ -3031,6 +3031,7 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  overflow: visible;
 }
 
 .cardapio-v2-product-modal-close {
@@ -3084,11 +3085,15 @@
   color: #1f9d55;
 }
 
+.cardapio-v2-product-modal-stepper-wrap {
+  padding: 0 24px 14px;
+}
+
 .cardapio-v2-product-modal-stepper {
   display: flex;
   align-items: flex-start;
   gap: 4px;
-  padding: 0 24px 16px;
+  padding: 0;
 }
 
 .cardapio-v2-product-modal-step {
@@ -3099,6 +3104,7 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
+  cursor: default;
 }
 
 .cardapio-v2-product-modal-step:not(:last-child)::after {
@@ -3109,6 +3115,7 @@
   width: calc(100% - 36px);
   height: 2px;
   background: rgba(0, 0, 0, 0.08);
+  pointer-events: none;
 }
 
 .cardapio-v2-product-modal-step.is-done:not(:last-child)::after {
@@ -3126,12 +3133,18 @@
   font-weight: 700;
   background: rgba(0, 0, 0, 0.06);
   color: var(--text-light, #666);
+  transition: transform 0.15s ease;
 }
 
 .cardapio-v2-product-modal-step.is-active .cardapio-v2-product-modal-step-dot,
 .cardapio-v2-product-modal-step.is-done .cardapio-v2-product-modal-step-dot {
   background: var(--brand-gradient, linear-gradient(90deg, var(--brand-vivid) 0%, var(--brand) 100%));
   color: #fff;
+}
+
+.cardapio-v2-product-modal-step.is-previewing .cardapio-v2-product-modal-step-dot {
+  transform: scale(1.08);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 18%, transparent);
 }
 
 .cardapio-v2-product-modal-step-label {
@@ -3147,6 +3160,131 @@
 
 .cardapio-v2-product-modal-step.is-active .cardapio-v2-product-modal-step-label {
   color: var(--brand, #4e48dd);
+}
+
+.cardapio-v2-product-modal-stepper-hint {
+  margin: 14px 0 0;
+  padding-top: 4px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #6b7280;
+}
+
+.cardapio-v2-step-preview {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  z-index: 40;
+  width: min(280px, 62vw);
+  padding: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.cardapio-v2-step-preview::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  border-left: 1px solid rgba(0, 0, 0, 0.08);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fff;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.cardapio-v2-step-preview-title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text, #141414);
+}
+
+.cardapio-v2-step-preview-hint {
+  margin: 0 0 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-light, #666);
+}
+
+.cardapio-v2-step-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cardapio-v2-step-preview-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cardapio-v2-step-preview-thumb {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f3f4f6;
+}
+
+.cardapio-v2-step-preview-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  min-width: 0;
+}
+
+.cardapio-v2-step-preview-name {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--text, #141414);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardapio-v2-step-preview-extra {
+  font-size: 10px;
+  color: var(--text-light, #666);
+}
+
+.cardapio-v2-step-preview-more {
+  margin: 8px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--brand, #4e48dd);
+}
+
+.cardapio-v2-product-modal-step:first-child .cardapio-v2-step-preview {
+  left: 0;
+  transform: none;
+}
+
+.cardapio-v2-product-modal-step:first-child .cardapio-v2-step-preview::before {
+  left: 22px;
+}
+
+.cardapio-v2-product-modal-step:last-child .cardapio-v2-step-preview {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+.cardapio-v2-product-modal-step:last-child .cardapio-v2-step-preview::before {
+  left: auto;
+  right: 22px;
+  transform: rotate(45deg);
 }
 
 .cardapio-v2-product-modal-body {
@@ -3254,6 +3392,40 @@
   margin: 0;
   font-size: 14px;
   color: var(--text-light, #666);
+}
+
+.cardapio-v2-product-modal-body .product-note-field {
+  margin-top: 18px;
+}
+
+.cardapio-v2-product-modal-body .product-note-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-mid, #555);
+}
+
+.cardapio-v2-product-modal-body .product-note-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 72px;
+  padding: 12px 14px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 14px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text, #141414);
+  resize: vertical;
+  outline: none;
+}
+
+.cardapio-v2-product-modal-body .product-note-input:focus {
+  border-color: var(--brand, #4e48dd);
 }
 
 .cardapio-v2-product-modal-wizard-embed .addon-section-title,

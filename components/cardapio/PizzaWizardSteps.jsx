@@ -21,18 +21,6 @@ export default function PizzaWizardSteps({
 
   return (
     <div className="pizza-wizard">
-      <div className="pizza-wizard-progress" aria-label="Progresso da montagem">
-        {steps.map((item, index) => (
-          <span
-            key={item.id}
-            className={`pizza-wizard-dot ${
-              index < stepIndex ? 'is-done' : index === stepIndex ? 'is-current' : ''
-            }`}
-            aria-hidden="true"
-          />
-        ))}
-      </div>
-
       <div className="addon-section pizza-wizard-step">
         <div className="addon-section-header">
           <div className="addon-section-title">
