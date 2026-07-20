@@ -20,18 +20,6 @@ export default function MarmitaWizardSteps({
 
   return (
     <div className="marmita-wizard">
-      <div className="marmita-wizard-progress" aria-label="Progresso da montagem">
-        {steps.map((step, index) => (
-          <span
-            key={step.section || index}
-            className={`marmita-wizard-dot ${
-              index < stepIndex ? 'is-done' : index === stepIndex ? 'is-current' : ''
-            }`}
-            aria-hidden="true"
-          />
-        ))}
-      </div>
-
       <div className="addon-section marmita-wizard-step">
         <div className="addon-section-header">
           <div className="addon-section-title">

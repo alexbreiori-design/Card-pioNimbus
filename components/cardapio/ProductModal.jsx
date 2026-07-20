@@ -29,6 +29,8 @@ export default function ProductModal() {
     currentQty,
     selectedAddons,
     addonExtras,
+    productNote,
+    setProductNote,
     popupHeaderCompact,
     setPopupHeaderCompact,
     popupDetailsRef,
@@ -51,6 +53,7 @@ export default function ProductModal() {
   const [pizzaStep, setPizzaStep] = useState(0);
   const [pizzaState, setPizzaState] = useState({ sizeId: '', flavorSlots: [] });
   const [marmitaStep, setMarmitaStep] = useState(0);
+  const [onNoteStep, setOnNoteStep] = useState(false);
 
   const pizzaSteps = useMemo(
     () =>
@@ -92,9 +95,12 @@ export default function ProductModal() {
     ? isMarmitaStepComplete(currentMarmitaSection, currentMarmitaSelected)
     : true;
   const isLastMarmitaStep = hasMarmitaWizard && marmitaStep >= marmitaSteps.length - 1;
+  const showProductNote =
+    onNoteStep || (!hasPizzaWizard && !hasMarmitaWizard);
 
   useEffect(() => {
     setMarmitaStep(0);
+    setOnNoteStep(false);
     if (product?.pizzaPromoShortcut) {
       const { saborId, tamanhoId } = product.pizzaPromoShortcut;
       setPizzaState({ sizeId: tamanhoId, flavorSlots: [saborId] });
@@ -146,6 +152,7 @@ export default function ProductModal() {
     const incomplete = findFirstIncompletePizzaStep(pizzaSteps, pizzaState, selectedAddons);
     if (incomplete >= 0) {
       setPizzaStep(incomplete);
+      setOnNoteStep(false);
       return;
     }
     addToCartCustom({
@@ -159,9 +166,13 @@ export default function ProductModal() {
   }
 
   function handlePizzaPrimaryAction() {
+    if (onNoteStep) {
+      handlePizzaAdd();
+      return;
+    }
     if (!canPizzaAdvance) return;
     if (isLastPizzaStep) {
-      handlePizzaAdd();
+      setOnNoteStep(true);
       return;
     }
     setPizzaStep((value) => Math.min(value + 1, pizzaSteps.length - 1));
@@ -171,6 +182,7 @@ export default function ProductModal() {
     const incompleteStep = findFirstIncompleteMarmitaStep(marmitaSteps, selectedAddons);
     if (incompleteStep >= 0) {
       setMarmitaStep(incompleteStep);
+      setOnNoteStep(false);
       return;
     }
     addToCartCustom({
@@ -182,12 +194,30 @@ export default function ProductModal() {
   }
 
   function handleMarmitaPrimaryAction() {
-    if (!canMarmitaAdvance) return;
-    if (isLastMarmitaStep) {
+    if (onNoteStep) {
       handleMarmitaAdd();
       return;
     }
+    if (!canMarmitaAdvance) return;
+    if (isLastMarmitaStep) {
+      setOnNoteStep(true);
+      return;
+    }
     setMarmitaStep((value) => Math.min(value + 1, marmitaSteps.length - 1));
+  }
+
+  function handleWizardBack() {
+    if (onNoteStep) {
+      setOnNoteStep(false);
+      return;
+    }
+    if (hasPizzaWizard) {
+      setPizzaStep((value) => Math.max(0, value - 1));
+      return;
+    }
+    if (hasMarmitaWizard) {
+      setMarmitaStep((value) => Math.max(0, value - 1));
+    }
   }
 
   function handleAddSuggestion(item) {
@@ -196,6 +226,7 @@ export default function ProductModal() {
       qty: 1,
       unitPrice: item.price,
       opts: [],
+      note: '',
     });
   }
 
@@ -270,7 +301,7 @@ export default function ProductModal() {
                 </p>
               </div>
             ) : null}
-            {hasPizzaWizard ? (
+            {hasPizzaWizard && !onNoteStep ? (
               <PizzaWizardSteps
                 steps={pizzaPromoShortcut ? promoWizardSteps : pizzaSteps}
                 stepIndex={pizzaPromoShortcut ? promoWizardStepIndex : pizzaStep}
@@ -285,7 +316,7 @@ export default function ProductModal() {
               />
             ) : null}
 
-            {hasMarmitaWizard ? (
+            {hasMarmitaWizard && !onNoteStep ? (
               <MarmitaWizardSteps
                 steps={marmitaSteps}
                 stepIndex={marmitaStep}
@@ -299,7 +330,7 @@ export default function ProductModal() {
               <p className="popup-empty-addons">Sem opções adicionais para este produto.</p>
             ) : null}
 
-            {showGenericAddons
+            {showGenericAddons && !onNoteStep
               ? productAddons.map((sec, si) => {
                   const selected = selectedAddons[si] || [];
                   return (
@@ -342,6 +373,23 @@ export default function ProductModal() {
                   );
                 })
               : null}
+
+            {showProductNote ? (
+              <div className="product-note-field">
+                <label className="product-note-label" htmlFor="productNoteMobile">
+                  Observação
+                </label>
+                <textarea
+                  id="productNoteMobile"
+                  className="product-note-input"
+                  rows={3}
+                  maxLength={200}
+                  placeholder="Ex.: sem cebola, ponto da carne, etc. (opcional)"
+                  value={productNote}
+                  onChange={(event) => setProductNote(event.target.value)}
+                />
+              </div>
+            ) : null}
           </div>
           <div
             className={`popup-footer ${
@@ -360,11 +408,11 @@ export default function ProductModal() {
 
             {hasPizzaWizard ? (
               <div className="pizza-wizard-footer-actions">
-                {!pizzaPromoShortcut && pizzaStep > 0 ? (
+                {(!pizzaPromoShortcut && pizzaStep > 0) || onNoteStep ? (
                   <button
                     type="button"
                     className="pizza-wizard-nav-btn wizard-nav-btn"
-                    onClick={() => setPizzaStep((value) => Math.max(0, value - 1))}
+                    onClick={handleWizardBack}
                     aria-label="Voltar"
                   >
                     <span className="wizard-nav-btn-label">Anterior</span>
@@ -385,20 +433,20 @@ export default function ProductModal() {
                 <button
                   type="button"
                   className="btn-adicionar pizza-wizard-primary-btn"
-                  disabled={!canPizzaAdvance}
+                  disabled={!onNoteStep && !canPizzaAdvance}
                   onClick={handlePizzaPrimaryAction}
                 >
-                  <span>{isLastPizzaStep ? 'Adicionar pizza' : 'Próximo'}</span>
+                  <span>{onNoteStep ? 'Adicionar pizza' : 'Próximo'}</span>
                   <span>{formatPrice(pizzaUnitPrice * currentQty)}</span>
                 </button>
               </div>
             ) : hasMarmitaWizard ? (
               <div className="marmita-wizard-footer-actions">
-                {marmitaStep > 0 ? (
+                {marmitaStep > 0 || onNoteStep ? (
                   <button
                     type="button"
                     className="marmita-wizard-nav-btn wizard-nav-btn"
-                    onClick={() => setMarmitaStep((value) => Math.max(0, value - 1))}
+                    onClick={handleWizardBack}
                     aria-label="Voltar"
                   >
                     <span className="wizard-nav-btn-label">Anterior</span>
@@ -419,10 +467,10 @@ export default function ProductModal() {
                 <button
                   type="button"
                   className="btn-adicionar marmita-wizard-primary-btn"
-                  disabled={!canMarmitaAdvance}
+                  disabled={!onNoteStep && !canMarmitaAdvance}
                   onClick={handleMarmitaPrimaryAction}
                 >
-                  <span>{isLastMarmitaStep ? 'Adicionar' : 'Próximo'}</span>
+                  <span>{onNoteStep ? 'Adicionar' : 'Próximo'}</span>
                   <span>{formatPrice(marmitaUnitTotal)}</span>
                 </button>
               </div>

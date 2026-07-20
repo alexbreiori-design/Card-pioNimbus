@@ -497,7 +497,7 @@ export default function CheckoutModal() {
                     <span className="confirm-order-name">{item.name}</span>
                   </div>
                   {item.opts?.length ? (
-                    <CartItemOptsList opts={item.opts} className="confirm-order-opts" />
+                    <CartItemOptsList opts={item.opts} note={item.note} className="confirm-order-opts" />
                   ) : null}
                   <span className="confirm-order-price">{formatPrice(item.price * item.qty)}</span>
                 </li>

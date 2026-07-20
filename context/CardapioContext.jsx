@@ -294,7 +294,9 @@ export function CardapioProvider({
   const [currentQty, setCurrentQty] = useState(1);
   const [selectedAddons, setSelectedAddons] = useState({});
   const [addonExtras, setAddonExtras] = useState(0);
+  const [productNote, setProductNote] = useState('');
   const [popupHeaderCompact, setPopupHeaderCompact] = useState(false);
+  const editingCartItemRef = useRef(null);
 
   const [cartReviewOpen, setCartReviewOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -1396,6 +1398,7 @@ export function CardapioProvider({
         setCurrentQty(1);
         setSelectedAddons({});
         setAddonExtras(0);
+        setProductNote('');
         setPopupHeaderCompact(false);
         setProductOpen(true);
         return;
@@ -1411,6 +1414,7 @@ export function CardapioProvider({
       setCurrentQty(1);
       setSelectedAddons({});
       setAddonExtras(0);
+      setProductNote('');
       setPopupHeaderCompact(false);
       setProductOpen(true);
     },
@@ -1433,9 +1437,23 @@ export function CardapioProvider({
   }, [productOpen, currentProduct?.id]);
 
   const closeProductPopup = useCallback(() => {
+    const stash = editingCartItemRef.current;
+    editingCartItemRef.current = null;
     setProductOpen(false);
     setPopupHeaderCompact(false);
     setCurrentProduct(null);
+    setProductNote('');
+    if (stash?.item) {
+      setCart((prev) => [...prev, stash.item]);
+      if (stash.reopenReview) setCartReviewOpen(true);
+    }
+  }, []);
+
+  const commitCartAdd = useCallback((item) => {
+    const reopenReview = Boolean(editingCartItemRef.current?.reopenReview);
+    editingCartItemRef.current = null;
+    setCart((prev) => [...prev, item]);
+    if (reopenReview) setCartReviewOpen(true);
   }, []);
 
   const toggleAddon = useCallback(
@@ -1489,18 +1507,17 @@ export function CardapioProvider({
       });
     });
     const unitPrice = currentProduct.price + addonExtras;
-    setCart((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        productId: currentProduct.id,
-        name: currentProduct.name,
-        price: unitPrice,
-        qty: currentQty,
-        opts: optLabels,
-        imageUrl: currentProduct.imageUrl || '',
-      },
-    ]);
+    const note = String(productNote || '').trim();
+    commitCartAdd({
+      id: Date.now(),
+      productId: currentProduct.id,
+      name: currentProduct.name,
+      price: unitPrice,
+      qty: currentQty,
+      opts: optLabels,
+      note,
+      imageUrl: currentProduct.imageUrl || '',
+    });
     closeProductPopup();
     trackMetaEvent('AddToCart', {
       content_ids: [String(currentProduct.id)],
@@ -1522,23 +1539,23 @@ export function CardapioProvider({
         },
       ],
     });
-  }, [currentProduct, selectedAddons, addonExtras, currentQty, closeProductPopup]);
+  }, [currentProduct, selectedAddons, addonExtras, currentQty, productNote, commitCartAdd, closeProductPopup]);
 
   const addToCartCustom = useCallback(
-    ({ product, qty = 1, unitPrice = 0, opts = [] }) => {
+    ({ product, qty = 1, unitPrice = 0, opts = [], note } = {}) => {
       if (!product) return;
-      setCart((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          productId: product.id,
-          name: product.name,
-          price: unitPrice,
-          qty,
-          opts,
-          imageUrl: product.imageUrl || '',
-        },
-      ]);
+      const resolvedNote =
+        note != null ? String(note).trim() : String(productNote || '').trim();
+      commitCartAdd({
+        id: Date.now(),
+        productId: product.id,
+        name: product.name,
+        price: unitPrice,
+        qty,
+        opts,
+        note: resolvedNote,
+        imageUrl: product.imageUrl || '',
+      });
       closeProductPopup();
       trackMetaEvent('AddToCart', {
         content_ids: [String(product.id)],
@@ -1561,7 +1578,7 @@ export function CardapioProvider({
         ],
       });
     },
-    [closeProductPopup]
+    [closeProductPopup, commitCartAdd, productNote]
   );
 
   const clearCart = useCallback(() => setCart([]), []);
@@ -1574,11 +1591,16 @@ export function CardapioProvider({
     (id) => {
       const item = cart.find((i) => i.id === id);
       if (!item) return;
+      editingCartItemRef.current = {
+        item: { ...item },
+        reopenReview: cartReviewOpen,
+      };
       setCartReviewOpen(false);
       setCart((prev) => prev.filter((i) => i.id !== id));
       openProduct(item.productId);
+      setProductNote(String(item.note || '').trim());
     },
-    [cart, openProduct]
+    [cart, cartReviewOpen, openProduct]
   );
 
   const changeCartItemQty = useCallback((id, delta) => {
@@ -1886,7 +1908,7 @@ export function CardapioProvider({
           qtd: item.qty,
           precoUnit: item.price,
           subtotal: item.price * item.qty,
-          obs: item.opts?.length ? formatMarmitaCartObs(item.opts) : '',
+          obs: formatMarmitaCartObs(item.opts || [], item.note || ''),
           produtoId: item.productId,
         })),
         subtotal,
@@ -2532,6 +2554,8 @@ export function CardapioProvider({
       currentQty,
       selectedAddons,
       addonExtras,
+      productNote,
+      setProductNote,
       popupHeaderCompact,
       setPopupHeaderCompact,
       popupDetailsRef,
@@ -2565,6 +2589,7 @@ export function CardapioProvider({
       currentQty,
       selectedAddons,
       addonExtras,
+      productNote,
       popupHeaderCompact,
       toggleAddon,
       changeQty,
