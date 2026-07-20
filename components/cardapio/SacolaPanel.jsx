@@ -146,7 +146,7 @@ export default function SacolaPanel({
                     <div className="sacola-item-qty">{item.qty}x</div>
                   )}
                   <div className="sacola-item-name">{item.name}</div>
-                  <CartItemOptsList opts={item.opts} className="sacola-item-opts" />
+                  <CartItemOptsList opts={item.opts} note={item.note} className="sacola-item-opts" />
                   <div className="sacola-item-actions">
                     <button type="button" onClick={() => editCartItem(item.id)}>
                       Editar

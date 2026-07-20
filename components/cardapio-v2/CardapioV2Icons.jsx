@@ -28,6 +28,7 @@ export function V2Icon({ name, className = '', fill = false, duotone = false }) 
     'caret-down': 'ph-caret-down',
     'caret-up': 'ph-caret-up',
     'arrow-right': 'ph-arrow-right',
+    'arrow-left': 'ph-arrow-left',
     check: 'ph-check',
     trash: 'ph-trash',
     plus: 'ph-plus',

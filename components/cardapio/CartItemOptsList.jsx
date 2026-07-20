@@ -3,11 +3,12 @@ import { getCartObsLabels } from '@/lib/cardapio/formatCartOpts';
 export default function CartItemOptsList({
   opts,
   obs,
+  note,
   className = '',
   itemClassName = '',
   as: Tag = 'ul',
 }) {
-  const labels = getCartObsLabels({ opts, obs });
+  const labels = getCartObsLabels({ opts, obs, note });
   if (!labels.length) return null;
 
   const listClass = `cart-item-opts-list${className ? ` ${className}` : ''}`;

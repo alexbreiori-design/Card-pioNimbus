@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useCardapio, useCardapioCart, useCardapioCatalog } from '@/context/CardapioContext';
 import {
   buildMarmitaCartOpts,
@@ -12,6 +12,7 @@ import {
   buildPizzaWizardSteps,
   computePizzaWizardUnitPrice,
   findFirstIncompletePizzaStep,
+  getFlavorPoolForSize,
   isPizzaStepComplete,
 } from '@/lib/pizza/pizzaWizard';
 import MarmitaWizardSteps from '@/components/cardapio/MarmitaWizardSteps';
@@ -19,11 +20,125 @@ import PizzaWizardSteps from '@/components/cardapio/PizzaWizardSteps';
 import MenuImageArea from '@/components/cardapio/MenuImageArea';
 import { V2Icon } from './CardapioV2Icons';
 
+const STEP_PREVIEW_MAX = 6;
+
 function isGenericStepComplete(section, selectedIds = []) {
   const minRequired = section?.required
     ? Math.max(1, Number(section.min || 1))
     : Number(section?.min || 0);
   return selectedIds.length >= minRequired;
+}
+
+function toPreviewItem(item = {}, fallbackId = '') {
+  return {
+    id: String(item.id || item.tamanhoId || fallbackId || item.name || item.nome || ''),
+    name: String(item.name || item.tamanhoNome || item.nome || '').trim(),
+    imageUrl: item.imageUrl || '',
+    extra: Number(item.extra || 0) || 0,
+  };
+}
+
+function buildAddonSectionPreview(section) {
+  const items = (section?.items || []).map(toPreviewItem).filter((item) => item.name);
+  return {
+    title: section?.stepTitle || section?.section || 'Opções',
+    items,
+    hint: items.length ? '' : 'Nenhuma opção cadastrada nesta etapa.',
+  };
+}
+
+function getAllPizzaFlavorPreviewItems(product) {
+  const sabores = product?.pizzaConfig?.saboresSelecionados || [];
+  return (product?.addons || [])
+    .flatMap((section) => section.items || [])
+    .filter((item) => sabores.includes(item.id))
+    .filter((item, index, arr) => arr.findIndex((entry) => entry.id === item.id) === index)
+    .map(toPreviewItem)
+    .filter((item) => item.name);
+}
+
+function buildPizzaStepPreview(step, product, pizzaState) {
+  if (!step) {
+    return { title: 'Etapa', items: [], hint: 'Sem opções para pré-visualizar.' };
+  }
+  if (step.type === 'size') {
+    const items = (step.sizes || []).map((size) =>
+      toPreviewItem({
+        id: size.tamanhoId,
+        name: size.tamanhoNome || size.nome,
+        imageUrl: size.imageUrl,
+      })
+    );
+    return {
+      title: step.title || 'Tamanho',
+      items,
+      hint: items.length ? '' : 'Nenhum tamanho disponível.',
+    };
+  }
+  if (step.type === 'flavor') {
+    const items = pizzaState?.sizeId
+      ? getFlavorPoolForSize(product, pizzaState.sizeId).map(toPreviewItem)
+      : getAllPizzaFlavorPreviewItems(product);
+    return {
+      title: step.title || 'Sabores',
+      items: items.filter((item) => item.name),
+      hint: pizzaState?.sizeId
+        ? items.length
+          ? ''
+          : 'Nenhum sabor para este tamanho.'
+        : items.length
+          ? 'Prévia geral — os sabores finais dependem do tamanho.'
+          : 'Escolha o tamanho para ver os sabores.',
+    };
+  }
+  if (step.type === 'addons') {
+    return buildAddonSectionPreview(step.section);
+  }
+  if (step.type === 'suggestions') {
+    const items = (step.items || []).map(toPreviewItem).filter((item) => item.name);
+    return {
+      title: step.title || 'Sugestões',
+      items,
+      hint: items.length ? '' : 'Nenhuma sugestão nesta etapa.',
+    };
+  }
+  return { title: step.title || 'Etapa', items: [], hint: 'Sem opções para pré-visualizar.' };
+}
+
+function StepPreviewPopover({ preview, formatPrice, visible }) {
+  if (!visible || !preview) return null;
+  const items = preview.items.slice(0, STEP_PREVIEW_MAX);
+  const remaining = Math.max(0, preview.items.length - items.length);
+
+  return (
+    <div className="cardapio-v2-step-preview" role="tooltip">
+      <div className="cardapio-v2-step-preview-title">{preview.title}</div>
+      {preview.hint ? <p className="cardapio-v2-step-preview-hint">{preview.hint}</p> : null}
+      {items.length ? (
+        <div className="cardapio-v2-step-preview-grid">
+          {items.map((item) => (
+            <div key={item.id} className="cardapio-v2-step-preview-item">
+              <MenuImageArea
+                imageUrl={item.imageUrl}
+                className="cardapio-v2-step-preview-thumb"
+                alt=""
+                sizes="40px"
+              />
+              <span className="cardapio-v2-step-preview-copy">
+                <span className="cardapio-v2-step-preview-name">{item.name}</span>
+                {item.extra > 0 ? (
+                  <span className="cardapio-v2-step-preview-extra">+ {formatPrice(item.extra)}</span>
+                ) : null}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {remaining > 0 ? (
+        <p className="cardapio-v2-step-preview-more">+{remaining} opções</p>
+      ) : null}
+    </div>
+  );
 }
 
 function GenericStepOptions({ section, sectionIndex, selectedIds, onToggle, formatPrice }) {
@@ -69,6 +184,8 @@ export default function ProductModalV2() {
     currentQty,
     selectedAddons,
     addonExtras,
+    productNote,
+    setProductNote,
     toggleAddon,
     changeQty,
     addToCart,
@@ -91,6 +208,9 @@ export default function ProductModalV2() {
   const [marmitaStep, setMarmitaStep] = useState(0);
   const [genericStep, setGenericStep] = useState(0);
   const [activeImageUrl, setActiveImageUrl] = useState('');
+  const [onNoteStep, setOnNoteStep] = useState(false);
+  const [hoveredStepIndex, setHoveredStepIndex] = useState(null);
+  const hoverLeaveTimerRef = useRef(null);
 
   const pizzaSteps = useMemo(
     () =>
@@ -142,20 +262,25 @@ export default function ProductModalV2() {
     ? isGenericStepComplete(currentGenericSection, currentGenericSelected)
     : true;
   const isLastGenericStep = showGenericAddons && genericStep >= productAddons.length - 1;
+  const canGoBack =
+    onNoteStep ||
+    (showGenericAddons && genericStep > 0) ||
+    (hasMarmitaWizard && marmitaStep > 0) ||
+    (hasPizzaWizard && !pizzaPromoShortcut && pizzaStep > 0);
 
   const stepLabels = useMemo(() => {
+    let labels = [];
     if (showGenericAddons) {
-      return productAddons.map((sec) => sec.stepTitle || sec.section);
-    }
-    if (hasMarmitaWizard) {
-      return marmitaSteps.map((sec) => sec.stepTitle || sec.section);
-    }
-    if (hasPizzaWizard) {
-      return (pizzaPromoShortcut ? promoWizardSteps : pizzaSteps).map(
+      labels = productAddons.map((sec) => sec.stepTitle || sec.section);
+    } else if (hasMarmitaWizard) {
+      labels = marmitaSteps.map((sec) => sec.stepTitle || sec.section);
+    } else if (hasPizzaWizard) {
+      labels = (pizzaPromoShortcut ? promoWizardSteps : pizzaSteps).map(
         (step) => step.title || step.label || 'Etapa'
       );
     }
-    return [];
+    if (labels.length) labels = [...labels, 'Observação'];
+    return labels;
   }, [
     showGenericAddons,
     productAddons,
@@ -167,15 +292,75 @@ export default function ProductModalV2() {
     pizzaPromoShortcut,
   ]);
 
-  const activeStepIndex = showGenericAddons
-    ? genericStep
-    : hasMarmitaWizard
-      ? marmitaStep
-      : hasPizzaWizard
-        ? pizzaPromoShortcut
-          ? promoWizardStepIndex
-          : pizzaStep
-        : 0;
+  const activeStepIndex = onNoteStep
+    ? Math.max(0, stepLabels.length - 1)
+    : showGenericAddons
+      ? genericStep
+      : hasMarmitaWizard
+        ? marmitaStep
+        : hasPizzaWizard
+          ? pizzaPromoShortcut
+            ? promoWizardStepIndex
+            : pizzaStep
+          : 0;
+
+  const stepPreviews = useMemo(() => {
+    if (!stepLabels.length) return [];
+    return stepLabels.map((label, index) => {
+      const isNote = index === stepLabels.length - 1 && label === 'Observação';
+      if (isNote) {
+        return {
+          title: 'Observação',
+          items: [],
+          hint: 'Campo opcional para detalhes do pedido (ex.: sem cebola).',
+        };
+      }
+      if (showGenericAddons) {
+        return buildAddonSectionPreview(productAddons[index]);
+      }
+      if (hasMarmitaWizard) {
+        return buildAddonSectionPreview(marmitaSteps[index]);
+      }
+      if (hasPizzaWizard) {
+        const optionSteps = pizzaPromoShortcut ? promoWizardSteps : pizzaSteps;
+        return buildPizzaStepPreview(optionSteps[index], product, pizzaState);
+      }
+      return { title: label, items: [], hint: '' };
+    });
+  }, [
+    stepLabels,
+    showGenericAddons,
+    productAddons,
+    hasMarmitaWizard,
+    marmitaSteps,
+    hasPizzaWizard,
+    pizzaPromoShortcut,
+    promoWizardSteps,
+    pizzaSteps,
+    product,
+    pizzaState,
+  ]);
+
+  function clearHoverLeaveTimer() {
+    if (hoverLeaveTimerRef.current) {
+      window.clearTimeout(hoverLeaveTimerRef.current);
+      hoverLeaveTimerRef.current = null;
+    }
+  }
+
+  function handleStepMouseEnter(index) {
+    clearHoverLeaveTimer();
+    setHoveredStepIndex(index);
+  }
+
+  function handleStepMouseLeave() {
+    clearHoverLeaveTimer();
+    hoverLeaveTimerRef.current = window.setTimeout(() => {
+      setHoveredStepIndex(null);
+    }, 120);
+  }
+
+  useEffect(() => () => clearHoverLeaveTimer(), []);
 
   const galleryImages = useMemo(() => {
     const images = [];
@@ -197,6 +382,8 @@ export default function ProductModalV2() {
   useEffect(() => {
     setMarmitaStep(0);
     setGenericStep(0);
+    setOnNoteStep(false);
+    setHoveredStepIndex(null);
     if (product?.pizzaPromoShortcut) {
       const { saborId, tamanhoId } = product.pizzaPromoShortcut;
       setPizzaState({ sizeId: tamanhoId, flavorSlots: [saborId] });
@@ -268,6 +455,7 @@ export default function ProductModalV2() {
     const incomplete = findFirstIncompletePizzaStep(pizzaSteps, pizzaState, selectedAddons);
     if (incomplete >= 0) {
       setPizzaStep(incomplete);
+      setOnNoteStep(false);
       return;
     }
     addToCartCustom({
@@ -282,6 +470,7 @@ export default function ProductModalV2() {
     const incompleteStep = findFirstIncompleteMarmitaStep(marmitaSteps, selectedAddons);
     if (incompleteStep >= 0) {
       setMarmitaStep(incompleteStep);
+      setOnNoteStep(false);
       return;
     }
     addToCartCustom({
@@ -298,78 +487,94 @@ export default function ProductModalV2() {
       qty: 1,
       unitPrice: item.price,
       opts: [],
+      note: '',
     });
   }
 
-  function clearCurrentStep() {
-    if (showGenericAddons && currentGenericSection) {
-      [...currentGenericSelected].forEach((itemId) => {
-        const item = currentGenericSection.items.find((entry) => entry.id === itemId);
-        toggleAddon(genericStep, itemId, item?.extra || 0);
-      });
+  function handleStepBack() {
+    if (onNoteStep) {
+      setOnNoteStep(false);
       return;
     }
-    if (hasMarmitaWizard && currentMarmitaSection) {
-      [...currentMarmitaSelected].forEach((itemId) => {
-        const item = currentMarmitaSection.items.find((entry) => entry.id === itemId);
-        toggleAddon(marmitaStep, itemId, item?.extra || 0);
-      });
+    if (showGenericAddons && genericStep > 0) {
+      setGenericStep((value) => Math.max(0, value - 1));
+      return;
+    }
+    if (hasMarmitaWizard && marmitaStep > 0) {
+      setMarmitaStep((value) => Math.max(0, value - 1));
+      return;
+    }
+    if (hasPizzaWizard && pizzaStep > 0) {
+      setPizzaStep((value) => Math.max(0, value - 1));
     }
   }
 
   async function handleGenericContinue() {
+    if (onNoteStep) {
+      addToCart();
+      return;
+    }
     if (!canGenericAdvance) {
       void showAlert(`Selecione uma opção em "${currentGenericSection.section}".`);
       return;
     }
     if (isLastGenericStep) {
-      addToCart();
+      setOnNoteStep(true);
       return;
     }
     setGenericStep((value) => Math.min(value + 1, productAddons.length - 1));
   }
 
   function handlePrimaryAction() {
+    if (onNoteStep) {
+      if (hasPizzaWizard) {
+        handlePizzaAdd();
+        return;
+      }
+      if (hasMarmitaWizard) {
+        handleMarmitaAdd();
+        return;
+      }
+      addToCart();
+      return;
+    }
     if (showGenericAddons) {
       void handleGenericContinue();
       return;
     }
     if (hasPizzaWizard) {
       if (!canPizzaAdvance) return;
-      if (isLastPizzaStep) handlePizzaAdd();
+      if (isLastPizzaStep) setOnNoteStep(true);
       else setPizzaStep((value) => Math.min(value + 1, pizzaSteps.length - 1));
       return;
     }
     if (hasMarmitaWizard) {
       if (!canMarmitaAdvance) return;
-      if (isLastMarmitaStep) handleMarmitaAdd();
+      if (isLastMarmitaStep) setOnNoteStep(true);
       else setMarmitaStep((value) => Math.min(value + 1, marmitaSteps.length - 1));
       return;
     }
     addToCart();
   }
 
-  const primaryDisabled = showGenericAddons
-    ? !canGenericAdvance
-    : hasPizzaWizard
-      ? !canPizzaAdvance
-      : hasMarmitaWizard
-        ? !canMarmitaAdvance
-        : false;
+  const primaryDisabled = onNoteStep
+    ? false
+    : showGenericAddons
+      ? !canGenericAdvance
+      : hasPizzaWizard
+        ? !canPizzaAdvance
+        : hasMarmitaWizard
+          ? !canMarmitaAdvance
+          : false;
 
-  const primaryLabel = showGenericAddons
-    ? isLastGenericStep
-      ? 'Adicionar'
-      : 'Continuar'
-    : hasPizzaWizard
-      ? isLastPizzaStep
-        ? 'Adicionar'
-        : 'Continuar'
-      : hasMarmitaWizard
-        ? isLastMarmitaStep
-          ? 'Adicionar'
-          : 'Continuar'
-        : 'Adicionar';
+  const primaryLabel = onNoteStep
+    ? 'Adicionar'
+    : showGenericAddons || hasPizzaWizard || hasMarmitaWizard
+      ? 'Continuar'
+      : 'Adicionar';
+
+  const showProductNote =
+    onNoteStep || (!showGenericAddons && !hasPizzaWizard && !hasMarmitaWizard);
 
   const genericRequirementLabel = currentGenericSection
     ? `${currentGenericSelected.length}/${Math.max(1, Number(currentGenericSection.max || 1))}${
@@ -455,23 +660,35 @@ export default function ProductModalV2() {
             </div>
 
             {stepLabels.length > 1 ? (
-              <div className="cardapio-v2-product-modal-stepper" aria-label="Etapas de personalização">
-                {stepLabels.map((label, index) => (
-                  <div
-                    key={`${label}-${index}`}
-                    className={`cardapio-v2-product-modal-step${
-                      index === activeStepIndex ? ' is-active' : index < activeStepIndex ? ' is-done' : ''
-                    }`}
-                  >
-                    <span className="cardapio-v2-product-modal-step-dot">{index + 1}</span>
-                    <span className="cardapio-v2-product-modal-step-label">{label}</span>
-                  </div>
-                ))}
+              <div className="cardapio-v2-product-modal-stepper-wrap">
+                <div className="cardapio-v2-product-modal-stepper" aria-label="Etapas de personalização">
+                  {stepLabels.map((label, index) => (
+                    <div
+                      key={`${label}-${index}`}
+                      className={`cardapio-v2-product-modal-step${
+                        index === activeStepIndex ? ' is-active' : index < activeStepIndex ? ' is-done' : ''
+                      }${hoveredStepIndex === index ? ' is-previewing' : ''}`}
+                      onMouseEnter={() => handleStepMouseEnter(index)}
+                      onMouseLeave={handleStepMouseLeave}
+                    >
+                      <span className="cardapio-v2-product-modal-step-dot">{index + 1}</span>
+                      <span className="cardapio-v2-product-modal-step-label">{label}</span>
+                      <StepPreviewPopover
+                        preview={stepPreviews[index]}
+                        formatPrice={formatPrice}
+                        visible={hoveredStepIndex === index}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <p className="cardapio-v2-product-modal-stepper-hint">
+                  Passe o mouse nos passos para pré-visualizar as opções disponíveis
+                </p>
               </div>
             ) : null}
 
             <div className="cardapio-v2-product-modal-body">
-              {showGenericAddons && currentGenericSection ? (
+              {!onNoteStep && showGenericAddons && currentGenericSection ? (
                 <>
                   <div className="cardapio-v2-product-modal-section-head">
                     <h3>{currentGenericSection.stepTitle || currentGenericSection.section}</h3>
@@ -487,7 +704,7 @@ export default function ProductModalV2() {
                 </>
               ) : null}
 
-              {hasPizzaWizard ? (
+              {!onNoteStep && hasPizzaWizard ? (
                 <div className="cardapio-v2-product-modal-wizard-embed">
                   <PizzaWizardSteps
                     steps={pizzaPromoShortcut ? promoWizardSteps : pizzaSteps}
@@ -504,7 +721,7 @@ export default function ProductModalV2() {
                 </div>
               ) : null}
 
-              {hasMarmitaWizard ? (
+              {!onNoteStep && hasMarmitaWizard ? (
                 <div className="cardapio-v2-product-modal-wizard-embed">
                   <MarmitaWizardSteps
                     steps={marmitaSteps}
@@ -516,23 +733,40 @@ export default function ProductModalV2() {
                 </div>
               ) : null}
 
-              {!showGenericAddons && !hasPizzaWizard && !hasMarmitaWizard ? (
+              {!onNoteStep && !showGenericAddons && !hasPizzaWizard && !hasMarmitaWizard ? (
                 <p className="cardapio-v2-product-modal-empty">
                   Personalize a quantidade e adicione ao pedido.
                 </p>
+              ) : null}
+
+              {showProductNote ? (
+                <div className="product-note-field">
+                  <label className="product-note-label" htmlFor="productNoteDesktop">
+                    Observação
+                  </label>
+                  <textarea
+                    id="productNoteDesktop"
+                    className="product-note-input"
+                    rows={3}
+                    maxLength={200}
+                    placeholder="Ex.: sem cebola, ponto da carne, etc. (opcional)"
+                    value={productNote}
+                    onChange={(event) => setProductNote(event.target.value)}
+                  />
+                </div>
               ) : null}
             </div>
 
             <div className="cardapio-v2-product-modal-footer">
               <div className="cardapio-v2-product-modal-footer-left">
-                {(showGenericAddons || hasMarmitaWizard || hasPizzaWizard) && stepLabels.length ? (
+                {canGoBack ? (
                   <button
                     type="button"
                     className="cardapio-v2-product-modal-clear"
-                    onClick={clearCurrentStep}
+                    onClick={handleStepBack}
                   >
-                    <V2Icon name="trash" />
-                    Limpar escolhas
+                    <V2Icon name="arrow-left" />
+                    Voltar
                   </button>
                 ) : null}
                 <div className="cardapio-v2-product-modal-qty">
