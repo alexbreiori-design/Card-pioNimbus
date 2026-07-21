@@ -65,10 +65,11 @@ export default function MercadoPagoIntegrationCard({
           ? json.recentOrders
           : [],
       );
-      onConnectedChange?.(json.account?.status === "ativo");
+      if (json.account?.provider === "mercado_pago" && json.account?.status === "ativo") {
+        onConnectedChange?.(true);
+      }
     } catch (error) {
       toast.error(error?.message || "Erro ao carregar Mercado Pago.");
-      onConnectedChange?.(false);
     } finally {
       setLoading(false);
     }
@@ -81,7 +82,9 @@ export default function MercadoPagoIntegrationCard({
   useEffect(() => {
     const url = new URL(window.location.href);
     const status = url.searchParams.get("payments");
+    const provider = url.searchParams.get("provider");
     if (!status) return;
+    if (provider && provider !== "mercado_pago") return;
     if (status === "connected")
       toast.success("Mercado Pago conectado com sucesso.");
     else
@@ -91,6 +94,7 @@ export default function MercadoPagoIntegrationCard({
       );
     url.searchParams.delete("payments");
     url.searchParams.delete("message");
+    url.searchParams.delete("provider");
     window.history.replaceState(
       {},
       "",

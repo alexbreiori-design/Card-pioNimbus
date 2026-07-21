@@ -5,6 +5,7 @@ import {
   handleMercadoPagoConnectWebhook,
   syncAsaasPayment,
   syncMercadoPagoPayment,
+  syncPagBankPayment,
 } from '@/lib/payments/paymentServer';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 
@@ -31,6 +32,31 @@ export async function POST(request, { params }) {
         .maybeSingle();
       if (error) throw error;
       if (payment) await syncAsaasPayment(supabase, payment);
+      return NextResponse.json({ ok: true });
+    } catch {
+      return NextResponse.json({ ok: false }, { status: 500 });
+    }
+  }
+
+  if (provider === 'pagbank') {
+    const body = await request.json().catch(() => ({}));
+    const orderId =
+      body?.id ||
+      body?.order?.id ||
+      body?.data?.id ||
+      body?.charges?.[0]?.order_id ||
+      null;
+    if (!orderId) return NextResponse.json({ ok: true });
+    try {
+      const { data: payment, error } = await supabase
+        .from('pagamentos')
+        .select('*')
+        .eq('provider', 'pagbank')
+        .eq('provider_payment_id', String(orderId))
+        .maybeSingle();
+      if (error) throw error;
+      // O status recebido não é confiado: a sincronização consulta a API PagBank.
+      if (payment) await syncPagBankPayment(supabase, payment);
       return NextResponse.json({ ok: true });
     } catch {
       return NextResponse.json({ ok: false }, { status: 500 });

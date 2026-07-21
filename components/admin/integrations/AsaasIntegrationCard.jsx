@@ -36,10 +36,9 @@ export default function AsaasIntegrationCard({
         throw new Error(json.error || "Erro ao carregar integração.");
       const next = json.account?.provider === "asaas" ? json.account : null;
       setAccount(next);
-      onConnectedChange?.(json.account?.status === "ativo");
+      if (next?.status === "ativo") onConnectedChange?.(true);
     } catch (error) {
       toast.error(error?.message || "Erro ao carregar Asaas.");
-      onConnectedChange?.(false);
     } finally {
       setLoading(false);
     }

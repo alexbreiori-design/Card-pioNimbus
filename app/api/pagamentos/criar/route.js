@@ -17,13 +17,20 @@ import {
   mapMercadoPagoStatus,
 } from '@/lib/payments/providers/mercadoPago';
 import {
+  createPagBankPixOrder,
+  extractPagBankPix,
+  mapPagBankStatus,
+} from '@/lib/payments/providers/pagbank';
+import {
   finalizeApprovedPayment,
   getPaymentAccount,
   getUsableAsaasAccount,
   getUsableMercadoPagoAccount,
+  getUsablePagBankAccount,
 } from '@/lib/payments/paymentServer';
 import { requirePaymentFeatureForEmpresa } from '@/lib/payments/paymentFeature';
 import { preparePublicOrder } from '@/lib/orders/publicOrderServer';
+import { getSiteOrigin } from '@/lib/siteUrl';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 
 export async function POST(request) {
@@ -93,7 +100,65 @@ export async function POST(request) {
     let updated;
     let pedido = null;
 
-    if (provider === 'asaas') {
+    if (provider === 'pagbank') {
+      if (method !== 'pix') {
+        throw Object.assign(
+          new Error('No momento, o PagBank está disponível apenas para Pix.'),
+          { status: 400 }
+        );
+      }
+      const account = await getUsablePagBankAccount(supabase, prepared.empresa.id);
+      if (!account) {
+        throw Object.assign(new Error('Conta PagBank desconectada.'), { status: 409 });
+      }
+      const payerEmail = String(
+        body.email || body.cardData?.payer?.email || prepared.customer.email || ''
+      ).trim();
+      const payerDocument = String(
+        body.cpfCnpj ||
+          body.cardData?.payer?.identification?.number ||
+          prepared.customer.cpf ||
+          prepared.customer.cpfCnpj ||
+          ''
+      ).replace(/\D/g, '');
+      const remote = await createPagBankPixOrder({
+        accessToken: account.accessToken,
+        amount: prepared.validated.total,
+        payer: {
+          name: prepared.customer.name || prepared.order.clienteNome,
+          email: payerEmail,
+          phone: prepared.phone,
+          taxId: payerDocument,
+        },
+        order: prepared.order,
+        externalReference: paymentRow.id,
+        notificationUrl: `${getSiteOrigin()}/api/pagamentos/webhook/pagbank`,
+        expirationDate: paymentRow.expires_at,
+      });
+      const pix = await extractPagBankPix(remote, account.accessToken);
+      const charge = Array.isArray(remote?.charges) ? remote.charges[0] : null;
+      const status = mapPagBankStatus(remote);
+      const now = new Date().toISOString();
+      const { data, error: updateError } = await supabase
+        .from('pagamentos')
+        .update({
+          provider_payment_id: String(remote.id),
+          provider_status: charge?.status || 'WAITING',
+          status_detail: charge?.payment_response?.message || null,
+          status,
+          qr_code: pix.qrCode,
+          qr_code_base64: pix.qrCodeBase64,
+          ticket_url: pix.ticketUrl,
+          approved_at: status === 'aprovado' ? charge?.paid_at || now : null,
+          updated_at: now,
+        })
+        .eq('id', paymentRow.id)
+        .select('*')
+        .single();
+      if (updateError) throw updateError;
+      updated = data;
+      pedido = status === 'aprovado' ? await finalizeApprovedPayment(supabase, updated) : null;
+    } else if (provider === 'asaas') {
       const account = await getUsableAsaasAccount(supabase, prepared.empresa.id);
       if (!account) {
         throw Object.assign(new Error('Conta Asaas desconectada.'), { status: 409 });
@@ -171,7 +236,7 @@ export async function POST(request) {
       if (updateError) throw updateError;
       updated = data;
       pedido = status === 'aprovado' ? await finalizeApprovedPayment(supabase, updated) : null;
-    } else {
+    } else if (provider === 'mercado_pago') {
       const account = await getUsableMercadoPagoAccount(supabase, prepared.empresa.id);
       if (!account) {
         throw Object.assign(new Error('Conta Mercado Pago desconectada.'), { status: 409 });
@@ -250,6 +315,8 @@ export async function POST(request) {
       if (updateError) throw updateError;
       updated = data;
       pedido = status === 'aprovado' ? await finalizeApprovedPayment(supabase, updated) : null;
+    } else {
+      throw Object.assign(new Error('Provedor de pagamento não suportado.'), { status: 400 });
     }
 
     return NextResponse.json({

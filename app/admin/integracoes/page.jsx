@@ -9,7 +9,7 @@ import AdminConfirmDialog from "@/components/admin/AdminConfirmDialog";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import MercadoPagoIntegrationCard from "@/components/admin/integrations/MercadoPagoIntegrationCard";
 import AsaasIntegrationCard from "@/components/admin/integrations/AsaasIntegrationCard";
-import PaymentProviderComingSoonCard from "@/components/admin/integrations/PaymentProviderComingSoonCard";
+import PagBankIntegrationCard from "@/components/admin/integrations/PagBankIntegrationCard";
 import {
   AdminContentReveal,
   AdminIntegracoesSkeleton,
@@ -38,12 +38,21 @@ export default function IntegracoesPage() {
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const [editingPixel, setEditingPixel] = useState(false);
   const [paymentIntegrationsEnabled, setPaymentIntegrationsEnabled] = useState(false);
-  const [paymentProviderConnected, setPaymentProviderConnected] = useState(false);
+  const [activePaymentProvider, setActivePaymentProvider] = useState(null);
   const [paymentsCheckDone, setPaymentsCheckDone] = useState(false);
 
   const applyLoadedPixel = useCallback((loja) => {
     const safe = sanitizeMetaPixelId(loja?.metaPixelId) || "";
     setSavedPixelId(safe);
+  }, []);
+  const handleMercadoPagoConnected = useCallback((connected) => {
+    setActivePaymentProvider(connected ? "mercado_pago" : null);
+  }, []);
+  const handleAsaasConnected = useCallback((connected) => {
+    setActivePaymentProvider(connected ? "asaas" : null);
+  }, []);
+  const handlePagBankConnected = useCallback((connected) => {
+    setActivePaymentProvider(connected ? "pagbank" : null);
   }, []);
 
   useEffect(() => {
@@ -79,6 +88,9 @@ export default function IntegracoesPage() {
       .then((payload) => {
         if (!controller.signal.aborted) {
           setPaymentIntegrationsEnabled(payload?.ok === true && payload?.enabled === true);
+          setActivePaymentProvider(
+            payload?.account?.status === "ativo" ? payload.account.provider : null,
+          );
           setPaymentsCheckDone(true);
         }
       })
@@ -177,20 +189,26 @@ export default function IntegracoesPage() {
               <MercadoPagoIntegrationCard
                 slug={slug}
                 empresaLoading={empresaLoading}
-                onConnectedChange={setPaymentProviderConnected}
-                locked={paymentProviderConnected}
+                onConnectedChange={handleMercadoPagoConnected}
+                locked={Boolean(
+                  activePaymentProvider && activePaymentProvider !== "mercado_pago",
+                )}
               />
               <AsaasIntegrationCard
                 slug={slug}
                 empresaLoading={empresaLoading}
-                onConnectedChange={setPaymentProviderConnected}
-                locked={paymentProviderConnected}
+                onConnectedChange={handleAsaasConnected}
+                locked={Boolean(
+                  activePaymentProvider && activePaymentProvider !== "asaas",
+                )}
               />
-              <PaymentProviderComingSoonCard
-                logo="/images/PagBank-logo.png"
-                name="PagBank"
-                description="Pix e cartão com recebimento pela sua conta PagBank."
-                locked={paymentProviderConnected}
+              <PagBankIntegrationCard
+                slug={slug}
+                empresaLoading={empresaLoading}
+                onConnectedChange={handlePagBankConnected}
+                locked={Boolean(
+                  activePaymentProvider && activePaymentProvider !== "pagbank",
+                )}
               />
             </div>
           </section>
