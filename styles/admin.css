@@ -1266,7 +1266,9 @@
 
 .admin-orders-page .admin-kanban-col {
   --kanban-column-border: #e2e6ef;
-  border: 2px solid var(--kanban-column-border);
+  --kanban-header-bg: #e2e6ef;
+  --kanban-header-fg: #334155;
+  border: 1px solid var(--kanban-column-border);
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.86);
   box-shadow: 0 16px 40px rgba(41, 49, 79, 0.04);
@@ -1275,14 +1277,20 @@
 
 .admin-orders-page .admin-kanban-col.blue {
   --kanban-column-border: #93c5fd;
+  --kanban-header-bg: #93c5fd;
+  --kanban-header-fg: #1e3a8a;
 }
 
 .admin-orders-page .admin-kanban-col.amber {
   --kanban-column-border: #fcd34d;
+  --kanban-header-bg: #fcd34d;
+  --kanban-header-fg: #78350f;
 }
 
 .admin-orders-page .admin-kanban-col.green {
   --kanban-column-border: #86efac;
+  --kanban-header-bg: #86efac;
+  --kanban-header-fg: #14532d;
 }
 
 .admin-orders-page .admin-kanban-col-header {
@@ -1291,7 +1299,7 @@
   padding: 22px 24px;
   border-bottom: 1px solid var(--kanban-column-border);
   border-radius: 0;
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--kanban-header-bg);
 }
 
 .admin-kanban-title {
@@ -1299,6 +1307,10 @@
   align-items: center;
   gap: 16px;
   color: #151824;
+}
+
+.admin-orders-page .admin-kanban-col-header .admin-kanban-title {
+  color: var(--kanban-header-fg);
 }
 
 .admin-kanban-icon {
@@ -1312,14 +1324,9 @@
   background: linear-gradient(135deg, #eeedff, #e6e5ff);
 }
 
-.admin-kanban-icon.blue {
-  color: #2f7cff;
-  background: linear-gradient(135deg, #eef3ff, #dfeaff);
-}
-
-.admin-kanban-icon.green {
-  color: #0ea766;
-  background: linear-gradient(135deg, #e8fff4, #d8f3e8);
+.admin-orders-page .admin-kanban-col-header .admin-kanban-icon {
+  color: var(--kanban-header-fg);
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .admin-kanban-icon svg,
@@ -1340,11 +1347,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #e8ebf2;
+  border: 1px solid rgba(255, 255, 255, 0.55);
   border-radius: 999px;
-  background: #ffffff;
-  color: #171a24;
-  box-shadow: 0 5px 12px rgba(41, 49, 79, 0.04);
+  background: rgba(255, 255, 255, 0.65);
+  color: var(--kanban-header-fg);
+  box-shadow: none;
 }
 
 .admin-kanban-empty {
@@ -1385,6 +1392,7 @@
 }
 
 .admin-orders-page .admin-order-card {
+  position: relative;
   margin: 8px 10px;
   border: 1px solid #e2e6ef;
   border-radius: 12px;
@@ -1407,6 +1415,60 @@
   margin-bottom: 0;
   line-height: 1.25;
   grid-column: 1 / -1;
+}
+
+.admin-order-card.has-deadline-alert .admin-order-card-title {
+  padding-right: 22px;
+}
+
+.admin-order-deadline-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.admin-order-deadline-indicator.is-warning {
+  width: 22px;
+  height: 22px;
+  border-radius: 0;
+  background: transparent;
+  color: #fcd34d;
+  font-size: 22px;
+}
+
+.admin-order-warning-icon {
+  position: relative;
+  width: 1em;
+  height: 1em;
+  display: block;
+}
+
+.admin-order-warning-icon i {
+  position: absolute;
+  inset: 0;
+  line-height: 1;
+}
+
+.admin-order-warning-icon .ph-fill {
+  color: #fcd34d;
+}
+
+.admin-order-warning-icon .ph {
+  color: #78350f;
+}
+
+.admin-order-deadline-indicator.is-overdue {
+  background: #dc2626;
 }
 
 .admin-order-card-number {
@@ -8318,14 +8380,6 @@ textarea.admin-input::placeholder {
   flex-shrink: 0;
 }
 
-.admin-order-card--overdue {
-  box-shadow: 0 0 0 2px #ef4444 inset !important;
-}
-
-.admin-order-card--warning {
-  box-shadow: 0 0 0 2px #fcb103 inset !important;
-}
-
 .admin-order-card-deadline {
   display: inline-flex;
   align-items: center;
@@ -12932,12 +12986,12 @@ textarea.admin-input::placeholder {
   white-space: normal;
 }
 
-.admin-order-detail-pay-badge--paid {
+.admin-order-detail-row .admin-order-detail-pay-badge--paid {
   background: #dcfce7;
   color: #166534;
 }
 
-.admin-order-detail-pay-badge--on_delivery {
+.admin-order-detail-row .admin-order-detail-pay-badge--on_delivery {
   background: #ffedd5;
   color: #9a3412;
 }

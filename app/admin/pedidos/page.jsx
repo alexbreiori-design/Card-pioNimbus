@@ -34,7 +34,7 @@ import { resolveEmpresaIdFromStore } from '@/lib/supabase/empresa';
 import { getEtaFromConfirmedAt } from '@/lib/deliveryDuration';
 import { buildOrderStatusNotifyUrl, buildOrderSummaryWhatsAppUrl } from '@/lib/orderWhatsApp';
 import { formatOrderAgePt } from '@/lib/orderTimeAgo';
-import { orderDeadlineCardClass } from '@/lib/orders/orderDeadline';
+import { getOrderDeadlineStatus } from '@/lib/orders/orderDeadline';
 import { useModelStoreDemoDeadline } from '@/hooks/useModelStoreDemoDeadline';
 import {
   buildAdminOrderCatalogProducts,
@@ -658,15 +658,41 @@ export default function PedidosPage() {
                 ) : null}
                 {colOrders.map((order) => {
                   const flash = recentIds.includes(order.id);
-                  const deadlineCardClass = orderDeadlineCardClass(order);
+                  const deadlineStatus = getOrderDeadlineStatus(order);
+                  const hasDeadlineAlert =
+                    deadlineStatus === 'warning' || deadlineStatus === 'overdue';
                   const payBadge = paymentStatusBadgeForOrder(order);
                   return (
                     <div
                       key={order.id}
-                      className={`admin-order-card${deadlineCardClass ? ` ${deadlineCardClass}` : ''}`}
+                      className={`admin-order-card${hasDeadlineAlert ? ' has-deadline-alert' : ''}`}
                       style={flash ? { boxShadow: '0 0 0 2px #4e48dd inset' } : undefined}
                       onClick={() => setDetailOrderId(order.id)}
                     >
+                      {hasDeadlineAlert ? (
+                        <span
+                          className={`admin-order-deadline-indicator is-${deadlineStatus}`}
+                          title={
+                            deadlineStatus === 'overdue'
+                              ? 'Prazo do pedido estourado'
+                              : 'Faltam até 15 minutos para o prazo'
+                          }
+                          aria-label={
+                            deadlineStatus === 'overdue'
+                              ? 'Prazo do pedido estourado'
+                              : 'Faltam até 15 minutos para o prazo'
+                          }
+                        >
+                          {deadlineStatus === 'overdue' ? (
+                            <i className="ph ph-alarm" aria-hidden="true" />
+                          ) : (
+                            <span className="admin-order-warning-icon" aria-hidden="true">
+                              <i className="ph-fill ph-warning" />
+                              <i className="ph ph-warning" />
+                            </span>
+                          )}
+                        </span>
+                      ) : null}
                       <h4 className="admin-order-card-title">
                         <span className="admin-order-card-number">Pedido #{order.id}</span>
                         <span className="admin-order-card-title-separator" aria-hidden="true">
