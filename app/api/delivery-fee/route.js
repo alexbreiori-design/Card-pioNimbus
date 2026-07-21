@@ -38,6 +38,11 @@ export async function POST(request) {
     if (empresa.suspensa === true) {
       return NextResponse.json({ error: 'Loja indisponível no momento.' }, { status: 403 });
     }
+    const enderecoResolvido = {
+      ...endereco,
+      cidade: String(endereco.cidade || empresa.endereco_cidade || '').trim(),
+      estado: String(endereco.estado || empresa.endereco_estado || '').trim(),
+    };
 
     const zonas = await listZonasByEmpresaId(supabase, empresa.id);
     if (!zonas.length) {
@@ -50,7 +55,7 @@ export async function POST(request) {
     const result = await calculateDeliveryFee({
       empresa,
       zonas,
-      endereco,
+      endereco: enderecoResolvido,
       locationIqKey: getLocationIqKey(),
       orsKey: getOpenRouteServiceKey(),
     });

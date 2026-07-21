@@ -109,10 +109,9 @@
 .order-ticket-inverse {
   box-sizing: border-box;
   width: 100%;
-  color: #fff;
-  background: #000;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
+  color: #000;
+  background: transparent;
+  border: 2px solid #000;
 }
 
 .order-ticket-order-number {
@@ -308,18 +307,15 @@
 
   .order-ticket-print-root .order-ticket-inverse,
   .order-ticket-print-root .order-ticket-inverse * {
-    color: #fff !important;
-    background: #000 !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+    color: #000 !important;
+    background: transparent !important;
   }
 
   .order-ticket-print-root .order-ticket-order-number {
     font-size: 23px !important;
   }
 
-  .order-ticket-logo,
-  .order-ticket-inverse {
+  .order-ticket-logo {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

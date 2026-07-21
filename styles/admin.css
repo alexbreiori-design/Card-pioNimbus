@@ -1004,6 +1004,7 @@
   color: var(--admin-text-light);
   line-height: 1.4;
 }
+
 .admin-order-age {
   color: var(--admin-text-mid);
   font-weight: 500;
@@ -3307,6 +3308,115 @@
 .admin-order-cep-row {
   width: 40%;
   max-width: 100%;
+}
+
+.admin-address-autocomplete {
+  position: relative;
+}
+
+.admin-address-autocomplete-input-wrap {
+  position: relative;
+}
+
+.admin-address-autocomplete-input-wrap .admin-input {
+  padding-right: 38px;
+}
+
+.admin-address-autocomplete-loader {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #d7dbe4;
+  border-top-color: var(--admin-brand);
+  border-radius: 50%;
+  transform: translateY(-50%);
+  animation: admin-spin 0.8s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes admin-spin {
+  to {
+    transform: translateY(-50%) rotate(360deg);
+  }
+}
+
+.admin-address-autocomplete-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  overflow: hidden;
+  border: 1px solid #dbe1ea;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+}
+
+.admin-address-autocomplete-option {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid #eef1f5;
+  background: #fff;
+  color: var(--admin-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-address-autocomplete-option:last-of-type {
+  border-bottom: 0;
+}
+
+.admin-address-autocomplete-option:hover,
+.admin-address-autocomplete-option.is-active {
+  background: #f5f6ff;
+}
+
+.admin-address-autocomplete-option > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--admin-brand);
+}
+
+.admin-address-autocomplete-option span {
+  min-width: 0;
+}
+
+.admin-address-autocomplete-option strong,
+.admin-address-autocomplete-option small {
+  display: block;
+}
+
+.admin-address-autocomplete-option strong {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.admin-address-autocomplete-option small {
+  margin-top: 2px;
+  color: var(--admin-text-light);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.admin-address-autocomplete-message {
+  margin: 0;
+  padding: 11px 12px;
+  color: var(--admin-text-light);
+  font-size: 12px;
+}
+
+.admin-address-autocomplete-hint {
+  display: block;
+  margin-top: 5px;
+  color: var(--admin-text-light);
+  font-size: 11px;
 }
 
 .admin-order-address-grid {
@@ -8117,6 +8227,14 @@ textarea.admin-input::placeholder {
   font-size: 14px;
   color: #0f172a;
   margin-top: 2px;
+}
+
+.admin-order-detail-row .admin-order-detail-distance {
+  display: block;
+  margin-top: 4px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 400;
 }
 
 .admin-order-detail-item {
