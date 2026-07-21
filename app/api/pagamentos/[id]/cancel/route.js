@@ -3,6 +3,7 @@ import { checkoutTokenMatches } from '@/lib/payments/crypto';
 import {
   cancelPendingAsaasPayment,
   cancelPendingMercadoPagoPayment,
+  cancelPendingPagBankPayment,
 } from '@/lib/payments/paymentServer';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 
@@ -41,10 +42,16 @@ export async function POST(request, { params }) {
       });
     }
 
-    const updated =
-      payment.provider === 'asaas'
-        ? await cancelPendingAsaasPayment(supabase, payment)
-        : await cancelPendingMercadoPagoPayment(supabase, payment);
+    let updated;
+    if (payment.provider === 'asaas') {
+      updated = await cancelPendingAsaasPayment(supabase, payment);
+    } else if (payment.provider === 'pagbank') {
+      updated = await cancelPendingPagBankPayment(supabase, payment);
+    } else if (payment.provider === 'mercado_pago') {
+      updated = await cancelPendingMercadoPagoPayment(supabase, payment);
+    } else {
+      throw Object.assign(new Error('Provedor de pagamento não suportado.'), { status: 400 });
+    }
     return NextResponse.json({
       ok: true,
       payment: {

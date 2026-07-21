@@ -3,6 +3,7 @@ import { checkoutTokenMatches } from '@/lib/payments/crypto';
 import {
   syncAsaasPayment,
   syncMercadoPagoPayment,
+  syncPagBankPayment,
 } from '@/lib/payments/paymentServer';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 
@@ -27,10 +28,16 @@ export async function GET(request, { params }) {
     let current = payment;
     let pedido = null;
     if (payment.provider_payment_id && ['pendente', 'processando'].includes(payment.status)) {
-      const synced =
-        payment.provider === 'asaas'
-          ? await syncAsaasPayment(supabase, payment)
-          : await syncMercadoPagoPayment(supabase, payment);
+      let synced;
+      if (payment.provider === 'asaas') {
+        synced = await syncAsaasPayment(supabase, payment);
+      } else if (payment.provider === 'pagbank') {
+        synced = await syncPagBankPayment(supabase, payment);
+      } else if (payment.provider === 'mercado_pago') {
+        synced = await syncMercadoPagoPayment(supabase, payment);
+      } else {
+        throw new Error('Provedor de pagamento não suportado.');
+      }
       current = synced.payment;
       pedido = synced.pedido;
     }

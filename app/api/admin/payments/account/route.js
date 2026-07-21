@@ -51,7 +51,7 @@ export async function GET(request) {
         .from('pagamentos')
         .select('provider_payment_id, status, metodo, valor, created_at')
         .eq('empresa_id', empresa.id)
-        .eq('provider', 'mercado_pago')
+        .eq('provider', account.provider)
         .not('provider_payment_id', 'is', null)
         .order('created_at', { ascending: false })
         .limit(2);
@@ -196,7 +196,7 @@ export async function DELETE(request) {
       return NextResponse.json({ ok: false, error: 'Loja não encontrada.' }, { status: 404 });
     }
     const provider = String(body.provider || 'mercado_pago').trim();
-    if (!['mercado_pago', 'asaas'].includes(provider)) {
+    if (!['mercado_pago', 'asaas', 'pagbank'].includes(provider)) {
       return NextResponse.json({ ok: false, error: 'Provedor inválido.' }, { status: 400 });
     }
     await disconnectPaymentAccount(supabase, empresa.id, provider);
@@ -221,9 +221,14 @@ export async function PATCH(request) {
       return NextResponse.json({ ok: false, error: 'Loja não encontrada.' }, { status: 404 });
     }
     await requirePaymentFeatureForEmpresa(supabase, empresa.id);
+    const account = await getPaymentAccount(supabase, empresa.id);
+    if (!account) {
+      return NextResponse.json({ ok: false, error: 'Provedor não conectado.' }, { status: 404 });
+    }
     const methods = {
       pix: body.methods?.pix !== false,
-      credit_card: body.methods?.credit_card !== false,
+      credit_card:
+        account.provider === 'pagbank' ? false : body.methods?.credit_card !== false,
     };
     if (!methods.pix && !methods.credit_card) {
       return NextResponse.json(

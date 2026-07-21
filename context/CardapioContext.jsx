@@ -2326,9 +2326,9 @@ export function CardapioProvider({
       const onlineEmail = String(checkoutEmail || checkoutData.email || '').trim();
       const onlineCpfCnpj = String(checkoutCpfCnpj || checkoutData.cpfCnpj || '').trim();
       if (['pix_online', 'credito_online'].includes(checkoutData.payment)) {
-        if (onlinePaymentConfig?.provider === 'asaas') {
+        if (['asaas', 'pagbank'].includes(onlinePaymentConfig?.provider)) {
           if (!isValidCpfCnpj(onlineCpfCnpj)) {
-            void showAlert('Informe um CPF ou CNPJ válido para pagar com Asaas.');
+            void showAlert('Informe um CPF ou CNPJ válido para pagar online.');
             return;
           }
           setCheckoutData((d) => ({
