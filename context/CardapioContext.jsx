@@ -2326,7 +2326,8 @@ export function CardapioProvider({
       const onlineEmail = String(checkoutEmail || checkoutData.email || '').trim();
       const onlineCpfCnpj = String(checkoutCpfCnpj || checkoutData.cpfCnpj || '').trim();
       if (['pix_online', 'credito_online'].includes(checkoutData.payment)) {
-        if (['asaas', 'pagbank'].includes(onlinePaymentConfig?.provider)) {
+        const provider = onlinePaymentConfig?.provider;
+        if (provider === 'asaas') {
           if (!isValidCpfCnpj(onlineCpfCnpj)) {
             void showAlert('Informe um CPF ou CNPJ válido para pagar online.');
             return;
@@ -2335,6 +2336,20 @@ export function CardapioProvider({
             ...d,
             cpfCnpj: digitsOnly(onlineCpfCnpj),
             email: '',
+          }));
+        } else if (provider === 'pagbank') {
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(onlineEmail)) {
+            void showAlert('Informe um e-mail válido para pagar online.');
+            return;
+          }
+          if (!isValidCpfCnpj(onlineCpfCnpj)) {
+            void showAlert('Informe um CPF ou CNPJ válido para pagar online.');
+            return;
+          }
+          setCheckoutData((d) => ({
+            ...d,
+            email: onlineEmail,
+            cpfCnpj: digitsOnly(onlineCpfCnpj),
           }));
         } else {
           if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(onlineEmail)) {

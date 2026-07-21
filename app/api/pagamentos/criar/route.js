@@ -121,6 +121,16 @@ export async function POST(request) {
           prepared.customer.cpfCnpj ||
           ''
       ).replace(/\D/g, '');
+      if (!payerEmail) {
+        throw Object.assign(new Error('Informe um e-mail válido para pagar com PagBank.'), {
+          status: 400,
+        });
+      }
+      if (!payerDocument) {
+        throw Object.assign(new Error('Informe o CPF ou CNPJ para pagar com PagBank.'), {
+          status: 400,
+        });
+      }
       const remote = await createPagBankPixOrder({
         accessToken: account.accessToken,
         amount: prepared.validated.total,
