@@ -28,6 +28,10 @@ const AsaasPaymentPanel = dynamic(
   () => import('@/components/cardapio/AsaasPaymentPanel'),
   { ssr: false }
 );
+const PagBankPaymentPanel = dynamic(
+  () => import('@/components/cardapio/PagBankPaymentPanel'),
+  { ssr: false }
+);
 
 function PaymentIcon({ id }) {
   const svgProps = {
@@ -331,8 +335,10 @@ export default function CheckoutModal() {
       const offlineMethods = PAYMENT_METHODS.filter((m) => m.group !== 'Pagar agora');
       const isOnlinePay = ['pix_online', 'credito_online'].includes(checkoutData.payment);
       const isAsaas = onlinePaymentConfig?.provider === 'asaas';
-      const showOnlineEmail = isOnlinePay && !isAsaas;
-      const showAsaasCpf = isOnlinePay && isAsaas;
+      const requiresDocument =
+        isAsaas || onlinePaymentConfig?.provider === 'pagbank';
+      const showOnlineEmail = isOnlinePay && !requiresDocument;
+      const showOnlineCpf = isOnlinePay && requiresDocument;
 
       const renderPaymentOption = (m) => {
         const isDinheiro = m.id === 'dinheiro';
@@ -420,7 +426,7 @@ export default function CheckoutModal() {
         </div>
       ) : null;
 
-      const onlineCpfField = showAsaasCpf ? (
+      const onlineCpfField = showOnlineCpf ? (
         <div className="form-group checkout-online-email">
           <label className="form-label" htmlFor="checkoutOnlineCpf">
             CPF ou CNPJ
@@ -577,8 +583,16 @@ export default function CheckoutModal() {
           {isOnlinePayment ? (
             onlinePaymentConfig?.provider === 'asaas' ? (
               <AsaasPaymentPanel />
-            ) : (
+            ) : onlinePaymentConfig?.provider === 'pagbank' ? (
+              <PagBankPaymentPanel />
+            ) : onlinePaymentConfig?.provider === 'mercado_pago' ? (
               <MercadoPagoPaymentPanel amount={total} />
+            ) : (
+              <section className="checkout-online-payment">
+                <div className="checkout-online-error" role="alert">
+                  Provedor de pagamento não configurado.
+                </div>
+              </section>
             )
           ) : null}
         </div>
