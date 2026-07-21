@@ -335,10 +335,10 @@ export default function CheckoutModal() {
       const offlineMethods = PAYMENT_METHODS.filter((m) => m.group !== 'Pagar agora');
       const isOnlinePay = ['pix_online', 'credito_online'].includes(checkoutData.payment);
       const isAsaas = onlinePaymentConfig?.provider === 'asaas';
-      const requiresDocument =
-        isAsaas || onlinePaymentConfig?.provider === 'pagbank';
-      const showOnlineEmail = isOnlinePay && !requiresDocument;
-      const showOnlineCpf = isOnlinePay && requiresDocument;
+      const isPagBank = onlinePaymentConfig?.provider === 'pagbank';
+      // Asaas: só CPF. PagBank: e-mail + CPF. Mercado Pago: só e-mail.
+      const showOnlineEmail = isOnlinePay && (isPagBank || (!isAsaas && !isPagBank));
+      const showOnlineCpf = isOnlinePay && (isAsaas || isPagBank);
 
       const renderPaymentOption = (m) => {
         const isDinheiro = m.id === 'dinheiro';
@@ -413,13 +413,15 @@ export default function CheckoutModal() {
             type="email"
             autoComplete="email"
             placeholder={
-              onlinePaymentConfig?.sandbox ? 'ex: test@testuser.com' : 'seu@email.com'
+              onlinePaymentConfig?.sandbox && !isPagBank
+                ? 'ex: test@testuser.com'
+                : 'seu@email.com'
             }
             value={checkoutEmail}
             onChange={(e) => setCheckoutEmail(e.target.value)}
           />
           <small className="checkout-field-hint">
-            {onlinePaymentConfig?.sandbox
+            {onlinePaymentConfig?.sandbox && !isPagBank
               ? 'Conta de teste: use um e-mail terminando em @testuser.com.'
               : 'Obrigatório para pagamentos online.'}
           </small>
