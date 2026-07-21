@@ -33,6 +33,10 @@ export const EMPTY_ORDER_DRAFT = {
   cart: [],
 };
 
+export function createOrderDraftLineId() {
+  return `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+}
+
 export function fmtPhone(v) {
   const n = String(v || '').replace(/\D/g, '').slice(0, 11);
   if (n.length <= 2) return n;
