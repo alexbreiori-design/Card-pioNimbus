@@ -7,7 +7,7 @@ import { orderDeadlineHighlightClass } from '@/lib/orders/orderDeadline';
 import { paymentStatusBadgeForOrder } from '@/lib/orders/mapAdminOrder';
 import OrderDeadlineDemoEdit from './OrderDeadlineDemoEdit';
 import OrderStatusTimeline from './OrderStatusTimeline';
-import { currency } from './orderDraftUtils';
+import { currency, formatDistanceKm } from './orderDraftUtils';
 
 const TIPO_LABEL = { delivery: 'Delivery', retirada: 'Retirada', balcao: 'Balcão' };
 const STATUS_LABEL = {
@@ -124,6 +124,11 @@ export default function OrderDetailModal({
               <div>
                 <span>{TIPO_LABEL[order.tipo] || order.tipo}</span>
                 <strong>{addressText(order)}</strong>
+                {formatDistanceKm(order.distanciaKm) ? (
+                  <small className="admin-order-detail-distance">
+                    Distância da rota: {formatDistanceKm(order.distanciaKm)}
+                  </small>
+                ) : null}
               </div>
             </div>
             {order.entregadorNome ? (

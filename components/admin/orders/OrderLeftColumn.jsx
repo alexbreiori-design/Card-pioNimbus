@@ -1,14 +1,16 @@
 'use client';
 
+import { useRef } from 'react';
 import { formatCep } from '@/lib/cep/viacep';
 import { useCepLookup } from '@/hooks/useCepLookup';
+import AddressAutocompleteInput from './AddressAutocompleteInput';
 import MoneyInput from './MoneyInput';
 import OrderTypeTabs from './OrderTypeTabs';
 import PhoneSearchInput from './PhoneSearchInput';
 import { useAdminData } from '@/hooks/useAdminData';
 import OrderCouponPicker from './OrderCouponPicker';
 import OrderCartList from './OrderCartList';
-import { currency, PAYMENT_METHODS } from './orderDraftUtils';
+import { currency, formatDistanceKm, PAYMENT_METHODS } from './orderDraftUtils';
 import AdminIcon from '@/components/admin/AdminIcon';
 
 export default function OrderLeftColumn({
@@ -22,12 +24,22 @@ export default function OrderLeftColumn({
   deliveryFeeLoading = false,
 }) {
   const { data } = useAdminData();
+  const numeroInputRef = useRef(null);
   const cupons = data.cupons || [];
   const hasDeliveryAddress =
     Boolean(String(draft.logradouro || '').trim()) &&
-    Boolean(String(draft.bairro || '').trim()) &&
-    Boolean(String(draft.cidade || '').trim());
+    Boolean(String(draft.numero || '').trim());
   const { lookup, loading: cepLoading } = useCepLookup();
+
+  function setAddressField(field, value) {
+    setDraft((d) => ({
+      ...d,
+      [field]: value,
+      distanciaKm: null,
+      enderecoLatitude: null,
+      enderecoLongitude: null,
+    }));
+  }
 
   async function handleCepSearch() {
     const result = await lookup(draft.cep);
@@ -38,7 +50,26 @@ export default function OrderLeftColumn({
       bairro: result.bairro || d.bairro,
       cidade: result.cidade || d.cidade,
       estado: result.estado || d.estado,
+      distanciaKm: null,
+      enderecoLatitude: null,
+      enderecoLongitude: null,
     }));
+  }
+
+  function handleAddressSelect(address) {
+    setDraft((d) => ({
+      ...d,
+      logradouro: address.logradouro,
+      numero: '',
+      bairro: address.bairro,
+      cidade: address.cidade,
+      estado: address.estado,
+      cep: formatCep(address.cep),
+      distanciaKm: null,
+      enderecoLatitude: null,
+      enderecoLongitude: null,
+    }));
+    requestAnimationFrame(() => numeroInputRef.current?.focus());
   }
 
   return (
@@ -50,6 +81,9 @@ export default function OrderLeftColumn({
             ...d,
             tipo,
             taxaEntrega: tipo === 'delivery' ? d.taxaEntrega : '0',
+            distanciaKm: tipo === 'delivery' ? d.distanciaKm : null,
+            enderecoLatitude: tipo === 'delivery' ? d.enderecoLatitude : null,
+            enderecoLongitude: tipo === 'delivery' ? d.enderecoLongitude : null,
           }))
         }
       />
@@ -83,7 +117,7 @@ export default function OrderLeftColumn({
               <input
                 className="admin-input admin-input-with-icon"
                 value={draft.cep}
-                onChange={(e) => setDraft((d) => ({ ...d, cep: formatCep(e.target.value) }))}
+                onChange={(e) => setAddressField('cep', formatCep(e.target.value))}
                 placeholder="00000-000"
               />
               <button
@@ -102,21 +136,25 @@ export default function OrderLeftColumn({
             </div>
           </div>
           <div className="admin-form-group">
-            <label className="admin-label">Endereço</label>
-            <input
-              className="admin-input"
+            <label className="admin-label">Rua ou avenida</label>
+            <AddressAutocompleteInput
+              slug={data.loja?.slug}
               value={draft.logradouro}
-              onChange={(e) => setDraft((d) => ({ ...d, logradouro: e.target.value }))}
-              placeholder="Rua, avenida, número..."
+              onChange={(logradouro) => setAddressField('logradouro', logradouro)}
+              onAddressSelect={handleAddressSelect}
             />
+            <small className="admin-address-autocomplete-hint">
+              Digite ao menos 3 letras e selecione uma sugestão.
+            </small>
           </div>
           <div className="admin-order-address-grid">
             <div className="admin-form-group admin-order-field-numero">
               <label className="admin-label">Número</label>
               <input
+                ref={numeroInputRef}
                 className="admin-input"
                 value={draft.numero}
-                onChange={(e) => setDraft((d) => ({ ...d, numero: e.target.value }))}
+                onChange={(e) => setAddressField('numero', e.target.value)}
                 placeholder="124"
               />
             </div>
@@ -125,7 +163,7 @@ export default function OrderLeftColumn({
               <input
                 className="admin-input"
                 value={draft.bairro}
-                onChange={(e) => setDraft((d) => ({ ...d, bairro: e.target.value }))}
+                onChange={(e) => setAddressField('bairro', e.target.value)}
                 placeholder="Centro"
               />
             </div>
@@ -134,7 +172,7 @@ export default function OrderLeftColumn({
               <input
                 className="admin-input"
                 value={draft.cidade}
-                onChange={(e) => setDraft((d) => ({ ...d, cidade: e.target.value }))}
+                onChange={(e) => setAddressField('cidade', e.target.value)}
                 placeholder="São Paulo"
               />
             </div>
@@ -144,7 +182,7 @@ export default function OrderLeftColumn({
                 className="admin-input"
                 value={draft.estado}
                 onChange={(e) =>
-                  setDraft((d) => ({ ...d, estado: e.target.value.toUpperCase().slice(0, 2) }))
+                  setAddressField('estado', e.target.value.toUpperCase().slice(0, 2))
                 }
                 maxLength={2}
                 placeholder="SP"
@@ -215,7 +253,7 @@ export default function OrderLeftColumn({
               {deliveryFeeLoading
                 ? 'Calculando…'
                 : hasDeliveryAddress
-                  ? currency(entrega)
+                  ? `${currency(entrega)}${formatDistanceKm(draft.distanciaKm) ? ` · ${formatDistanceKm(draft.distanciaKm)}` : ''}`
                   : '—'}
             </span>
           </div>

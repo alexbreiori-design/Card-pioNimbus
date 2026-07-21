@@ -29,6 +29,9 @@ export const EMPTY_ORDER_DRAFT = {
   cupomCodigo: '',
   cupomDesconto: 0,
   taxaEntrega: '0',
+  distanciaKm: null,
+  enderecoLatitude: null,
+  enderecoLongitude: null,
   formaPagamento: 'dinheiro',
   cart: [],
 };
@@ -46,6 +49,16 @@ export function fmtPhone(v) {
 
 export function currency(v) {
   return `R$ ${Number(v || 0).toFixed(2).replace('.', ',')}`;
+}
+
+export function formatDistanceKm(value) {
+  if (value === null || value === undefined || value === '') return '';
+  const distance = Number(value);
+  if (!Number.isFinite(distance) || distance < 0) return '';
+  return `${distance.toLocaleString('pt-BR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })} km`;
 }
 
 export function parseMoneyInput(value) {
