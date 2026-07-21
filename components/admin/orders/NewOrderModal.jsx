@@ -15,14 +15,11 @@ import AdminOrderItemConfigurator from './AdminOrderItemConfigurator';
 import { productNeedsConfiguration } from '@/lib/admin/orderProductUtils';
 import {
   computeOrderTotals,
+  createOrderDraftLineId,
   EMPTY_ORDER_DRAFT,
   hasDraftContent,
   isOrderDraftValid,
 } from './orderDraftUtils';
-
-function uid() {
-  return `${Date.now()}${Math.floor(Math.random() * 1000)}`;
-}
 
 export default function NewOrderModal({
   open,
@@ -107,7 +104,7 @@ export default function NewOrderModal({
       cart: [
         ...d.cart,
         {
-          id: uid(),
+          id: createOrderDraftLineId(),
           produtoId: cartLine.produtoId,
           nome: cartLine.nome,
           preco: cartLine.preco,

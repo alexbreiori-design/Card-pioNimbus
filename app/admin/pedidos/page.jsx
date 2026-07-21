@@ -16,6 +16,7 @@ import { useAdminMobileAccess } from '@/hooks/useAdminMobileAccess';
 import { useCaixa } from '@/hooks/useCaixa';
 import {
   computeOrderTotals,
+  createOrderDraftLineId,
   currency,
   EMPTY_ORDER_DRAFT,
   fmtPhone,
@@ -853,7 +854,7 @@ export default function PedidosPage() {
             taxaEntrega: String(detailOrder.frete || 0).replace('.', ','),
             formaPagamento: detailOrder.pagamento?.metodo || 'dinheiro',
             cart: (detailOrder.itens || []).map((i) => ({
-              id: uid(),
+              id: createOrderDraftLineId(),
               produtoId: i.produtoId || '',
               nome: i.nome,
               preco: Number(i.precoUnit || 0),
