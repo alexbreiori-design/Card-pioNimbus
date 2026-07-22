@@ -16,7 +16,7 @@ import {
 } from '@/lib/phoneBr';
 import CartItemOptsList from '@/components/cardapio/CartItemOptsList';
 import { useCardapio } from '@/context/CardapioContext';
-import { formatCpfCnpjInput } from '@/lib/cpfCnpj';
+import { cardBrandLabel } from '@/lib/payments/cardBrand';
 import { allowsManualPaymentCredentials } from '@/lib/runtimeEnvironment';
 import { IconBack, IconClose, IconContinue, IconStepCheck } from './icons';
 
@@ -71,13 +71,13 @@ export default function CheckoutModal() {
     setCheckoutName,
     checkoutPhone,
     setCheckoutPhone,
-    checkoutEmail,
-    setCheckoutEmail,
-    checkoutCpfCnpj,
-    setCheckoutCpfCnpj,
     lookupCheckoutCustomerByPhone,
     onlinePaymentConfig,
+    onlinePayment,
+    checkoutCardDraft,
     STEP_LABELS,
+    STEP_LABELS_ONLINE_PIX,
+    STEP_LABELS_ONLINE_CARD,
     PAYMENT_METHODS,
     PAY_LABELS,
     cart,
@@ -155,6 +155,11 @@ export default function CheckoutModal() {
   const cupomOff = calculateCupomDiscount(appliedCupom, subtotal);
   const total = Math.max(0, subtotal + taxaEntrega - cupomOff);
   const isOnlinePayment = ['pix_online', 'credito_online'].includes(checkoutData.payment);
+  const isCardOnline = checkoutData.payment === 'credito_online';
+  const isPixOnline = checkoutData.payment === 'pix_online';
+  const isCardFormStep = isCardOnline && checkoutStep === 4;
+  const isConfirmStep =
+    (checkoutStep === 4 && !isCardOnline) || (checkoutStep === 5 && isCardOnline);
   const showPixInfo = checkoutData.payment === 'pix' && Boolean(storeConfig?.chavePix);
   const storeAddress = formatStoreAddress(storeConfig);
 
@@ -170,8 +175,18 @@ export default function CheckoutModal() {
     };
   }, [checkoutData.delivery, getDeliveryEstimateMinutes, storeConfig, confirmOrderTipo]);
 
-  const checkoutTitle =
-    checkoutSuccess ? 'Pedido enviado' : checkoutStep === 4 ? 'Confirmação' : 'Checkout';
+  const checkoutTitle = checkoutSuccess
+    ? 'Pedido enviado'
+    : isCardFormStep
+      ? 'Cartão'
+      : isConfirmStep
+        ? 'Confirmação'
+        : 'Checkout';
+  const activeStepLabels = isCardOnline
+    ? STEP_LABELS_ONLINE_CARD
+    : isPixOnline
+      ? STEP_LABELS_ONLINE_PIX
+      : STEP_LABELS;
 
   const pixInfoBlock = showPixInfo ? (
     <div className="checkout-pix-info">
@@ -182,6 +197,159 @@ export default function CheckoutModal() {
       ) : null}
     </div>
   ) : null;
+
+  function renderOnlinePanel(mode) {
+    if (onlinePaymentConfig?.provider === 'asaas') {
+      return <AsaasPaymentPanel mode={mode} />;
+    }
+    if (onlinePaymentConfig?.provider === 'pagbank') {
+      return <PagBankPaymentPanel mode={mode} />;
+    }
+    if (onlinePaymentConfig?.provider === 'mercado_pago') {
+      return <MercadoPagoPaymentPanel amount={total} mode={mode} />;
+    }
+    return (
+      <section className="checkout-online-payment">
+        <div className="checkout-online-error" role="alert">
+          Provedor de pagamento não configurado.
+        </div>
+      </section>
+    );
+  }
+
+  function renderOrderSummary({ cardDraft = null } = {}) {
+    const deliveryLabel =
+      checkoutData.delivery === 'retirar'
+        ? 'Retirar no estabelecimento'
+        : 'Receber no endereço';
+    const deliveryDetail =
+      checkoutData.delivery === 'entregar' && checkoutAddressConfirmed && savedAddress
+        ? `${savedAddress.rua}${savedAddress.num ? `, ${savedAddress.num}` : ''} — ${savedAddress.bairro}`
+        : storeAddress;
+    const etaActionLabel = confirmEstimate.isDelivery ? 'Entrega até' : 'Retirada até';
+    const cardMasked =
+      cardDraft?.masked ||
+      (cardDraft?.last4 ? `**** **** **** ${cardDraft.last4}` : '');
+    const cardBrand = cardDraft?.brand ? cardBrandLabel(cardDraft.brand) : '';
+
+    return (
+      <div className="checkout-confirm">
+        <section className="confirm-panel confirm-panel--l2" aria-label="Dados do cliente">
+          <h3 className="confirm-panel__label">Contato</h3>
+          <dl className="confirm-meta-list">
+            <div className="confirm-meta-row">
+              <dt>Nome</dt>
+              <dd>{checkoutData.name}</dd>
+            </div>
+            <div className="confirm-meta-row">
+              <dt>Telefone</dt>
+              <dd>{checkoutData.phone}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section className="confirm-panel confirm-panel--l4" aria-label="Itens do pedido">
+          <h3 className="confirm-panel__label">Seu pedido</h3>
+          <ul className="confirm-order-list">
+            {cart.map((item) => (
+              <li className="confirm-order-line" key={item.id}>
+                <div className="confirm-order-line-main">
+                  <span className="confirm-order-qty">{item.qty}x</span>
+                  <span className="confirm-order-name">{item.name}</span>
+                </div>
+                {item.opts?.length ? (
+                  <CartItemOptsList opts={item.opts} note={item.note} className="confirm-order-opts" />
+                ) : null}
+                <span className="confirm-order-price">{formatPrice(item.price * item.qty)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="confirm-panel confirm-panel--l2" aria-label="Entrega e pagamento">
+          <h3 className="confirm-panel__label">Entrega e pagamento</h3>
+          <dl className="confirm-meta-list">
+            <div className="confirm-meta-row">
+              <dt>Entrega</dt>
+              <dd>
+                <span className="confirm-meta-primary">{deliveryLabel}</span>
+                <span className="confirm-meta-secondary">{deliveryDetail}</span>
+              </dd>
+            </div>
+            <div className="confirm-meta-row">
+              <dt>Pagamento</dt>
+              <dd>
+                <span className="confirm-meta-primary">
+                  {PAY_LABELS[checkoutData.payment] || '—'}
+                </span>
+                {cardDraft ? (
+                  <span className="confirm-card-preview">
+                    <span className={`confirm-card-brand confirm-card-brand--${cardDraft.brand || 'card'}`}>
+                      {cardBrand || 'Cartão'}
+                    </span>
+                    <span className="confirm-card-masked">
+                      {cardMasked || '**** **** **** ••••'}
+                    </span>
+                  </span>
+                ) : null}
+                {checkoutData.payment === 'dinheiro' &&
+                checkoutData.trocoAnswer === 'sim' &&
+                checkoutData.trocoValue ? (
+                  <span className="confirm-meta-secondary">
+                    Troco para {checkoutData.trocoValue}
+                  </span>
+                ) : null}
+              </dd>
+            </div>
+          </dl>
+          {pixInfoBlock}
+        </section>
+
+        <section className="confirm-panel confirm-panel--l3" aria-label="Tempo estimado" role="status">
+          <h3 className="confirm-panel__label">Tempo estimado</h3>
+          <p className="confirm-panel__lead">
+            <span className="confirm-eta-duration">{confirmEstimate.durationLabel}</span>
+            <span className="confirm-eta-sep">·</span>
+            <span>
+              {etaActionLabel} <strong>{confirmEstimate.untilLabel}</strong>
+            </span>
+          </p>
+        </section>
+
+        <section className="confirm-panel confirm-panel--l5" aria-label="Valor a pagar">
+          <h3 className="confirm-panel__label">Valor a pagar</h3>
+          <dl className="confirm-pay-lines">
+            {Number(storeConfig?.pedidoMinimo || 0) > 0 ? (
+              <div className="confirm-pay-line">
+                <dt>Pedido mínimo</dt>
+                <dd>{formatPrice(Number(storeConfig.pedidoMinimo))}</dd>
+              </div>
+            ) : null}
+            <div className="confirm-pay-line">
+              <dt>Subtotal</dt>
+              <dd>{formatPrice(subtotal)}</dd>
+            </div>
+            {checkoutData.delivery === 'entregar' ? (
+              <div className="confirm-pay-line">
+                <dt>Taxa de entrega</dt>
+                <dd>{taxaEntrega > 0 ? formatPrice(taxaEntrega) : 'Grátis'}</dd>
+              </div>
+            ) : null}
+            {cupomOff > 0 ? (
+              <div className="confirm-pay-line">
+                <dt>Cupom ({appliedCupom.codigo})</dt>
+                <dd>− {formatPrice(cupomOff)}</dd>
+              </div>
+            ) : null}
+          </dl>
+          <div className="confirm-pay-total">
+            <span className="confirm-pay-total-label">Total</span>
+            <span className="confirm-pay-total-value">{formatPrice(total)}</span>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   const renderStepBody = () => {
     if (checkoutSuccess) {
@@ -333,12 +501,6 @@ export default function CheckoutModal() {
     if (checkoutStep === 3) {
       const onlineMethods = PAYMENT_METHODS.filter((m) => m.group === 'Pagar agora');
       const offlineMethods = PAYMENT_METHODS.filter((m) => m.group !== 'Pagar agora');
-      const isOnlinePay = ['pix_online', 'credito_online'].includes(checkoutData.payment);
-      const isAsaas = onlinePaymentConfig?.provider === 'asaas';
-      const isPagBank = onlinePaymentConfig?.provider === 'pagbank';
-      // Asaas: só CPF. PagBank: e-mail + CPF. Mercado Pago: só e-mail.
-      const showOnlineEmail = isOnlinePay && (isPagBank || (!isAsaas && !isPagBank));
-      const showOnlineCpf = isOnlinePay && (isAsaas || isPagBank);
 
       const renderPaymentOption = (m) => {
         const isDinheiro = m.id === 'dinheiro';
@@ -402,60 +564,12 @@ export default function CheckoutModal() {
         );
       };
 
-      const onlineEmailField = showOnlineEmail ? (
-        <div className="form-group checkout-online-email">
-          <label className="form-label" htmlFor="checkoutOnlineEmail">
-            E-mail para pagamento
-          </label>
-          <input
-            id="checkoutOnlineEmail"
-            className="form-input"
-            type="email"
-            autoComplete="email"
-            placeholder={
-              onlinePaymentConfig?.sandbox && !isPagBank
-                ? 'ex: test@testuser.com'
-                : 'seu@email.com'
-            }
-            value={checkoutEmail}
-            onChange={(e) => setCheckoutEmail(e.target.value)}
-          />
-          <small className="checkout-field-hint">
-            {onlinePaymentConfig?.sandbox && !isPagBank
-              ? 'Conta de teste: use um e-mail terminando em @testuser.com.'
-              : 'Obrigatório para pagamentos online.'}
-          </small>
-        </div>
-      ) : null;
-
-      const onlineCpfField = showOnlineCpf ? (
-        <div className="form-group checkout-online-email">
-          <label className="form-label" htmlFor="checkoutOnlineCpf">
-            CPF ou CNPJ
-          </label>
-          <input
-            id="checkoutOnlineCpf"
-            className="form-input"
-            inputMode="numeric"
-            autoComplete="off"
-            placeholder="000.000.000-00"
-            value={checkoutCpfCnpj}
-            onChange={(e) => setCheckoutCpfCnpj(formatCpfCnpjInput(e.target.value))}
-          />
-          <small className="checkout-field-hint">
-            Obrigatório para pagamentos online.
-          </small>
-        </div>
-      ) : null;
-
       return (
         <>
           {onlineMethods.length > 0 ? (
             <>
               <div className="payment-section-label">Pagar agora</div>
               {onlineMethods.map(renderPaymentOption)}
-              {onlineEmailField}
-              {onlineCpfField}
             </>
           ) : null}
           {offlineMethods.length > 0 ? (
@@ -468,148 +582,51 @@ export default function CheckoutModal() {
       );
     }
 
-    if (checkoutStep === 4) {
-      const deliveryLabel =
-        checkoutData.delivery === 'retirar'
-          ? 'Retirar no estabelecimento'
-          : 'Receber no endereço';
-      const deliveryDetail =
-        checkoutData.delivery === 'entregar' && checkoutAddressConfirmed && savedAddress
-          ? `${savedAddress.rua}${savedAddress.num ? `, ${savedAddress.num}` : ''} — ${savedAddress.bairro}`
-          : storeAddress;
-      const etaActionLabel = confirmEstimate.isDelivery ? 'Entrega até' : 'Retirada até';
+    if (checkoutStep === 4 && isCardOnline) {
+      return renderOnlinePanel('collect');
+    }
 
-      return (
-        <div className="checkout-confirm">
-          <section className="confirm-panel confirm-panel--l2" aria-label="Dados do cliente">
-            <h3 className="confirm-panel__label">Contato</h3>
-            <dl className="confirm-meta-list">
-              <div className="confirm-meta-row">
-                <dt>Nome</dt>
-                <dd>{checkoutData.name}</dd>
-              </div>
-              <div className="confirm-meta-row">
-                <dt>Telefone</dt>
-                <dd>{checkoutData.phone}</dd>
-              </div>
-            </dl>
-          </section>
+    if (checkoutStep === 4 || checkoutStep === 5) {
+      if (isPixOnline) {
+        return (
+          <>
+            {renderOrderSummary()}
+            {renderOnlinePanel('pix')}
+          </>
+        );
+      }
 
-          <section className="confirm-panel confirm-panel--l4" aria-label="Itens do pedido">
-            <h3 className="confirm-panel__label">Seu pedido</h3>
-            <ul className="confirm-order-list">
-              {cart.map((item) => (
-                <li className="confirm-order-line" key={item.id}>
-                  <div className="confirm-order-line-main">
-                    <span className="confirm-order-qty">{item.qty}x</span>
-                    <span className="confirm-order-name">{item.name}</span>
-                  </div>
-                  {item.opts?.length ? (
-                    <CartItemOptsList opts={item.opts} note={item.note} className="confirm-order-opts" />
-                  ) : null}
-                  <span className="confirm-order-price">{formatPrice(item.price * item.qty)}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
+      if (isCardOnline && checkoutStep === 5) {
+        return (
+          <>
+            {renderOrderSummary({ cardDraft: checkoutCardDraft })}
+            {renderOnlinePanel('status')}
+          </>
+        );
+      }
 
-          <section className="confirm-panel confirm-panel--l2" aria-label="Entrega e pagamento">
-            <h3 className="confirm-panel__label">Entrega e pagamento</h3>
-            <dl className="confirm-meta-list">
-              <div className="confirm-meta-row">
-                <dt>Entrega</dt>
-                <dd>
-                  <span className="confirm-meta-primary">{deliveryLabel}</span>
-                  <span className="confirm-meta-secondary">{deliveryDetail}</span>
-                </dd>
-              </div>
-              <div className="confirm-meta-row">
-                <dt>Pagamento</dt>
-                <dd>
-                  <span className="confirm-meta-primary">{PAY_LABELS[checkoutData.payment] || '—'}</span>
-                  {checkoutData.payment === 'dinheiro' &&
-                  checkoutData.trocoAnswer === 'sim' &&
-                  checkoutData.trocoValue ? (
-                    <span className="confirm-meta-secondary">
-                      Troco para {checkoutData.trocoValue}
-                    </span>
-                  ) : null}
-                </dd>
-              </div>
-            </dl>
-            {pixInfoBlock}
-          </section>
-
-          <section className="confirm-panel confirm-panel--l3" aria-label="Tempo estimado" role="status">
-            <h3 className="confirm-panel__label">Tempo estimado</h3>
-            <p className="confirm-panel__lead">
-              <span className="confirm-eta-duration">{confirmEstimate.durationLabel}</span>
-              <span className="confirm-eta-sep">·</span>
-              <span>
-                {etaActionLabel} <strong>{confirmEstimate.untilLabel}</strong>
-              </span>
-            </p>
-          </section>
-
-          <section className="confirm-panel confirm-panel--l5" aria-label="Valor a pagar">
-            <h3 className="confirm-panel__label">Valor a pagar</h3>
-            <dl className="confirm-pay-lines">
-              {Number(storeConfig?.pedidoMinimo || 0) > 0 ? (
-                <div className="confirm-pay-line">
-                  <dt>Pedido mínimo</dt>
-                  <dd>{formatPrice(Number(storeConfig.pedidoMinimo))}</dd>
-                </div>
-              ) : null}
-              <div className="confirm-pay-line">
-                <dt>Subtotal</dt>
-                <dd>{formatPrice(subtotal)}</dd>
-              </div>
-              {checkoutData.delivery === 'entregar' ? (
-                <div className="confirm-pay-line">
-                  <dt>Taxa de entrega</dt>
-                  <dd>{taxaEntrega > 0 ? formatPrice(taxaEntrega) : 'Grátis'}</dd>
-                </div>
-              ) : null}
-              {cupomOff > 0 ? (
-                <div className="confirm-pay-line">
-                  <dt>Cupom ({appliedCupom.codigo})</dt>
-                  <dd>− {formatPrice(cupomOff)}</dd>
-                </div>
-              ) : null}
-            </dl>
-            <div className="confirm-pay-total">
-              <span className="confirm-pay-total-label">Total</span>
-              <span className="confirm-pay-total-value">{formatPrice(total)}</span>
-            </div>
-          </section>
-          {isOnlinePayment ? (
-            onlinePaymentConfig?.provider === 'asaas' ? (
-              <AsaasPaymentPanel />
-            ) : onlinePaymentConfig?.provider === 'pagbank' ? (
-              <PagBankPaymentPanel />
-            ) : onlinePaymentConfig?.provider === 'mercado_pago' ? (
-              <MercadoPagoPaymentPanel amount={total} />
-            ) : (
-              <section className="checkout-online-payment">
-                <div className="checkout-online-error" role="alert">
-                  Provedor de pagamento não configurado.
-                </div>
-              </section>
-            )
-          ) : null}
-        </div>
-      );
+      return renderOrderSummary();
     }
 
     return null;
   };
 
+  const hideFooter =
+    checkoutSuccess ||
+    isCardFormStep ||
+    (isPixOnline && checkoutStep === 4) ||
+    (isCardOnline && checkoutStep === 5 && Boolean(onlinePayment?.payment));
+
   const btnLabel =
     checkoutSuccess
       ? ''
-      : checkoutStep === 4
-        ? 'Enviar pedido'
-        : 'Continuar';
+      : checkoutStep === 5 && isCardOnline
+        ? onlinePayment?.loading
+          ? 'Processando…'
+          : 'Confirmar pagamento'
+        : checkoutStep === 4
+          ? 'Enviar pedido'
+          : 'Continuar';
 
   return (
     <div
@@ -618,7 +635,7 @@ export default function CheckoutModal() {
       onClick={handleOverlayClick}
     >
       <div
-        className={`checkout-modal ${checkoutSuccess ? 'checkout-modal--success' : ''} ${checkoutStep === 4 && !checkoutSuccess ? 'checkout-modal--confirm' : ''}`}
+        className={`checkout-modal ${checkoutSuccess ? 'checkout-modal--success' : ''} ${isConfirmStep && !checkoutSuccess ? 'checkout-modal--confirm' : ''} ${isCardFormStep && !checkoutSuccess ? 'checkout-modal--pay' : ''}`}
         id="checkoutModal"
       >
         <div className="checkout-topbar" style={{ display: checkoutSuccess ? 'none' : 'flex' }}>
@@ -630,7 +647,7 @@ export default function CheckoutModal() {
           >
             <IconBack />
           </button>
-          <div className="checkout-title">Checkout</div>
+          <div className="checkout-title">{checkoutTitle}</div>
           <button type="button" className="checkout-close-btn" onClick={closeCheckout}>
             <IconClose />
           </button>
@@ -640,12 +657,12 @@ export default function CheckoutModal() {
           id="stepsIndicator"
           style={{ display: checkoutSuccess ? 'none' : 'flex' }}
         >
-          {STEP_LABELS.map((label, i) => {
+          {activeStepLabels.map((label, i) => {
             const step = i + 1;
             const done = step < checkoutStep;
             const active = step === checkoutStep;
             return (
-              <span key={label} style={{ display: 'contents' }}>
+              <span key={`${label}-${step}`} style={{ display: 'contents' }}>
                 {i > 0 && (
                   <div className={`step-line ${i < checkoutStep ? 'done' : ''}`} id={`line${i}`} />
                 )}
@@ -662,19 +679,24 @@ export default function CheckoutModal() {
           })}
         </div>
         <div
-          className={`checkout-body ${checkoutStep === 4 && !checkoutSuccess ? 'checkout-body--confirm' : ''}`}
+          className={`checkout-body ${isConfirmStep && !checkoutSuccess ? 'checkout-body--confirm' : ''} ${isCardFormStep && !checkoutSuccess ? 'checkout-body--pay' : ''}`}
           id="checkoutBody"
         >
           {renderStepBody()}
         </div>
-        {!checkoutSuccess && !(checkoutStep === 4 && isOnlinePayment) && (
+        {!hideFooter ? (
           <div className="checkout-footer">
-            <button type="button" className="btn-checkout-continue" onClick={checkoutNext}>
+            <button
+              type="button"
+              className="btn-checkout-continue"
+              onClick={checkoutNext}
+              disabled={Boolean(isCardOnline && checkoutStep === 5 && onlinePayment?.loading)}
+            >
               <span>{btnLabel}</span>
               <IconContinue />
             </button>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

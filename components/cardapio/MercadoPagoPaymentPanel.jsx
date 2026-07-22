@@ -3,8 +3,10 @@
 import Script from 'next/script';
 import { useCallback, useEffect, useState } from 'react';
 import { initMercadoPago, CardPayment } from '@mercadopago/sdk-react';
+import OnlinePaymentTrustBlock from '@/components/cardapio/OnlinePaymentTrustBlock';
 import PixPaymentModal from '@/components/cardapio/PixPaymentModal';
 import { useCardapio } from '@/context/CardapioContext';
+import { cardBrandLabel, detectCardBrand, maskCardNumberDisplay } from '@/lib/payments/cardBrand';
 
 const SANDBOX_EMAIL = 'test@testuser.com';
 const MP_JS_V2 = 'https://sdk.mercadopago.com/js/v2';
@@ -19,24 +21,70 @@ function readMercadoPagoDeviceId() {
   return '';
 }
 
-export default function MercadoPagoPaymentPanel({ amount }) {
+function extractCardPreview(formData = {}, additionalData = {}) {
+  const number = String(
+    formData?.card_number ||
+      formData?.cardNumber ||
+      additionalData?.cardNumber ||
+      additionalData?.card_number ||
+      ''
+  );
+  const lastFour = String(
+    additionalData?.lastFourDigits ||
+      additionalData?.last_four_digits ||
+      formData?.last_four_digits ||
+      formData?.lastFourDigits ||
+      number.replace(/\D/g, '').slice(-4) ||
+      ''
+  ).replace(/\D/g, '').slice(-4);
+  const brandRaw = String(
+    formData?.payment_method_id ||
+      formData?.paymentMethodId ||
+      additionalData?.paymentMethodId ||
+      additionalData?.payment_method_id ||
+      formData?.issuer?.name ||
+      additionalData?.issuer?.name ||
+      ''
+  ).toLowerCase();
+  let brand = 'card';
+  if (brandRaw.includes('visa')) brand = 'visa';
+  else if (brandRaw.includes('master')) brand = 'mastercard';
+  else if (brandRaw.includes('amex') || brandRaw.includes('american')) brand = 'amex';
+  else if (brandRaw.includes('elo')) brand = 'elo';
+  else if (number || additionalData?.bin) {
+    brand = detectCardBrand(number || additionalData.bin);
+  }
+  return {
+    brand,
+    last4: lastFour,
+    masked: maskCardNumberDisplay(lastFour),
+    brandLabel: cardBrandLabel(brand),
+  };
+}
+
+export default function MercadoPagoPaymentPanel({ amount, mode = 'pix' }) {
   const {
-    checkoutData,
+    checkoutEmail,
+    setCheckoutEmail,
+    setCheckoutData,
     onlinePaymentConfig,
     onlinePayment,
     submitOnlinePayment,
     cancelOnlinePayment,
+    confirmCheckoutCardDraft,
   } = useCardapio();
   const [sdkReady, setSdkReady] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const isPix = checkoutData.payment === 'pix_online';
+  const [localError, setLocalError] = useState('');
   const payerEmail = onlinePaymentConfig?.sandbox
     ? SANDBOX_EMAIL
-    : String(checkoutData.email || '').trim() || undefined;
-  const needsCardSdk = Boolean(onlinePaymentConfig?.publicKey) && !isPix;
+    : String(checkoutEmail || '').trim() || undefined;
+  const needsCardSdk = Boolean(onlinePaymentConfig?.publicKey) && mode === 'collect';
   const showOnlinePanel = Boolean(onlinePaymentConfig?.publicKey);
   const payment = onlinePayment?.payment;
-  const showPixModal = Boolean(isPix && payment?.id && (payment.qrCodeBase64 || payment.qrCode));
+  const showPixModal = Boolean(
+    mode === 'pix' && payment?.id && (payment.qrCodeBase64 || payment.qrCode)
+  );
 
   useEffect(() => {
     if (!needsCardSdk) return;
@@ -57,25 +105,56 @@ export default function MercadoPagoPaymentPanel({ amount }) {
     return undefined;
   }, [showOnlinePanel]);
 
-  async function payWithCard(formData, additionalData) {
-    await submitOnlinePayment({
-      ...formData,
-      deviceId: readMercadoPagoDeviceId(),
-      payer: {
-        ...(formData?.payer || {}),
-        email: payerEmail || formData?.payer?.email,
-        identification:
-          formData?.payer?.identification || formData?.identification || undefined,
+  function syncEmail(nextEmail) {
+    const email = String(nextEmail || '').trim();
+    setCheckoutEmail(email);
+    setCheckoutData((d) => ({ ...d, email, cpfCnpj: d.cpfCnpj || '' }));
+    return email;
+  }
+
+  async function collectCard(formData, additionalData) {
+    setLocalError('');
+    const email = onlinePaymentConfig?.sandbox
+      ? SANDBOX_EMAIL
+      : syncEmail(payerEmail || formData?.payer?.email);
+    if (!email) {
+      setLocalError('Informe um e-mail válido para pagar.');
+      return;
+    }
+    const preview = extractCardPreview(formData, additionalData);
+    confirmCheckoutCardDraft({
+      brand: preview.brand,
+      last4: preview.last4,
+      masked: preview.masked || (preview.last4 ? maskCardNumberDisplay(preview.last4) : ''),
+      payload: {
+        ...formData,
+        email,
+        deviceId: readMercadoPagoDeviceId(),
+        payer: {
+          ...(formData?.payer || {}),
+          email,
+          identification:
+            formData?.payer?.identification || formData?.identification || undefined,
+        },
+        payment_type_id:
+          additionalData?.paymentTypeId ||
+          formData?.payment_type_id ||
+          'credit_card',
       },
-      payment_type_id:
-        additionalData?.paymentTypeId ||
-        formData?.payment_type_id ||
-        'credit_card',
     });
   }
 
   async function payWithPix() {
+    setLocalError('');
+    const email = onlinePaymentConfig?.sandbox
+      ? SANDBOX_EMAIL
+      : syncEmail(checkoutEmail);
+    if (!onlinePaymentConfig?.sandbox && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || '')) {
+      setLocalError('Informe um e-mail válido para pagar.');
+      return;
+    }
     await submitOnlinePayment({
+      email: email || SANDBOX_EMAIL,
       deviceId: readMercadoPagoDeviceId(),
     });
   }
@@ -90,12 +169,82 @@ export default function MercadoPagoPaymentPanel({ amount }) {
     }
   }, [cancelOnlinePayment, cancelling]);
 
-  if (payment && !isPix) {
+  if (mode === 'status' || (payment && mode !== 'pix')) {
     return (
-      <section className="checkout-online-payment" aria-live="polite">
-        <p className="checkout-online-waiting">
-          Aguardando confirmação do Mercado Pago. Não feche esta tela.
-        </p>
+      <section className="checkout-online-payment checkout-online-payment--status" aria-live="polite">
+        {onlinePayment?.error ? (
+          <div className="checkout-online-error" role="alert">
+            {onlinePayment.error}
+          </div>
+        ) : null}
+        {payment && mode !== 'pix' ? (
+          <p className="checkout-online-waiting">
+            Aguardando confirmação do Mercado Pago. Não feche esta tela.
+          </p>
+        ) : null}
+      </section>
+    );
+  }
+
+  if (mode === 'collect') {
+    return (
+      <section className="checkout-online-payment">
+        {showOnlinePanel ? (
+          <>
+            <Script src={MP_JS_V2} strategy="afterInteractive" />
+            <input type="hidden" id="deviceId" name="deviceId" defaultValue="" />
+          </>
+        ) : null}
+        <OnlinePaymentTrustBlock provider="mercado_pago" />
+        {localError ? (
+          <div className="checkout-online-error" role="alert">
+            {localError}
+          </div>
+        ) : null}
+        {onlinePaymentConfig?.sandbox ? (
+          <p className="checkout-field-hint">
+            Modo teste: e-mail <strong>{SANDBOX_EMAIL}</strong>. No cartão use
+            titular <strong>APRO</strong>, CPF <strong>12345678909</strong>, CVV{' '}
+            <strong>123</strong> e validade <strong>11/30</strong> (ex.: Visa{' '}
+            <strong>4235 6477 2802 5682</strong>).
+          </p>
+        ) : (
+          <div className="checkout-card-field">
+            <label className="form-label" htmlFor="mp-card-email">
+              E-mail
+            </label>
+            <input
+              id="mp-card-email"
+              className="form-input"
+              type="email"
+              autoComplete="email"
+              placeholder="seu@email.com"
+              value={checkoutEmail}
+              onChange={(e) => setCheckoutEmail(e.target.value)}
+            />
+          </div>
+        )}
+        {sdkReady ? (
+          <CardPayment
+            initialization={{
+              amount: Number(amount),
+              payer: payerEmail ? { email: payerEmail } : undefined,
+            }}
+            customization={{
+              visual: {
+                texts: {
+                  formSubmit: 'Continuar',
+                },
+              },
+            }}
+            onSubmit={async (formData, additionalData) => {
+              await collectCard(formData, additionalData);
+            }}
+            onError={(error) => console.error('Mercado Pago Card Brick:', error)}
+          />
+        ) : (
+          <p>Carregando pagamento seguro…</p>
+        )}
       </section>
     );
   }
@@ -109,46 +258,40 @@ export default function MercadoPagoPaymentPanel({ amount }) {
             <input type="hidden" id="deviceId" name="deviceId" defaultValue="" />
           </>
         ) : null}
-        <h3>{isPix ? 'Pagamento via Pix' : 'Pagamento com cartão'}</h3>
-        <p>
-          O pedido será enviado à loja somente depois da aprovação do pagamento.
-        </p>
-        {onlinePayment?.error ? (
+        <OnlinePaymentTrustBlock provider="mercado_pago" />
+        {localError || onlinePayment?.error ? (
           <div className="checkout-online-error" role="alert">
-            {onlinePayment.error}
+            {localError || onlinePayment.error}
           </div>
         ) : null}
         {onlinePaymentConfig?.sandbox ? (
           <p className="checkout-field-hint">
-            Modo teste: e-mail <strong>{SANDBOX_EMAIL}</strong>. No cartão use
-            titular <strong>APRO</strong>, CPF <strong>12345678909</strong>, CVV{' '}
-            <strong>123</strong> e validade <strong>11/30</strong> (ex.: Visa{' '}
-            <strong>4235 6477 2802 5682</strong>).
+            Modo teste: e-mail <strong>{SANDBOX_EMAIL}</strong>.
           </p>
-        ) : null}
-        {isPix ? (
-          <button
-            type="button"
-            className="btn-checkout-continue"
-            onClick={() => void payWithPix()}
-            disabled={onlinePayment?.loading || showPixModal}
-          >
-            {onlinePayment?.loading ? 'Gerando Pix…' : 'Gerar QR Code Pix'}
-          </button>
-        ) : sdkReady ? (
-          <CardPayment
-            initialization={{
-              amount: Number(amount),
-              payer: payerEmail ? { email: payerEmail } : undefined,
-            }}
-            onSubmit={async (formData, additionalData) => {
-              await payWithCard(formData, additionalData);
-            }}
-            onError={(error) => console.error('Mercado Pago Card Brick:', error)}
-          />
         ) : (
-          <p>Carregando pagamento seguro…</p>
+          <div className="checkout-card-field">
+            <label className="form-label" htmlFor="mp-pix-email">
+              E-mail
+            </label>
+            <input
+              id="mp-pix-email"
+              className="form-input"
+              type="email"
+              autoComplete="email"
+              placeholder="seu@email.com"
+              value={checkoutEmail}
+              onChange={(e) => setCheckoutEmail(e.target.value)}
+            />
+          </div>
         )}
+        <button
+          type="button"
+          className="btn-checkout-continue"
+          onClick={() => void payWithPix()}
+          disabled={onlinePayment?.loading || showPixModal}
+        >
+          {onlinePayment?.loading ? 'Preparando Pix…' : 'Ir para o pagamento'}
+        </button>
       </section>
 
       <PixPaymentModal
