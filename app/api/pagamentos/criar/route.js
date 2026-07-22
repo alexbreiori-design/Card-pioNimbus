@@ -17,6 +17,7 @@ import {
   mapMercadoPagoStatus,
 } from '@/lib/payments/providers/mercadoPago';
 import {
+  createPagBankCardOrder,
   createPagBankPixOrder,
   extractPagBankPix,
   mapPagBankStatus,
@@ -101,11 +102,10 @@ export async function POST(request) {
     let pedido = null;
 
     if (provider === 'pagbank') {
-      if (method !== 'pix') {
-        throw Object.assign(
-          new Error('No momento, o PagBank está disponível apenas para Pix.'),
-          { status: 400 }
-        );
+      if (method !== 'pix' && method !== 'credit_card') {
+        throw Object.assign(new Error('Método de pagamento indisponível no PagBank.'), {
+          status: 400,
+        });
       }
       const account = await getUsablePagBankAccount(supabase, prepared.empresa.id);
       if (!account) {
@@ -131,21 +131,54 @@ export async function POST(request) {
           status: 400,
         });
       }
-      const remote = await createPagBankPixOrder({
-        accessToken: account.accessToken,
-        amount: prepared.validated.total,
-        payer: {
-          name: prepared.customer.name || prepared.order.clienteNome,
-          email: payerEmail,
-          phone: prepared.phone,
-          taxId: payerDocument,
-        },
-        order: prepared.order,
-        externalReference: paymentRow.id,
-        notificationUrl: `${getSiteOrigin()}/api/pagamentos/webhook/pagbank`,
-        expirationDate: paymentRow.expires_at,
-      });
-      const pix = await extractPagBankPix(remote, account.accessToken);
+      const payer = {
+        name:
+          body.cardData?.holderName ||
+          prepared.customer.name ||
+          prepared.order.clienteNome,
+        email: payerEmail,
+        phone: prepared.phone,
+        taxId: payerDocument,
+      };
+      const notificationUrl = `${getSiteOrigin()}/api/pagamentos/webhook/pagbank`;
+      let remote;
+      if (method === 'pix') {
+        remote = await createPagBankPixOrder({
+          accessToken: account.accessToken,
+          amount: prepared.validated.total,
+          payer,
+          order: prepared.order,
+          externalReference: paymentRow.id,
+          notificationUrl,
+          expirationDate: paymentRow.expires_at,
+        });
+      } else {
+        const encryptedCard = String(
+          body.cardData?.encryptedCard || body.cardData?.card?.encrypted || ''
+        ).trim();
+        if (!encryptedCard) {
+          throw Object.assign(new Error('Dados do cartão incompletos.'), { status: 400 });
+        }
+        const { data: empresaRow } = await supabase
+          .from('empresas')
+          .select('nome')
+          .eq('id', prepared.empresa.id)
+          .maybeSingle();
+        remote = await createPagBankCardOrder({
+          accessToken: account.accessToken,
+          amount: prepared.validated.total,
+          payer,
+          order: prepared.order,
+          externalReference: paymentRow.id,
+          notificationUrl,
+          encryptedCard,
+          softDescriptor: empresaRow?.nome || prepared.slug,
+        });
+      }
+      const pix =
+        method === 'pix'
+          ? await extractPagBankPix(remote, account.accessToken)
+          : { qrCode: null, qrCodeBase64: null, ticketUrl: null };
       const charge = Array.isArray(remote?.charges) ? remote.charges[0] : null;
       const status = mapPagBankStatus(remote);
       const now = new Date().toISOString();
@@ -153,7 +186,7 @@ export async function POST(request) {
         .from('pagamentos')
         .update({
           provider_payment_id: String(remote.id),
-          provider_status: charge?.status || 'WAITING',
+          provider_status: charge?.status || (method === 'pix' ? 'WAITING' : null),
           status_detail: charge?.payment_response?.message || null,
           status,
           qr_code: pix.qrCode,

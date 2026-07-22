@@ -2528,6 +2528,28 @@ body {
   cursor: not-allowed;
 }
 
+.btn-copy-pix.btn-copy-pix--inline {
+  display: inline-block;
+  width: auto;
+  margin-top: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.checkout-pix-waiting {
+  margin: 16px 0 0;
+  padding: 0 4px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--text-mid);
+}
+
+.checkout-pix-sandbox-id {
+  margin-top: 12px;
+}
+
 .checkout-pix-overlay {
   position: fixed;
   inset: 0;
@@ -2669,7 +2691,10 @@ body {
 .checkout-online-payment .checkout-online-waiting {
   margin: 14px 0 0;
   text-align: center;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--text-mid);
 }
 
 .checkout-asaas-card-form {

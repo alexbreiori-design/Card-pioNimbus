@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { normalizeSlug } from '@/lib/normalize';
 import {
   disconnectPaymentAccount,
+  ensurePagBankCardCapability,
   getPaymentAccount,
   saveAsaasAccount,
   saveMercadoPagoAccount,
@@ -43,7 +44,14 @@ export async function GET(request) {
     if (!enabled) {
       return NextResponse.json({ ok: true, enabled: false, account: null });
     }
-    const account = await getPaymentAccount(supabase, empresa.id);
+    let account = await getPaymentAccount(supabase, empresa.id);
+    if (account?.provider === 'pagbank' && account.status === 'ativo') {
+      try {
+        account = (await ensurePagBankCardCapability(supabase, empresa.id)) || account;
+      } catch (error) {
+        console.warn('[pagbank] ensure card capability failed', error?.message || error);
+      }
+    }
     let recentOrders = [];
     // Order IDs só para loja-teste (medição de qualidade / sandbox).
     if (account && allowsManualPaymentCredentials(slug)) {
@@ -227,8 +235,7 @@ export async function PATCH(request) {
     }
     const methods = {
       pix: body.methods?.pix !== false,
-      credit_card:
-        account.provider === 'pagbank' ? false : body.methods?.credit_card !== false,
+      credit_card: body.methods?.credit_card !== false,
     };
     if (!methods.pix && !methods.credit_card) {
       return NextResponse.json(

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { normalizeSlug } from '@/lib/normalize';
-import { getPaymentAccount } from '@/lib/payments/paymentServer';
+import {
+  ensurePagBankCardCapability,
+  getPaymentAccount,
+} from '@/lib/payments/paymentServer';
 import { isPaymentFeatureEnabledForEmpresa } from '@/lib/payments/paymentFeature';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 
@@ -27,7 +30,14 @@ export async function GET(request) {
     if (!enabled) {
       return NextResponse.json({ ok: true, enabled: false, account: null });
     }
-    const account = await getPaymentAccount(supabase, empresa.id);
+    let account = await getPaymentAccount(supabase, empresa.id);
+    if (account?.provider === 'pagbank' && account.status === 'ativo') {
+      try {
+        account = (await ensurePagBankCardCapability(supabase, empresa.id)) || account;
+      } catch (error) {
+        console.warn('[pagbank] ensure card capability failed', error?.message || error);
+      }
+    }
     return NextResponse.json({
       ok: true,
       enabled: true,
