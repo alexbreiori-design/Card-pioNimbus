@@ -96,14 +96,14 @@ export default function PixPaymentModal({
           </button>
         ) : null}
 
-        <p className="checkout-online-waiting">
+        <p className="checkout-pix-waiting">
           Aguardando confirmação do pagamento. Não feche esta tela.
         </p>
 
         {sandbox && payment.providerOrderId ? (
-          <p className="checkout-field-hint">
+          <p className="checkout-field-hint checkout-pix-sandbox-id">
             Order ID (teste): <code>{payment.providerOrderId}</code>{' '}
-            <button type="button" className="btn-copy-pix" onClick={() => void copyOrderId()}>
+            <button type="button" className="btn-copy-pix btn-copy-pix--inline" onClick={() => void copyOrderId()}>
               {copiedOrderId ? 'Copiado!' : 'Copiar Order ID'}
             </button>
           </p>
