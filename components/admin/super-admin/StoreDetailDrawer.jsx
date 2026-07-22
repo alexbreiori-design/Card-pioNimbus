@@ -72,17 +72,169 @@ function DailyChart({ series }) {
       {series.map((row) => {
         const height = Math.round((row.pedidos / maxPedidos) * 100);
         const label = row.date.slice(5).replace('-', '/');
+        const online = Number(row.online || 0);
+        const balcao = Number(row.balcao || 0);
+        const onlineShare = row.pedidos > 0 ? (online / row.pedidos) * 100 : 0;
         return (
           <div
             key={row.date}
             className={styles.chartBarWrap}
-            title={`${label}: ${row.pedidos} pedido(s)`}
+            title={`${label}: ${row.pedidos} pedido(s) · online ${online} · balcão ${balcao}`}
           >
-            <div className={styles.chartBar} style={{ height: `${Math.max(height, 6)}%` }} />
+            <div className={styles.chartBar} style={{ height: `${Math.max(height, row.pedidos ? 8 : 4)}%` }}>
+              {row.pedidos > 0 ? (
+                <span className={styles.chartBarOnline} style={{ height: `${onlineShare}%` }} />
+              ) : null}
+            </div>
             <span className={styles.chartLabel}>{label}</span>
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function MetricsDashboard({ metrics, dailySeries, compare }) {
+  const [period, setPeriod] = useState('hoje');
+  const current = metrics?.[period] || metrics?.hoje || {};
+  const onlineShare =
+    current.pedidos > 0 ? Math.round((current.online?.pedidos / current.pedidos) * 100) : 0;
+  const balcaoShare =
+    current.pedidos > 0 ? Math.round((current.balcao?.pedidos / current.pedidos) * 100) : 0;
+
+  return (
+    <div className={styles.metricsDashboard}>
+      <div className={styles.metricsToolbar}>
+        <p className={styles.metricsIntro}>
+          Visão operacional da loja: cardápio online e balcão/admin, no fuso de São Paulo.
+        </p>
+        <div className={styles.periodTabs} role="tablist" aria-label="Período das métricas">
+          {[
+            { id: 'hoje', label: 'Hoje' },
+            { id: 'd7', label: '7 dias' },
+            { id: 'd30', label: '30 dias' },
+            { id: 'total', label: 'Total' },
+          ].map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={period === item.id}
+              className={`${styles.periodTab}${period === item.id ? ` ${styles.periodTabActive}` : ''}`}
+              onClick={() => setPeriod(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className={styles.kpiGrid}>
+        <article className={`${styles.kpiCard} ${styles.kpiCardFeatured}`}>
+          <span>Faturamento</span>
+          <strong>{formatCurrency(current.faturamento)}</strong>
+          <small>Ticket médio {formatCurrency(current.ticketMedio)}</small>
+        </article>
+        <article className={styles.kpiCard}>
+          <span>Pedidos</span>
+          <strong>{current.pedidos ?? 0}</strong>
+          <small>{current.concluidos ?? 0} concluídos</small>
+        </article>
+        <article className={styles.kpiCard}>
+          <span>Itens vendidos</span>
+          <strong>{current.itens ?? 0}</strong>
+          <small>Soma das quantidades</small>
+        </article>
+        <article className={styles.kpiCard}>
+          <span>Em andamento</span>
+          <strong>{current.emAndamento ?? 0}</strong>
+          <small>{current.cancelados ?? 0} cancelados</small>
+        </article>
+      </div>
+
+      <div className={styles.channelGrid}>
+        <article className={`${styles.channelCard} ${styles.channelOnline}`}>
+          <div className={styles.channelHead}>
+            <span>Cardápio online</span>
+            <strong>{onlineShare}%</strong>
+          </div>
+          <p className={styles.channelValue}>{current.online?.pedidos ?? 0} pedidos</p>
+          <p className={styles.channelMoney}>{formatCurrency(current.online?.faturamento)}</p>
+          <div className={styles.channelBarTrack}>
+            <span className={styles.channelBarFill} style={{ width: `${onlineShare}%` }} />
+          </div>
+        </article>
+        <article className={`${styles.channelCard} ${styles.channelBalcao}`}>
+          <div className={styles.channelHead}>
+            <span>Balcão / Admin</span>
+            <strong>{balcaoShare}%</strong>
+          </div>
+          <p className={styles.channelValue}>{current.balcao?.pedidos ?? 0} pedidos</p>
+          <p className={styles.channelMoney}>{formatCurrency(current.balcao?.faturamento)}</p>
+          <div className={styles.channelBarTrack}>
+            <span className={styles.channelBarFill} style={{ width: `${balcaoShare}%` }} />
+          </div>
+        </article>
+      </div>
+
+      <div className={styles.typeRow}>
+        <div className={styles.typeChip}>
+          <span>Delivery</span>
+          <strong>{current.delivery ?? 0}</strong>
+        </div>
+        <div className={styles.typeChip}>
+          <span>Retirada</span>
+          <strong>{current.retirada ?? 0}</strong>
+        </div>
+        <div className={styles.typeChip}>
+          <span>Balcão</span>
+          <strong>{current.balcaoTipo ?? 0}</strong>
+        </div>
+      </div>
+
+      <div className={styles.metricsSplit}>
+        <section className={styles.sectionBlock}>
+          <h3 className={styles.sectionHeading}>Comparativo go-live</h3>
+          {compare?.hasGoLive ? (
+            <div className={styles.compareRow}>
+              <article className={styles.compareCard}>
+                <span>Antes do go-live</span>
+                <strong>{compare.antes?.pedidos ?? 0} pedidos</strong>
+                <p>{formatCurrency(compare.antes?.faturamento)}</p>
+              </article>
+              <span className={styles.compareArrow} aria-hidden="true">
+                →
+              </span>
+              <article className={`${styles.compareCard} ${styles.compareCardAfter}`}>
+                <span>Depois do go-live</span>
+                <strong>{compare.depois?.pedidos ?? 0} pedidos</strong>
+                <p>{formatCurrency(compare.depois?.faturamento)}</p>
+              </article>
+            </div>
+          ) : (
+            <p className={styles.muted}>
+              Defina a data go-live na aba Notas para comparar vendas online antes e depois do
+              cardápio.
+            </p>
+          )}
+          <p className={styles.metricsFootnote}>Go-live considera apenas pedidos do cardápio online.</p>
+        </section>
+
+        <section className={styles.sectionBlock}>
+          <h3 className={styles.sectionHeading}>Pedidos por dia · 30 dias</h3>
+          <div className={styles.chartPanel}>
+            <DailyChart series={dailySeries} />
+          </div>
+          <div className={styles.chartLegend}>
+            <span>
+              <i className={styles.legendOnline} /> Online
+            </span>
+            <span>
+              <i className={styles.legendBalcao} /> Balcão
+            </span>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
@@ -916,72 +1068,11 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed }) {
           ) : null}
 
           {store && tab === 'metricas' ? (
-            <>
-              <p className={`${styles.muted} ${styles.tabIntro}`}>
-                Vendas pelo cardápio online (pedidos não cancelados). Uso interno Nimbus.
-              </p>
-
-              <div className={styles.metricsHero}>
-                <article className={`${styles.metricCard} ${styles.metricCardFeatured}`}>
-                  <span>Faturamento · 30 dias</span>
-                  <strong>{formatCurrency(store.metrics?.faturamento30d)}</strong>
-                </article>
-                <article className={styles.metricCard}>
-                  <span>Pedidos · 30 dias</span>
-                  <strong>{store.metrics?.pedidos30d ?? 0}</strong>
-                </article>
-                <article className={styles.metricCard}>
-                  <span>Pedidos · total</span>
-                  <strong>{store.metrics?.pedidosTotal ?? 0}</strong>
-                </article>
-              </div>
-
-              <div className={styles.sectionBlock}>
-                <h3 className={styles.sectionHeading}>Totais acumulados</h3>
-                <div className={styles.statGrid}>
-                  <div className={styles.statTile}>
-                    <span>Faturamento total</span>
-                    <strong>{formatCurrency(store.metrics?.faturamentoTotal)}</strong>
-                  </div>
-                  <div className={styles.statTile}>
-                    <span>Pedidos totais</span>
-                    <strong>{store.metrics?.pedidosTotal ?? 0}</strong>
-                  </div>
-                </div>
-              </div>
-
-              <div className={styles.sectionBlock}>
-                <h3 className={styles.sectionHeading}>Comparativo go-live</h3>
-                {compare?.hasGoLive ? (
-                  <div className={styles.compareRow}>
-                    <article className={styles.compareCard}>
-                      <span>Antes do go-live</span>
-                      <strong>{compare.antes?.pedidos ?? 0} pedidos</strong>
-                      <p>{formatCurrency(compare.antes?.faturamento)}</p>
-                    </article>
-                    <span className={styles.compareArrow} aria-hidden="true">
-                      →
-                    </span>
-                    <article className={`${styles.compareCard} ${styles.compareCardAfter}`}>
-                      <span>Depois do go-live</span>
-                      <strong>{compare.depois?.pedidos ?? 0} pedidos</strong>
-                      <p>{formatCurrency(compare.depois?.faturamento)}</p>
-                    </article>
-                  </div>
-                ) : (
-                  <p className={styles.muted}>
-                    Defina a data go-live na aba Notas para comparar vendas antes e depois do cardápio.
-                  </p>
-                )}
-              </div>
-
-              <div className={styles.sectionBlock}>
-                <h3 className={styles.sectionHeading}>Pedidos por dia · 30 dias</h3>
-                <div className={styles.chartPanel}>
-                  <DailyChart series={store.dailySeries} />
-                </div>
-              </div>
-            </>
+            <MetricsDashboard
+              metrics={store.metrics}
+              dailySeries={store.dailySeries}
+              compare={compare}
+            />
           ) : null}
 
           {store && tab === 'equipe' ? (
