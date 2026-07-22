@@ -11200,7 +11200,7 @@ textarea.admin-input::placeholder {
 
 .admin-marmita-size-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, auto);
   gap: 12px;
   align-items: center;
   padding: 12px;
@@ -11215,10 +11215,18 @@ textarea.admin-input::placeholder {
   width: 100%;
 }
 
+.admin-marmita-size-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
 .admin-marmita-size-card .admin-marmita-check {
   justify-content: flex-start;
   min-width: 0;
-  width: 100%;
+  flex: 1;
 }
 
 .admin-marmita-check {
@@ -11337,6 +11345,20 @@ textarea.admin-input::placeholder {
   background: var(--admin-red);
   border-color: var(--admin-red);
   color: #fff;
+}
+
+.admin-marmita-passo-remove:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: var(--admin-red);
+}
+
+.admin-marmita-passo-remove:disabled:hover {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: var(--admin-red);
 }
 
 .admin-marmita-passo-row2 {
