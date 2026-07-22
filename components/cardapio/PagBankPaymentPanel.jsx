@@ -2,8 +2,12 @@
 
 import Script from 'next/script';
 import { useState } from 'react';
+import CheckoutCardForm, { parseExpiry } from '@/components/cardapio/CheckoutCardForm';
+import OnlinePaymentTrustBlock from '@/components/cardapio/OnlinePaymentTrustBlock';
 import PixPaymentModal from '@/components/cardapio/PixPaymentModal';
 import { useCardapio } from '@/context/CardapioContext';
+import { detectCardBrand, digitsFromCard, maskCardNumberDisplay } from '@/lib/payments/cardBrand';
+import { digitsOnly, formatCpfCnpjInput, isValidCpfCnpj } from '@/lib/cpfCnpj';
 
 const PAGSEGURO_SDK =
   'https://assets.pagseguro.com.br/checkout-sdk-js/rc/dist/browser/pagseguro.min.js';
@@ -34,7 +38,6 @@ function loadPagSeguroEncrypt() {
         () => reject(new Error('Falha ao carregar o SDK do PagBank.')),
         { once: true }
       );
-      // Já pode ter carregado antes dos listeners.
       if (typeof window.PagSeguro?.encryptCard === 'function') onReady();
       return;
     }
@@ -48,41 +51,64 @@ function loadPagSeguroEncrypt() {
   });
 }
 
-export default function PagBankPaymentPanel() {
+export default function PagBankPaymentPanel({ mode = 'pix' }) {
   const {
-    checkoutData,
+    checkoutEmail,
+    setCheckoutEmail,
+    checkoutCpfCnpj,
+    setCheckoutCpfCnpj,
+    setCheckoutData,
     onlinePaymentConfig,
     onlinePayment,
     submitOnlinePayment,
     cancelOnlinePayment,
+    confirmCheckoutCardDraft,
   } = useCardapio();
   const [cancelling, setCancelling] = useState(false);
   const [localError, setLocalError] = useState('');
-  const [cardForm, setCardForm] = useState({
+  const [card, setCard] = useState({
     holderName: '',
     number: '',
-    expiryMonth: '',
-    expiryYear: '',
+    expiry: '',
     securityCode: '',
   });
-  const isPix = checkoutData.payment === 'pix_online';
   const payment = onlinePayment?.payment;
-  const showPixModal = Boolean(isPix && payment?.id && (payment.qrCodeBase64 || payment.qrCode));
-  const checkoutDocument = String(checkoutData.cpfCnpj || '').replace(/\D/g, '');
+  const showPixModal = Boolean(
+    mode === 'pix' && payment?.id && (payment.qrCodeBase64 || payment.qrCode)
+  );
   const publicKey = String(onlinePaymentConfig?.publicKey || '').trim();
+
+  function syncPayer({ email, cpfCnpj }) {
+    const nextEmail = String(email ?? checkoutEmail ?? '').trim();
+    const nextCpf = digitsOnly(cpfCnpj ?? checkoutCpfCnpj ?? '');
+    setCheckoutEmail(nextEmail);
+    setCheckoutCpfCnpj(formatCpfCnpjInput(nextCpf));
+    setCheckoutData((d) => ({ ...d, email: nextEmail, cpfCnpj: nextCpf }));
+    return { email: nextEmail, cpfCnpj: nextCpf };
+  }
 
   async function payWithPix() {
     setLocalError('');
-    if (!checkoutDocument) {
-      setLocalError('Informe o CPF ou CNPJ no passo de pagamento.');
+    const { email, cpfCnpj } = syncPayer({
+      email: checkoutEmail,
+      cpfCnpj: checkoutCpfCnpj,
+    });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setLocalError('Informe um e-mail válido.');
+      return;
+    }
+    if (!isValidCpfCnpj(cpfCnpj)) {
+      setLocalError('Informe um CPF ou CNPJ válido.');
       return;
     }
     try {
       await submitOnlinePayment({
+        email,
+        cpfCnpj,
         payer: {
           identification: {
-            type: checkoutDocument.length > 11 ? 'CNPJ' : 'CPF',
-            number: checkoutDocument,
+            type: cpfCnpj.length > 11 ? 'CNPJ' : 'CPF',
+            number: cpfCnpj,
           },
         },
       });
@@ -91,24 +117,30 @@ export default function PagBankPaymentPanel() {
     }
   }
 
-  async function payWithCard(event) {
+  async function continueWithCard(event) {
     event.preventDefault();
     setLocalError('');
-    if (!checkoutDocument) {
-      setLocalError('Informe o CPF ou CNPJ no passo de pagamento.');
-      return;
-    }
     if (!publicKey) {
       setLocalError('Pagamento com cartão indisponível no momento. Tente novamente em instantes.');
       return;
     }
-    const holderName = cardForm.holderName.trim();
-    const number = cardForm.number.replace(/\D/g, '');
-    const expMonth = cardForm.expiryMonth.replace(/\D/g, '').padStart(2, '0');
-    let expYear = cardForm.expiryYear.replace(/\D/g, '');
-    if (expYear.length === 2) expYear = `20${expYear}`;
-    const securityCode = cardForm.securityCode.replace(/\D/g, '');
-    if (!holderName || number.length < 13 || !expMonth || expYear.length !== 4 || !securityCode) {
+    const { email, cpfCnpj } = syncPayer({
+      email: checkoutEmail,
+      cpfCnpj: checkoutCpfCnpj,
+    });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setLocalError('Informe um e-mail válido.');
+      return;
+    }
+    if (!isValidCpfCnpj(cpfCnpj)) {
+      setLocalError('Informe um CPF ou CNPJ válido.');
+      return;
+    }
+    const holderName = card.holderName.trim();
+    const number = digitsFromCard(card.number);
+    const { expiryMonth, expiryYear } = parseExpiry(card.expiry);
+    const securityCode = digitsFromCard(card.securityCode);
+    if (!holderName || number.length < 13 || !expiryMonth || expiryYear.length !== 4 || !securityCode) {
       setLocalError('Revise os dados do cartão e tente novamente.');
       return;
     }
@@ -119,8 +151,8 @@ export default function PagBankPaymentPanel() {
         publicKey,
         holder: holderName,
         number,
-        expMonth,
-        expYear,
+        expMonth: expiryMonth.padStart(2, '0'),
+        expYear: expiryYear,
         securityCode,
       });
       if (encrypted?.hasErrors) {
@@ -131,18 +163,26 @@ export default function PagBankPaymentPanel() {
       if (!encryptedCard) {
         throw new Error('Não foi possível criptografar o cartão.');
       }
-      await submitOnlinePayment({
-        encryptedCard,
-        holderName,
-        payer: {
-          identification: {
-            type: checkoutDocument.length > 11 ? 'CNPJ' : 'CPF',
-            number: checkoutDocument,
+      const brand = detectCardBrand(number);
+      confirmCheckoutCardDraft({
+        brand,
+        last4: number.slice(-4),
+        masked: maskCardNumberDisplay(number),
+        payload: {          email,
+          cpfCnpj,
+          encryptedCard,
+          holderName,
+          payer: {
+            email,
+            identification: {
+              type: cpfCnpj.length > 11 ? 'CNPJ' : 'CPF',
+              number: cpfCnpj,
+            },
           },
         },
       });
     } catch (error) {
-      setLocalError(error?.message || 'Não foi possível pagar com cartão.');
+      setLocalError(error?.message || 'Não foi possível validar o cartão.');
     }
   }
 
@@ -156,12 +196,51 @@ export default function PagBankPaymentPanel() {
     }
   }
 
-  if (payment && !isPix) {
+  if (mode === 'status' || (payment && mode !== 'pix')) {
     return (
-      <section className="checkout-online-payment" aria-live="polite">
-        <p className="checkout-online-waiting">
-          Aguardando confirmação do PagBank. Não feche esta tela.
-        </p>
+      <section className="checkout-online-payment checkout-online-payment--status" aria-live="polite">
+        {onlinePayment?.error ? (
+          <div className="checkout-online-error" role="alert">
+            {onlinePayment.error}
+          </div>
+        ) : null}
+        {payment && mode !== 'pix' ? (
+          <p className="checkout-online-waiting">
+            Aguardando confirmação do PagBank. Não feche esta tela.
+          </p>
+        ) : null}
+      </section>
+    );
+  }
+
+  if (mode === 'collect') {
+    return (
+      <section className="checkout-online-payment">
+        <Script src={PAGSEGURO_SDK} strategy="afterInteractive" data-pagseguro-sdk="1" />
+        <OnlinePaymentTrustBlock provider="pagbank" />
+        {localError ? (
+          <div className="checkout-online-error" role="alert">
+            {localError}
+          </div>
+        ) : null}
+        {onlinePaymentConfig?.sandbox ? (
+          <p className="checkout-field-hint">{SANDBOX_CARD_HINT}</p>
+        ) : null}
+        <CheckoutCardForm
+          idPrefix="pagbank"
+          card={card}
+          onCardChange={setCard}
+          email={checkoutEmail}
+          onEmailChange={setCheckoutEmail}
+          cpfCnpj={checkoutCpfCnpj}
+          onCpfCnpjChange={(value) => setCheckoutCpfCnpj(formatCpfCnpjInput(value))}
+          showEmail
+          showCpf
+          onSubmit={(event) => void continueWithCard(event)}
+          submitting={false}
+          disabled={!publicKey}
+          submitLabel="Continuar"
+        />
       </section>
     );
   }
@@ -169,114 +248,51 @@ export default function PagBankPaymentPanel() {
   return (
     <>
       <section className="checkout-online-payment">
-        {!isPix ? (
-          <Script src={PAGSEGURO_SDK} strategy="afterInteractive" data-pagseguro-sdk="1" />
-        ) : null}
-        <h3>{isPix ? 'Pagamento via Pix' : 'Pagamento com cartão'}</h3>
-        <p>O pedido será enviado à loja somente depois da aprovação do pagamento.</p>
+        <OnlinePaymentTrustBlock provider="pagbank" />
         {localError || onlinePayment?.error ? (
           <div className="checkout-online-error" role="alert">
             {localError || onlinePayment.error}
           </div>
         ) : null}
         {onlinePaymentConfig?.sandbox ? (
-          <p className="checkout-field-hint">
-            {isPix ? 'Modo sandbox ativo (ambiente de teste).' : SANDBOX_CARD_HINT}
-          </p>
+          <p className="checkout-field-hint">Modo sandbox ativo (ambiente de teste).</p>
         ) : null}
-
-        {isPix ? (
-          <button
-            type="button"
-            className="btn-checkout-continue"
-            onClick={() => void payWithPix()}
-            disabled={onlinePayment?.loading || showPixModal}
-          >
-            {onlinePayment?.loading ? 'Gerando Pix…' : 'Gerar QR Code Pix'}
-          </button>
-        ) : (
-          <form className="checkout-asaas-card-form" onSubmit={(event) => void payWithCard(event)}>
-            <label className="form-label" htmlFor="pagbank-holder">
-              Nome no cartão
-            </label>
-            <input
-              id="pagbank-holder"
-              className="form-input"
-              value={cardForm.holderName}
-              onChange={(e) => setCardForm((c) => ({ ...c, holderName: e.target.value }))}
-              autoComplete="cc-name"
-              required
-            />
-            <label className="form-label" htmlFor="pagbank-number">
-              Número do cartão
-            </label>
-            <input
-              id="pagbank-number"
-              className="form-input"
-              inputMode="numeric"
-              autoComplete="cc-number"
-              value={cardForm.number}
-              onChange={(e) => setCardForm((c) => ({ ...c, number: e.target.value }))}
-              required
-            />
-            <div className="checkout-asaas-card-row">
-              <div>
-                <label className="form-label" htmlFor="pagbank-exp-m">
-                  Mês
-                </label>
-                <input
-                  id="pagbank-exp-m"
-                  className="form-input"
-                  placeholder="MM"
-                  maxLength={2}
-                  inputMode="numeric"
-                  autoComplete="cc-exp-month"
-                  value={cardForm.expiryMonth}
-                  onChange={(e) => setCardForm((c) => ({ ...c, expiryMonth: e.target.value }))}
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label" htmlFor="pagbank-exp-y">
-                  Ano
-                </label>
-                <input
-                  id="pagbank-exp-y"
-                  className="form-input"
-                  placeholder="AAAA"
-                  maxLength={4}
-                  inputMode="numeric"
-                  autoComplete="cc-exp-year"
-                  value={cardForm.expiryYear}
-                  onChange={(e) => setCardForm((c) => ({ ...c, expiryYear: e.target.value }))}
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label" htmlFor="pagbank-cvv">
-                  CVV
-                </label>
-                <input
-                  id="pagbank-cvv"
-                  className="form-input"
-                  inputMode="numeric"
-                  autoComplete="cc-csc"
-                  maxLength={4}
-                  value={cardForm.securityCode}
-                  onChange={(e) => setCardForm((c) => ({ ...c, securityCode: e.target.value }))}
-                  required
-                />
-              </div>
-            </div>
-            <button
-              type="submit"
-              className="btn-checkout-continue"
-              disabled={onlinePayment?.loading || !publicKey}
-            >
-              {onlinePayment?.loading ? 'Processando…' : 'Pagar com cartão'}
-            </button>
-          </form>
-        )}
+        <div className="checkout-card-field">
+          <label className="form-label" htmlFor="pagbank-pix-email">
+            E-mail
+          </label>
+          <input
+            id="pagbank-pix-email"
+            className="form-input"
+            type="email"
+            autoComplete="email"
+            placeholder="seu@email.com"
+            value={checkoutEmail}
+            onChange={(e) => setCheckoutEmail(e.target.value)}
+          />
+        </div>
+        <div className="checkout-card-field">
+          <label className="form-label" htmlFor="pagbank-pix-cpf">
+            CPF ou CNPJ
+          </label>
+          <input
+            id="pagbank-pix-cpf"
+            className="form-input"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="000.000.000-00"
+            value={checkoutCpfCnpj}
+            onChange={(e) => setCheckoutCpfCnpj(formatCpfCnpjInput(e.target.value))}
+          />
+        </div>
+        <button
+          type="button"
+          className="btn-checkout-continue"
+          onClick={() => void payWithPix()}
+          disabled={onlinePayment?.loading || showPixModal}
+        >
+          {onlinePayment?.loading ? 'Preparando Pix…' : 'Ir para o pagamento'}
+        </button>
       </section>
 
       <PixPaymentModal

@@ -1,33 +1,50 @@
 'use client';
 
 import { useState } from 'react';
+import CheckoutCardForm, { parseExpiry } from '@/components/cardapio/CheckoutCardForm';
+import OnlinePaymentTrustBlock from '@/components/cardapio/OnlinePaymentTrustBlock';
 import PixPaymentModal from '@/components/cardapio/PixPaymentModal';
 import { useCardapio } from '@/context/CardapioContext';
+import { detectCardBrand, digitsFromCard, maskCardNumberDisplay } from '@/lib/payments/cardBrand';
+import { digitsOnly, formatCpfCnpjInput, isValidCpfCnpj } from '@/lib/cpfCnpj';
 
-export default function AsaasPaymentPanel() {
+export default function AsaasPaymentPanel({ mode = 'pix' }) {
   const {
     checkoutData,
+    checkoutEmail,
+    setCheckoutEmail,
+    checkoutCpfCnpj,
+    setCheckoutCpfCnpj,
+    setCheckoutData,
     onlinePaymentConfig,
     onlinePayment,
     submitOnlinePayment,
     cancelOnlinePayment,
+    confirmCheckoutCardDraft,
   } = useCardapio();
   const [cancelling, setCancelling] = useState(false);
   const [localError, setLocalError] = useState('');
-  const [cardForm, setCardForm] = useState({
+  const [card, setCard] = useState({
     holderName: '',
-    email: '',
     number: '',
-    expiryMonth: '',
-    expiryYear: '',
-    ccv: '',
-    postalCode: '',
-    addressNumber: '',
+    expiry: '',
+    securityCode: '',
   });
-  const isPix = checkoutData.payment === 'pix_online';
+  const [postalCode, setPostalCode] = useState('');
+  const [addressNumber, setAddressNumber] = useState('');
   const payment = onlinePayment?.payment;
-  const showPixModal = Boolean(isPix && payment?.id && (payment.qrCodeBase64 || payment.qrCode));
-  const checkoutDocument = String(checkoutData.cpfCnpj || '').replace(/\D/g, '');
+  const showPixModal = Boolean(
+    mode === 'pix' && payment?.id && (payment.qrCodeBase64 || payment.qrCode)
+  );
+
+  function syncPayer({ email, cpfCnpj }) {
+    const nextEmail = String(email ?? checkoutEmail ?? '').trim();
+    const nextCpf = digitsOnly(cpfCnpj ?? checkoutCpfCnpj ?? '');
+    setCheckoutEmail(nextEmail);
+    setCheckoutCpfCnpj(formatCpfCnpjInput(nextCpf));
+    setCheckoutData((d) => ({ ...d, email: nextEmail, cpfCnpj: nextCpf }));
+    return { email: nextEmail, cpfCnpj: nextCpf };
+  }
 
   async function handleCancelPix() {
     if (cancelling) return;
@@ -41,16 +58,18 @@ export default function AsaasPaymentPanel() {
 
   async function payWithPix() {
     setLocalError('');
-    if (!checkoutDocument) {
-      setLocalError('Informe o CPF ou CNPJ no passo de pagamento.');
+    const { cpfCnpj } = syncPayer({ cpfCnpj: checkoutCpfCnpj });
+    if (!isValidCpfCnpj(cpfCnpj)) {
+      setLocalError('Informe um CPF ou CNPJ válido.');
       return;
     }
     try {
       await submitOnlinePayment({
+        cpfCnpj,
         payer: {
           identification: {
-            type: checkoutDocument.length > 11 ? 'CNPJ' : 'CPF',
-            number: checkoutDocument,
+            type: cpfCnpj.length > 11 ? 'CNPJ' : 'CPF',
+            number: cpfCnpj,
           },
         },
       });
@@ -59,54 +78,108 @@ export default function AsaasPaymentPanel() {
     }
   }
 
-  async function payWithCard(event) {
+  function continueWithCard(event) {
     event.preventDefault();
-    const email = String(cardForm.email || '').trim();
-    if (!checkoutDocument) {
-      setLocalError('Informe o CPF ou CNPJ no passo de pagamento.');
+    setLocalError('');
+    const email = String(checkoutEmail || '').trim();
+    const { cpfCnpj } = syncPayer({ email, cpfCnpj: checkoutCpfCnpj });
+    if (!isValidCpfCnpj(cpfCnpj)) {
+      setLocalError('Informe um CPF ou CNPJ válido.');
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setLocalError('Informe um e-mail válido do titular do cartão.');
       return;
     }
-    setLocalError('');
-    try {
-      await submitOnlinePayment({
+    const { expiryMonth, expiryYear } = parseExpiry(card.expiry);
+    const number = digitsFromCard(card.number);
+    const holderName = card.holderName.trim();
+    if (!holderName || number.length < 13 || !expiryMonth || expiryYear.length !== 4) {
+      setLocalError('Revise os dados do cartão e tente novamente.');
+      return;
+    }
+    const brand = detectCardBrand(number);
+    confirmCheckoutCardDraft({
+      brand,
+      last4: number.slice(-4),
+      masked: maskCardNumberDisplay(number),
+      payload: {
+        email,
+        cpfCnpj,
         creditCard: {
-          holderName: cardForm.holderName.trim(),
-          number: cardForm.number,
-          expiryMonth: cardForm.expiryMonth,
-          expiryYear: cardForm.expiryYear,
-          ccv: cardForm.ccv,
+          holderName,
+          number,
+          expiryMonth,
+          expiryYear,
+          ccv: card.securityCode,
         },
         creditCardHolderInfo: {
-          name: cardForm.holderName.trim(),
+          name: holderName,
           email,
-          cpfCnpj: checkoutDocument,
-          postalCode: cardForm.postalCode.replace(/\D/g, ''),
-          addressNumber: cardForm.addressNumber.trim(),
-          phone: String(checkoutData.phone || '').replace(/\D/g, ''),
+          cpfCnpj,
+          postalCode: digitsOnly(postalCode),
+          addressNumber: addressNumber.trim(),
+          phone: digitsOnly(checkoutData.phone),
         },
         payer: {
           email,
           identification: {
-            type: checkoutDocument.length > 11 ? 'CNPJ' : 'CPF',
-            number: checkoutDocument,
+            type: cpfCnpj.length > 11 ? 'CNPJ' : 'CPF',
+            number: cpfCnpj,
           },
         },
-      });
-    } catch {
-      // Erro já exibido em onlinePayment.error
-    }
+      },
+    });
   }
 
-  if (payment && !isPix) {
+  if (mode === 'status' || (payment && mode !== 'pix')) {
     return (
-      <section className="checkout-online-payment" aria-live="polite">
-        <p className="checkout-online-waiting">
-          Aguardando confirmação do Asaas. Não feche esta tela.
-        </p>
+      <section className="checkout-online-payment checkout-online-payment--status" aria-live="polite">
+        {onlinePayment?.error ? (
+          <div className="checkout-online-error" role="alert">
+            {onlinePayment.error}
+          </div>
+        ) : null}
+        {payment && mode !== 'pix' ? (
+          <p className="checkout-online-waiting">
+            Aguardando confirmação do Asaas. Não feche esta tela.
+          </p>
+        ) : null}
+      </section>
+    );
+  }
+
+  if (mode === 'collect') {
+    return (
+      <section className="checkout-online-payment">
+        <OnlinePaymentTrustBlock provider="asaas" />
+        {localError ? (
+          <div className="checkout-online-error" role="alert">
+            {localError}
+          </div>
+        ) : null}
+        {onlinePaymentConfig?.sandbox ? (
+          <p className="checkout-field-hint">Modo sandbox ativo (ambiente de teste).</p>
+        ) : null}
+        <CheckoutCardForm
+          idPrefix="asaas"
+          card={card}
+          onCardChange={setCard}
+          email={checkoutEmail}
+          onEmailChange={setCheckoutEmail}
+          cpfCnpj={checkoutCpfCnpj}
+          onCpfCnpjChange={(value) => setCheckoutCpfCnpj(formatCpfCnpjInput(value))}
+          showEmail
+          showCpf
+          showAddress
+          postalCode={postalCode}
+          onPostalCodeChange={setPostalCode}
+          addressNumber={addressNumber}
+          onAddressNumberChange={setAddressNumber}
+          onSubmit={continueWithCard}
+          submitting={false}
+          submitLabel="Continuar"
+        />
       </section>
     );
   }
@@ -114,8 +187,7 @@ export default function AsaasPaymentPanel() {
   return (
     <>
       <section className="checkout-online-payment">
-        <h3>{isPix ? 'Pagamento via Pix' : 'Pagamento com cartão'}</h3>
-        <p>O pedido será enviado à loja somente depois da aprovação do pagamento.</p>
+        <OnlinePaymentTrustBlock provider="asaas" />
         {(localError || onlinePayment?.error) ? (
           <div className="checkout-online-error" role="alert">
             {localError || onlinePayment.error}
@@ -124,131 +196,28 @@ export default function AsaasPaymentPanel() {
         {onlinePaymentConfig?.sandbox ? (
           <p className="checkout-field-hint">Modo sandbox ativo (ambiente de teste).</p>
         ) : null}
-
-        {isPix ? (
-          <button
-            type="button"
-            className="btn-checkout-continue"
-            onClick={() => void payWithPix()}
-            disabled={onlinePayment?.loading || showPixModal}
-          >
-            {onlinePayment?.loading ? 'Gerando Pix…' : 'Gerar QR Code Pix'}
-          </button>
-        ) : (
-          <form className="checkout-asaas-card-form" onSubmit={(event) => void payWithCard(event)}>
-            <label className="form-label" htmlFor="asaas-holder">
-              Nome no cartão
-            </label>
-            <input
-              id="asaas-holder"
-              className="form-input"
-              value={cardForm.holderName}
-              onChange={(e) => setCardForm((c) => ({ ...c, holderName: e.target.value }))}
-              required
-            />
-            <label className="form-label" htmlFor="asaas-email">
-              E-mail do titular
-            </label>
-            <input
-              id="asaas-email"
-              className="form-input"
-              type="email"
-              autoComplete="email"
-              value={cardForm.email}
-              onChange={(e) => setCardForm((c) => ({ ...c, email: e.target.value }))}
-              required
-            />
-            <label className="form-label" htmlFor="asaas-number">
-              Número do cartão
-            </label>
-            <input
-              id="asaas-number"
-              className="form-input"
-              inputMode="numeric"
-              value={cardForm.number}
-              onChange={(e) => setCardForm((c) => ({ ...c, number: e.target.value }))}
-              required
-            />
-            <div className="checkout-asaas-card-row">
-              <div>
-                <label className="form-label" htmlFor="asaas-exp-m">
-                  Mês
-                </label>
-                <input
-                  id="asaas-exp-m"
-                  className="form-input"
-                  placeholder="MM"
-                  maxLength={2}
-                  value={cardForm.expiryMonth}
-                  onChange={(e) => setCardForm((c) => ({ ...c, expiryMonth: e.target.value }))}
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label" htmlFor="asaas-exp-y">
-                  Ano
-                </label>
-                <input
-                  id="asaas-exp-y"
-                  className="form-input"
-                  placeholder="AAAA"
-                  maxLength={4}
-                  value={cardForm.expiryYear}
-                  onChange={(e) => setCardForm((c) => ({ ...c, expiryYear: e.target.value }))}
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label" htmlFor="asaas-ccv">
-                  CVV
-                </label>
-                <input
-                  id="asaas-ccv"
-                  className="form-input"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={cardForm.ccv}
-                  onChange={(e) => setCardForm((c) => ({ ...c, ccv: e.target.value }))}
-                  required
-                />
-              </div>
-            </div>
-            <div className="checkout-asaas-card-row">
-              <div>
-                <label className="form-label" htmlFor="asaas-cep">
-                  CEP
-                </label>
-                <input
-                  id="asaas-cep"
-                  className="form-input"
-                  inputMode="numeric"
-                  value={cardForm.postalCode}
-                  onChange={(e) => setCardForm((c) => ({ ...c, postalCode: e.target.value }))}
-                  required
-                />
-              </div>
-              <div>
-                <label className="form-label" htmlFor="asaas-num">
-                  Nº
-                </label>
-                <input
-                  id="asaas-num"
-                  className="form-input"
-                  value={cardForm.addressNumber}
-                  onChange={(e) => setCardForm((c) => ({ ...c, addressNumber: e.target.value }))}
-                  required
-                />
-              </div>
-            </div>
-            <button
-              type="submit"
-              className="btn-checkout-continue"
-              disabled={onlinePayment?.loading}
-            >
-              {onlinePayment?.loading ? 'Processando…' : 'Pagar com cartão'}
-            </button>
-          </form>
-        )}
+        <div className="checkout-card-field">
+          <label className="form-label" htmlFor="asaas-pix-cpf">
+            CPF ou CNPJ
+          </label>
+          <input
+            id="asaas-pix-cpf"
+            className="form-input"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="000.000.000-00"
+            value={checkoutCpfCnpj}
+            onChange={(e) => setCheckoutCpfCnpj(formatCpfCnpjInput(e.target.value))}
+          />
+        </div>
+        <button
+          type="button"
+          className="btn-checkout-continue"
+          onClick={() => void payWithPix()}
+          disabled={onlinePayment?.loading || showPixModal}
+        >
+          {onlinePayment?.loading ? 'Preparando Pix…' : 'Ir para o pagamento'}
+        </button>
       </section>
 
       <PixPaymentModal
