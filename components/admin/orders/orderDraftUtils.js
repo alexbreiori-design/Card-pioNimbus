@@ -33,6 +33,8 @@ export const EMPTY_ORDER_DRAFT = {
   enderecoLatitude: null,
   enderecoLongitude: null,
   formaPagamento: 'dinheiro',
+  trocoAnswer: '',
+  trocoValue: '',
   cart: [],
 };
 
@@ -96,7 +98,16 @@ export function isOrderDraftValid(draft) {
     if (!String(draft.logradouro || '').trim()) return false;
     if (!String(draft.numero || '').trim()) return false;
   }
+  if (draft.formaPagamento === 'dinheiro') {
+    if (!draft.trocoAnswer) return false;
+    if (draft.trocoAnswer === 'sim' && parseMoneyInput(draft.trocoValue) <= 0) return false;
+  }
   return true;
+}
+
+export function resolveDraftTroco(draft) {
+  if (draft?.formaPagamento !== 'dinheiro' || draft?.trocoAnswer !== 'sim') return 0;
+  return parseMoneyInput(draft.trocoValue);
 }
 
 export function hasDraftContent(draft) {
