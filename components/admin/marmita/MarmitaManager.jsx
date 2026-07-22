@@ -128,9 +128,9 @@ function Switch({ checked, onChange, label }) {
   );
 }
 
-function MarmitaCheck({ checked, onChange, label }) {
+function MarmitaCheck({ checked, onChange, label, stacked = false }) {
   return (
-    <label className="admin-marmita-check">
+    <label className={`admin-marmita-check${stacked ? ' is-stacked' : ''}`}>
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       <span className="admin-marmita-check-box" aria-hidden="true">
         {checked ? (
@@ -139,7 +139,7 @@ function MarmitaCheck({ checked, onChange, label }) {
           </svg>
         ) : null}
       </span>
-      <span>{label}</span>
+      <span className="admin-marmita-check-label">{label}</span>
     </label>
   );
 }
@@ -1308,27 +1308,26 @@ export default function MarmitaManager() {
                           placeholder="R$ 0,00"
                           inputMode="decimal"
                         />
-                        <div className="admin-marmita-size-card-actions">
-                          <MarmitaCheck
-                            checked={tam.ativo !== false}
-                            label="Ativo"
-                            onChange={(checked) => updateTamanho(index, { ativo: checked })}
-                          />
-                          <button
-                            type="button"
-                            className="admin-btn admin-btn-sm admin-marmita-passo-remove"
-                            onClick={() => removeTamanho(index)}
-                            disabled={form.tamanhos.length <= 1}
-                            title={
-                              form.tamanhos.length <= 1
-                                ? 'É necessário manter pelo menos um tamanho'
-                                : `Remover tamanho ${tam.nome || index + 1}`
-                            }
-                            aria-label={`Remover tamanho ${tam.nome || index + 1}`}
-                          >
-                            ×
-                          </button>
-                        </div>
+                        <MarmitaCheck
+                          stacked
+                          checked={tam.ativo !== false}
+                          label="Ativo"
+                          onChange={(checked) => updateTamanho(index, { ativo: checked })}
+                        />
+                        <button
+                          type="button"
+                          className="admin-btn admin-btn-sm admin-marmita-passo-remove"
+                          onClick={() => removeTamanho(index)}
+                          disabled={form.tamanhos.length <= 1}
+                          title={
+                            form.tamanhos.length <= 1
+                              ? 'É necessário manter pelo menos um tamanho'
+                              : `Remover tamanho ${tam.nome || index + 1}`
+                          }
+                          aria-label={`Remover tamanho ${tam.nome || index + 1}`}
+                        >
+                          ×
+                        </button>
                       </div>
                     ))}
                   </div>

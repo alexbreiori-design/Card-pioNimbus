@@ -8941,8 +8941,21 @@ textarea.admin-input::placeholder {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   padding: 22px 18px 26px;
   min-height: 132px;
+}
+
+/* Evita o grid de 2 colunas da sidebar de loja deslocar a logo Nimbus */
+.admin-sistema-sidebar:not(.collapsed) .admin-sidebar-header,
+.admin-sistema-sidebar:not(.collapsed) .admin-sistema-sidebar-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  grid-template-columns: none;
+  gap: 0;
+  padding: 22px 18px 26px;
 }
 
 .admin-sistema-logo-wrap {
@@ -8950,12 +8963,15 @@ textarea.admin-input::placeholder {
   align-items: center;
   justify-content: center;
   width: 100%;
+  margin: 0 auto;
 }
 
 .admin-sistema-logo {
+  display: block;
   width: auto;
   height: auto;
   max-width: 140px;
+  margin: 0 auto;
   object-fit: contain;
 }
 
@@ -11199,34 +11215,39 @@ textarea.admin-input::placeholder {
 }
 
 .admin-marmita-size-card {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, auto);
-  gap: 12px;
+  display: flex;
   align-items: center;
+  gap: 10px;
   padding: 12px;
   border: 1px solid var(--admin-border);
   border-radius: 12px;
   background: #fafbff;
 }
 
-.admin-marmita-size-name,
+.admin-marmita-size-name {
+  flex: 0 1 11rem;
+  min-width: 0;
+  width: 11rem;
+  max-width: 11rem;
+}
+
 .admin-marmita-size-price {
-  min-width: 0;
-  width: 100%;
+  flex: 0 0 6.75rem;
+  width: 6.75rem;
+  min-width: 6.75rem;
+  max-width: 6.75rem;
+  padding-left: 10px;
+  padding-right: 10px;
+  text-align: left;
 }
 
-.admin-marmita-size-card-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-width: 0;
+.admin-marmita-size-card .admin-marmita-check.is-stacked {
+  flex: 0 0 auto;
 }
 
-.admin-marmita-size-card .admin-marmita-check {
-  justify-content: flex-start;
-  min-width: 0;
-  flex: 1;
+.admin-marmita-size-card .admin-marmita-passo-remove {
+  margin-left: auto;
+  flex: 0 0 auto;
 }
 
 .admin-marmita-check {
@@ -11237,6 +11258,19 @@ textarea.admin-input::placeholder {
   font-size: 13px;
   color: var(--admin-text-mid);
   user-select: none;
+}
+
+.admin-marmita-check.is-stacked {
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.admin-marmita-check.is-stacked .admin-marmita-check-label {
+  font-size: 10px;
+  line-height: 1.1;
+  color: var(--admin-text-light);
+  text-align: center;
 }
 
 .admin-marmita-check input {
@@ -11436,7 +11470,21 @@ textarea.admin-input::placeholder {
 
 @media (max-width: 900px) {
   .admin-marmita-size-card {
-    grid-template-columns: 1fr;
+    flex-wrap: wrap;
+  }
+
+  .admin-marmita-size-name {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: none;
+  }
+
+  .admin-marmita-size-price {
+    flex: 0 0 6.75rem;
+  }
+
+  .admin-marmita-size-card .admin-marmita-passo-remove {
+    margin-left: auto;
   }
 
   .admin-marmita-passo-row1 {
