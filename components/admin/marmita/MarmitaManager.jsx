@@ -745,6 +745,18 @@ export default function MarmitaManager() {
     }));
   }
 
+  function removeTamanho(index) {
+    setForm((prev) => {
+      if (prev.tamanhos.length <= 1) return prev;
+      return {
+        ...prev,
+        tamanhos: prev.tamanhos
+          .filter((_, idx) => idx !== index)
+          .map((tam, ordem) => ({ ...tam, ordem })),
+      };
+    });
+  }
+
   function addPasso() {
     setForm((prev) => ({
       ...prev,
@@ -1296,11 +1308,27 @@ export default function MarmitaManager() {
                           placeholder="R$ 0,00"
                           inputMode="decimal"
                         />
-                        <MarmitaCheck
-                          checked={tam.ativo !== false}
-                          label="Ativo"
-                          onChange={(checked) => updateTamanho(index, { ativo: checked })}
-                        />
+                        <div className="admin-marmita-size-card-actions">
+                          <MarmitaCheck
+                            checked={tam.ativo !== false}
+                            label="Ativo"
+                            onChange={(checked) => updateTamanho(index, { ativo: checked })}
+                          />
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-sm admin-marmita-passo-remove"
+                            onClick={() => removeTamanho(index)}
+                            disabled={form.tamanhos.length <= 1}
+                            title={
+                              form.tamanhos.length <= 1
+                                ? 'É necessário manter pelo menos um tamanho'
+                                : `Remover tamanho ${tam.nome || index + 1}`
+                            }
+                            aria-label={`Remover tamanho ${tam.nome || index + 1}`}
+                          >
+                            ×
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
