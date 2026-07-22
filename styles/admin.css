@@ -3603,6 +3603,50 @@
   color: var(--admin-brand);
 }
 
+.admin-order-troco-block {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fafbff;
+}
+
+.admin-order-troco-question {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--admin-text);
+}
+
+.admin-order-troco-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-order-troco-choice {
+  border: 1px solid #d8dee7;
+  border-radius: 10px;
+  padding: 9px 12px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--admin-text-mid);
+  cursor: pointer;
+}
+
+.admin-order-troco-choice.is-active {
+  border-color: var(--admin-brand);
+  background: #f6effb;
+  color: var(--admin-brand);
+}
+
+.admin-order-troco-value {
+  margin-top: 10px;
+  margin-bottom: 0;
+  max-width: 180px;
+}
+
 .admin-new-order-right-top {
   display: flex;
   justify-content: space-between;

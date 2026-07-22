@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { formatCep } from '@/lib/cep/viacep';
 import { useCepLookup } from '@/hooks/useCepLookup';
 import AddressAutocompleteInput from './AddressAutocompleteInput';
@@ -25,11 +25,44 @@ export default function OrderLeftColumn({
 }) {
   const { data } = useAdminData();
   const numeroInputRef = useRef(null);
+  const trocoBlockRef = useRef(null);
+  const trocoValueRef = useRef(null);
+  const [scrollTarget, setScrollTarget] = useState(null);
   const cupons = data.cupons || [];
   const hasDeliveryAddress =
     Boolean(String(draft.logradouro || '').trim()) &&
     Boolean(String(draft.numero || '').trim());
   const { lookup, loading: cepLoading } = useCepLookup();
+
+  useEffect(() => {
+    if (!scrollTarget) return undefined;
+    const frame = requestAnimationFrame(() => {
+      const target =
+        scrollTarget === 'troco-value' ? trocoValueRef.current : trocoBlockRef.current;
+      target?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      setScrollTarget(null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [scrollTarget, draft.formaPagamento, draft.trocoAnswer]);
+
+  function setPaymentMethod(formaPagamento) {
+    setDraft((d) => ({
+      ...d,
+      formaPagamento,
+      trocoAnswer: formaPagamento === 'dinheiro' ? d.trocoAnswer : '',
+      trocoValue: formaPagamento === 'dinheiro' ? d.trocoValue : '',
+    }));
+    if (formaPagamento === 'dinheiro') setScrollTarget('troco');
+  }
+
+  function setTrocoAnswer(trocoAnswer) {
+    setDraft((d) => ({
+      ...d,
+      trocoAnswer,
+      trocoValue: trocoAnswer === 'sim' ? d.trocoValue : '',
+    }));
+    if (trocoAnswer === 'sim') setScrollTarget('troco-value');
+  }
 
   function setAddressField(field, value) {
     setDraft((d) => ({
@@ -278,12 +311,43 @@ export default function OrderLeftColumn({
               key={m.value}
               type="button"
               className={`admin-order-payment-btn ${draft.formaPagamento === m.value ? 'active' : ''}`}
-              onClick={() => setDraft((d) => ({ ...d, formaPagamento: m.value }))}
+              onClick={() => setPaymentMethod(m.value)}
             >
               {m.label}
             </button>
           ))}
         </div>
+        {draft.formaPagamento === 'dinheiro' ? (
+          <div className="admin-order-troco-block" ref={trocoBlockRef}>
+            <p className="admin-order-troco-question">Precisa de troco?</p>
+            <div className="admin-order-troco-choices">
+              <button
+                type="button"
+                className={`admin-order-troco-choice${draft.trocoAnswer === 'sim' ? ' is-active' : ''}`}
+                onClick={() => setTrocoAnswer('sim')}
+              >
+                Sim
+              </button>
+              <button
+                type="button"
+                className={`admin-order-troco-choice${draft.trocoAnswer === 'nao' ? ' is-active' : ''}`}
+                onClick={() => setTrocoAnswer('nao')}
+              >
+                Não
+              </button>
+            </div>
+            {draft.trocoAnswer === 'sim' ? (
+              <div ref={trocoValueRef}>
+                <MoneyInput
+                  label="Troco para"
+                  value={draft.trocoValue}
+                  onChange={(trocoValue) => setDraft((d) => ({ ...d, trocoValue }))}
+                  className="admin-order-troco-value"
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </section>
     </div>
   );

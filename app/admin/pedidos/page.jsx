@@ -20,6 +20,7 @@ import {
   currency,
   EMPTY_ORDER_DRAFT,
   fmtPhone,
+  resolveDraftTroco,
 } from '@/components/admin/orders/orderDraftUtils';
 import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
@@ -317,6 +318,7 @@ export default function PedidosPage() {
     if (!guardCaixa()) return;
     const totals = computeOrderTotals(draft);
     const phoneDigits = normalizePhone(draft.telefone);
+    const trocoPara = resolveDraftTroco(draft);
     const enderecoTexto =
       draft.tipo === 'delivery'
         ? `${draft.logradouro || ''}${draft.numero ? `, ${draft.numero}` : ''} - ${draft.bairro || ''} - ${draft.cidade || ''}`
@@ -349,7 +351,7 @@ export default function PedidosPage() {
         desconto: totals.desconto,
         cupomCodigo: draft.cupomCodigo || '',
         total: totals.total,
-        pagamento: { metodo: draft.formaPagamento, recebido: totals.total, troco: 0 },
+        pagamento: { metodo: draft.formaPagamento, recebido: totals.total, troco: trocoPara },
         itens: items,
       };
 
@@ -413,7 +415,7 @@ export default function PedidosPage() {
       desconto: totals.desconto,
       cupomCodigo: draft.cupomCodigo || '',
       total: totals.total,
-      pagamento: { metodo: draft.formaPagamento, recebido: totals.total, troco: 0 },
+      pagamento: { metodo: draft.formaPagamento, recebido: totals.total, troco: trocoPara },
       origem: 'admin_manual',
       itens: items,
       caixaTurnoId: caixaTurno?.id || null,
@@ -889,6 +891,17 @@ export default function PedidosPage() {
             enderecoLatitude: detailOrder.enderecoLatitude,
             enderecoLongitude: detailOrder.enderecoLongitude,
             formaPagamento: detailOrder.pagamento?.metodo || 'dinheiro',
+            trocoAnswer:
+              detailOrder.pagamento?.metodo === 'dinheiro'
+                ? Number(detailOrder.pagamento?.troco || detailOrder.trocoPara || 0) > 0
+                  ? 'sim'
+                  : 'nao'
+                : '',
+            trocoValue:
+              detailOrder.pagamento?.metodo === 'dinheiro' &&
+              Number(detailOrder.pagamento?.troco || detailOrder.trocoPara || 0) > 0
+                ? String(detailOrder.pagamento?.troco || detailOrder.trocoPara).replace('.', ',')
+                : '',
             cart: (detailOrder.itens || []).map((i) => ({
               id: createOrderDraftLineId(),
               produtoId: i.produtoId || '',
