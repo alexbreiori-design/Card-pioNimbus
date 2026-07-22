@@ -134,7 +134,7 @@ export default function PagBankIntegrationCard({
       {!connected ? (
         <>
           <p className="admin-help-text admin-delivery-areas-hint">
-            Pix com recebimento direto na sua conta PagBank.
+            Pix e cartão com recebimento direto na sua conta PagBank.
           </p>
           {locked ? (
             <p className="admin-help-text admin-delivery-areas-empty">
@@ -156,7 +156,7 @@ export default function PagBankIntegrationCard({
       ) : (
         <div className="admin-payment-methods">
           <p className="admin-help-text admin-delivery-areas-hint" style={{ margin: 0, flex: 1 }}>
-            Pix online ativo no cardápio.
+            Pix e cartão online ativos no cardápio.
           </p>
           <button
             type="button"
