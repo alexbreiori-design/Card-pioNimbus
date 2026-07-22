@@ -11,7 +11,7 @@ import {
 } from 'react';
 import { formatMarmitaCartObs } from '@/lib/marmita/marmitaWizard';
 import { formatPrice } from '@/lib/utils/format';
-import { digitsOnly, formatCpfCnpjInput, isValidCpfCnpj } from '@/lib/cpfCnpj';
+import { digitsOnly } from '@/lib/cpfCnpj';
 import { fetchViaCep } from '@/lib/cep/viacep';
 import { calculateCupomDiscount, findCupomByCode } from '@/lib/cupons';
 import { applyBrandThemeTargets } from '@/lib/brandTheme';
@@ -66,6 +66,8 @@ const CardapioCheckoutContext = createContext(null);
 
 const STORE_ADDRESS = DEFAULT_ADMIN_DATA.loja.endereco;
 const STEP_LABELS = ['Dados', 'Entrega', 'Pagamento', 'Confirmar'];
+const STEP_LABELS_ONLINE_PIX = ['Dados', 'Entrega', 'Pagamento', 'Confirmar'];
+const STEP_LABELS_ONLINE_CARD = ['Dados', 'Entrega', 'Pagamento', 'Cartão', 'Confirmar'];
 
 const PUBLIC_PAYMENT_METHODS_BASE = [
   { id: 'pix', label: 'Pix (enviar comprovante)', group: 'Pagar na entrega' },
@@ -321,6 +323,7 @@ export function CardapioProvider({
   const [checkoutAddressConfirmed, setCheckoutAddressConfirmed] = useState(false);
   const [onlinePaymentConfig, setOnlinePaymentConfig] = useState(null);
   const [onlinePayment, setOnlinePayment] = useState(null);
+  const [checkoutCardDraft, setCheckoutCardDraft] = useState(null);
   const [addressFlowContext, setAddressFlowContext] = useState('header');
   const checkoutCustomerLookupRef = useRef({ phone: '', inflight: false });
 
@@ -1678,6 +1681,7 @@ export function CardapioProvider({
     setCheckoutCpfCnpj('');
     checkoutCustomerLookupRef.current = { phone: '', inflight: false };
     setOnlinePayment(null);
+    setCheckoutCardDraft(null);
     setCheckoutOrderNumber('');
     setCheckoutOpen(true);
     trackMetaEvent('InitiateCheckout', {
@@ -1729,6 +1733,7 @@ export function CardapioProvider({
     setCheckoutOrderNumber('');
     setCheckoutAddressConfirmed(false);
     setOnlinePayment(null);
+    setCheckoutCardDraft(null);
   }, [onlinePayment?.payment?.id, showAlert, showConfirm]);
 
   const selectDelivery = useCallback(
@@ -1820,12 +1825,22 @@ export function CardapioProvider({
   );
 
   const selectPayment = useCallback((id) => {
+    setCheckoutCardDraft(null);
     setCheckoutData((d) => ({
       ...d,
       payment: id,
       trocoAnswer: id === 'dinheiro' ? d.trocoAnswer : '',
       trocoValue: id === 'dinheiro' ? d.trocoValue : '',
     }));
+  }, []);
+
+  const confirmCheckoutCardDraft = useCallback((draft) => {
+    setCheckoutCardDraft(draft);
+    setCheckoutStep(5);
+  }, []);
+
+  const clearCheckoutCardDraft = useCallback(() => {
+    setCheckoutCardDraft(null);
   }, []);
 
   const setCheckoutTrocoAnswer = useCallback((answer) => {
@@ -1964,9 +1979,19 @@ export function CardapioProvider({
         id: previousCustomer?.id || localCustomerId,
         name: customerName,
         phone: phoneDigits,
-        email: checkoutData.email || '',
-        cpf: digitsOnly(checkoutData.cpfCnpj || ''),
-        cpfCnpj: digitsOnly(checkoutData.cpfCnpj || ''),
+        email: cardData?.email || cardData?.payer?.email || checkoutData.email || '',
+        cpf: digitsOnly(
+          cardData?.cpfCnpj ||
+            cardData?.payer?.identification?.number ||
+            checkoutData.cpfCnpj ||
+            ''
+        ),
+        cpfCnpj: digitsOnly(
+          cardData?.cpfCnpj ||
+            cardData?.payer?.identification?.number ||
+            checkoutData.cpfCnpj ||
+            ''
+        ),
         total_orders: Number(previousCustomer?.total_orders || 0) + 1,
         total_spent: Number(previousCustomer?.total_spent || 0) + total,
         last_order_at: createdAt,
@@ -1998,8 +2023,17 @@ export function CardapioProvider({
             ...(isOnlinePayment
               ? {
                   method: checkoutData.payment === 'pix_online' ? 'pix' : 'credit_card',
-                  email: checkoutData.email,
-                  cpfCnpj: digitsOnly(checkoutData.cpfCnpj || ''),
+                  email:
+                    cardData?.email ||
+                    cardData?.payer?.email ||
+                    checkoutData.email ||
+                    '',
+                  cpfCnpj: digitsOnly(
+                    cardData?.cpfCnpj ||
+                      cardData?.payer?.identification?.number ||
+                      checkoutData.cpfCnpj ||
+                      ''
+                  ),
                   cardData,
                   deviceId:
                     cardData?.deviceId ||
@@ -2323,42 +2357,6 @@ export function CardapioProvider({
         void showAlert('Selecione uma forma de pagamento.');
         return;
       }
-      const onlineEmail = String(checkoutEmail || checkoutData.email || '').trim();
-      const onlineCpfCnpj = String(checkoutCpfCnpj || checkoutData.cpfCnpj || '').trim();
-      if (['pix_online', 'credito_online'].includes(checkoutData.payment)) {
-        const provider = onlinePaymentConfig?.provider;
-        if (provider === 'asaas') {
-          if (!isValidCpfCnpj(onlineCpfCnpj)) {
-            void showAlert('Informe um CPF ou CNPJ válido para pagar online.');
-            return;
-          }
-          setCheckoutData((d) => ({
-            ...d,
-            cpfCnpj: digitsOnly(onlineCpfCnpj),
-            email: '',
-          }));
-        } else if (provider === 'pagbank') {
-          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(onlineEmail)) {
-            void showAlert('Informe um e-mail válido para pagar online.');
-            return;
-          }
-          if (!isValidCpfCnpj(onlineCpfCnpj)) {
-            void showAlert('Informe um CPF ou CNPJ válido para pagar online.');
-            return;
-          }
-          setCheckoutData((d) => ({
-            ...d,
-            email: onlineEmail,
-            cpfCnpj: digitsOnly(onlineCpfCnpj),
-          }));
-        } else {
-          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(onlineEmail)) {
-            void showAlert('Informe um e-mail válido para pagar online.');
-            return;
-          }
-          setCheckoutData((d) => ({ ...d, email: onlineEmail, cpfCnpj: '' }));
-        }
-      }
       if (checkoutData.payment === 'dinheiro') {
         if (!checkoutData.trocoAnswer) {
           void showAlert('Informe se precisa de troco.');
@@ -2370,9 +2368,14 @@ export function CardapioProvider({
         }
       }
       setOnlinePayment(null);
+      setCheckoutCardDraft(null);
       setCheckoutStep(4);
     } else if (checkoutStep === 4) {
-      if (['pix_online', 'credito_online'].includes(checkoutData.payment)) return;
+      // Cartão: formulário avança via confirmCheckoutCardDraft → passo 5.
+      // Pix: CTA fica no resumo (painel). Offline: envia pedido.
+      if (checkoutData.payment === 'credito_online' || checkoutData.payment === 'pix_online') {
+        return;
+      }
       if (checkoutSubmittingRef.current) return;
       checkoutSubmittingRef.current = true;
       try {
@@ -2386,6 +2389,14 @@ export function CardapioProvider({
       } finally {
         checkoutSubmittingRef.current = false;
       }
+    } else if (checkoutStep === 5) {
+      if (checkoutData.payment !== 'credito_online' || !checkoutCardDraft?.payload) return;
+      if (onlinePayment?.loading || onlinePayment?.payment) return;
+      try {
+        await submitOnlinePayment(checkoutCardDraft.payload);
+      } catch {
+        // Erro já exibido em onlinePayment.error
+      }
     }
   }, [
     checkoutStep,
@@ -2394,8 +2405,10 @@ export function CardapioProvider({
     checkoutEmail,
     checkoutCpfCnpj,
     checkoutData,
+    checkoutCardDraft,
     checkoutAddressConfirmed,
     onlinePaymentConfig,
+    onlinePayment,
     savedAddress,
     profileAddress,
     profileImage,
@@ -2404,6 +2417,7 @@ export function CardapioProvider({
     persistCompletedOrder,
     completeCheckoutOrder,
     persistClientSnapshot,
+    submitOnlinePayment,
     showAlert,
     cartSubtotal,
     deliveryFee,
@@ -2416,7 +2430,10 @@ export function CardapioProvider({
 
   const checkoutBack = useCallback(() => {
     if (checkoutStep > 1 && !checkoutSuccess) {
-      if (checkoutStep === 4 && onlinePayment?.payment?.id) {
+      if (
+        (checkoutStep === 4 || checkoutStep === 5) &&
+        onlinePayment?.payment?.id
+      ) {
         void showConfirm(
           'Há um pagamento Pix em andamento. Se voltar agora, o pagamento será cancelado. Deseja continuar?',
           {
@@ -2428,14 +2445,24 @@ export function CardapioProvider({
         ).then((confirmed) => {
           if (!confirmed) return;
           void cancelOnlinePayment({ clearQuietly: true })
-            .then(() => setCheckoutStep((s) => s - 1))
+            .then(() => {
+              setOnlinePayment(null);
+              setCheckoutStep((s) => s - 1);
+            })
             .catch(() => {
               void showAlert('Não foi possível cancelar o pagamento. Tente novamente.');
             });
         });
         return;
       }
-      if (checkoutStep === 4) setOnlinePayment(null);
+      if (checkoutStep === 5) {
+        setCheckoutStep(4);
+        return;
+      }
+      if (checkoutStep === 4) {
+        setOnlinePayment(null);
+        setCheckoutCardDraft(null);
+      }
       setCheckoutStep((s) => s - 1);
     }
   }, [
@@ -2628,6 +2655,7 @@ export function CardapioProvider({
       checkoutOpen,
       checkoutStep,
       checkoutData,
+      setCheckoutData,
       checkoutSuccess,
       checkoutSuccessSnapshot,
       checkoutOrderNumber,
@@ -2642,6 +2670,9 @@ export function CardapioProvider({
     lookupCheckoutCustomerByPhone,
     onlinePaymentConfig,
       onlinePayment,
+      checkoutCardDraft,
+      confirmCheckoutCardDraft,
+      clearCheckoutCardDraft,
       submitOnlinePayment,
       cancelOnlinePayment,
       checkoutAddressConfirmed,
@@ -2671,6 +2702,8 @@ export function CardapioProvider({
       locStrong,
       locSub,
       STEP_LABELS,
+      STEP_LABELS_ONLINE_PIX,
+      STEP_LABELS_ONLINE_CARD,
       PAYMENT_METHODS: paymentMethods,
       PAY_LABELS,
       openCheckout,
@@ -2708,6 +2741,7 @@ export function CardapioProvider({
       checkoutOpen,
       checkoutStep,
       checkoutData,
+      setCheckoutData,
       checkoutSuccess,
       checkoutSuccessSnapshot,
       checkoutOrderNumber,
@@ -2718,6 +2752,9 @@ export function CardapioProvider({
       lookupCheckoutCustomerByPhone,
       onlinePaymentConfig,
       onlinePayment,
+      checkoutCardDraft,
+      confirmCheckoutCardDraft,
+      clearCheckoutCardDraft,
       submitOnlinePayment,
       cancelOnlinePayment,
       checkoutAddressConfirmed,
