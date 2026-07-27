@@ -135,6 +135,7 @@ export default function MinhaLojaPage() {
   const [saving, setSaving] = useState(false);
   const [coverAdjustSrc, setCoverAdjustSrc] = useState('');
   const [coverAdjustIsNew, setCoverAdjustIsNew] = useState(false);
+  const [coverImageReady, setCoverImageReady] = useState(true);
   const [ticketWidthMm, setTicketWidthMm] = useState(80);
   const [printMode, setPrintMode] = useState('ask_prep');
   const [ticketPreviewOpen, setTicketPreviewOpen] = useState(false);
@@ -221,15 +222,31 @@ export default function MinhaLojaPage() {
     };
   }, [ready, slug, lojaSyncKey]);
 
+  useEffect(() => {
+    const capaUrl = draft?.capaUrl;
+    if (!capaUrl) {
+      setCoverImageReady(true);
+      return undefined;
+    }
+    let cancelled = false;
+    setCoverImageReady(false);
+    const img = new Image();
+    img.onload = () => {
+      if (!cancelled) setCoverImageReady(true);
+    };
+    img.onerror = () => {
+      if (!cancelled) setCoverImageReady(true);
+    };
+    img.src = capaUrl;
+    if (img.complete) setCoverImageReady(true);
+    return () => {
+      cancelled = true;
+    };
+  }, [draft?.capaUrl]);
+
   if (!ready || !draft) {
     return (
       <div className="admin-content admin-content-pedidos admin-store-page admin-store-page-v2">
-        <div className="admin-store-actions-row admin-store-actions-sticky">
-          <div />
-          <button type="button" className="admin-btn admin-btn-primary" disabled>
-            Salvar alterações
-          </button>
-        </div>
         <AdminLojaSkeleton />
       </div>
     );
@@ -454,56 +471,86 @@ export default function MinhaLojaPage() {
       </div>
 
       <AdminContentReveal ready>
-      <div className="admin-card admin-store-profile-card">
-        <div className="admin-store-cover-block">
-          <div
-            className="admin-store-cover-preview"
-            style={draft.capaUrl ? { backgroundImage: `url(${draft.capaUrl})` } : undefined}
-          >
-            {!draft.capaUrl ? <span>Capa do cardápio</span> : null}
-            <div className="admin-store-cover-actions">
-              {draft.capaUrl ? (
-                <button type="button" className="admin-store-cover-edit" onClick={openCoverAdjust}>
-                  Ajustar enquadramento
+      <div className="admin-card admin-store-section-card admin-store-personalizacao-card">
+        <StoreSectionHead
+          iconNode={<i className="ph ph-paint-brush admin-kanban-phosphor-icon" aria-hidden="true" />}
+          title="Personalização"
+          hint="Logo, capa e cor da marca no cardápio público."
+        />
+        <div className="admin-store-section-body">
+          <div className="admin-store-personalizacao-row">
+            <div className="admin-store-personalizacao-stage">
+              <div className="admin-store-personalizacao-brand">
+                <button type="button" className="admin-store-logo-picker" onClick={() => logoInputRef.current?.click()}>
+                  <span className="admin-store-logo-frame">
+                    <span className="admin-store-logo-frame-inner">
+                      {draft.logoUrl ? (
+                        <img src={draft.logoUrl} alt="Logo da loja" />
+                      ) : (
+                        <ImagePlaceholder size={160} />
+                      )}
+                    </span>
+                  </span>
+                  <span className="admin-store-logo-label">Alterar logo</span>
                 </button>
-              ) : null}
-              <button type="button" className="admin-store-cover-edit" onClick={() => coverInputRef.current?.click()}>
-                {draft.capaUrl ? 'Trocar imagem' : 'Alterar capa'}
-              </button>
-            </div>
-            <input
-              ref={coverInputRef}
-              type="file"
-              accept="image/*"
-              className="admin-store-hidden-file"
-              onChange={onImageSelect('capaUrl', 5)}
-            />
-          </div>
-          <div className="admin-store-cover-footer">
-            <p className="admin-store-cover-hint">Tamanho ideal: 1145 × 366 px (proporção 5:1,6)</p>
-          </div>
-        </div>
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="admin-store-hidden-file"
+                  onChange={onImageSelect('logoUrl', 2)}
+                />
+                <div className="admin-store-logo-palette">
+                  <ColorPalettePicker
+                    colors={draft.paletteColors || []}
+                    activeColor={draft.corMarca}
+                    onColorsChange={(paletteColors) => setLojaField('paletteColors', paletteColors)}
+                    onSelectColor={selectBrandColor}
+                    showHint={Boolean(draft.logoUrl)}
+                  />
+                </div>
+              </div>
 
-        <div className="admin-store-logo-area">
-          <button type="button" className="admin-store-logo-picker" onClick={() => logoInputRef.current?.click()}>
-            {draft.logoUrl ? <img src={draft.logoUrl} alt="Logo da loja" /> : <ImagePlaceholder size={118} />}
-            <span>Alterar logo</span>
-          </button>
-          <input
-            ref={logoInputRef}
-            type="file"
-            accept="image/*"
-            className="admin-store-hidden-file"
-            onChange={onImageSelect('logoUrl', 2)}
-          />
-          <div className="admin-store-logo-palette">
-            <ColorPalettePicker
-              colors={draft.paletteColors || []}
-              activeColor={draft.corMarca}
-              onColorsChange={(paletteColors) => setLojaField('paletteColors', paletteColors)}
-              onSelectColor={selectBrandColor}
-              showHint={Boolean(draft.logoUrl)}
-            />
+              <div
+                className={`admin-store-cover-preview${draft.capaUrl && !coverImageReady ? ' is-loading' : ''}`}
+                style={draft.capaUrl ? { backgroundImage: `url(${draft.capaUrl})` } : undefined}
+              >
+                {!draft.capaUrl ? <span>Capa do cardápio</span> : null}
+                <div className="admin-store-cover-actions">
+                  {draft.capaUrl ? (
+                    <button
+                      type="button"
+                      className="admin-store-cover-edit"
+                      onClick={openCoverAdjust}
+                      aria-label="Ajustar enquadramento"
+                      title="Ajustar enquadramento"
+                    >
+                      <i className="ph ph-pencil-simple" aria-hidden="true" />
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="admin-store-cover-edit"
+                    onClick={() => coverInputRef.current?.click()}
+                    aria-label={draft.capaUrl ? 'Trocar imagem' : 'Adicionar capa'}
+                    title={draft.capaUrl ? 'Trocar imagem' : 'Adicionar capa'}
+                  >
+                    <span className="admin-store-cover-icon-combo" aria-hidden="true">
+                      <i className="ph ph-image" />
+                      <i className="ph ph-plus" />
+                    </span>
+                  </button>
+                </div>
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="admin-store-hidden-file"
+                  onChange={onImageSelect('capaUrl', 5)}
+                />
+              </div>
+            </div>
+            <p className="admin-store-cover-hint">Tamanho ideal: 1145 × 366 px (proporção 5:1,6)</p>
           </div>
         </div>
       </div>
