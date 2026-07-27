@@ -8745,22 +8745,178 @@ textarea.admin-input::placeholder {
   accent-color: var(--admin-brand);
 }
 
+.admin-ticket-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-ticket-choice--stack {
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
+
+.admin-ticket-choice--stack .admin-ticket-choice-btn {
+  width: 100%;
+  min-width: 7rem;
+}
+
+.admin-ticket-choice--row {
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+
+.admin-ticket-choice--row .admin-ticket-choice-btn {
+  width: auto;
+  min-width: 0;
+  flex: 0 1 auto;
+  padding: 10px 16px;
+}
+
+.admin-ticket-choice--grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
+  justify-content: start;
+  gap: 8px;
+}
+
+.admin-ticket-choice--grid2 .admin-ticket-choice-btn {
+  width: auto;
+  min-width: 0;
+  padding: 10px 16px;
+}
+
+.admin-ticket-choice-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  min-width: 7.5rem;
+  padding: 10px 14px;
+  border: 1px solid #e2e2ea;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--admin-text, #1a1a2e);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.admin-ticket-choice-btn:hover {
+  border-color: color-mix(in srgb, var(--admin-brand, #6c5ce7) 45%, #e2e2ea);
+}
+
+.admin-ticket-choice-btn.is-selected {
+  border-color: var(--admin-brand, #6c5ce7);
+  background: color-mix(in srgb, var(--admin-brand, #6c5ce7) 8%, #fff);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--admin-brand, #6c5ce7) 35%, transparent);
+}
+
+.admin-ticket-choice-label {
+  display: block;
+}
+
+.admin-ticket-choice-hint {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--admin-muted, #6b6b7b);
+}
+
 .admin-ticket-print-card .admin-store-section-body {
   padding-top: 4px;
 }
 
 .admin-ticket-print-settings {
   display: grid;
-  gap: 18px;
+  gap: 28px;
 }
 
-.admin-ticket-print-field {
+.admin-ticket-print-block {
   display: grid;
-  gap: 8px;
+  gap: 12px;
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
-.admin-ticket-print-field > .admin-label {
+.admin-ticket-print-block-title {
   margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--admin-text, #1a1a2e);
+}
+
+.admin-ticket-appearance {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-ticket-prefs-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-ticket-prefs-grid {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  gap: 12px 18px;
+  align-items: start;
+  justify-content: start;
+}
+
+.admin-ticket-print-col {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.admin-ticket-print-col > .admin-label {
+  margin: 0;
+}
+
+.admin-ticket-print-footnote {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f6f5ff;
+  border: 1px solid #ebe8ff;
+  color: var(--admin-muted, #6b6b7b);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+  .admin-ticket-prefs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-ticket-choice--grid2 {
+    grid-template-columns: repeat(2, max-content);
+  }
+
+  .admin-ticket-choice--row .admin-ticket-choice-btn {
+    flex: 1 1 calc(50% - 8px);
+  }
+}
+
+@media (max-width: 520px) {
+  .admin-ticket-choice--grid2 {
+    grid-template-columns: max-content;
+  }
+
+  .admin-ticket-choice--row .admin-ticket-choice-btn {
+    flex: 1 1 100%;
+  }
 }
 
 .admin-ticket-logo-upload {
@@ -8826,8 +8982,8 @@ textarea.admin-input::placeholder {
   flex-wrap: wrap;
   align-items: center;
   gap: 10px 14px;
-  padding-top: 4px;
-  border-top: 1px solid #eef2f7;
+  padding-top: 0;
+  border-top: none;
 }
 
 .admin-ticket-print-preview-row .admin-help-text {
@@ -12935,26 +13091,186 @@ textarea.admin-input::placeholder {
 }
 
 .admin-caixa-modal-wide {
-  width: min(520px, calc(100vw - 32px));
+  width: min(720px, calc(100vw - 32px));
 }
 
 .admin-caixa-summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 8px;
 }
 
 .admin-caixa-summary-grid > div {
-  padding: 8px;
-  border-radius: 8px;
-  background: #f4f4f8;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--admin-brand, #4e48dd) 10%, #fff);
+  border: 1px solid color-mix(in srgb, var(--admin-brand, #4e48dd) 28%, #fff);
 }
 
 .admin-caixa-summary-grid span {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--admin-brand, #4e48dd) 72%, #5c5c6e);
+}
+
+.admin-caixa-summary-grid strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--admin-text, #1a1a2e);
+}
+
+.admin-caixa-summary-section {
+  margin: 0;
+  padding: 16px 0 6px;
+  border-top: 1px solid #ececf3;
+}
+
+.admin-caixa-summary-section:first-of-type {
+  margin-top: 10px;
+}
+
+.admin-caixa-summary-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--admin-text, #1a1a2e);
+}
+
+.admin-caixa-summary-section-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--admin-brand, #4e48dd);
+  flex-shrink: 0;
+}
+
+.admin-caixa-summary-section--tipo .admin-caixa-summary-section-dot {
+  background: #2563eb;
+}
+
+.admin-caixa-summary-section--pay .admin-caixa-summary-section-dot {
+  background: #15803d;
+}
+
+.admin-caixa-summary-section--entrega .admin-caixa-summary-section-dot {
+  background: #c2410c;
+}
+
+.admin-caixa-summary-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 10px;
+}
+
+.admin-caixa-summary-tile {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1.5px solid #ececf3;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+}
+
+.admin-caixa-summary-section--tipo .admin-caixa-summary-tile {
+  background: #eff6ff;
+  border-color: #60a5fa;
+}
+
+.admin-caixa-summary-section--pay .admin-caixa-summary-tile {
+  background: #f0fdf4;
+  border-color: #4ade80;
+}
+
+.admin-caixa-summary-section--entrega .admin-caixa-summary-tile {
+  background: #fff7ed;
+  border-color: #fb923c;
+}
+
+.admin-caixa-summary-tile-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--admin-muted, #5c5c6e);
+  line-height: 1.3;
+}
+
+.admin-caixa-summary-section--tipo .admin-caixa-summary-tile-label {
+  color: #1d4ed8;
+}
+
+.admin-caixa-summary-section--pay .admin-caixa-summary-tile-label {
+  color: #15803d;
+}
+
+.admin-caixa-summary-section--entrega .admin-caixa-summary-tile-label {
+  color: #c2410c;
+}
+
+.admin-caixa-summary-tile-value {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--admin-text, #1a1a2e);
+  line-height: 1.2;
+}
+
+.admin-caixa-summary-tile-meta {
+  font-size: 12px;
+  font-weight: 500;
   color: var(--admin-muted, #6b6b7b);
+}
+
+.admin-caixa-summary-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.admin-caixa-summary-rows li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid #f0f0f4;
+}
+
+.admin-caixa-summary-rows li:last-child {
+  border-bottom: none;
+}
+
+.admin-caixa-summary-row-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 8px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--admin-text, #1a1a2e);
+}
+
+.admin-caixa-summary-row-meta {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--admin-muted, #6b6b7b);
+}
+
+.admin-caixa-summary-row-value {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--admin-text, #1a1a2e);
 }
 
 .admin-caixa-payment-list {

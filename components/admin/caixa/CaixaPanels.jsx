@@ -486,39 +486,68 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
                     <strong>{formatCurrency(summary?.esperadoDinheiro || 0)}</strong>
                   </div>
                 </div>
+
                 {tipos.length ? (
-                  <ul className="admin-caixa-payment-list">
-                    {tipos.map((row) => (
-                      <li key={row.codigo}>
-                        <span>
-                          {row.label} ({row.pedidos})
-                        </span>
-                        <strong>{formatCurrency(row.valor)}</strong>
-                      </li>
-                    ))}
-                  </ul>
+                  <section className="admin-caixa-summary-section admin-caixa-summary-section--tipo">
+                    <h4 className="admin-caixa-summary-section-title">
+                      <span className="admin-caixa-summary-section-dot" aria-hidden="true" />
+                      Por tipo
+                    </h4>
+                    <div className="admin-caixa-summary-tiles">
+                      {tipos.map((row) => (
+                        <div key={row.codigo} className="admin-caixa-summary-tile">
+                          <span className="admin-caixa-summary-tile-label">{row.label}</span>
+                          <strong className="admin-caixa-summary-tile-value">
+                            {formatCurrency(row.valor)}
+                          </strong>
+                          <span className="admin-caixa-summary-tile-meta">
+                            {row.pedidos} pedido{row.pedidos === 1 ? '' : 's'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
                 ) : null}
+
                 {pagamentos.length ? (
-                  <ul className="admin-caixa-payment-list">
-                    {pagamentos.map((row) => (
-                      <li key={row.codigo}>
-                        <span>{row.label}</span>
-                        <strong>{formatCurrency(row.valor)}</strong>
-                      </li>
-                    ))}
-                  </ul>
+                  <section className="admin-caixa-summary-section admin-caixa-summary-section--pay">
+                    <h4 className="admin-caixa-summary-section-title">
+                      <span className="admin-caixa-summary-section-dot" aria-hidden="true" />
+                      Pagamentos
+                    </h4>
+                    <div className="admin-caixa-summary-tiles">
+                      {pagamentos.map((row) => (
+                        <div key={row.codigo} className="admin-caixa-summary-tile">
+                          <span className="admin-caixa-summary-tile-label">{row.label}</span>
+                          <strong className="admin-caixa-summary-tile-value">
+                            {formatCurrency(row.valor)}
+                          </strong>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
                 ) : null}
+
                 {entregadores.length ? (
-                  <ul className="admin-caixa-payment-list">
-                    {entregadores.map((row) => (
-                      <li key={row.id || row.nome}>
-                        <span>
-                          {row.nome} · {row.pedidos} entrega{row.pedidos === 1 ? '' : 's'}
-                        </span>
-                        <strong>{formatCurrency(row.valor)}</strong>
-                      </li>
-                    ))}
-                  </ul>
+                  <section className="admin-caixa-summary-section admin-caixa-summary-section--entrega">
+                    <h4 className="admin-caixa-summary-section-title">
+                      <span className="admin-caixa-summary-section-dot" aria-hidden="true" />
+                      Entregas
+                    </h4>
+                    <div className="admin-caixa-summary-tiles">
+                      {entregadores.map((row) => (
+                        <div key={row.id || row.nome} className="admin-caixa-summary-tile">
+                          <span className="admin-caixa-summary-tile-label">{row.nome}</span>
+                          <strong className="admin-caixa-summary-tile-value">
+                            {formatCurrency(row.valor)}
+                          </strong>
+                          <span className="admin-caixa-summary-tile-meta">
+                            {row.pedidos} entrega{row.pedidos === 1 ? '' : 's'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
                 ) : null}
               </>
             ) : (
