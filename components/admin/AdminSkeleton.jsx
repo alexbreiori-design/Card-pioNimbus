@@ -99,16 +99,30 @@ export function AdminIntegracoesSkeleton() {
 export function AdminLojaSkeleton() {
   return (
     <div className="admin-loja-skeleton" aria-busy="true" aria-label="Carregando Minha loja">
-      <AdminSkeletonBlock className="admin-loja-skeleton-cover" />
-      <div className="admin-loja-skeleton-row">
-        <AdminSkeletonBlock className="admin-loja-skeleton-logo" />
-        <AdminSkeletonLines count={4} className="admin-skeleton-card-body" />
+      <div className="admin-loja-skeleton-actions">
+        <AdminSkeletonBlock />
+      </div>
+      <div className="admin-card admin-store-section-card admin-loja-skeleton-profile">
+        <AdminSkeletonBlock style={{ width: 180, height: 22, marginBottom: 20 }} />
+        <div className="admin-loja-skeleton-personalizacao">
+          <div className="admin-loja-skeleton-brand">
+            <AdminSkeletonBlock className="admin-loja-skeleton-logo" />
+            <AdminSkeletonBlock className="admin-loja-skeleton-palette" />
+          </div>
+          <AdminSkeletonBlock className="admin-loja-skeleton-cover" />
+        </div>
       </div>
       <div className="admin-card admin-store-block-card admin-compact-page-card">
+        <AdminSkeletonBlock style={{ width: 160, height: 18, marginBottom: 16 }} />
         <AdminSkeletonLines count={5} />
       </div>
       <div className="admin-card admin-store-block-card admin-compact-page-card">
+        <AdminSkeletonBlock style={{ width: 140, height: 18, marginBottom: 16 }} />
         <AdminSkeletonLines count={4} />
+      </div>
+      <div className="admin-card admin-store-block-card admin-compact-page-card">
+        <AdminSkeletonBlock style={{ width: 180, height: 18, marginBottom: 16 }} />
+        <AdminSkeletonLines count={3} />
       </div>
     </div>
   );

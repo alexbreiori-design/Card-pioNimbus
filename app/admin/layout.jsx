@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase/server';
 import AdminProviders from './AdminProviders';
 
 export const metadata = {
-  title: 'Admin — Nimbus Cardápio',
+  title: 'Adm - Cardápio Nimbus',
   description: 'Painel administrativo do cardápio digital',
 };
 

@@ -127,24 +127,58 @@
   gap: 18px;
 }
 
-.admin-loja-skeleton-cover {
-  width: 100%;
-  aspect-ratio: 5 / 1;
-  min-height: 120px;
-  border-radius: 14px;
+.admin-loja-skeleton-profile {
+  padding: 22px 28px 26px;
 }
 
-.admin-loja-skeleton-row {
-  display: grid;
-  grid-template-columns: 118px 1fr;
-  gap: 18px;
-  align-items: start;
+.admin-loja-skeleton-personalizacao {
+  display: flex;
+  align-items: stretch;
+  gap: 28px;
+}
+
+.admin-loja-skeleton-brand {
+  flex: 0 0 clamp(168px, 22vw, 240px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-loja-skeleton-cover {
+  flex: 1 1 auto;
+  width: auto;
+  max-width: 800px;
+  margin-left: auto;
+  aspect-ratio: 1145 / 366;
+  min-height: 0;
+  border-radius: 14px;
 }
 
 .admin-loja-skeleton-logo {
-  width: 118px;
-  height: 118px;
-  border-radius: 14px;
+  width: min(100%, 180px);
+  aspect-ratio: 1;
+  height: auto;
+  border-radius: 28px;
+}
+
+.admin-loja-skeleton-palette {
+  width: 100%;
+  height: 28px;
+  border-radius: 999px;
+}
+
+.admin-loja-skeleton-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+}
+
+.admin-loja-skeleton-actions .admin-skeleton-block {
+  width: 150px;
+  height: 40px;
+  border-radius: 10px;
 }
 
 .admin-list-skeleton {
@@ -170,8 +204,14 @@
 }
 
 @media (max-width: 720px) {
-  .admin-loja-skeleton-row {
-    grid-template-columns: 1fr;
+  .admin-loja-skeleton-personalizacao {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .admin-loja-skeleton-cover {
+    width: 100%;
+    margin-left: 0;
   }
 }
 
@@ -5944,16 +5984,130 @@
   margin-bottom: 12px;
 }
 
-.admin-store-profile-card {
+.admin-store-personalizacao-card {
+  overflow: visible;
+}
+
+.admin-store-personalizacao-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.admin-store-personalizacao-stage {
+  display: flex;
+  align-items: stretch;
+  gap: 28px;
+  min-width: 0;
+}
+
+.admin-store-personalizacao-brand {
+  flex: 0 0 clamp(168px, 22vw, 240px);
+  width: clamp(168px, 22vw, 240px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+}
+
+.admin-store-personalizacao-brand .admin-store-logo-picker {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-height: 0;
   padding: 0;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.admin-store-logo-frame {
+  position: relative;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 118px;
+  border: none;
+  box-shadow: none;
+  background: transparent;
   overflow: hidden;
-  margin-bottom: 14px;
+}
+
+.admin-store-logo-frame-inner {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 28px;
+  overflow: hidden;
+  background: #f8fafc;
+  border: 1px solid #cfd4dd;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.1);
+}
+
+.admin-store-logo-frame-inner img,
+.admin-store-logo-frame-inner .admin-img-placeholder {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  object-fit: cover;
+  display: block;
+}
+
+.admin-store-logo-label {
+  color: var(--admin-brand);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  flex: 0 0 auto;
+}
+
+.admin-store-logo-palette {
+  flex: 0 0 auto;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: auto;
+}
+
+.admin-store-personalizacao-brand .admin-palette-picker {
+  width: 100%;
+  align-items: center;
+}
+
+.admin-store-personalizacao-brand .admin-palette-hint {
+  text-align: center;
+  margin-top: 8px;
+  margin-bottom: 0;
 }
 
 .admin-store-cover-preview {
-  width: 100%;
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+  max-width: 800px;
+  margin-left: auto;
   aspect-ratio: 1145 / 366;
-  min-height: 0;
+  height: auto;
+  border-radius: 14px;
+  overflow: hidden;
   background: linear-gradient(135deg, #eef1f5, #dce2eb);
   background-size: cover;
   background-position: center;
@@ -5963,6 +6117,17 @@
   justify-content: center;
   color: var(--admin-text-light);
   font-weight: 700;
+}
+
+.admin-store-cover-preview.is-loading::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #eef0f4 0%, #f7f8fa 45%, #eef0f4 100%);
+  background-size: 200% 100%;
+  animation: admin-skeleton-shimmer 1.35s ease-in-out infinite;
 }
 
 .admin-store-cover-preview::after {
@@ -5979,8 +6144,8 @@
 
 .admin-store-cover-actions {
   position: absolute;
-  right: 18px;
-  bottom: 18px;
+  right: 12px;
+  bottom: 12px;
   z-index: 6;
   display: flex;
   flex-wrap: wrap;
@@ -5990,22 +6155,62 @@
 
 .admin-store-cover-edit {
   position: static;
+  width: 40px;
+  height: 40px;
+  padding: 0;
   border-radius: 10px;
   border: 1px solid #cfd4dd;
   background: #fff;
   color: var(--admin-brand);
-  padding: 9px 13px;
-  font-size: 13px;
-  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition:
     background 0.15s,
-    color 0.15s;
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.admin-store-cover-edit i {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.admin-store-cover-icon-combo {
+  position: relative;
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-store-cover-icon-combo .ph-image {
+  font-size: 17px;
+  line-height: 1;
+}
+
+.admin-store-cover-icon-combo .ph-plus {
+  position: absolute;
+  right: -5px;
+  bottom: -4px;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 700;
+  background: #fff;
+  border-radius: 999px;
+  color: inherit;
 }
 
 .admin-store-cover-edit:hover {
   background: var(--admin-brand);
+  border-color: var(--admin-brand);
   color: #fff;
+}
+
+.admin-store-cover-edit:hover .admin-store-cover-icon-combo .ph-plus {
+  background: var(--admin-brand);
 }
 
 .admin-store-cover-edit input,
@@ -6017,48 +6222,55 @@
   display: none;
 }
 
-.admin-store-logo-area {
-  margin-top: -72px;
-  position: relative;
-  z-index: 4;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 0 24px 20px;
-  width: max-content;
-  margin-left: auto;
-  margin-right: auto;
+.admin-store-personalizacao-row > .admin-store-cover-hint {
+  max-width: 800px;
+  width: 100%;
+  margin: 0 0 0 auto;
+  text-align: right;
+  align-self: flex-end;
 }
 
-.admin-store-logo-picker {
-  width: 148px;
-  min-height: 178px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 9px;
-  cursor: pointer;
-  border: none;
-  background: transparent;
-  font-family: inherit;
-}
+@media (max-width: 900px) {
+  .admin-store-personalizacao-stage {
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
 
-.admin-store-logo-picker img,
-.admin-store-logo-picker .admin-img-placeholder {
-  width: 148px !important;
-  height: 148px !important;
-  border-radius: 34px;
-  background: #f8fafc;
-  object-fit: cover;
-  border: 1px solid #cfd4dd;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
-}
+  .admin-store-personalizacao-brand {
+    flex: 0 0 auto;
+    width: min(100%, 220px);
+  }
 
-.admin-store-logo-picker span {
-  color: var(--admin-brand);
-  font-size: 13px;
-  font-weight: 700;
+  .admin-store-logo-frame {
+    flex: 0 0 auto;
+    min-height: 0;
+    height: auto;
+    position: static;
+    overflow: visible;
+  }
+
+  .admin-store-logo-frame-inner {
+    position: static;
+    transform: none;
+    width: min(100%, 180px);
+    height: auto;
+    margin: 0 auto;
+    display: block;
+  }
+
+  .admin-store-cover-preview {
+    width: 100%;
+    flex: 0 0 auto;
+    margin-left: 0;
+    max-width: none;
+  }
+
+  .admin-store-personalizacao-row > .admin-store-cover-hint {
+    text-align: center;
+    margin-left: 0;
+    max-width: none;
+  }
 }
 
 .admin-store-status-chip {
@@ -6619,17 +6831,6 @@
 .admin-client-name {
   font-weight: 500;
   color: #1e293b;
-}
-
-.admin-store-cover-block {
-  display: flex;
-  flex-direction: column;
-}
-
-.admin-store-cover-footer {
-  display: flex;
-  justify-content: flex-end;
-  padding: 8px 18px 0;
 }
 
 .admin-store-cover-hint {
@@ -7659,7 +7860,7 @@
 .admin-select-link,
 .admin-picker-check,
 .admin-store-cover-edit,
-.admin-store-logo-picker span,
+.admin-store-logo-label,
 .admin-store-status-chip,
 .admin-order-coupon-add,
 .admin-order-coupon-option span,
@@ -12270,27 +12471,40 @@ textarea.admin-input::placeholder {
     min-height: 48px;
   }
 
+  .admin-shell-mobile .admin-store-personalizacao-stage {
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .admin-shell-mobile .admin-store-personalizacao-brand {
+    width: min(100%, 220px);
+  }
+
   .admin-shell-mobile .admin-store-cover-preview {
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
     min-height: 0;
   }
 
+  .admin-shell-mobile .admin-store-personalizacao-row > .admin-store-cover-hint {
+    text-align: center;
+    margin-left: 0;
+    max-width: none;
+  }
+
   .admin-shell-mobile .admin-store-cover-actions {
-    left: 12px;
+    left: auto;
     right: 12px;
     bottom: 12px;
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: center;
   }
 
   .admin-shell-mobile .admin-store-cover-edit {
-    width: 100%;
+    width: 44px;
     min-height: 44px;
-  }
-
-  .admin-shell-mobile .admin-store-logo-area {
-    margin-top: -36px;
-    width: 100%;
-    padding: 0 16px 16px;
   }
 
   .admin-shell-mobile .admin-store-section-card {
