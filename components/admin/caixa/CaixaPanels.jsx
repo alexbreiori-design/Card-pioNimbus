@@ -6,6 +6,8 @@ import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import { formatMoneyBrInput, parseMoneyBrInput } from '@/lib/moneyMask';
 import { useCaixa } from '@/hooks/useCaixa';
 import { useAdminOrders } from '@/hooks/useAdminOrders';
+import { useOrderPrint } from '@/context/OrderPrintContext';
+import { roundMoney } from '@/lib/caixa/caixaUtils';
 
 function formatTurnoTime(iso) {
   if (!iso) return '--:--';
@@ -152,6 +154,7 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
     error,
   } = useCaixa();
   const { orders, refreshOrders } = useAdminOrders();
+  const { printCaixaSummary } = useOrderPrint();
 
   const openKanbanOrders = useMemo(
     () =>
@@ -272,9 +275,34 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
     }
   }
 
+  function handlePrintResumo() {
+    if (!summary) return;
+    const contado =
+      closeStep === 2 && valorContado.trim()
+        ? parseMoneyBrInput(valorContado)
+        : null;
+    const esperado = Number(summary.esperadoDinheiro || 0);
+    const extras =
+      contado != null
+        ? {
+            valorContado: contado,
+            esperadoDinheiro: esperado,
+            diferenca: roundMoney(contado - esperado),
+            observacao: observacao.trim() || '',
+          }
+        : {
+            esperadoDinheiro: esperado,
+            observacao: observacao.trim() || '',
+          };
+
+    printCaixaSummary({ summary, turno, extras });
+  }
+
   if (!open) return null;
 
-  const pagamentos = summary?.pagamentos || [];
+  const pagamentos = (summary?.pagamentos || []).filter((row) => Number(row.valor) > 0);
+  const tipos = (summary?.tipos || []).filter((row) => Number(row.pedidos) > 0);
+  const entregadores = (summary?.entregadores || []).filter((row) => Number(row.pedidos) > 0);
 
   return (
     <>
@@ -458,11 +486,35 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
                     <strong>{formatCurrency(summary?.esperadoDinheiro || 0)}</strong>
                   </div>
                 </div>
+                {tipos.length ? (
+                  <ul className="admin-caixa-payment-list">
+                    {tipos.map((row) => (
+                      <li key={row.codigo}>
+                        <span>
+                          {row.label} ({row.pedidos})
+                        </span>
+                        <strong>{formatCurrency(row.valor)}</strong>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
                 {pagamentos.length ? (
                   <ul className="admin-caixa-payment-list">
                     {pagamentos.map((row) => (
                       <li key={row.codigo}>
                         <span>{row.label}</span>
+                        <strong>{formatCurrency(row.valor)}</strong>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {entregadores.length ? (
+                  <ul className="admin-caixa-payment-list">
+                    {entregadores.map((row) => (
+                      <li key={row.id || row.nome}>
+                        <span>
+                          {row.nome} · {row.pedidos} entrega{row.pedidos === 1 ? '' : 's'}
+                        </span>
                         <strong>{formatCurrency(row.valor)}</strong>
                       </li>
                     ))}
@@ -493,12 +545,27 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
                 </label>
               </>
             )}
-            <CaixaFormActions
-              showBack
-              onBack={() => (closeStep === 2 ? setCloseStep(1) : setView('menu'))}
-              busy={busy}
-              submitLabel={busy ? 'Fechando…' : closeStep === 1 ? 'Continuar' : 'Fechar caixa'}
-            />
+            <div className="admin-confirm-actions admin-caixa-close-actions">
+              <button
+                type="button"
+                className="admin-btn admin-btn-ghost"
+                onClick={() => (closeStep === 2 ? setCloseStep(1) : setView('menu'))}
+                disabled={busy}
+              >
+                Voltar
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn-ghost"
+                onClick={handlePrintResumo}
+                disabled={busy || !summary}
+              >
+                Imprimir resumo
+              </button>
+              <button type="submit" className="admin-btn admin-btn-primary" disabled={busy}>
+                {busy ? 'Fechando…' : closeStep === 1 ? 'Continuar' : 'Fechar caixa'}
+              </button>
+            </div>
           </form>
         ) : null}
 

@@ -35,8 +35,11 @@ import {
   getOrderTicketWidthMm,
   ORDER_TICKET_WIDTH_OPTIONS,
   ORDER_PRINT_ON_PREP_OPTIONS,
+  ORDER_PRINT_ON_NEW_OPTIONS,
   getOrderPrintOnPrepMode,
   setOrderPrintOnPrepMode,
+  getOrderPrintOnNewMode,
+  setOrderPrintOnNewMode,
   setOrderTicketWidthMm,
 } from '@/lib/orderTicketPrefs';
 import OrderTicketPreviewModal from '@/components/admin/orders/OrderTicketPreviewModal';
@@ -137,6 +140,7 @@ export default function MinhaLojaPage() {
   const [coverAdjustIsNew, setCoverAdjustIsNew] = useState(false);
   const [ticketWidthMm, setTicketWidthMm] = useState(80);
   const [printOnPrepMode, setPrintOnPrepMode] = useState('ask');
+  const [printOnNewMode, setPrintOnNewMode] = useState('off');
   const [ticketPreviewOpen, setTicketPreviewOpen] = useState(false);
   const [superAdmin, setSuperAdmin] = useState(false);
   const segmentBeforeModeloRef = useRef('restaurante');
@@ -144,6 +148,7 @@ export default function MinhaLojaPage() {
   useEffect(() => {
     setTicketWidthMm(getOrderTicketWidthMm());
     setPrintOnPrepMode(getOrderPrintOnPrepMode());
+    setPrintOnNewMode(getOrderPrintOnNewMode());
   }, []);
 
   useEffect(() => {
@@ -720,6 +725,32 @@ export default function MinhaLojaPage() {
                 </label>
               ))}
             </div>
+          </div>
+
+          <div className="admin-ticket-print-field">
+            <span className="admin-label">Ao chegar em Novos</span>
+            <div className="admin-ticket-width-options">
+              {ORDER_PRINT_ON_NEW_OPTIONS.map((opt) => (
+                <label key={opt.value} className="admin-ticket-width-option">
+                  <input
+                    type="radio"
+                    name="printOnNewMode"
+                    value={opt.value}
+                    checked={printOnNewMode === opt.value}
+                    onChange={() => {
+                      setPrintOnNewMode(opt.value);
+                      setOrderPrintOnNewMode(opt.value);
+                    }}
+                  />
+                  <span>{opt.label}</span>
+                </label>
+              ))}
+            </div>
+            <p className="admin-help-text" style={{ marginTop: 8 }}>
+              Com a opção automática, a comanda sai assim que o pedido entra no Kanban (admin
+              aberto neste PC). Sem o atalho da cozinha (--kiosk-printing), o Windows ainda
+              mostra o diálogo de impressão.
+            </p>
           </div>
 
           <div className="admin-ticket-print-field">

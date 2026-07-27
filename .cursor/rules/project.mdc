@@ -1,0 +1,39 @@
+---
+description: Preferências gerais do Cardápio Nimbus — sempre aplicar
+alwaysApply: true
+---
+
+# Projeto Cardápio Nimbus
+
+## Idioma e escopo
+- Responder ao usuário em **português (Brasil)**.
+- Nomes de arquivos, módulos e identificadores de código: seguir o padrão do repo (**inglês**).
+- Copy de UI: **português**.
+- Preferir precisão a completude; não inventar processos — marcar incerteza como **TODO / confirmar**.
+- Antes de APIs Next novas: ler `node_modules/next/dist/docs/` (este Next ≠ o da memória de treino).
+
+## Contexto obrigatório
+- Ler `AGENTS.md` na raiz; detalhes em `docs/architecture.md` e `docs/decisions.md`.
+- Multi-tenant por `empresas.slug` / `empresa_id`.
+- Não apontar Preview/local para Supabase de **produção**.
+
+## O que NÃO fazer sem pedido explícito
+- Commit, push, PR ou merge (exceto se o usuário pedir ou usar `ship prev` / `ship prod`).
+- Migrations / schema em produção.
+- Alterar secrets, webhooks, `PAYMENTS_ENC_KEY`, OAuth.
+- Refactors amplos ou arquivos fora do pedido.
+- Remover o bloco Next.js no topo de `AGENTS.md`.
+
+## Deploy
+- **`ship prev`**: commit + PR + merge só em `staging`.
+- **`ship prod`**: se necessário, prev primeiro; depois merge em `main`.
+- Sem isso: **não** fazer deploy completo.
+
+## Estilo de mudança
+- Diff mínimo; reutilizar padrões de pastas vizinhas (`components/admin`, `lib/…`, CSS em `styles/`).
+- Não criar docs/markdown extras a menos que o usuário peça.
+- Sem script `test` no repo hoje — validar com `npm run lint` e, se couber, `npm run build`.
+
+## Exemplos
+- Fazer: ajustar um componente em `components/admin/pedidos/` e o CSS correspondente.
+- Evitar: “aproveitar” e renomear metade do admin ou migrar tudo para TypeScript.

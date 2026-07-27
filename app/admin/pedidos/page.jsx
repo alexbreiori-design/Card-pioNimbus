@@ -28,7 +28,7 @@ import { useAdminOrders } from '@/hooks/useAdminOrders';
 import { useOrderPrint } from '@/context/OrderPrintContext';
 import OrderPrintPrepDialog from '@/components/admin/orders/OrderPrintPrepDialog';
 import OrderDeadlineDemoEdit from '@/components/admin/orders/OrderDeadlineDemoEdit';
-import { getOrderPrintOnPrepMode } from '@/lib/orderTicketPrefs';
+import { getOrderPrintOnPrepMode, isOrderPrintOnNewEnabled } from '@/lib/orderTicketPrefs';
 import { paymentStatusBadgeForOrder } from '@/lib/orders/mapAdminOrder';
 import { ensureCustomer, normalizePhone, updateCustomerStats, upsertClienteEndereco } from '@/lib/supabase/customers';
 import { resolveEmpresaIdFromStore } from '@/lib/supabase/empresa';
@@ -508,7 +508,8 @@ export default function PedidosPage() {
     setModalInitialDraft(null);
     setEditingOrder(null);
     toast.success(`Pedido #${newOrder.id} criado com sucesso.`);
-    if (printNow) printOrder(newOrder);
+    // Com auto-print em Novos, o refresh já dispara a comanda — evita impressão dupla.
+    if (printNow && !isOrderPrintOnNewEnabled()) printOrder(newOrder);
   }
 
   const detailOrder = allOrders.find((o) => o.id === detailOrderId);
