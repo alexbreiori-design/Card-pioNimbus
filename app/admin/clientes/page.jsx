@@ -39,6 +39,48 @@ function fmtPhone(v) {
   return formatMobilePhoneBr(v);
 }
 
+function fmtDateBr(iso) {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleDateString('pt-BR');
+  } catch {
+    return '—';
+  }
+}
+
+const INACTIVE_DAYS = 60;
+
+function getCustomerStatus(customer) {
+  const orders = Number(customer?.total_orders || 0);
+  const lastAt = customer?.last_order_at ? new Date(customer.last_order_at).getTime() : 0;
+  const cutoff = Date.now() - INACTIVE_DAYS * 24 * 60 * 60 * 1000;
+
+  if (!lastAt || lastAt < cutoff) {
+    return { key: 'inativo', label: 'Inativo' };
+  }
+  if (orders >= 3) {
+    return { key: 'recorrente', label: 'Recorrente' };
+  }
+  if (orders <= 1) {
+    return { key: 'novo', label: 'Novo' };
+  }
+  return { key: 'ativo', label: 'Ativo' };
+}
+
+function customerWhatsAppUrl(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (digits.length < 10) return null;
+  const withCountry = digits.startsWith('55') ? digits : `55${digits}`;
+  return `https://wa.me/${withCountry}`;
+}
+
+const STATUS_FILTERS = [
+  { key: 'todos', label: 'Todos' },
+  { key: 'inativo', label: 'Inativos' },
+  { key: 'recorrente', label: 'Recorrentes' },
+  { key: 'novo', label: 'Novos' },
+];
+
 function mapLocalPedido(pedido) {
   return {
     id: pedido.id,
@@ -153,6 +195,7 @@ export default function ClientesPage() {
   const [addressesBaseline, setAddressesBaseline] = useState('');
   const toast = useAdminToast();
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('todos');
   const [selectedOrderId, setSelectedOrderId] = useState('');
 
   const isNewDirty = useMemo(
@@ -215,14 +258,17 @@ export default function ClientesPage() {
 
   const filteredCustomers = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return customers;
-    return customers.filter(
-      (c) =>
+    return customers.filter((c) => {
+      const status = getCustomerStatus(c);
+      if (statusFilter !== 'todos' && status.key !== statusFilter) return false;
+      if (!q) return true;
+      return (
         String(c.name || '').toLowerCase().includes(q) ||
         fmtPhone(c.phone).includes(q) ||
         String(c.phone || '').replace(/\D/g, '').includes(q.replace(/\D/g, ''))
-    );
-  }, [customers, searchQuery]);
+      );
+    });
+  }, [customers, searchQuery, statusFilter]);
 
   const selectedOrder = useMemo(
     () => adminOrders.find((p) => String(p.id) === String(selectedOrderId)),
@@ -475,10 +521,10 @@ export default function ClientesPage() {
 
   return (
     <div className="admin-content admin-content-pedidos admin-catalog-page admin-section-page admin-clientes-page admin-compact-card-page">
-      <AdminPageHeader
-        title="Clientes"
-        icon="customers"
-        actions={
+      <AdminPageHeader title="Clientes" icon="customers" />
+
+      <div className="admin-clientes-toolbar">
+        <div className="admin-clientes-toolbar-main">
           <button
             type="button"
             className="admin-btn admin-btn-primary"
@@ -489,70 +535,159 @@ export default function ClientesPage() {
           >
             + Novo cliente
           </button>
-        }
-      />
-
-      <div className="admin-pedidos-search-row">
-        <div className="admin-pedidos-search-wrap">
-          <AdminIcon name="search" />
-          <input
-            className="admin-input admin-pedidos-search"
-            placeholder="Buscar por nome ou telefone"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+          <div className="admin-pedidos-search-wrap">
+            <AdminIcon name="search" />
+            <input
+              className="admin-input admin-pedidos-search"
+              placeholder="Buscar por nome ou telefone"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="admin-clientes-status-filters" role="tablist" aria-label="Filtrar por status">
+          {STATUS_FILTERS.map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              role="tab"
+              aria-selected={statusFilter === opt.key}
+              className={`admin-clientes-filter-chip${statusFilter === opt.key ? ' is-active' : ''}`}
+              onClick={() => setStatusFilter(opt.key)}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="admin-card admin-compact-page-card admin-clientes-list-card">
+      <div className="admin-card admin-clientes-list-card">
         {loading ? (
           <div className="admin-order-meta">Carregando clientes...</div>
         ) : filteredCustomers.length === 0 ? (
           <div className="admin-order-meta">Nenhum cliente encontrado.</div>
         ) : (
-          <div className="admin-sparse-list">
-            {filteredCustomers.map((c) => (
-              <div key={c.id} className="admin-sparse-row admin-sparse-row-client admin-crud-list-row">
-                <div className="admin-sparse-row-main admin-sparse-row-main-stack">
-                  <span className="admin-sparse-row-code">{c.name}</span>
-                  <span className="admin-sparse-row-detail">{fmtPhone(c.phone)}</span>
-                  <div className="admin-sparse-row-sub">
-                    {c.total_orders || 0} pedidos · {money(c.total_spent)} · Último:{' '}
-                    {c.last_order_at ? new Date(c.last_order_at).toLocaleDateString('pt-BR') : '—'}
-                  </div>
-                </div>
-                <div className="admin-sparse-row-actions admin-item-actions-col">
-                  <button
-                    type="button"
-                    className="admin-link-btn"
-                    onClick={() => {
-                      openCustomerDetail(c);
-                      setTab('dados');
-                    }}
-                  >
-                    Ver detalhes
-                  </button>
-                  <button
-                    type="button"
-                    className="admin-link-btn"
-                    onClick={() => {
-                      openCustomerDetail(c);
-                      setTab('dados');
-                    }}
-                  >
-                    Editar
-                  </button>
-                  <button
-                    type="button"
-                    className="admin-link-btn admin-link-btn-danger"
-                    onClick={() => handleDeleteCustomer(c.id)}
-                  >
-                    Excluir
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <>
+            <div className="admin-clientes-table-wrap">
+              <table className="admin-clientes-table">
+                <thead>
+                  <tr>
+                    <th>Cliente</th>
+                    <th>Telefone</th>
+                    <th>Pedidos</th>
+                    <th>Total gasto</th>
+                    <th>Último pedido</th>
+                    <th>Status</th>
+                    <th className="admin-clientes-table-actions-col">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCustomers.map((c) => {
+                    const status = getCustomerStatus(c);
+                    const waUrl = customerWhatsAppUrl(c.phone);
+                    return (
+                      <tr key={c.id}>
+                        <td>
+                          <span className="admin-clientes-table-name">{c.name || '—'}</span>
+                        </td>
+                        <td>{fmtPhone(c.phone) || '—'}</td>
+                        <td>{c.total_orders || 0}</td>
+                        <td>{money(c.total_spent)}</td>
+                        <td>{fmtDateBr(c.last_order_at)}</td>
+                        <td>
+                          <span className={`admin-clientes-status-chip is-${status.key}`}>
+                            {status.label}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="admin-clientes-row-actions">
+                            <button
+                              type="button"
+                              className="admin-btn admin-btn-ghost admin-btn-sm"
+                              onClick={() => openCustomerDetail(c)}
+                            >
+                              Abrir
+                            </button>
+                            {waUrl ? (
+                              <a
+                                className="admin-btn admin-btn-whatsapp-sm"
+                                href={waUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                WhatsApp
+                              </a>
+                            ) : (
+                              <button type="button" className="admin-btn admin-btn-whatsapp-sm" disabled>
+                                WhatsApp
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="admin-btn admin-btn-ghost admin-btn-sm admin-clientes-action-danger"
+                              onClick={() => handleDeleteCustomer(c.id)}
+                            >
+                              Excluir
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <ul className="admin-clientes-mobile-list">
+              {filteredCustomers.map((c) => {
+                const status = getCustomerStatus(c);
+                const waUrl = customerWhatsAppUrl(c.phone);
+                return (
+                  <li key={c.id} className="admin-clientes-mobile-item">
+                    <div className="admin-clientes-mobile-top">
+                      <span className="admin-clientes-table-name">{c.name || '—'}</span>
+                      <span className={`admin-clientes-status-chip is-${status.key}`}>
+                        {status.label}
+                      </span>
+                    </div>
+                    <div className="admin-clientes-mobile-meta">
+                      <span>{fmtPhone(c.phone) || '—'}</span>
+                      <span>
+                        {c.total_orders || 0} pedidos · {money(c.total_spent)}
+                      </span>
+                      <span>Último: {fmtDateBr(c.last_order_at)}</span>
+                    </div>
+                    <div className="admin-clientes-row-actions">
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn-ghost admin-btn-sm"
+                        onClick={() => openCustomerDetail(c)}
+                      >
+                        Abrir
+                      </button>
+                      {waUrl ? (
+                        <a
+                          className="admin-btn admin-btn-whatsapp-sm"
+                          href={waUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          WhatsApp
+                        </a>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn-ghost admin-btn-sm admin-clientes-action-danger"
+                        onClick={() => handleDeleteCustomer(c.id)}
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
         )}
       </div>
 

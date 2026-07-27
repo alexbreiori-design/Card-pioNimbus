@@ -303,6 +303,9 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
   const pagamentos = (summary?.pagamentos || []).filter((row) => Number(row.valor) > 0);
   const tipos = (summary?.tipos || []).filter((row) => Number(row.pedidos) > 0);
   const entregadores = (summary?.entregadores || []).filter((row) => Number(row.pedidos) > 0);
+  const sangriasTotal = Number(summary?.sangrias || 0);
+  const suprimentosTotal = Number(summary?.suprimentos || 0);
+  const showMovimentos = sangriasTotal > 0 || suprimentosTotal > 0;
 
   return (
     <>
@@ -524,6 +527,35 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
                           </strong>
                         </div>
                       ))}
+                    </div>
+                  </section>
+                ) : null}
+
+                {showMovimentos ? (
+                  <section className="admin-caixa-summary-section admin-caixa-summary-section--mov">
+                    <h4 className="admin-caixa-summary-section-title">
+                      <span className="admin-caixa-summary-section-dot" aria-hidden="true" />
+                      Movimentos
+                    </h4>
+                    <div className="admin-caixa-summary-tiles">
+                      {sangriasTotal > 0 ? (
+                        <div className="admin-caixa-summary-tile admin-caixa-summary-tile--sangria">
+                          <span className="admin-caixa-summary-tile-label">Sangrias</span>
+                          <strong className="admin-caixa-summary-tile-value">
+                            −{formatCurrency(sangriasTotal)}
+                          </strong>
+                          <span className="admin-caixa-summary-tile-meta">Saída da gaveta</span>
+                        </div>
+                      ) : null}
+                      {suprimentosTotal > 0 ? (
+                        <div className="admin-caixa-summary-tile admin-caixa-summary-tile--suprimento">
+                          <span className="admin-caixa-summary-tile-label">Suprimentos</span>
+                          <strong className="admin-caixa-summary-tile-value">
+                            {formatCurrency(suprimentosTotal)}
+                          </strong>
+                          <span className="admin-caixa-summary-tile-meta">Entrada na gaveta</span>
+                        </div>
+                      ) : null}
                     </div>
                   </section>
                 ) : null}
