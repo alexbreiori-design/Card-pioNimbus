@@ -1,34 +1,82 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import OrderTicket from '@/components/admin/orders/OrderTicket';
+import CaixaCloseTicket from '@/components/admin/caixa/CaixaCloseTicket';
 import { useAdminData } from '@/hooks/useAdminData';
-import { getOrderTicketWidthMm } from '@/lib/orderTicketPrefs';
+import {
+  AUTO_PRINT_NEW_ORDER_EVENT,
+  getOrderTicketWidthMm,
+  isOrderPrintOnNewEnabled,
+} from '@/lib/orderTicketPrefs';
 
-const OrderPrintContext = createContext({ printOrder: () => {} });
+const OrderPrintContext = createContext({
+  printOrder: () => {},
+  printCaixaSummary: () => {},
+});
 
 export function useOrderPrint() {
   return useContext(OrderPrintContext);
 }
 
+function buildJob(entry) {
+  return {
+    ...entry,
+    widthMm: getOrderTicketWidthMm(),
+  };
+}
+
 export function OrderPrintProvider({ children }) {
   const { data } = useAdminData();
   const [printJob, setPrintJob] = useState(null);
-  const [portalReady, setPortalReady] = useState(false);
+  const [portalReady] = useState(() => typeof document !== 'undefined');
+  const queueRef = useRef([]);
+  const printJobRef = useRef(null);
 
   useEffect(() => {
-    setPortalReady(typeof document !== 'undefined');
+    printJobRef.current = printJob;
+  }, [printJob]);
+
+  const pumpQueue = useCallback(() => {
+    if (printJobRef.current) return;
+    const next = queueRef.current.shift();
+    if (!next) return;
+    setPrintJob(buildJob(next));
   }, []);
 
-  const printOrder = useCallback((order, storeOverride = null) => {
-    if (!order) return;
-    setPrintJob({
-      order,
-      widthMm: getOrderTicketWidthMm(),
-      storeOverride,
-    });
-  }, []);
+  const printOrder = useCallback(
+    (order, storeOverride = null) => {
+      if (!order) return;
+      queueRef.current.push({ kind: 'order', order, storeOverride });
+      pumpQueue();
+    },
+    [pumpQueue]
+  );
+
+  const printCaixaSummary = useCallback(
+    ({ summary, turno = null, extras = null, storeOverride = null } = {}) => {
+      if (!summary) return;
+      queueRef.current.push({ kind: 'caixa', summary, turno, extras, storeOverride });
+      pumpQueue();
+    },
+    [pumpQueue]
+  );
+
+  useEffect(() => {
+    if (printJob) return;
+    pumpQueue();
+  }, [printJob, pumpQueue]);
+
+  useEffect(() => {
+    const onAutoPrint = (event) => {
+      if (!isOrderPrintOnNewEnabled()) return;
+      const order = event?.detail?.order;
+      if (order) printOrder(order);
+    };
+    window.addEventListener(AUTO_PRINT_NEW_ORDER_EVENT, onAutoPrint);
+    return () => window.removeEventListener(AUTO_PRINT_NEW_ORDER_EVENT, onAutoPrint);
+  }, [printOrder]);
 
   useEffect(() => {
     if (!printJob) return;
@@ -68,20 +116,29 @@ export function OrderPrintProvider({ children }) {
     };
   }, [printJob]);
 
-  const ticketPortal =
-    portalReady && printJob
-      ? createPortal(
-          <OrderTicket
-            order={printJob.order}
-            store={printJob.storeOverride || data.loja}
-            widthMm={printJob.widthMm}
-          />,
-          document.body
-        )
-      : null;
+  const store = printJob?.storeOverride || data.loja;
+
+  let ticketPortal = null;
+  if (portalReady && printJob?.kind === 'order') {
+    ticketPortal = createPortal(
+      <OrderTicket order={printJob.order} store={store} widthMm={printJob.widthMm} />,
+      document.body
+    );
+  } else if (portalReady && printJob?.kind === 'caixa') {
+    ticketPortal = createPortal(
+      <CaixaCloseTicket
+        store={store}
+        turno={printJob.turno}
+        summary={printJob.summary}
+        extras={printJob.extras}
+        widthMm={printJob.widthMm}
+      />,
+      document.body
+    );
+  }
 
   return (
-    <OrderPrintContext.Provider value={{ printOrder }}>
+    <OrderPrintContext.Provider value={{ printOrder, printCaixaSummary }}>
       {children}
       {ticketPortal}
     </OrderPrintContext.Provider>

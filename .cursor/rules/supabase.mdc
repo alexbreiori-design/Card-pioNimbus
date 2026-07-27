@@ -1,0 +1,24 @@
+---
+description: Schema Supabase, migrations e clientes
+globs:
+  - supabase/**/*
+  - lib/supabase/**/*
+---
+
+# Supabase
+
+## Fazer
+- Alterações de schema via arquivos em `supabase/migrations/` (não só SQL ad hoc em prod).
+- Manter RLS em mente: client anon não bypassa policies.
+- Service role só em código de servidor consciente do risco.
+- Preferir projeto **staging** em local/preview (ver `STAGING.md`).
+- Consultar `supabase/README.md` e `schema.sql` antes de inventar tabelas.
+
+## Evitar
+- Aplicar migration em produção sem pedido explícito.
+- Apontar `.env.local` / Preview para Supabase de produção.
+- Desabilitar RLS “para facilitar”.
+
+## Exemplos
+- Fazer: nova migration numerada/timestamp alinhada às existentes.
+- Evitar: `UPDATE` direto em prod via MCP/SQL sem o usuário pedir.

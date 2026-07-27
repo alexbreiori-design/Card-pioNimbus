@@ -23,6 +23,10 @@ import {
 } from '@/lib/orders/adminOrdersClient';
 import { maxOrdersUpdatedAt } from '@/lib/orders/mapAdminOrder';
 import { notifyNewOrder, playNewOrderSound } from '@/lib/adminNewOrderAlert';
+import {
+  AUTO_PRINT_NEW_ORDER_EVENT,
+  isOrderPrintOnNewEnabled,
+} from '@/lib/orderTicketPrefs';
 
 const POLL_MS = 10000;
 
@@ -84,6 +88,11 @@ export function AdminOrdersProvider({ children }) {
             knownNovosRef.current.add(order.id);
             playNewOrderSound();
             notifyNewOrder(order);
+            if (isOrderPrintOnNewEnabled() && typeof window !== 'undefined') {
+              window.dispatchEvent(
+                new CustomEvent(AUTO_PRINT_NEW_ORDER_EVENT, { detail: { order } })
+              );
+            }
           }
         }
 

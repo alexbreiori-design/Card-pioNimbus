@@ -1,0 +1,33 @@
+---
+description: Route Handlers e APIs — segurança e multi-tenant
+globs:
+  - app/api/**/*.{js,jsx}
+  - lib/orders/**/*.js
+  - lib/payments/**/*.js
+  - lib/delivery/**/*.js
+  - lib/superAdmin/**/*.js
+---
+
+# APIs e lib de servidor
+
+## Fazer
+- Validar autenticação/autorização (membro da empresa ou super-admin) antes de mutações.
+- Escopar queries por `empresa_id` / slug da loja.
+- Segredos e chaves de terceiros **somente** no servidor (env).
+- Respostas de erro previsíveis (status HTTP + mensagem segura para o client).
+- Webhooks: verificar assinatura/provedor; idempotência quando o padrão local já fizer isso.
+
+## Evitar
+- Expor `SUPABASE_SERVICE_ROLE_KEY` ou payloads com PII demais em logs.
+- Aceitar `empresa_id` do body sem checar se o usuário pertence à loja.
+- Quebrar contratos de webhook/pagamento sem migração e confirmação.
+
+## Pagamentos (quando tocar `lib/payments` / `app/api/pagamentos`)
+- Rotas públicas de pagamento ficam em `app/api/pagamentos/**` (não `app/api/payments`).
+- Uma loja tem **no máximo um** provedor ativo; ver `docs/payments.md` e ADR-009.
+- Não logar PAN/CVV; tokenização de cartão fica no client do provedor (Brick / `encryptCard`).
+- UI de Order ID / hints de sandbox só com `sandbox === true`.
+
+## Exemplos
+- Fazer: proxy de geocode em `app/api/geocode/**` com rate limit / validação de input.
+- Evitar: endpoint público que atualiza pedido por id sem token/sessão.
