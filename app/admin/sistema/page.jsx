@@ -1,7 +1,7 @@
 import SistemaWorkspace from '@/components/admin/super-admin/SistemaWorkspace';
 
 export const metadata = {
-  title: 'Sistema — Nimbus',
+  title: 'Super - Cardápio Nimbus',
   description: 'Super-admin Nimbus — lojas e provisionamento',
 };
 
