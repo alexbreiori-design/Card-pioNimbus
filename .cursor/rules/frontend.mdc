@@ -1,0 +1,29 @@
+---
+description: UI Next.js — App Router, admin e cardápio
+globs:
+  - app/**/*.{js,jsx}
+  - components/**/*.{js,jsx}
+  - context/**/*.{js,jsx}
+  - hooks/**/*.{js,jsx}
+  - styles/**/*.css
+---
+
+# Frontend (App Router)
+
+## Fazer
+- Server vs Client Components: `"use client"` só quando precisar de estado/efeitos/browser APIs.
+- Preferir `@/` para imports.
+- Admin: seguir padrões em `components/admin/**` e `styles/admin.css`.
+- Cardápio: respeitar v1 (`components/cardapio`) vs v2 (`components/cardapio-v2`); não misturar sem feature flag.
+- Manter acessibilidade básica (labels, botões reais, foco em modais).
+- Textos de interface em pt-BR.
+
+## Evitar
+- Assumir APIs de Next 13/14 sem checar docs locais.
+- Cards/layout genéricos de “AI landing” em telas de produto existentes — preservar visual atual.
+- Chamar LocationIQ / OpenRouteService / service role no client.
+- `useMemo`/`useCallback` por padrão (não é padrão obrigatório do repo).
+
+## Exemplos
+- Fazer: novo campo no checkout espelhando estilo de `components/cardapio/Checkout.jsx`.
+- Evitar: criar um design system paralelo ou mover lógica de pedido para o browser com service role.

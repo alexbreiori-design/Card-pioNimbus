@@ -13002,6 +13002,15 @@ textarea.admin-input::placeholder {
   margin-top: 4px;
 }
 
+.admin-caixa-close-actions {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-caixa-close-actions .admin-btn-primary {
+  margin-left: auto;
+}
+
 .admin-kanban-wrap.is-caixa-locked {
   position: relative;
 }
