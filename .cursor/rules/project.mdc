@@ -33,6 +33,7 @@ alwaysApply: true
 - Diff mínimo; reutilizar padrões de pastas vizinhas (`components/admin`, `lib/…`, CSS em `styles/`).
 - Não criar docs/markdown extras a menos que o usuário peça.
 - Sem script `test` no repo hoje — validar com `npm run lint` e, se couber, `npm run build`.
+- **Hierarquia visual:** um propósito por bloco; títulos vs valores com pesos distintos; separar tópicos com espaço/divisor — não empilhar tudo numa lista plana. Copy de UI para lojista: sem jargão técnico (flags, comandos, nomes internos de API).
 
 ## Exemplos
 - Fazer: ajustar um componente em `components/admin/pedidos/` e o CSS correspondente.

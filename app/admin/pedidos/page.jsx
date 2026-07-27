@@ -28,7 +28,7 @@ import { useAdminOrders } from '@/hooks/useAdminOrders';
 import { useOrderPrint } from '@/context/OrderPrintContext';
 import OrderPrintPrepDialog from '@/components/admin/orders/OrderPrintPrepDialog';
 import OrderDeadlineDemoEdit from '@/components/admin/orders/OrderDeadlineDemoEdit';
-import { getOrderPrintOnPrepMode, isOrderPrintOnNewEnabled } from '@/lib/orderTicketPrefs';
+import { shouldAutoPrintOnPrep, shouldAskPrintOnPrep, isOrderPrintOnNewEnabled } from '@/lib/orderTicketPrefs';
 import { paymentStatusBadgeForOrder } from '@/lib/orders/mapAdminOrder';
 import { ensureCustomer, normalizePhone, updateCustomerStats, upsertClienteEndereco } from '@/lib/supabase/customers';
 import { resolveEmpresaIdFromStore } from '@/lib/supabase/empresa';
@@ -263,9 +263,9 @@ export default function PedidosPage() {
       toast.success(`Pedido #${order.id} movido para ${STATUS_LABEL[next]}.`);
       if (next === 'em_preparo') {
         const updatedOrder = { ...order, status: next };
-        if (getOrderPrintOnPrepMode() === 'always') {
+        if (shouldAutoPrintOnPrep()) {
           printOrder(updatedOrder);
-        } else {
+        } else if (shouldAskPrintOnPrep()) {
           setPrintPrepOrder(updatedOrder);
           setPrintPrepOpen(true);
         }
