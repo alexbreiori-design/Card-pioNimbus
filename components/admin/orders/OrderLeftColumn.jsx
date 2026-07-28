@@ -1,354 +1,226 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { formatCep } from '@/lib/cep/viacep';
-import { useCepLookup } from '@/hooks/useCepLookup';
-import AddressAutocompleteInput from './AddressAutocompleteInput';
-import MoneyInput from './MoneyInput';
-import OrderTypeTabs from './OrderTypeTabs';
-import PhoneSearchInput from './PhoneSearchInput';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAdminData } from '@/hooks/useAdminData';
-import OrderCouponPicker from './OrderCouponPicker';
+import { resolveEmpresaIdFromStore } from '@/lib/supabase/empresa';
+import OrderTypeTabs from './OrderTypeTabs';
 import OrderCartList from './OrderCartList';
-import { currency, formatDistanceKm, PAYMENT_METHODS } from './orderDraftUtils';
+import OrderAddressModal from './OrderAddressModal';
+import OrderObservationModal from './OrderObservationModal';
+import OrderAdjustmentsModal from './OrderAdjustmentsModal';
+import CustomerNameAutocomplete from './CustomerNameAutocomplete';
+import {
+  clearOrderDraftNameAndAddress,
+  formatAddressSummary,
+  formatAdjustmentsSummary,
+  fmtPhone,
+  hasDeliveryAddress,
+} from './orderDraftUtils';
 import AdminIcon from '@/components/admin/AdminIcon';
 
 export default function OrderLeftColumn({
   draft,
   setDraft,
-  subtotal,
-  entrega,
-  total,
   onSearchCustomer,
+  onSelectCustomer,
   searchingCustomer,
-  deliveryFeeLoading = false,
+  onEditCartItem,
 }) {
   const { data } = useAdminData();
-  const numeroInputRef = useRef(null);
-  const trocoBlockRef = useRef(null);
-  const trocoValueRef = useRef(null);
-  const [scrollTarget, setScrollTarget] = useState(null);
+  const [addressOpen, setAddressOpen] = useState(false);
+  const [obsOpen, setObsOpen] = useState(false);
+  const [adjOpen, setAdjOpen] = useState(false);
+  const [empresaId, setEmpresaId] = useState(null);
   const cupons = data.cupons || [];
-  const hasDeliveryAddress =
-    Boolean(String(draft.logradouro || '').trim()) &&
-    Boolean(String(draft.numero || '').trim());
-  const { lookup, loading: cepLoading } = useCepLookup();
+  const addressFilled = hasDeliveryAddress(draft);
+  const obsFilled = Boolean(String(draft.observacao || '').trim());
+  const adjSummary = formatAdjustmentsSummary(draft);
+  const addressSummary = formatAddressSummary(draft);
 
   useEffect(() => {
-    if (!scrollTarget) return undefined;
-    const frame = requestAnimationFrame(() => {
-      const target =
-        scrollTarget === 'troco-value' ? trocoValueRef.current : trocoBlockRef.current;
-      target?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-      setScrollTarget(null);
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [scrollTarget, draft.formaPagamento, draft.trocoAnswer]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const id = await resolveEmpresaIdFromStore(data.loja?.slug);
+        if (!cancelled) setEmpresaId(id || null);
+      } catch {
+        if (!cancelled) setEmpresaId(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [data.loja?.slug]);
 
-  function setPaymentMethod(formaPagamento) {
+  function confirmAddress(local) {
     setDraft((d) => ({
       ...d,
-      formaPagamento,
-      trocoAnswer: formaPagamento === 'dinheiro' ? d.trocoAnswer : '',
-      trocoValue: formaPagamento === 'dinheiro' ? d.trocoValue : '',
-    }));
-    if (formaPagamento === 'dinheiro') setScrollTarget('troco');
-  }
-
-  function setTrocoAnswer(trocoAnswer) {
-    setDraft((d) => ({
-      ...d,
-      trocoAnswer,
-      trocoValue: trocoAnswer === 'sim' ? d.trocoValue : '',
-    }));
-    if (trocoAnswer === 'sim') setScrollTarget('troco-value');
-  }
-
-  function setAddressField(field, value) {
-    setDraft((d) => ({
-      ...d,
-      [field]: value,
+      ...local,
       distanciaKm: null,
       enderecoLatitude: null,
       enderecoLongitude: null,
     }));
+    setAddressOpen(false);
   }
 
-  async function handleCepSearch() {
-    const result = await lookup(draft.cep);
-    if (!result) return;
-    setDraft((d) => ({
-      ...d,
-      logradouro: result.logradouro || d.logradouro,
-      bairro: result.bairro || d.bairro,
-      cidade: result.cidade || d.cidade,
-      estado: result.estado || d.estado,
-      distanciaKm: null,
-      enderecoLatitude: null,
-      enderecoLongitude: null,
-    }));
-  }
-
-  function handleAddressSelect(address) {
-    setDraft((d) => ({
-      ...d,
-      logradouro: address.logradouro,
-      numero: '',
-      bairro: address.bairro,
-      cidade: address.cidade,
-      estado: address.estado,
-      cep: formatCep(address.cep),
-      distanciaKm: null,
-      enderecoLatitude: null,
-      enderecoLongitude: null,
-    }));
-    requestAnimationFrame(() => numeroInputRef.current?.focus());
-  }
+  const auxPortals =
+    typeof document !== 'undefined'
+      ? createPortal(
+          <>
+            {addressOpen ? (
+              <OrderAddressModal
+                draft={draft}
+                slug={data.loja?.slug}
+                onClose={() => setAddressOpen(false)}
+                onConfirm={confirmAddress}
+              />
+            ) : null}
+            {obsOpen ? (
+              <OrderObservationModal
+                value={draft.observacao}
+                onClose={() => setObsOpen(false)}
+                onConfirm={(observacao) => {
+                  setDraft((d) => ({ ...d, observacao }));
+                  setObsOpen(false);
+                }}
+              />
+            ) : null}
+            {adjOpen ? (
+              <OrderAdjustmentsModal
+                draft={draft}
+                setDraft={setDraft}
+                cupons={cupons}
+                onClose={() => setAdjOpen(false)}
+              />
+            ) : null}
+          </>,
+          document.body
+        )
+      : null;
 
   return (
     <div className="admin-new-order-col admin-new-order-col-left">
-      <OrderTypeTabs
-        value={draft.tipo}
-        onChange={(tipo) =>
-          setDraft((d) => ({
-            ...d,
-            tipo,
-            taxaEntrega: tipo === 'delivery' ? d.taxaEntrega : '0',
-            distanciaKm: tipo === 'delivery' ? d.distanciaKm : null,
-            enderecoLatitude: tipo === 'delivery' ? d.enderecoLatitude : null,
-            enderecoLongitude: tipo === 'delivery' ? d.enderecoLongitude : null,
-          }))
-        }
-      />
-
-      <PhoneSearchInput
-        value={draft.telefone}
-        onChange={(telefone) => setDraft((d) => ({ ...d, telefone }))}
-        onSearch={onSearchCustomer}
-        searching={searchingCustomer}
-      />
-
-      <div className="admin-form-group">
-        <label className="admin-label">Nome do cliente</label>
-        <input
-          className="admin-input"
-          value={draft.clienteNome}
-          onChange={(e) => setDraft((d) => ({ ...d, clienteNome: e.target.value }))}
-          placeholder="Nome completo do cliente"
+      <div className="admin-new-order-left-scroll">
+        <OrderTypeTabs
+          value={draft.tipo}
+          onChange={(tipo) =>
+            setDraft((d) => ({
+              ...d,
+              tipo,
+              taxaEntrega: tipo === 'delivery' ? d.taxaEntrega : '0',
+              distanciaKm: tipo === 'delivery' ? d.distanciaKm : null,
+              enderecoLatitude: tipo === 'delivery' ? d.enderecoLatitude : null,
+              enderecoLongitude: tipo === 'delivery' ? d.enderecoLongitude : null,
+            }))
+          }
         />
+
+        <section className="admin-order-section admin-order-section-first">
+          <h4 className="admin-order-section-title">
+            <AdminIcon name="customer" />
+            Contato do cliente
+          </h4>
+          <div className="admin-order-contact-row">
+            <CustomerNameAutocomplete
+              value={draft.clienteNome}
+              onChange={(clienteNome) => setDraft((d) => ({ ...d, clienteNome }))}
+              onSelectCustomer={onSelectCustomer}
+              empresaId={empresaId}
+              showClear={
+                Boolean(String(draft.clienteNome || '').trim()) ||
+                Boolean(String(draft.telefone || '').replace(/\D/g, '')) ||
+                addressFilled
+              }
+              onClear={() => setDraft((d) => clearOrderDraftNameAndAddress(d))}
+            />
+            <div className="admin-form-group admin-order-phone-field">
+              <label className="admin-label">Telefone</label>
+              <div className="admin-input-icon-wrap">
+                <input
+                  className="admin-input admin-input-with-icon"
+                  value={draft.telefone}
+                  onChange={(e) => setDraft((d) => ({ ...d, telefone: fmtPhone(e.target.value) }))}
+                  placeholder="(11) 98765-4321"
+                />
+                <button
+                  type="button"
+                  className="admin-input-icon-btn admin-order-phone-search-btn"
+                  onClick={onSearchCustomer}
+                  disabled={searchingCustomer}
+                  title="Buscar cliente"
+                  aria-label="Buscar cliente"
+                >
+                  <AdminIcon name="search" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {draft.tipo === 'delivery' ? (
+          <section className="admin-order-section">
+            <div className="admin-order-collapsed-head">
+              <h4 className="admin-order-section-title">
+                <AdminIcon name="location" />
+                Endereço
+              </h4>
+              <button
+                type="button"
+                className="admin-link-btn"
+                onClick={() => setAddressOpen(true)}
+              >
+                {addressFilled ? 'Editar' : 'Adicionar'}
+              </button>
+            </div>
+            {addressFilled ? (
+              <p className="admin-order-collapsed-summary">{addressSummary}</p>
+            ) : (
+              <p className="admin-order-collapsed-empty">Nenhum endereço informado.</p>
+            )}
+          </section>
+        ) : null}
+
+        <section className="admin-order-section">
+          <div className="admin-order-collapsed-head">
+            <h4 className="admin-order-section-title">Observação</h4>
+            <button type="button" className="admin-link-btn" onClick={() => setObsOpen(true)}>
+              {obsFilled ? 'Editar' : 'Adicionar'}
+            </button>
+          </div>
+          {obsFilled ? (
+            <p className="admin-order-collapsed-summary">{draft.observacao}</p>
+          ) : (
+            <p className="admin-order-collapsed-empty">Nenhuma observação.</p>
+          )}
+        </section>
+
+        <section className="admin-order-section">
+          <div className="admin-order-collapsed-head">
+            <h4 className="admin-order-section-title">Ajustes</h4>
+            <button type="button" className="admin-link-btn" onClick={() => setAdjOpen(true)}>
+              {adjSummary ? 'Editar ajustes' : 'Adicionar ajustes'}
+            </button>
+          </div>
+          {adjSummary ? (
+            <p className="admin-order-collapsed-summary">{adjSummary}</p>
+          ) : (
+            <p className="admin-order-collapsed-empty">Sem desconto, acréscimo ou cupom.</p>
+          )}
+        </section>
+
+        {draft.cart.length > 0 ? (
+          <section className="admin-order-section admin-order-cart-section">
+            <h4 className="admin-order-section-title">
+              <AdminIcon name="cart" />
+              Itens adicionados
+            </h4>
+            <OrderCartList cart={draft.cart} setDraft={setDraft} onEditItem={onEditCartItem} />
+          </section>
+        ) : null}
       </div>
 
-      {draft.tipo === 'delivery' ? (
-        <section className="admin-order-section">
-          <h4 className="admin-order-section-title">
-            <AdminIcon name="location" />
-            Endereço do cliente
-          </h4>
-          <div className="admin-form-group admin-order-cep-row">
-            <label className="admin-label">CEP</label>
-            <div className="admin-input-icon-wrap">
-              <input
-                className="admin-input admin-input-with-icon"
-                value={draft.cep}
-                onChange={(e) => setAddressField('cep', formatCep(e.target.value))}
-                placeholder="00000-000"
-              />
-              <button
-                type="button"
-                className="admin-input-icon-btn"
-                onClick={handleCepSearch}
-                disabled={cepLoading}
-                title="Buscar CEP"
-                aria-label="Buscar CEP"
-              >
-                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                  <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
-                  <line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" strokeWidth="2" />
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div className="admin-form-group">
-            <label className="admin-label">Rua ou avenida</label>
-            <AddressAutocompleteInput
-              slug={data.loja?.slug}
-              value={draft.logradouro}
-              onChange={(logradouro) => setAddressField('logradouro', logradouro)}
-              onAddressSelect={handleAddressSelect}
-            />
-            <small className="admin-address-autocomplete-hint">
-              Digite ao menos 3 letras e selecione uma sugestão.
-            </small>
-          </div>
-          <div className="admin-order-address-grid">
-            <div className="admin-form-group admin-order-field-numero">
-              <label className="admin-label">Número</label>
-              <input
-                ref={numeroInputRef}
-                className="admin-input"
-                value={draft.numero}
-                onChange={(e) => setAddressField('numero', e.target.value)}
-                placeholder="124"
-              />
-            </div>
-            <div className="admin-form-group admin-order-field-bairro">
-              <label className="admin-label">Bairro</label>
-              <input
-                className="admin-input"
-                value={draft.bairro}
-                onChange={(e) => setAddressField('bairro', e.target.value)}
-                placeholder="Centro"
-              />
-            </div>
-            <div className="admin-form-group admin-order-field-cidade">
-              <label className="admin-label">Cidade</label>
-              <input
-                className="admin-input"
-                value={draft.cidade}
-                onChange={(e) => setAddressField('cidade', e.target.value)}
-                placeholder="São Paulo"
-              />
-            </div>
-            <div className="admin-form-group admin-order-field-estado">
-              <label className="admin-label">Estado</label>
-              <input
-                className="admin-input"
-                value={draft.estado}
-                onChange={(e) =>
-                  setAddressField('estado', e.target.value.toUpperCase().slice(0, 2))
-                }
-                maxLength={2}
-                placeholder="SP"
-              />
-            </div>
-          </div>
-          <div className="admin-form-group">
-            <label className="admin-label">Complemento</label>
-            <input
-              className="admin-input"
-              value={draft.complemento}
-              onChange={(e) => setDraft((d) => ({ ...d, complemento: e.target.value }))}
-              placeholder="Apto, bloco, referência..."
-            />
-          </div>
-        </section>
-      ) : null}
-
-      <section className="admin-order-section">
-        <h4 className="admin-order-section-title">Observação</h4>
-        <textarea
-          className="admin-input"
-          rows={3}
-          value={draft.observacao}
-          onChange={(e) => setDraft((d) => ({ ...d, observacao: e.target.value }))}
-          placeholder="Alguma observação sobre o pedido..."
-        />
-      </section>
-
-      {draft.cart.length > 0 ? (
-        <section className="admin-order-section admin-order-cart-section">
-          <h4 className="admin-order-section-title">
-            <AdminIcon name="cart" />
-            Itens adicionados
-          </h4>
-          <OrderCartList cart={draft.cart} setDraft={setDraft} />
-        </section>
-      ) : null}
-
-      <section className="admin-order-section">
-        <h4 className="admin-order-section-title">Detalhes da compra</h4>
-        <div className="admin-order-purchase-row">
-          <MoneyInput
-            label="Acréscimo"
-            value={draft.acrescimo}
-            onChange={(acrescimo) => setDraft((d) => ({ ...d, acrescimo }))}
-            className="admin-order-field-money"
-          />
-          <MoneyInput
-            label="Desconto"
-            value={draft.desconto}
-            onChange={(desconto) => setDraft((d) => ({ ...d, desconto }))}
-            className="admin-order-field-money"
-          />
-          <OrderCouponPicker draft={draft} setDraft={setDraft} cupons={cupons} inline />
-        </div>
-      </section>
-
-      <section className="admin-order-summary">
-        <div className="admin-order-summary-row">
-          <span>Subtotal</span>
-          <span>{currency(subtotal)}</span>
-        </div>
-        {draft.tipo === 'delivery' ? (
-          <div className="admin-order-summary-row">
-            <span>Entrega</span>
-            <span>
-              {deliveryFeeLoading
-                ? 'Calculando…'
-                : hasDeliveryAddress
-                  ? `${currency(entrega)}${formatDistanceKm(draft.distanciaKm) ? ` · ${formatDistanceKm(draft.distanciaKm)}` : ''}`
-                  : '—'}
-            </span>
-          </div>
-        ) : null}
-        {draft.cupomDesconto > 0 ? (
-          <div className="admin-order-summary-row">
-            <span>Cupom ({draft.cupomCodigo})</span>
-            <span>− {currency(draft.cupomDesconto)}</span>
-          </div>
-        ) : null}
-        <div className="admin-order-summary-row admin-order-summary-total">
-          <span>Total</span>
-          <span>{currency(total)}</span>
-        </div>
-      </section>
-
-      <section className="admin-order-section">
-        <h4 className="admin-order-section-title">Forma de pagamento</h4>
-        <div className="admin-order-payment-grid">
-          {PAYMENT_METHODS.map((m) => (
-            <button
-              key={m.value}
-              type="button"
-              className={`admin-order-payment-btn ${draft.formaPagamento === m.value ? 'active' : ''}`}
-              onClick={() => setPaymentMethod(m.value)}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-        {draft.formaPagamento === 'dinheiro' ? (
-          <div className="admin-order-troco-block" ref={trocoBlockRef}>
-            <p className="admin-order-troco-question">Precisa de troco?</p>
-            <div className="admin-order-troco-choices">
-              <button
-                type="button"
-                className={`admin-order-troco-choice${draft.trocoAnswer === 'sim' ? ' is-active' : ''}`}
-                onClick={() => setTrocoAnswer('sim')}
-              >
-                Sim
-              </button>
-              <button
-                type="button"
-                className={`admin-order-troco-choice${draft.trocoAnswer === 'nao' ? ' is-active' : ''}`}
-                onClick={() => setTrocoAnswer('nao')}
-              >
-                Não
-              </button>
-            </div>
-            {draft.trocoAnswer === 'sim' ? (
-              <div ref={trocoValueRef}>
-                <MoneyInput
-                  label="Troco para"
-                  value={draft.trocoValue}
-                  onChange={(trocoValue) => setDraft((d) => ({ ...d, trocoValue }))}
-                  className="admin-order-troco-value"
-                />
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </section>
+      {auxPortals}
     </div>
   );
 }

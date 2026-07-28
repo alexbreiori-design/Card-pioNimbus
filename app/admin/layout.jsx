@@ -33,6 +33,7 @@ export default async function AdminRootLayout({ children }) {
 
   return (
     <div className="admin-root">
+      <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css" />
       <Script
         type="module"
         src="https://cdn.jsdelivr.net/npm/ionicons@7.4.0/dist/ionicons/ionicons.esm.js"
