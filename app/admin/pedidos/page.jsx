@@ -8,10 +8,7 @@ import NewOrderModal from '@/components/admin/orders/NewOrderModal';
 import OrderDetailModal from '@/components/admin/orders/OrderDetailModal';
 import AdminIcon from '@/components/admin/AdminIcon';
 import AdminKanbanStatusIcon from '@/components/admin/AdminKanbanStatusIcon';
-import {
-  CaixaManageModal,
-  CaixaPedidosChip,
-} from '@/components/admin/caixa/CaixaPanels';
+import { CaixaManageModal } from '@/components/admin/caixa/CaixaPanels';
 import { useAdminMobileAccess } from '@/hooks/useAdminMobileAccess';
 import { useCaixa } from '@/hooks/useCaixa';
 import {
@@ -20,6 +17,8 @@ import {
   currency,
   EMPTY_ORDER_DRAFT,
   fmtPhone,
+  peekPendingNewOrderDraft,
+  clearPendingNewOrderDraft,
   resolveDraftTroco,
 } from '@/components/admin/orders/orderDraftUtils';
 import { useAdminToast } from '@/context/AdminToastContext';
@@ -253,6 +252,33 @@ export default function PedidosPage() {
     setModalInitialDraft(initialDraft);
     setCreateOpen(true);
   }
+
+  const pendingOrderPromptedRef = useRef(false);
+
+  useEffect(() => {
+    if (caixaLoading || createOpen) return;
+
+    const draft = peekPendingNewOrderDraft();
+    if (!draft) {
+      pendingOrderPromptedRef.current = false;
+      return;
+    }
+
+    if (!isMobile && !caixaOpen) {
+      if (!pendingOrderPromptedRef.current) {
+        pendingOrderPromptedRef.current = true;
+        toast.error('Abra o caixa para continuar.');
+        openCaixaManage(canReopen ? 'reabrir' : 'abrir');
+      }
+      return;
+    }
+
+    clearPendingNewOrderDraft();
+    pendingOrderPromptedRef.current = false;
+    setEditingOrder(null);
+    setModalInitialDraft(draft);
+    setCreateOpen(true);
+  }, [caixaLoading, caixaOpen, isMobile, canReopen, createOpen, toast]);
 
   async function moveStatus(order) {
     if (!guardCaixa()) return;
@@ -516,12 +542,6 @@ export default function PedidosPage() {
 
   return (
     <div className="admin-content admin-content-pedidos admin-orders-page">
-      {!isMobile && caixaOpen && !caixaLoading ? (
-        <div className="admin-pedidos-caixa-zone">
-          <CaixaPedidosChip />
-        </div>
-      ) : null}
-
       <div className="admin-pedidos-body">
       <div className="admin-pedidos-top">
         <div className="admin-pedidos-actions-row">

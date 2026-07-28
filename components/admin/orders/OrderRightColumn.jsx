@@ -3,8 +3,36 @@
 import { useMemo, useState } from 'react';
 import ImagePlaceholder from '@/components/admin/ImagePlaceholder';
 import AdminIcon from '@/components/admin/AdminIcon';
+import { useAdminData } from '@/hooks/useAdminData';
 import { productNeedsConfiguration } from '@/lib/admin/orderProductUtils';
+import { isMarmitaSegment, isPizzariaSegment } from '@/lib/empresaSegmentos';
+import { MARMITA_VIRTUAL_CATEGORY_ID } from '@/lib/marmita/marmitaCardapio';
+import { PIZZA_VIRTUAL_CATEGORY_ID } from '@/lib/pizza/pizzaIds';
 import { currency } from './orderDraftUtils';
+
+function productGroupRank(product, segmento) {
+  const isPizza =
+    product.tipo === 'pizza' || product.categoriaId === PIZZA_VIRTUAL_CATEGORY_ID;
+  const isMarmita =
+    product.tipo === 'marmita' || product.categoriaId === MARMITA_VIRTUAL_CATEGORY_ID;
+  const pizzaSeg = isPizzariaSegment(segmento);
+  const marmitaSeg = isMarmitaSegment(segmento);
+
+  if (pizzaSeg && !marmitaSeg) {
+    if (isPizza) return 0;
+    if (isMarmita) return 1;
+    return 2;
+  }
+  if (marmitaSeg && !pizzaSeg) {
+    if (isMarmita) return 0;
+    if (isPizza) return 1;
+    return 2;
+  }
+  // Modelo ou ambos: pizza → marmita → demais
+  if (isPizza) return 0;
+  if (isMarmita) return 1;
+  return 2;
+}
 
 export default function OrderRightColumn({
   products,
@@ -13,21 +41,37 @@ export default function OrderRightColumn({
   setProductSearch,
   onAddProduct,
 }) {
+  const { data } = useAdminData();
   const [categoryFilter, setCategoryFilter] = useState('todos');
   const q = productSearch.trim().toLowerCase();
+  const segmento = data.loja?.segmento;
 
   const filtered = useMemo(() => {
-    return products.filter((p) => {
-      const matchCat = categoryFilter === 'todos' || p.categoriaId === categoryFilter;
-      if (!matchCat) return false;
-      if (!q) return true;
-      return (
-        String(p.nome || '').toLowerCase().includes(q) ||
-        String(p.descricao || '').toLowerCase().includes(q) ||
-        String(p.medida || '').toLowerCase().includes(q)
-      );
-    });
-  }, [products, categoryFilter, q]);
+    const catRank = new Map(categorias.map((cat, index) => [cat.id, index]));
+    return products
+      .map((product, index) => ({ product, index }))
+      .filter(({ product }) => {
+        const matchCat =
+          categoryFilter === 'todos' || product.categoriaId === categoryFilter;
+        if (!matchCat) return false;
+        if (!q) return true;
+        return (
+          String(product.nome || '').toLowerCase().includes(q) ||
+          String(product.descricao || '').toLowerCase().includes(q) ||
+          String(product.medida || '').toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => {
+        const groupA = productGroupRank(a.product, segmento);
+        const groupB = productGroupRank(b.product, segmento);
+        if (groupA !== groupB) return groupA - groupB;
+        const catA = catRank.get(a.product.categoriaId) ?? 9999;
+        const catB = catRank.get(b.product.categoriaId) ?? 9999;
+        if (catA !== catB) return catA - catB;
+        return a.index - b.index;
+      })
+      .map(({ product }) => product);
+  }, [products, categorias, categoryFilter, q, segmento]);
 
   return (
     <div className="admin-new-order-col admin-new-order-col-right">
@@ -66,39 +110,36 @@ export default function OrderRightColumn({
       </div>
 
       <div className="admin-order-products-panel">
-        <div className="admin-order-product-list">
-          {filtered.length === 0 ? (
-            <p className="admin-order-meta">Nenhum produto encontrado.</p>
-          ) : (
-            filtered.map((p) => (
-              <div key={p.id} className="admin-order-product-row">
-                <div className="admin-order-product-thumb-wrap">
+        {filtered.length === 0 ? (
+          <p className="admin-order-meta">Nenhum produto encontrado.</p>
+        ) : (
+          <div className="admin-order-product-grid">
+            {filtered.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className="admin-order-product-card"
+                onClick={() => onAddProduct(p)}
+                title={productNeedsConfiguration(p) ? `Montar ${p.nome}` : `Adicionar ${p.nome}`}
+              >
+                <div className="admin-order-product-card-media">
                   {p.imagemUrl ? (
-                    <img className="admin-order-product-thumb" src={p.imagemUrl} alt="" />
+                    <img className="admin-order-product-card-img" src={p.imagemUrl} alt="" />
                   ) : (
-                    <ImagePlaceholder size={64} />
+                    <ImagePlaceholder size={96} />
                   )}
                 </div>
-                <div className="admin-order-product-info">
-                  <span className="admin-order-product-name">{p.nome}</span>
+                <div className="admin-order-product-card-body">
+                  <span className="admin-order-product-card-name">{p.nome}</span>
                   {productNeedsConfiguration(p) ? (
-                    <div className="admin-order-meta">Montar antes de adicionar</div>
+                    <span className="admin-order-product-card-hint">Montar</span>
                   ) : null}
-                  {p.medida ? <div className="admin-order-meta">{p.medida}</div> : null}
-                  <div className="admin-order-product-price">{currency(p.preco)}</div>
+                  <span className="admin-order-product-card-price">{currency(p.preco)}</span>
                 </div>
-                <button
-                  type="button"
-                  className="admin-btn admin-btn-primary admin-icon-add-btn admin-order-product-add-btn"
-                  onClick={() => onAddProduct(p)}
-                  aria-label={`Adicionar ${p.nome}`}
-                >
-                  <AdminIcon name="plus" />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

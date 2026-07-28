@@ -711,18 +711,6 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
   );
 }
 
-export function CaixaPedidosChip() {
-  const { loading, isOpen, error } = useCaixa();
-
-  if (loading || error || !isOpen) return null;
-
-  return (
-    <div className="admin-caixa-pedidos-chip-wrap">
-      <span className="admin-caixa-pedidos-chip is-open">Caixa aberto</span>
-    </div>
-  );
-}
-
 export function CaixaStatusChip() {
   const { loading, isOpen, summary, error } = useCaixa();
   if (loading) return <span className="admin-caixa-outline-chip is-loading">Caixa…</span>;
