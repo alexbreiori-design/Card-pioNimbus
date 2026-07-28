@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { formatCep } from '@/lib/cep/viacep';
 import { useCepLookup } from '@/hooks/useCepLookup';
 import { useEmpresa } from '@/hooks/useEmpresa';
@@ -8,6 +9,10 @@ import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminIcon from '@/components/admin/AdminIcon';
 import OrderDetailModal from '@/components/admin/orders/OrderDetailModal';
+import {
+  buildOrderDraftFromCustomer,
+  stashPendingNewOrderDraft,
+} from '@/components/admin/orders/orderDraftUtils';
 import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import { isJsonDirty } from '@/lib/admin/isFormDirty';
@@ -176,7 +181,64 @@ function CepSearchButton({ onLookup, cep, disabled }) {
   );
 }
 
+function CustomerRowActions({ customer, waUrl, onOpen, onNewOrder, onDelete }) {
+  return (
+    <div className="admin-clientes-row-actions">
+      <button
+        type="button"
+        className="admin-btn admin-btn-ghost admin-btn-sm admin-clientes-action-icon admin-clientes-action-open"
+        onClick={() => onOpen(customer)}
+        title="Abrir cliente"
+        aria-label="Abrir cliente"
+      >
+        <i className="hgi-stroke hgi-pencil-edit-02" aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        className="admin-btn admin-btn-ghost admin-btn-sm admin-clientes-action-icon admin-clientes-action-order"
+        onClick={() => onNewOrder(customer)}
+        title="Novo pedido"
+        aria-label="Novo pedido"
+      >
+        <i className="hgi-stroke hgi-note-add" aria-hidden="true" />
+      </button>
+      {waUrl ? (
+        <a
+          className="admin-btn admin-btn-whatsapp-sm admin-clientes-action-icon admin-clientes-action-whatsapp"
+          href={waUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="WhatsApp"
+          aria-label="Abrir WhatsApp"
+        >
+          <ion-icon name="logo-whatsapp" aria-hidden="true" />
+        </a>
+      ) : (
+        <button
+          type="button"
+          className="admin-btn admin-btn-whatsapp-sm admin-clientes-action-icon admin-clientes-action-whatsapp"
+          disabled
+          title="WhatsApp indisponível"
+          aria-label="WhatsApp indisponível"
+        >
+          <ion-icon name="logo-whatsapp" aria-hidden="true" />
+        </button>
+      )}
+      <button
+        type="button"
+        className="admin-btn admin-btn-ghost admin-btn-sm admin-clientes-action-icon admin-clientes-action-danger"
+        onClick={() => onDelete(customer.id)}
+        title="Excluir cliente"
+        aria-label="Excluir cliente"
+      >
+        <i className="hgi-stroke hgi-delete-02" aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
 export default function ClientesPage() {
+  const router = useRouter();
   const { empresaId, loading: empresaLoading, error: empresaError } = useEmpresa();
   const { data: adminData } = useAdminData();
   const { orders: adminOrders } = useAdminOrders();
@@ -197,6 +259,12 @@ export default function ClientesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('todos');
   const [selectedOrderId, setSelectedOrderId] = useState('');
+
+  function startNewOrderForCustomer(customer) {
+    const draft = buildOrderDraftFromCustomer(customer, addressesByCustomer[customer.id] || []);
+    stashPendingNewOrderDraft(draft);
+    router.push('/admin/pedidos');
+  }
 
   const isNewDirty = useMemo(
     () => newOpen && isJsonDirty(newDraft, EMPTY_NEW),
@@ -600,36 +668,13 @@ export default function ClientesPage() {
                           </span>
                         </td>
                         <td>
-                          <div className="admin-clientes-row-actions">
-                            <button
-                              type="button"
-                              className="admin-btn admin-btn-ghost admin-btn-sm"
-                              onClick={() => openCustomerDetail(c)}
-                            >
-                              Abrir
-                            </button>
-                            {waUrl ? (
-                              <a
-                                className="admin-btn admin-btn-whatsapp-sm"
-                                href={waUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                WhatsApp
-                              </a>
-                            ) : (
-                              <button type="button" className="admin-btn admin-btn-whatsapp-sm" disabled>
-                                WhatsApp
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              className="admin-btn admin-btn-ghost admin-btn-sm admin-clientes-action-danger"
-                              onClick={() => handleDeleteCustomer(c.id)}
-                            >
-                              Excluir
-                            </button>
-                          </div>
+                          <CustomerRowActions
+                            customer={c}
+                            waUrl={waUrl}
+                            onOpen={openCustomerDetail}
+                            onNewOrder={startNewOrderForCustomer}
+                            onDelete={handleDeleteCustomer}
+                          />
                         </td>
                       </tr>
                     );
@@ -657,32 +702,13 @@ export default function ClientesPage() {
                       </span>
                       <span>Último: {fmtDateBr(c.last_order_at)}</span>
                     </div>
-                    <div className="admin-clientes-row-actions">
-                      <button
-                        type="button"
-                        className="admin-btn admin-btn-ghost admin-btn-sm"
-                        onClick={() => openCustomerDetail(c)}
-                      >
-                        Abrir
-                      </button>
-                      {waUrl ? (
-                        <a
-                          className="admin-btn admin-btn-whatsapp-sm"
-                          href={waUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          WhatsApp
-                        </a>
-                      ) : null}
-                      <button
-                        type="button"
-                        className="admin-btn admin-btn-ghost admin-btn-sm admin-clientes-action-danger"
-                        onClick={() => handleDeleteCustomer(c.id)}
-                      >
-                        Excluir
-                      </button>
-                    </div>
+                    <CustomerRowActions
+                      customer={c}
+                      waUrl={waUrl}
+                      onOpen={openCustomerDetail}
+                      onNewOrder={startNewOrderForCustomer}
+                      onDelete={handleDeleteCustomer}
+                    />
                   </li>
                 );
               })}
@@ -980,6 +1006,13 @@ export default function ClientesPage() {
             <div className="admin-confirm-actions">
               <button type="button" className="admin-btn admin-btn-ghost" onClick={requestCloseDetail}>
                 Fechar
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn-primary"
+                onClick={() => startNewOrderForCustomer(detail)}
+              >
+                Novo pedido
               </button>
             </div>
           </div>
