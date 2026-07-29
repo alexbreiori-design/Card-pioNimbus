@@ -45,6 +45,7 @@ import { useOrderPrint } from '@/context/OrderPrintContext';
 import { useAdminToast } from '@/context/AdminToastContext';
 
 const DESCRICAO_MAX = 120;
+const MENSAGEM_FECHADA_MAX = 280;
 
 const DAYS = [
   ['segunda', 'Segunda'],
@@ -192,6 +193,7 @@ export default function MinhaLojaPage() {
             enderecoCidade: data.loja.enderecoCidade,
             enderecoEstado: data.loja.enderecoEstado,
             horarios: data.loja.horarios,
+            mensagemLojaFechada: data.loja.mensagemLojaFechada,
           })
         : '',
     [ready, data.loja]
@@ -399,6 +401,9 @@ export default function MinhaLojaPage() {
       ...durations,
       pedidoMinimo: inputToMoney(pedidoMinimo),
       descricao: String(draft.descricao || '').slice(0, DESCRICAO_MAX),
+      mensagemLojaFechada: String(draft.mensagemLojaFechada || '')
+        .trim()
+        .slice(0, MENSAGEM_FECHADA_MAX),
     });
     try {
       const enderecoText = [
@@ -883,7 +888,7 @@ export default function MinhaLojaPage() {
           title="Horários de funcionamento"
           hint="Definem quando a loja abre e fecha automaticamente no cardápio e no painel."
         />
-        <div className="admin-store-section-body">
+        <div className="admin-store-section-body admin-store-hours-body">
           <div className="admin-hours-list admin-hours-list-v2">
             {DAYS.map(([key, label]) => {
               const day = draft.horarios[key];
@@ -914,6 +919,29 @@ export default function MinhaLojaPage() {
                 </div>
               );
             })}
+          </div>
+          <div className="admin-store-closed-message">
+            <label className="admin-label" htmlFor="mensagem-loja-fechada">
+              Aviso quando a loja estiver fechada
+            </label>
+            <p className="admin-store-closed-message-hint">
+              Aparece no cardápio ao tocar em um produto com a loja fechada. Deixe em branco para usar a
+              mensagem padrão.
+            </p>
+            <textarea
+              id="mensagem-loja-fechada"
+              className="admin-input admin-store-closed-message-input"
+              rows={5}
+              maxLength={MENSAGEM_FECHADA_MAX}
+              placeholder="Ex.: Estamos de férias até 15/08. Pedidos voltam no dia 16!"
+              value={draft.mensagemLojaFechada || ''}
+              onChange={(e) =>
+                setLojaField('mensagemLojaFechada', e.target.value.slice(0, MENSAGEM_FECHADA_MAX))
+              }
+            />
+            <div className="admin-store-closed-message-count">
+              {String(draft.mensagemLojaFechada || '').length}/{MENSAGEM_FECHADA_MAX}
+            </div>
           </div>
         </div>
       </div>

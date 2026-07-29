@@ -145,6 +145,7 @@ export default function PedidosPage() {
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archiveDateFrom, setArchiveDateFrom] = useState('');
   const [archiveDateTo, setArchiveDateTo] = useState('');
+  const [archiveStatusFilter, setArchiveStatusFilter] = useState('todos');
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [caixaManageModal, setCaixaManageModal] = useState(false);
   const [caixaManageView, setCaixaManageView] = useState('menu');
@@ -319,15 +320,24 @@ export default function PedidosPage() {
     if (!order) return;
     try {
       await restoreArchived(order);
-      toast.success(`Pedido #${orderId} restaurado em Preparo.`);
+      const label =
+        order.status === 'cancelado'
+          ? `Pedido #${orderId} reaberto em Preparo.`
+          : `Pedido #${orderId} restaurado em Preparo.`;
+      toast.success(label);
     } catch (error) {
       toast.error(error?.message || 'Erro ao restaurar pedido.');
     }
   }
 
-  const concludedOrders = useMemo(() => {
+  const finalizedOrders = useMemo(() => {
     return allOrders
-      .filter((o) => o.status === 'concluido')
+      .filter((o) => o.status === 'concluido' || o.status === 'cancelado')
+      .filter((o) => {
+        if (archiveStatusFilter === 'concluido') return o.status === 'concluido';
+        if (archiveStatusFilter === 'cancelado') return o.status === 'cancelado';
+        return true;
+      })
       .filter((o) => {
         if (!archiveDateFrom && !archiveDateTo) return true;
         const created = new Date(o.createdAt || 0).getTime();
@@ -338,6 +348,24 @@ export default function PedidosPage() {
         return true;
       })
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  }, [allOrders, archiveDateFrom, archiveDateTo, archiveStatusFilter]);
+
+  const finalizedCounts = useMemo(() => {
+    const inPeriod = allOrders.filter((o) => {
+      if (o.status !== 'concluido' && o.status !== 'cancelado') return false;
+      if (!archiveDateFrom && !archiveDateTo) return true;
+      const created = new Date(o.createdAt || 0).getTime();
+      const from = archiveDateFrom ? new Date(`${archiveDateFrom}T00:00:00`).getTime() : null;
+      const to = archiveDateTo ? new Date(`${archiveDateTo}T23:59:59`).getTime() : null;
+      if (from && created < from) return false;
+      if (to && created > to) return false;
+      return true;
+    });
+    return {
+      todos: inPeriod.length,
+      concluido: inPeriod.filter((o) => o.status === 'concluido').length,
+      cancelado: inPeriod.filter((o) => o.status === 'cancelado').length,
+    };
   }, [allOrders, archiveDateFrom, archiveDateTo]);
 
   async function saveOrder(draft, printNow = false) {
@@ -649,7 +677,7 @@ export default function PedidosPage() {
               Novo pedido
             </button>
             <button type="button" className="admin-text-btn admin-pedidos-view-archived" onClick={() => setArchiveOpen(true)}>
-              Ver concluídos
+              Ver finalizados
             </button>
           </div>
         </div>
@@ -869,7 +897,11 @@ export default function PedidosPage() {
         whatsAppSummaryUrl={
           detailOrder && !detailOrder.arquivado ? buildOrderSummaryWhatsAppUrl(detailOrder) : null
         }
-        readOnly={Boolean(detailOrder?.arquivado)}
+        readOnly={
+          Boolean(detailOrder?.arquivado) ||
+          detailOrder?.status === 'concluido' ||
+          detailOrder?.status === 'cancelado'
+        }
         overlayClassName={archiveOpen ? 'admin-confirm-overlay-top' : ''}
         demoDeadlineEdit={demoDeadlineEdit}
         storeSlug={storeSlug}
@@ -961,12 +993,31 @@ export default function PedidosPage() {
           <div className="admin-order-detail-modal admin-archive-modal" onClick={(e) => e.stopPropagation()}>
             <div className="admin-order-detail-head">
               <div>
-                <span className="admin-order-detail-kicker">Pedidos concluídos</span>
-                <h2>{concludedOrders.length} pedido(s)</h2>
+                <span className="admin-order-detail-kicker">Pedidos finalizados</span>
+                <h2>{finalizedOrders.length} pedido(s)</h2>
               </div>
               <button type="button" className="admin-order-detail-close" onClick={() => setArchiveOpen(false)} aria-label="Fechar">
                 ×
               </button>
+            </div>
+            <div className="admin-archive-status-tabs" role="tablist" aria-label="Filtrar por status">
+              {[
+                { key: 'todos', label: 'Todos', count: finalizedCounts.todos },
+                { key: 'concluido', label: 'Concluídos', count: finalizedCounts.concluido },
+                { key: 'cancelado', label: 'Cancelados', count: finalizedCounts.cancelado },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={archiveStatusFilter === tab.key}
+                  className={`admin-archive-status-tab${archiveStatusFilter === tab.key ? ' is-active' : ''}`}
+                  onClick={() => setArchiveStatusFilter(tab.key)}
+                >
+                  {tab.label}
+                  <span className="admin-archive-status-count">{tab.count}</span>
+                </button>
+              ))}
             </div>
             <div className="admin-archive-filters">
               <div className="admin-form-group">
@@ -989,13 +1040,26 @@ export default function PedidosPage() {
               </div>
             </div>
             <div className="admin-archive-list">
-              {concludedOrders.length === 0 ? (
-                <p className="admin-order-meta">Nenhum pedido concluído no período.</p>
+              {finalizedOrders.length === 0 ? (
+                <p className="admin-order-meta">
+                  {archiveStatusFilter === 'cancelado'
+                    ? 'Nenhum pedido cancelado no período.'
+                    : archiveStatusFilter === 'concluido'
+                      ? 'Nenhum pedido concluído no período.'
+                      : 'Nenhum pedido finalizado no período.'}
+                </p>
               ) : (
-                concludedOrders.map((order) => (
+                finalizedOrders.map((order) => (
                   <div key={order.id} className="admin-archive-row">
                     <div>
-                      <strong>#{order.id} · {order.clienteNome}</strong>
+                      <strong>
+                        #{order.id} · {order.clienteNome}
+                        <span
+                          className={`admin-archive-status-badge is-${order.status === 'cancelado' ? 'cancelado' : 'concluido'}`}
+                        >
+                          {order.status === 'cancelado' ? 'Cancelado' : 'Concluído'}
+                        </span>
+                      </strong>
                       <div className="admin-order-meta">
                         {currency(order.total)} · {new Date(order.createdAt).toLocaleString('pt-BR')}
                       </div>
@@ -1004,8 +1068,12 @@ export default function PedidosPage() {
                       <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setDetailOrderId(order.id)}>
                         Ver
                       </button>
-                      <button type="button" className="admin-btn admin-btn-primary" onClick={() => handleRestoreArchived(order.id)}>
-                        Restaurar
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn-primary"
+                        onClick={() => handleRestoreArchived(order.id)}
+                      >
+                        {order.status === 'cancelado' ? 'Reabrir' : 'Restaurar'}
                       </button>
                     </div>
                   </div>
