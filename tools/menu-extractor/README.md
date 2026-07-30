@@ -11,36 +11,61 @@ extrai categorias/produtos e gera JSON no formato do import do super-admin Nimbu
 
 ## Requisitos
 
-- Python 3.10+
+- **Python 3.10+ instalado de verdade** (não o atalho da Microsoft Store)
 - Playwright (Chromium)
 
-## Instalação
+### Windows — se aparecer “Python não foi encontrado”
+
+Isso significa que o Windows tentou o alias da Store, sem Python instalado (ou fora do PATH).
+
+1. Baixe em https://www.python.org/downloads/
+2. No instalador, marque **Add python.exe to PATH**
+3. Marque **Install pip**
+4. Feche e abra o terminal de novo
+5. (Opcional) desative aliases da Store:  
+   **Configurações → Aplicativos → Configurações avançadas → Aliases de execução**  
+   desligue `python.exe` e `python3.exe`
+
+## Instalação rápida (Windows)
+
+Na pasta `tools/menu-extractor`:
+
+1. Dê dois cliques em **`setup.bat`** (só na primeira vez)
+2. Dê dois cliques em **`run.bat`**
+3. Abra http://127.0.0.1:8765 (o script já tenta abrir)
+
+## Instalação (macOS / Linux / terminal)
 
 ```bash
 cd tools/menu-extractor
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate   # Windows PowerShell: .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 playwright install chromium
+python app.py
+```
+
+No Windows, se `python` falhar, tente o launcher:
+
+```bat
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+py -3 -m pip install -r requirements.txt
+py -3 -m playwright install chromium
+py -3 app.py
 ```
 
 ## Uso (CLI)
 
 ```bash
 # Por URL
-python extract_cli.py --url 'https://www.ifood.com.br/delivery/.../<uuid>' -o loja.json
+python extract_cli.py --url "https://www.ifood.com.br/delivery/.../<uuid>" -o loja.json
 
 # Por JSON bruto
 python extract_cli.py --raw examples/ifood_site_api_catalog.json --platform ifood --merchant-id abc -o loja.json
 ```
 
 ## Uso (UI)
-
-```bash
-cd tools/menu-extractor
-source .venv/bin/activate
-python app.py
-```
 
 Abra http://127.0.0.1:8765
 
@@ -53,7 +78,7 @@ Abra http://127.0.0.1:8765
 
 ### Fallback: JSON bruto
 
-Se PerimeterX (iFood) ou Cloudflare (Anota AI) bloquear o ambiente:
+Se PerimeterX (iFood) ou Cloudflare (Anota AI) bloquear:
 
 1. Abra a URL no Chrome normal
 2. DevTools → Network → filtre por `catalog` (iFood) ou a API de cardápio (Anota)
