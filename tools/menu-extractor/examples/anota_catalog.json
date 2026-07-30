@@ -1,0 +1,25 @@
+{
+  "categorias": [
+    {
+      "nome": "Combos",
+      "produtos": [
+        {
+          "nome": "Combo Família",
+          "descricao": "2 pizzas + refrigerante",
+          "preco": 89.9,
+          "imagem": "https://example.com/combo.jpg"
+        }
+      ]
+    },
+    {
+      "name": "Bebidas",
+      "items": [
+        {
+          "name": "Suco Natural",
+          "description": "500ml",
+          "price": 12
+        }
+      ]
+    }
+  ]
+}
