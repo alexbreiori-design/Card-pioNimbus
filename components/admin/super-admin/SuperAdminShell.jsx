@@ -7,18 +7,22 @@ import { SUPER_ADMIN_LOGO } from '@/lib/superAdminIcons';
 import { getConfiguredDefaultSlug } from '@/lib/storeBoot';
 
 const MAIN_NAV = [
-  { id: 'inicio', label: 'Início', icon: 'home' },
+  { id: 'comando', label: 'Comando', icon: 'home' },
   { id: 'lojas', label: 'Lojas', icon: 'stores' },
+  { id: 'comercial', label: 'Comercial', icon: 'comercial' },
+  { id: 'novidades', label: 'Novidades', icon: 'novidades' },
+  { id: 'inbox', label: 'Inbox', icon: 'inbox' },
   { id: 'relatorios', label: 'Relatórios', icon: 'reports' },
-  { id: 'configuracoes', label: 'Configurações', icon: 'configuracoes' },
+  { id: 'sistema', label: 'Sistema', icon: 'configuracoes' },
 ];
 
 export default function SuperAdminShell({
   children,
-  activeView = 'inicio',
+  activeView = 'comando',
   onViewChange,
   collapsed = false,
   onToggleCollapse,
+  inboxBadge = 0,
 }) {
   const modelSlug = getConfiguredDefaultSlug();
 
@@ -30,8 +34,8 @@ export default function SuperAdminShell({
             <Image
               src={SUPER_ADMIN_LOGO}
               alt="Nimbus"
-              width={collapsed ? 52 : 140}
-              height={collapsed ? 44 : 118}
+              width={collapsed ? 48 : 132}
+              height={collapsed ? 41 : 112}
               className="admin-sistema-logo"
               priority
               unoptimized
@@ -60,6 +64,9 @@ export default function SuperAdminShell({
             >
               <SuperAdminNavIcon name={item.icon} />
               <span className="admin-nav-label">{item.label}</span>
+              {item.id === 'inbox' && inboxBadge > 0 ? (
+                <span className="admin-nav-badge">{inboxBadge > 99 ? '99+' : inboxBadge}</span>
+              ) : null}
             </button>
           ))}
         </nav>

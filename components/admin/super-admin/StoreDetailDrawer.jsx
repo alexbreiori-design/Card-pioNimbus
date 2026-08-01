@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import AdminAvailabilitySwitch from '@/components/admin/AdminAvailabilitySwitch';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import AdminDatePicker from '@/components/admin/AdminDatePicker';
@@ -11,16 +12,30 @@ import { buildCardapioV2Path } from '@/lib/cardapioV2';
 import { isCardapioPublicV2 } from '@/lib/cardapioPublicVersion';
 import SegmentCombobox from '@/components/admin/SegmentCombobox';
 import { getStorePublicHost, getStorePublicUrl } from '@/lib/siteUrl';
+import { writeActiveStoreSlug } from '@/lib/adminStoreSession';
 import StoreCatalogImportPanel from './StoreCatalogImportPanel';
+import { NIMBUS_FEEDBACK_STATUS_LABEL } from '@/lib/nimbusFeedback';
+import {
+  SaFeedbackSkeleton,
+  SaStoreDrawerHeroSkeleton,
+  SaStoreDrawerSkeleton,
+} from './SuperAdminSkeletons';
 import styles from './StoreDetailModal.module.css';
 
 const TABS = [
-  { id: 'resumo', label: 'Resumo' },
-  { id: 'informacoes', label: 'Informações' },
+  { id: 'visao', label: 'Visão' },
   { id: 'metricas', label: 'Métricas' },
-  { id: 'equipe', label: 'Equipe' },
-  { id: 'notas', label: 'Notas' },
-  { id: 'cardapio', label: 'Cardápio' },
+  { id: 'operacao', label: 'Operação' },
+  { id: 'comercial', label: 'Comercial' },
+  { id: 'pessoas', label: 'Pessoas' },
+];
+
+const ONBOARDING_ITEMS = [
+  { key: 'tem_logo', label: 'Logo da loja' },
+  { key: 'tem_catalogo', label: 'Catálogo cadastrado' },
+  { key: 'tem_horarios', label: 'Horários configurados' },
+  { key: 'tem_go_live', label: 'Go-live definido' },
+  { key: 'tem_primeiro_pedido', label: 'Primeiro pedido recebido' },
 ];
 
 function formatDate(value) {
@@ -34,15 +49,51 @@ function formatDate(value) {
 
 function formatDateOnly(value) {
   if (!value) return '';
+  const raw = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
   try {
-    return new Date(value).toISOString().slice(0, 10);
+    return new Date(value).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
   } catch {
     return '';
   }
 }
 
+function todaySaoPauloClient() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+}
+
+function daysBetweenDateOnly(inicio, fim) {
+  const a = formatDateOnly(inicio);
+  const b = formatDateOnly(fim);
+  if (!a || !b) return null;
+  const [ay, am, ad] = a.split('-').map(Number);
+  const [by, bm, bd] = b.split('-').map(Number);
+  return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / (24 * 60 * 60 * 1000));
+}
+
+function syncCarenciaDraftFromAssinatura(assinatura, setters) {
+  const { setCarenciaEnabled, setCarenciaModo, setCarenciaInicio, setCarenciaFim } = setters;
+  const active = assinatura?.statusLocal === 'cortesia';
+  setCarenciaEnabled(active);
+  const inicio = formatDateOnly(assinatura?.carenciaInicio) || '';
+  const fim = formatDateOnly(assinatura?.carenciaFim) || '';
+  setCarenciaInicio(inicio);
+  setCarenciaFim(fim);
+  if (!active) {
+    setCarenciaModo('7dias');
+    return;
+  }
+  const span = daysBetweenDateOnly(inicio, fim);
+  setCarenciaModo(span === 7 ? '7dias' : 'personalizado');
+}
+
 function formatCurrency(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function formatCurrencyCents(value) {
+  if (value === null || value === undefined) return '—';
+  return formatCurrency(Number(value) / 100);
 }
 
 function StoreAvatar({ nome, logoUrl }) {
@@ -96,6 +147,7 @@ function DailyChart({ series }) {
 
 function MetricsDashboard({ metrics, dailySeries, compare }) {
   const [period, setPeriod] = useState('hoje');
+  const [expanded, setExpanded] = useState(false);
   const current = metrics?.[period] || metrics?.hoje || {};
   const onlineShare =
     current.pedidos > 0 ? Math.round((current.online?.pedidos / current.pedidos) * 100) : 0;
@@ -192,49 +244,61 @@ function MetricsDashboard({ metrics, dailySeries, compare }) {
         </div>
       </div>
 
-      <div className={styles.metricsSplit}>
-        <section className={styles.sectionBlock}>
-          <h3 className={styles.sectionHeading}>Comparativo go-live</h3>
-          {compare?.hasGoLive ? (
-            <div className={styles.compareRow}>
-              <article className={styles.compareCard}>
-                <span>Antes do go-live</span>
-                <strong>{compare.antes?.pedidos ?? 0} pedidos</strong>
-                <p>{formatCurrency(compare.antes?.faturamento)}</p>
-              </article>
-              <span className={styles.compareArrow} aria-hidden="true">
-                →
-              </span>
-              <article className={`${styles.compareCard} ${styles.compareCardAfter}`}>
-                <span>Depois do go-live</span>
-                <strong>{compare.depois?.pedidos ?? 0} pedidos</strong>
-                <p>{formatCurrency(compare.depois?.faturamento)}</p>
-              </article>
-            </div>
-          ) : (
-            <p className={styles.muted}>
-              Defina a data go-live na aba Notas para comparar vendas online antes e depois do
-              cardápio.
-            </p>
-          )}
-          <p className={styles.metricsFootnote}>Go-live considera apenas pedidos do cardápio online.</p>
-        </section>
-
-        <section className={styles.sectionBlock}>
-          <h3 className={styles.sectionHeading}>Pedidos por dia · 30 dias</h3>
-          <div className={styles.chartPanel}>
-            <DailyChart series={dailySeries} />
-          </div>
-          <div className={styles.chartLegend}>
-            <span>
-              <i className={styles.legendOnline} /> Online
-            </span>
-            <span>
-              <i className={styles.legendBalcao} /> Balcão
-            </span>
-          </div>
-        </section>
+      <div className={styles.metricsToggleRow}>
+        <button
+          type="button"
+          className={styles.metricsToggleBtn}
+          onClick={() => setExpanded((prev) => !prev)}
+        >
+          {expanded ? 'Ver menos' : 'Ver mais'}
+        </button>
       </div>
+
+      {expanded ? (
+        <div className={styles.metricsSplit}>
+          <section className={styles.sectionBlock}>
+            <h3 className={styles.sectionHeading}>Comparativo go-live</h3>
+            {compare?.hasGoLive ? (
+              <div className={styles.compareRow}>
+                <article className={styles.compareCard}>
+                  <span>Antes do go-live</span>
+                  <strong>{compare.antes?.pedidos ?? 0} pedidos</strong>
+                  <p>{formatCurrency(compare.antes?.faturamento)}</p>
+                </article>
+                <span className={styles.compareArrow} aria-hidden="true">
+                  →
+                </span>
+                <article className={`${styles.compareCard} ${styles.compareCardAfter}`}>
+                  <span>Depois do go-live</span>
+                  <strong>{compare.depois?.pedidos ?? 0} pedidos</strong>
+                  <p>{formatCurrency(compare.depois?.faturamento)}</p>
+                </article>
+              </div>
+            ) : (
+              <p className={styles.muted}>
+                Defina a data go-live na aba Comercial para comparar vendas online antes e depois
+                do cardápio.
+              </p>
+            )}
+            <p className={styles.metricsFootnote}>Go-live considera apenas pedidos do cardápio online.</p>
+          </section>
+
+          <section className={styles.sectionBlock}>
+            <h3 className={styles.sectionHeading}>Pedidos por dia · 30 dias</h3>
+            <div className={styles.chartPanel}>
+              <DailyChart series={dailySeries} />
+            </div>
+            <div className={styles.chartLegend}>
+              <span>
+                <i className={styles.legendOnline} /> Online
+              </span>
+              <span>
+                <i className={styles.legendBalcao} /> Balcão
+              </span>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -297,14 +361,14 @@ function IconWhatsApp() {
   );
 }
 
-export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed }) {
+export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed, initialTab, onTabChange }) {
   const toast = useAdminToast();
   const { overlayPointerDown, overlayClick } = useAdminOverlayClose({
     onClose,
     isDirty: false,
   });
   const [store, setStore] = useState(null);
-  const [tab, setTab] = useState('resumo');
+  const [tab, setTab] = useState('visao');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -324,6 +388,19 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed }) {
   const [ownerPhone, setOwnerPhone] = useState('');
   const [infoSegmento, setInfoSegmento] = useState('');
   const [infoSlug, setInfoSlug] = useState('');
+  const [feedbackItems, setFeedbackItems] = useState([]);
+  const [feedbackAbertos, setFeedbackAbertos] = useState(0);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackFilter, setFeedbackFilter] = useState('aberto');
+  const [checkoutPlan, setCheckoutPlan] = useState('loja_nova');
+  const [billingPlans, setBillingPlans] = useState([]);
+  const [carenciaEnabled, setCarenciaEnabled] = useState(false);
+  const [carenciaModo, setCarenciaModo] = useState('7dias');
+  const [carenciaInicio, setCarenciaInicio] = useState('');
+  const [carenciaFim, setCarenciaFim] = useState('');
+  const [checkoutLink, setCheckoutLink] = useState('');
+  const [notesModalOpen, setNotesModalOpen] = useState(false);
+  const [notesDraft, setNotesDraft] = useState('');
 
   function syncOwnerContactDraft(nextStore) {
     setOwnerEmail(nextStore?.owner?.email || '');
@@ -359,6 +436,16 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed }) {
       setInfoSlug(payload.store.slug || '');
       syncOwnerContactDraft(payload.store);
       setOwnerContactEditing(false);
+      if (payload.store.assinatura?.planoCodigo) {
+        setCheckoutPlan(payload.store.assinatura.planoCodigo);
+      }
+      setCheckoutLink('');
+      syncCarenciaDraftFromAssinatura(payload.store.assinatura, {
+        setCarenciaEnabled,
+        setCarenciaModo,
+        setCarenciaInicio,
+        setCarenciaFim,
+      });
     } catch (loadError) {
       setStore(null);
       setError(loadError?.message || 'Erro ao carregar.');
@@ -367,25 +454,152 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed }) {
     }
   }
 
+  async function loadFeedback(targetSlug, { silent = false } = {}) {
+    if (!targetSlug) return;
+    setFeedbackLoading(true);
+    try {
+      const response = await fetch(
+        `/api/super-admin/stores/${encodeURIComponent(targetSlug)}/feedback`
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || 'Não foi possível carregar o feedback.');
+      }
+      setFeedbackItems(payload.items || []);
+      setFeedbackAbertos(Number(payload.abertos || 0));
+    } catch (loadError) {
+      if (!silent) toast.error(loadError?.message || 'Erro ao carregar feedback.');
+      if (!silent) {
+        setFeedbackItems([]);
+        setFeedbackAbertos(0);
+      }
+    } finally {
+      setFeedbackLoading(false);
+    }
+  }
+
+  async function updateFeedbackStatus(feedbackId, status) {
+    if (!slug || !feedbackId) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/super-admin/stores/${encodeURIComponent(slug)}/feedback`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: feedbackId, status }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || 'Não foi possível atualizar.');
+      }
+      const next = payload.feedback;
+      setFeedbackItems((prev) => {
+        const nextItems = prev.map((item) => (item.id === next.id ? next : item));
+        setFeedbackAbertos(nextItems.filter((item) => item.status === 'aberto').length);
+        return nextItems;
+      });
+      toast.success(`Marcado como ${NIMBUS_FEEDBACK_STATUS_LABEL[status] || status}.`);
+    } catch (updateError) {
+      toast.error(updateError?.message || 'Erro ao atualizar feedback.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const filteredFeedback = useMemo(() => {
+    if (feedbackFilter === 'todos') return feedbackItems;
+    return feedbackItems.filter((item) => item.status === feedbackFilter);
+  }, [feedbackItems, feedbackFilter]);
+
   useEffect(() => {
     if (!slug) {
       queueMicrotask(() => {
         setStore(null);
         setError('');
-        setTab('resumo');
+        setTab('visao');
+        setFeedbackItems([]);
+        setFeedbackAbertos(0);
       });
       return undefined;
     }
 
+    const nextTab = TABS.some((item) => item.id === initialTab) ? initialTab : 'visao';
+
     queueMicrotask(() => {
-      setTab('resumo');
+      setTab(nextTab);
       setOwnerContactEditing(false);
+      setFeedbackFilter('aberto');
       loadStore(slug);
+      loadFeedback(slug, { silent: true });
     });
     return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
-  async function saveNotesAndGoLive() {
+  function selectTab(id) {
+    setTab(id);
+    onTabChange?.(id);
+    if (id === 'pessoas' && slug) {
+      loadFeedback(slug);
+    }
+    if (id === 'comercial' && slug) {
+      loadBillingPlans(slug);
+    }
+  }
+
+  async function loadBillingPlans(targetSlug) {
+    if (!targetSlug) return;
+    try {
+      const response = await fetch(
+        `/api/super-admin/stores/${encodeURIComponent(targetSlug)}/billing`
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) return;
+      if (Array.isArray(payload.plans) && payload.plans.length) {
+        setBillingPlans(payload.plans);
+      }
+      if (payload.assinatura?.planoCodigo) {
+        setCheckoutPlan(payload.assinatura.planoCodigo);
+      }
+      syncCarenciaDraftFromAssinatura(payload.assinatura, {
+        setCarenciaEnabled,
+        setCarenciaModo,
+        setCarenciaInicio,
+        setCarenciaFim,
+      });
+    } catch {
+      // ignore
+    }
+  }
+
+  function buildBillingCarenciaPayload() {
+    return {
+      enabled: carenciaEnabled,
+      modo: carenciaModo,
+      inicio: carenciaModo === 'personalizado' ? carenciaInicio || undefined : undefined,
+      fim: carenciaModo === 'personalizado' ? carenciaFim || undefined : undefined,
+    };
+  }
+
+  function validateBillingDraft() {
+    if (!checkoutPlan) {
+      toast.error('Selecione um plano.');
+      return false;
+    }
+    if (carenciaEnabled && carenciaModo === 'personalizado') {
+      if (!carenciaFim) {
+        toast.error('Informe a data de término da carência.');
+        return false;
+      }
+      const inicio = carenciaInicio || todaySaoPauloClient();
+      if (carenciaFim < inicio) {
+        toast.error('O término da carência deve ser após o início.');
+        return false;
+      }
+    }
+    return true;
+  }
+
+  async function saveNotesAndGoLive({ notesValue = notes, closeNotesModal = false } = {}) {
     if (!slug) return;
     setSaving(true);
     setError('');
@@ -394,7 +608,7 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed }) {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          notas_nimbus: notes,
+          notas_nimbus: notesValue,
           data_go_live: goLiveDate || null,
           responsavel_nimbus: responsavelNimbus,
           contrato_inicio: contratoInicio || null,
@@ -405,12 +619,21 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed }) {
       if (!response.ok || !payload.ok) {
         throw new Error(payload.error || 'Não foi possível salvar.');
       }
+      setNotes(notesValue);
+      if (closeNotesModal) setNotesModalOpen(false);
       await loadStore(slug);
+      toast.success(closeNotesModal ? 'Nota salva.' : 'CRM salvo.');
     } catch (saveError) {
       setError(saveError?.message || 'Erro ao salvar.');
+      toast.error(saveError?.message || 'Erro ao salvar.');
     } finally {
       setSaving(false);
     }
+  }
+
+  function openNotesModal() {
+    setNotesDraft(notes || '');
+    setNotesModalOpen(true);
   }
 
   async function saveStoreInfo() {
@@ -568,15 +791,54 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed }) {
     }
   }
 
+  async function toggleAssinaturaNimbusHabilitada(enabled) {
+    if (!slug || !store) return;
+    const confirmed = window.confirm(
+      enabled
+        ? `Habilitar o bloco de assinatura Nimbus no admin de "${store.nome}"? Ele só aparece para o lojista quando a configuração do ambiente também permitir.`
+        : `Desativar o bloco de assinatura Nimbus no admin de "${store.nome}"?`
+    );
+    if (!confirmed) return;
+
+    setSaving(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/super-admin/stores/${encodeURIComponent(slug)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assinatura_nimbus_habilitada: enabled }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || 'Não foi possível atualizar a assinatura Nimbus.');
+      }
+      await loadStore(slug);
+      toast.success(
+        enabled ? 'Assinatura Nimbus habilitada no admin da loja.' : 'Assinatura Nimbus desativada no admin da loja.'
+      );
+    } catch (assinaturaError) {
+      toast.error(assinaturaError?.message || 'Erro ao atualizar assinatura Nimbus.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function toggleSuspended() {
     if (!slug || !store) return;
     const nextSuspended = !store.suspensa;
-    const confirmed = window.confirm(
-      nextSuspended
-        ? `Suspender "${store.nome}"? O cardápio público e o login do lojista ficarão indisponíveis.`
-        : `Reativar "${store.nome}"? O cardápio e o admin voltam a funcionar normalmente.`
-    );
-    if (!confirmed) return;
+    let motivo = '';
+    if (nextSuspended) {
+      const confirmed = window.confirm(
+        `Suspender "${store.nome}"? O cardápio público e o login do lojista ficarão indisponíveis.`
+      );
+      if (!confirmed) return;
+      motivo = window.prompt('Motivo da suspensão (opcional):', '') || '';
+    } else {
+      const confirmed = window.confirm(
+        `Reativar "${store.nome}"? O cardápio e o admin voltam a funcionar normalmente.`
+      );
+      if (!confirmed) return;
+    }
 
     setSaving(true);
     setError('');
@@ -584,7 +846,7 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed }) {
       const response = await fetch(`/api/super-admin/stores/${encodeURIComponent(slug)}/suspend`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ suspensa: nextSuspended }),
+        body: JSON.stringify({ suspensa: nextSuspended, motivo }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || !payload.ok) {
@@ -682,6 +944,123 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed }) {
     }
   }
 
+  async function saveBillingActions() {
+    if (!slug || !validateBillingDraft()) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/super-admin/stores/${encodeURIComponent(slug)}/billing`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'salvar_acoes',
+          planoCodigo: checkoutPlan,
+          carenciaEnabled,
+          carenciaModo,
+          carencia_inicio: carenciaModo === 'personalizado' ? carenciaInicio || undefined : undefined,
+          carencia_fim: carenciaModo === 'personalizado' ? carenciaFim : undefined,
+          carencia: buildBillingCarenciaPayload(),
+        }),
+      });
+      if (response.status === 404) {
+        toast.error('Billing ainda não disponível.');
+        return;
+      }
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || 'Não foi possível salvar as ações.');
+      }
+      await loadStore(slug);
+      await loadBillingPlans(slug);
+      if (payload.carencia?.enabled) {
+        toast.success(
+          payload.carencia.modo === '7dias'
+            ? 'Plano e carência de 7 dias salvos.'
+            : `Plano e carência salvos até ${formatDateOnly(payload.carencia.fim)}.`
+        );
+      } else if (payload.stripeMode === 'cleared') {
+        toast.success('Ações salvas. Carência removida.');
+      } else {
+        toast.success('Ações salvas.');
+      }
+    } catch (saveError) {
+      toast.error(saveError?.message || 'Erro ao salvar ações.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function copyBillingCheckoutLink() {
+    if (!slug || !validateBillingDraft()) return;
+    setSaving(true);
+    try {
+      const response = await fetch(
+        `/api/super-admin/stores/${encodeURIComponent(slug)}/billing/checkout`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            planoCodigo: checkoutPlan,
+            carenciaEnabled,
+            carenciaModo,
+            carencia_inicio: carenciaModo === 'personalizado' ? carenciaInicio || undefined : undefined,
+            carencia_fim: carenciaModo === 'personalizado' ? carenciaFim : undefined,
+            carencia: buildBillingCarenciaPayload(),
+          }),
+        }
+      );
+      if (response.status === 404) {
+        toast.error('Billing ainda não disponível.');
+        return;
+      }
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok || !payload.url) {
+        throw new Error(payload.error || 'Não foi possível gerar o link de checkout.');
+      }
+      setCheckoutLink(payload.url);
+      await navigator.clipboard.writeText(payload.url);
+      await loadStore(slug);
+      await loadBillingPlans(slug);
+      toast.success(
+        carenciaEnabled
+          ? 'Link copiado — o Checkout mostra o período grátis para o cliente.'
+          : 'Link de checkout copiado.'
+      );
+    } catch (checkoutError) {
+      toast.error(checkoutError?.message || 'Erro ao gerar link de checkout.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function impersonateStore() {
+    if (!slug) return;
+    setSaving(true);
+    try {
+      const response = await fetch(
+        `/api/super-admin/stores/${encodeURIComponent(slug)}/impersonate`,
+        { method: 'POST' }
+      );
+      if (response.status === 404) {
+        toast.error('Personificação ainda não disponível.');
+        return;
+      }
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || 'Não foi possível entrar como a loja.');
+      }
+      if (payload.slug) {
+        writeActiveStoreSlug(payload.slug);
+      }
+      if (payload.redirect) {
+        window.location.href = payload.redirect;
+      }
+    } catch (impersonateError) {
+      toast.error(impersonateError?.message || 'Erro ao entrar como a loja.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (!slug) return null;
 
   const compare = store?.goLiveComparison;
@@ -732,7 +1111,7 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed }) {
               </div>
             </>
           ) : (
-            <h2 className={styles.title}>Carregando loja...</h2>
+            <SaStoreDrawerHeroSkeleton />
           )}
         </header>
 
@@ -742,19 +1121,22 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed }) {
               key={id}
               type="button"
               className={`${styles.tab}${tab === id ? ` ${styles.tabActive}` : ''}`}
-              onClick={() => setTab(id)}
+              onClick={() => selectTab(id)}
             >
               {label}
+              {id === 'pessoas' && feedbackAbertos > 0 ? (
+                <span className={styles.feedbackTabBadge}>{feedbackAbertos}</span>
+              ) : null}
             </button>
           ))}
         </div>
 
         <div className={styles.body}>
-          {loading ? <p className={styles.loadingState}>Carregando detalhes...</p> : null}
+          {loading ? <SaStoreDrawerSkeleton /> : null}
           {error ? <p className={styles.alertError}>{error}</p> : null}
 
-          {store && tab === 'resumo' ? (
-            <>
+          {!loading && store && tab === 'visao' ? (
+            <div className={styles.tabStack}>
               <div className={styles.grid2}>
                 <section className={styles.panel}>
                   <div className={styles.ownerPanelHead}>
@@ -847,30 +1229,22 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed }) {
                   )}
 
                   {!store.owner?.userId ? (
-                    <p className={styles.muted} style={{ marginTop: 12 }}>
+                    <p className={styles.muted}>
                       Proprietário não vinculado — não é possível alterar o e-mail de login.
                     </p>
                   ) : null}
                 </section>
 
                 <section className={styles.panel}>
-                  <h3 className={styles.panelTitle}>Operação</h3>
+                  <h3 className={styles.panelTitle}>Sinais da loja</h3>
                   <div className={styles.statGrid}>
                     <div className={styles.statTile}>
                       <span>Cidade</span>
                       <strong>{store.endereco_cidade || '—'}</strong>
                     </div>
                     <div className={styles.statTile}>
-                      <span>Segmento</span>
-                      <strong>{store.segmento || '—'}</strong>
-                    </div>
-                    <div className={styles.statTile}>
                       <span>Membros</span>
                       <strong>{store.memberCount}</strong>
-                    </div>
-                    <div className={styles.statTile}>
-                      <span>Criada em</span>
-                      <strong>{formatDate(store.created_at)}</strong>
                     </div>
                     <div className={styles.statTile}>
                       <span>Go-live</span>
@@ -880,140 +1254,9 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed }) {
                       <span>Último pedido</span>
                       <strong>{formatDate(store.lastPedidoAt)}</strong>
                     </div>
-                    <div className={styles.statTile} style={{ gridColumn: '1 / -1' }}>
-                      <span>Catálogo atualizado</span>
-                      <strong>{formatDate(store.catalogUpdatedAt)}</strong>
-                    </div>
                   </div>
                 </section>
               </div>
-
-              <section className={styles.panelAccent}>
-                <div className={styles.remoteRow}>
-                  <AdminAvailabilitySwitch
-                    checked={!store.fechadaManual}
-                    onChange={toggleStoreOpen}
-                    label="Loja aberta manualmente"
-                  />
-                  <div className={styles.remoteCopy}>
-                    <p className={styles.remoteTitle}>Controle remoto</p>
-                    <p className={styles.remoteHint}>
-                      {store.fechadaManual
-                        ? 'Fechada manualmente — cardápio indisponível até reabrir.'
-                        : 'Aberta — respeita horários se não houver fechamento manual.'}
-                    </p>
-                  </div>
-                </div>
-              </section>
-
-              <section className={styles.panelAccent}>
-                <div className={styles.remoteRow}>
-                  <AdminAvailabilitySwitch
-                    checked={isCardapioPublicV2(store.cardapio_publico_versao)}
-                    onChange={toggleCardapioVersion}
-                    label="Cardápio público v2"
-                  />
-                  <div className={styles.remoteCopy}>
-                    <p className={styles.remoteTitle}>Layout do cardápio</p>
-                    <p className={styles.remoteHint}>
-                      {isCardapioPublicV2(store.cardapio_publico_versao) ? (
-                        <>
-                          Visitantes veem o <strong>v2</strong> em{' '}
-                          <a href={store.cardapioUrl} target="_blank" rel="noopener noreferrer">
-                            {store.cardapioUrl}
-                          </a>
-                          . Preview interno:{' '}
-                          <a
-                            href={buildCardapioV2Path(store.slug)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            /v2
-                          </a>
-                        </>
-                      ) : (
-                        <>
-                          Visitantes veem o <strong>v1</strong> (padrão). Teste o v2 em{' '}
-                          <a
-                            href={buildCardapioV2Path(store.slug)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            {buildCardapioV2Path(store.slug)}
-                          </a>{' '}
-                          antes de ativar aqui.
-                        </>
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </section>
-
-              <section className={styles.panelAccent}>
-                <div className={styles.remoteRow}>
-                  <AdminAvailabilitySwitch
-                    checked={Boolean(store.pagamentos_online_habilitados)}
-                    onChange={togglePaymentIntegrations}
-                    label="Integrações de pagamentos"
-                  />
-                  <div className={styles.remoteCopy}>
-                    <p className={styles.remoteTitle}>Pagamentos online</p>
-                    <p className={styles.remoteHint}>
-                      {store.pagamentos_online_habilitados
-                        ? 'Liberado — a loja pode conectar um provedor e oferecer Pix ou cartão online.'
-                        : 'Bloqueado — a seção Pagamentos fica oculta e as APIs recusam novas operações.'}
-                    </p>
-                  </div>
-                </div>
-              </section>
-
-              <div className={styles.actionDock}>
-                {!store.isModel ? (
-                  <div className={styles.actionGroup}>
-                    <p className={styles.actionGroupLabel}>Status da conta</p>
-                    <button
-                      type="button"
-                      className={store.suspensa ? styles.btnSuccess : styles.btnDanger}
-                      disabled={saving}
-                      onClick={toggleSuspended}
-                    >
-                      {store.suspensa ? 'Reativar loja' : 'Suspender loja'}
-                    </button>
-                  </div>
-                ) : null}
-
-                <div className={styles.actionGroup}>
-                  <p className={styles.actionGroupLabel}>Dados e acesso</p>
-                  <button
-                    type="button"
-                    className={styles.btnGhost}
-                    disabled={saving}
-                    onClick={downloadBackup}
-                  >
-                    Exportar backup JSON
-                  </button>
-                  {store.owner?.email ? (
-                    <button
-                      type="button"
-                      className={styles.btnGhost}
-                      disabled={saving}
-                      onClick={resetOwnerPassword}
-                    >
-                      Resetar senha do dono
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-
-            </>
-          ) : null}
-
-          {store && tab === 'informacoes' ? (
-            <div className={styles.notesLayout}>
-              <p className={`${styles.muted} ${styles.tabIntro}`}>
-                Segmento e slug definem módulos do admin e o endereço público do cardápio. Alterações
-                aqui substituem o que o lojista vê em Minha loja.
-              </p>
 
               <section className={styles.crmPanel}>
                 <h3 className={styles.panelTitle}>Identidade da loja</h3>
@@ -1054,148 +1297,393 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed }) {
                 {store.isModel ? (
                   <p className={styles.muted}>A loja modelo não pode ter o slug alterado.</p>
                 ) : null}
+                <button
+                  type="button"
+                  className={styles.btnPrimary}
+                  disabled={saving}
+                  onClick={saveStoreInfo}
+                >
+                  {saving ? 'Salvando...' : 'Salvar identidade'}
+                </button>
               </section>
 
-              <button
-                type="button"
-                className={styles.btnPrimary}
-                disabled={saving}
-                onClick={saveStoreInfo}
-              >
-                {saving ? 'Salvando...' : 'Salvar informações'}
-              </button>
+              <section className={styles.panel}>
+                <h3 className={styles.panelTitle}>Resumo comercial</h3>
+                <div className={styles.billingSummary}>
+                  <div className={styles.billingStat}>
+                    <span>Assinatura</span>
+                    <strong>{store.assinatura?.display?.label || 'Sem informações'}</strong>
+                  </div>
+                  {store.assinatura?.planoLabel && store.assinatura.planoLabel !== '—' ? (
+                    <div className={styles.billingStat}>
+                      <span>Plano</span>
+                      <strong>{store.assinatura.planoLabel}</strong>
+                    </div>
+                  ) : null}
+                  {typeof store.onboardingPct === 'number' ? (
+                    <div className={styles.billingStat}>
+                      <span>Onboarding</span>
+                      <strong>{store.onboardingPct}%</strong>
+                    </div>
+                  ) : null}
+                  {typeof store.healthScore === 'number' ? (
+                    <div className={styles.billingStat}>
+                      <span>Health score</span>
+                      <strong>{store.healthScore}</strong>
+                    </div>
+                  ) : null}
+                </div>
+                <p className={styles.muted}>Detalhes e cobrança na aba Comercial.</p>
+              </section>
             </div>
           ) : null}
 
-          {store && tab === 'metricas' ? (
-            <MetricsDashboard
-              metrics={store.metrics}
-              dailySeries={store.dailySeries}
-              compare={compare}
-            />
+          {!loading && store && tab === 'metricas' ? (
+            <div className={styles.tabStack}>
+              <section className={styles.panel}>
+                <h3 className={styles.panelTitle}>Métricas</h3>
+                <MetricsDashboard
+                  metrics={store.metrics}
+                  dailySeries={store.dailySeries}
+                  compare={compare}
+                />
+              </section>
+            </div>
           ) : null}
 
-          {store && tab === 'equipe' ? (
-            <>
-              <p className={styles.muted} style={{ marginBottom: 16 }}>
-                Membros com acesso ao admin desta loja. Proprietário é definido na criação da loja.
-              </p>
+          {!loading && store && tab === 'operacao' ? (
+            <div className={styles.tabStack}>
+              <section className={styles.panel}>
+                <h3 className={styles.panelTitle}>Controles da loja</h3>
+                <div className={styles.controlGrid}>
+                  <div className={styles.controlTile}>
+                    <div className={styles.controlTileHead}>
+                      <p className={styles.controlTileTitle}>Loja aberta</p>
+                      <AdminAvailabilitySwitch
+                        checked={!store.fechadaManual}
+                        onChange={toggleStoreOpen}
+                        label="Loja aberta manualmente"
+                      />
+                    </div>
+                    <p className={styles.controlTileHint}>
+                      {store.fechadaManual
+                        ? 'Fechada manualmente — cardápio indisponível.'
+                        : 'Aberta — respeita horários se não houver fechamento manual.'}
+                    </p>
+                  </div>
 
-              <ul className={styles.teamList}>
-                {(store.team || []).map((member) => {
-                  const displayName = member.nome || member.email || 'Sem nome';
-                  const initial = displayName.trim().charAt(0).toUpperCase() || '?';
-                  return (
-                    <li
-                      key={member.usuarioId}
-                      className={`${styles.teamCard}${member.ativo ? '' : ` ${styles.teamCardInactive}`}`}
-                    >
-                      <div className={styles.teamIdentity}>
-                        <span className={styles.teamInitial}>{initial}</span>
-                        <div>
-                          <p className={styles.teamName}>{displayName}</p>
-                          <span className={styles.teamEmail}>{member.email || '—'}</span>
-                          <span className={styles.rolePill}>{member.papelLabel}</span>
-                        </div>
-                      </div>
-                      <div className={styles.teamActions}>
-                        {member.papel !== 'proprietario' ? (
-                          <select
-                            className={styles.teamSelect}
-                            value={member.papel}
-                            disabled={saving || !member.ativo}
-                            onChange={(event) =>
-                              patchMember(member.usuarioId, { papel: event.target.value })
-                            }
+                  <div className={styles.controlTile}>
+                    <div className={styles.controlTileHead}>
+                      <p className={styles.controlTileTitle}>Cardápio v2</p>
+                      <AdminAvailabilitySwitch
+                        checked={isCardapioPublicV2(store.cardapio_publico_versao)}
+                        onChange={toggleCardapioVersion}
+                        label="Cardápio público v2"
+                      />
+                    </div>
+                    <p className={styles.controlTileHint}>
+                      {isCardapioPublicV2(store.cardapio_publico_versao) ? (
+                        <>
+                          Público em{' '}
+                          <a href={store.cardapioUrl} target="_blank" rel="noopener noreferrer">
+                            v2
+                          </a>
+                          .
+                        </>
+                      ) : (
+                        <>
+                          Público em v1. Preview:{' '}
+                          <a
+                            href={buildCardapioV2Path(store.slug)}
+                            target="_blank"
+                            rel="noopener noreferrer"
                           >
-                            <option value="gerente">Gerente</option>
-                            <option value="atendente">Atendente</option>
-                          </select>
-                        ) : null}
-                        {member.papel !== 'proprietario' ? (
-                          <button
-                            type="button"
-                            className={styles.btnGhost}
-                            disabled={saving}
-                            onClick={() => patchMember(member.usuarioId, { ativo: !member.ativo })}
-                          >
-                            {member.ativo ? 'Desativar' : 'Reativar'}
-                          </button>
-                        ) : null}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+                            /v2
+                          </a>
+                        </>
+                      )}
+                    </p>
+                  </div>
 
-              <form className={styles.teamForm} onSubmit={addTeamMember}>
-                <h3 className={styles.teamFormTitle}>Adicionar operador</h3>
-                <div className={styles.formGrid}>
-                  <label className={styles.formField}>
-                    <span className={styles.formLabel}>E-mail</span>
-                    <input
-                      className={styles.formInput}
-                      type="email"
-                      value={teamForm.email}
-                      onChange={(event) =>
-                        setTeamForm((prev) => ({ ...prev, email: event.target.value }))
-                      }
-                      required
-                    />
-                  </label>
-                  <label className={styles.formField}>
-                    <span className={styles.formLabel}>Nome (opcional)</span>
-                    <input
-                      className={styles.formInput}
-                      value={teamForm.nome}
-                      onChange={(event) =>
-                        setTeamForm((prev) => ({ ...prev, nome: event.target.value }))
-                      }
-                    />
-                  </label>
-                  <label className={styles.formField}>
-                    <span className={styles.formLabel}>Papel</span>
-                    <select
-                      className={styles.formInput}
-                      value={teamForm.papel}
-                      onChange={(event) =>
-                        setTeamForm((prev) => ({ ...prev, papel: event.target.value }))
-                      }
-                    >
-                      <option value="gerente">Gerente</option>
-                      <option value="atendente">Atendente</option>
-                    </select>
-                  </label>
-                  <label className={styles.formField}>
-                    <span className={styles.formLabel}>Senha temporária (e-mail novo)</span>
-                    <input
-                      className={styles.formInput}
-                      value={teamForm.tempPassword}
-                      onChange={(event) =>
-                        setTeamForm((prev) => ({ ...prev, tempPassword: event.target.value }))
-                      }
-                      minLength={8}
-                    />
-                  </label>
+                  <div className={styles.controlTile}>
+                    <div className={styles.controlTileHead}>
+                      <p className={styles.controlTileTitle}>Pagamentos online</p>
+                      <AdminAvailabilitySwitch
+                        checked={Boolean(store.pagamentos_online_habilitados)}
+                        onChange={togglePaymentIntegrations}
+                        label="Integrações de pagamentos"
+                      />
+                    </div>
+                    <p className={styles.controlTileHint}>
+                      {store.pagamentos_online_habilitados
+                        ? 'Liberado para conectar Pix/cartão.'
+                        : 'Bloqueado no admin da loja.'}
+                    </p>
+                  </div>
+
+                  <div className={styles.controlTile}>
+                    <div className={styles.controlTileHead}>
+                      <p className={styles.controlTileTitle}>Assinatura Nimbus</p>
+                      <AdminAvailabilitySwitch
+                        checked={Boolean(store.assinatura_nimbus_habilitada)}
+                        onChange={toggleAssinaturaNimbusHabilitada}
+                        label="Assinatura Nimbus no admin da loja"
+                      />
+                    </div>
+                    <p className={styles.controlTileHint}>
+                      {store.assinatura_nimbus_habilitada
+                        ? 'Bloco de assinatura visível no admin da loja.'
+                        : 'Oculto no admin da loja.'}
+                    </p>
+                  </div>
                 </div>
-                <button
-                  type="submit"
-                  className={styles.btnPrimary}
-                  disabled={saving}
-                  style={{ marginTop: 14 }}
-                >
-                  {saving ? 'Salvando...' : 'Vincular membro'}
-                </button>
-              </form>
-            </>
+              </section>
+
+              <div className={styles.actionDock}>
+                {!store.isModel ? (
+                  <div className={styles.actionGroup}>
+                    <p className={styles.actionGroupLabel}>Risco</p>
+                    <button
+                      type="button"
+                      className={store.suspensa ? styles.btnSuccess : styles.btnDanger}
+                      disabled={saving}
+                      onClick={toggleSuspended}
+                    >
+                      {store.suspensa ? 'Reativar loja' : 'Suspender loja'}
+                    </button>
+                  </div>
+                ) : null}
+
+                <div className={styles.actionGroup}>
+                  <p className={styles.actionGroupLabel}>Dados e acesso</p>
+                  {store.owner?.email ? (
+                    <button
+                      type="button"
+                      className={styles.btnGhost}
+                      disabled={saving}
+                      onClick={resetOwnerPassword}
+                    >
+                      Resetar senha do dono
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
+              <section className={styles.panel}>
+                <h3 className={styles.panelTitle}>Ferramentas</h3>
+                <div className={styles.actionGroup}>
+                  <button
+                    type="button"
+                    className={styles.btnGhost}
+                    disabled={saving}
+                    onClick={downloadBackup}
+                  >
+                    Exportar backup JSON
+                  </button>
+                </div>
+                <StoreCatalogImportPanel
+                  slug={slug}
+                  onImported={() => {
+                    loadStore(slug);
+                    toast.success('Cardápio importado. Revise fotos e detalhes no admin da loja.');
+                  }}
+                />
+              </section>
+            </div>
           ) : null}
 
-          {store && tab === 'notas' ? (
-            <div className={styles.notesLayout}>
+          {!loading && store && tab === 'comercial' ? (
+            <div className={styles.tabStack}>
               <p className={`${styles.muted} ${styles.tabIntro}`}>
-                Informações internas da Nimbus — contrato, piloto, observações de suporte. O lojista não
-                vê este conteúdo.
+                Cobrança, carência e CRM interno. O lojista não vê este conteúdo.
               </p>
+
+              <section className={styles.billingHero}>
+                <h3 className={styles.billingHeroTitle}>Assinatura Stripe</h3>
+                <p className={styles.muted}>
+                  Escolha o plano e, se quiser, um período de carência. Salve e copie o link de
+                  checkout para o cliente.
+                </p>
+                {store.assinatura ? (
+                  <div className={styles.billingSummary}>
+                    <div className={styles.billingStat}>
+                      <span>Status</span>
+                      <strong>{store.assinatura.display?.label || '—'}</strong>
+                    </div>
+                    <div className={styles.billingStat}>
+                      <span>Plano</span>
+                      <strong>{store.assinatura.planoLabel || '—'}</strong>
+                    </div>
+                    <div className={styles.billingStat}>
+                      <span>Período atual até</span>
+                      <strong>{formatDate(store.assinatura.currentPeriodEnd)}</strong>
+                    </div>
+                    <div className={styles.billingStat}>
+                      <span>Valor</span>
+                      <strong>{formatCurrencyCents(store.assinatura.valorCentavos)}</strong>
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className={styles.planPicker} role="radiogroup" aria-label="Plano Nimbus">
+                  {(billingPlans.length
+                    ? billingPlans
+                    : [
+                        {
+                          codigo: 'loja_nova',
+                          label: 'Loja Nova',
+                          valorCentavos: 14990,
+                          descricao: 'Primeira loja',
+                        },
+                        {
+                          codigo: 'segunda_loja',
+                          label: 'Segunda Loja',
+                          valorCentavos: 11990,
+                          descricao: 'Segunda unidade',
+                        },
+                        {
+                          codigo: 'loja_complementar',
+                          label: 'Loja Complementar',
+                          valorCentavos: 9990,
+                          descricao: 'Unidades adicionais',
+                        },
+                      ]
+                  ).map((plan) => {
+                    const active = checkoutPlan === plan.codigo;
+                    return (
+                      <button
+                        key={plan.codigo}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        className={`${styles.planCard}${active ? ` ${styles.planCardActive}` : ''}`}
+                        onClick={() => setCheckoutPlan(plan.codigo)}
+                        disabled={saving}
+                      >
+                        <strong>{plan.label}</strong>
+                        <span>{formatCurrencyCents(plan.valorCentavos)}/mês</span>
+                        {plan.descricao ? <em>{plan.descricao}</em> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className={styles.carenciaBox}>
+                  <label className={styles.carenciaToggle}>
+                    <input
+                      type="checkbox"
+                      checked={carenciaEnabled}
+                      disabled={saving}
+                      onChange={(event) => {
+                        const next = event.target.checked;
+                        setCarenciaEnabled(next);
+                        if (next && !carenciaModo) setCarenciaModo('7dias');
+                      }}
+                    />
+                    <span>
+                      <strong>Período de carência</strong>
+                      <em>
+                        Cliente não é cobrado até o fim do período; o Checkout mostra os dias
+                        grátis.
+                      </em>
+                    </span>
+                  </label>
+
+                  {carenciaEnabled ? (
+                    <>
+                      <div
+                        className={styles.carenciaModePicker}
+                        role="radiogroup"
+                        aria-label="Tipo de carência"
+                      >
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={carenciaModo === '7dias'}
+                          className={`${styles.carenciaModeCard}${
+                            carenciaModo === '7dias' ? ` ${styles.carenciaModeCardActive}` : ''
+                          }`}
+                          disabled={saving}
+                          onClick={() => setCarenciaModo('7dias')}
+                        >
+                          <strong>7 dias (padrão)</strong>
+                          <span>A partir de agora — sem escolher datas</span>
+                        </button>
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={carenciaModo === 'personalizado'}
+                          className={`${styles.carenciaModeCard}${
+                            carenciaModo === 'personalizado'
+                              ? ` ${styles.carenciaModeCardActive}`
+                              : ''
+                          }`}
+                          disabled={saving}
+                          onClick={() => {
+                            setCarenciaModo('personalizado');
+                            if (!carenciaInicio) setCarenciaInicio(todaySaoPauloClient());
+                          }}
+                        >
+                          <strong>Personalizado</strong>
+                          <span>Definir início e término</span>
+                        </button>
+                      </div>
+
+                      {carenciaModo === 'personalizado' ? (
+                        <div className={styles.carenciaDates}>
+                          <label className={styles.formField}>
+                            <span className={styles.formLabel}>Início</span>
+                            <AdminDatePicker
+                              compact
+                              value={carenciaInicio}
+                              onChange={setCarenciaInicio}
+                            />
+                          </label>
+                          <label className={styles.formField}>
+                            <span className={styles.formLabel}>Término</span>
+                            <AdminDatePicker compact value={carenciaFim} onChange={setCarenciaFim} />
+                          </label>
+                        </div>
+                      ) : (
+                        <p className={styles.muted}>
+                          Carência de 7 dias a partir de hoje ({todaySaoPauloClient()}).
+                        </p>
+                      )}
+                    </>
+                  ) : null}
+
+                  {store.assinatura?.statusLocal === 'cortesia' && store.assinatura?.carenciaFim ? (
+                    <p className={styles.muted}>
+                      Carência ativa até {formatDate(store.assinatura.carenciaFim)}
+                      {store.assinatura.planoLabel ? ` · plano ${store.assinatura.planoLabel}` : ''}.
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className={styles.billingActions}>
+                  <button
+                    type="button"
+                    className={styles.btnPrimary}
+                    disabled={saving}
+                    onClick={saveBillingActions}
+                  >
+                    {saving ? 'Salvando...' : 'Salvar ações'}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.btnGhost}
+                    disabled={saving}
+                    onClick={copyBillingCheckoutLink}
+                  >
+                    Copiar link do checkout
+                  </button>
+                </div>
+                {checkoutLink ? (
+                  <p className={styles.checkoutLinkHint} title={checkoutLink}>
+                    Link gerado e copiado. Pode colar no WhatsApp ou e-mail do cliente.
+                  </p>
+                ) : null}
+              </section>
 
               <section className={styles.crmPanel}>
                 <h3 className={styles.panelTitle}>CRM interno</h3>
@@ -1222,41 +1710,381 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed }) {
                     placeholder="Nome do responsável interno"
                   />
                 </label>
+                <button
+                  type="button"
+                  className={styles.btnGhost}
+                  disabled={saving}
+                  onClick={() => saveNotesAndGoLive()}
+                >
+                  {saving ? 'Salvando...' : 'Salvar CRM'}
+                </button>
               </section>
 
               <section className={styles.notesPanel}>
                 <h3 className={styles.panelTitle}>Notas Nimbus</h3>
-                <textarea
-                  className={styles.notesArea}
-                  rows={8}
-                  value={notes}
-                  onChange={(event) => setNotes(event.target.value)}
-                  placeholder="Ex.: piloto até agosto, domínio pendente, contato preferencial WhatsApp..."
-                />
+                <div className={styles.notesCollapsedRow}>
+                  <div className={styles.notesCollapsedCopy}>
+                    {String(notes || '').trim() ? (
+                      <p className={styles.notesCollapsedPreview}>{notes}</p>
+                    ) : (
+                      <p className={styles.muted}>Nenhuma nota.</p>
+                    )}
+                  </div>
+                  <button type="button" className={styles.notesLinkBtn} onClick={openNotesModal}>
+                    {String(notes || '').trim() ? 'Editar' : 'Adicionar'}
+                  </button>
+                </div>
               </section>
 
-              <button
-                type="button"
-                className={styles.btnPrimary}
-                disabled={saving}
-                onClick={saveNotesAndGoLive}
-              >
-                {saving ? 'Salvando...' : 'Salvar notas e CRM'}
-              </button>
+              {store.onboarding ? (
+                <section className={styles.crmPanel}>
+                  <h3 className={styles.panelTitle}>
+                    Onboarding
+                    {typeof store.onboardingPct === 'number' ? ` · ${store.onboardingPct}%` : ''}
+                  </h3>
+                  <ul className={styles.onboardingList}>
+                    {ONBOARDING_ITEMS.map((item) => {
+                      const done = Boolean(store.onboarding[item.key]);
+                      return (
+                        <li
+                          key={item.key}
+                          className={`${styles.onboardingItem}${done ? ` ${styles.onboardingItemDone}` : ''}`}
+                        >
+                          <span className={styles.onboardingCheck}>{done ? '✓' : ''}</span>
+                          {item.label}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ) : null}
             </div>
           ) : null}
 
-          {store && tab === 'cardapio' ? (
-            <StoreCatalogImportPanel
-              slug={slug}
-              onImported={() => {
-                loadStore(slug);
-                toast.success('Cardápio importado. Revise fotos e detalhes no admin da loja.');
-              }}
-            />
+          {!loading && store && tab === 'pessoas' ? (
+            <div className={styles.tabStack}>
+              <section className={styles.crmPanel}>
+                <div className={styles.ownerPanelHead}>
+                  <h3 className={styles.panelTitle}>Equipe</h3>
+                  <button
+                    type="button"
+                    className={styles.btnGhost}
+                    disabled={saving}
+                    onClick={impersonateStore}
+                  >
+                    Entrar como a loja
+                  </button>
+                </div>
+                <p className={styles.muted}>
+                  Membros com acesso ao admin desta loja. Proprietário é definido na criação da loja.
+                </p>
+
+                <ul className={styles.teamList}>
+                  {(store.team || []).map((member) => {
+                    const displayName = member.nome || member.email || 'Sem nome';
+                    const initial = displayName.trim().charAt(0).toUpperCase() || '?';
+                    return (
+                      <li
+                        key={member.usuarioId}
+                        className={`${styles.teamCard}${member.ativo ? '' : ` ${styles.teamCardInactive}`}`}
+                      >
+                        <div className={styles.teamIdentity}>
+                          <span className={styles.teamInitial}>{initial}</span>
+                          <div>
+                            <p className={styles.teamName}>{displayName}</p>
+                            <span className={styles.teamEmail}>{member.email || '—'}</span>
+                            <span className={styles.rolePill}>{member.papelLabel}</span>
+                          </div>
+                        </div>
+                        <div className={styles.teamActions}>
+                          {member.papel !== 'proprietario' ? (
+                            <select
+                              className={styles.teamSelect}
+                              value={member.papel}
+                              disabled={saving || !member.ativo}
+                              onChange={(event) =>
+                                patchMember(member.usuarioId, { papel: event.target.value })
+                              }
+                            >
+                              <option value="gerente">Gerente</option>
+                              <option value="atendente">Atendente</option>
+                            </select>
+                          ) : null}
+                          {member.papel !== 'proprietario' ? (
+                            <button
+                              type="button"
+                              className={styles.btnGhost}
+                              disabled={saving}
+                              onClick={() => patchMember(member.usuarioId, { ativo: !member.ativo })}
+                            >
+                              {member.ativo ? 'Desativar' : 'Reativar'}
+                            </button>
+                          ) : null}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+
+                <form className={styles.teamForm} onSubmit={addTeamMember}>
+                  <h3 className={styles.teamFormTitle}>Adicionar operador</h3>
+                  <div className={styles.formGrid}>
+                    <label className={styles.formField}>
+                      <span className={styles.formLabel}>E-mail</span>
+                      <input
+                        className={styles.formInput}
+                        type="email"
+                        value={teamForm.email}
+                        onChange={(event) =>
+                          setTeamForm((prev) => ({ ...prev, email: event.target.value }))
+                        }
+                        required
+                      />
+                    </label>
+                    <label className={styles.formField}>
+                      <span className={styles.formLabel}>Nome (opcional)</span>
+                      <input
+                        className={styles.formInput}
+                        value={teamForm.nome}
+                        onChange={(event) =>
+                          setTeamForm((prev) => ({ ...prev, nome: event.target.value }))
+                        }
+                      />
+                    </label>
+                    <label className={styles.formField}>
+                      <span className={styles.formLabel}>Papel</span>
+                      <select
+                        className={styles.formInput}
+                        value={teamForm.papel}
+                        onChange={(event) =>
+                          setTeamForm((prev) => ({ ...prev, papel: event.target.value }))
+                        }
+                      >
+                        <option value="gerente">Gerente</option>
+                        <option value="atendente">Atendente</option>
+                      </select>
+                    </label>
+                    <label className={styles.formField}>
+                      <span className={styles.formLabel}>Senha temporária (e-mail novo)</span>
+                      <input
+                        className={styles.formInput}
+                        value={teamForm.tempPassword}
+                        onChange={(event) =>
+                          setTeamForm((prev) => ({ ...prev, tempPassword: event.target.value }))
+                        }
+                        minLength={8}
+                      />
+                    </label>
+                  </div>
+                  <button
+                    type="submit"
+                    className={styles.btnPrimary}
+                    disabled={saving}
+                    style={{ marginTop: 14 }}
+                  >
+                    {saving ? 'Salvando...' : 'Vincular membro'}
+                  </button>
+                </form>
+              </section>
+
+              <section className={styles.crmPanel}>
+                <h3 className={styles.panelTitle}>Feedback</h3>
+                <p className={`${styles.muted} ${styles.tabIntro}`}>
+                  Mensagens enviadas pelo lojista em “Fale conosco”. Suporte via WhatsApp não entra
+                  aqui — só o que foi registrado no inbox.
+                </p>
+
+                <div className={styles.feedbackToolbar}>
+                  <div className={styles.feedbackFilters}>
+                    {[
+                      { id: 'aberto', label: 'Abertos' },
+                      { id: 'lido', label: 'Lidos' },
+                      { id: 'arquivado', label: 'Arquivados' },
+                      { id: 'todos', label: 'Todos' },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={`${styles.feedbackFilterBtn}${feedbackFilter === item.id ? ` ${styles.feedbackFilterBtnActive}` : ''}`}
+                        onClick={() => setFeedbackFilter(item.id)}
+                      >
+                        {item.label}
+                        {item.id === 'aberto' && feedbackAbertos > 0 ? ` (${feedbackAbertos})` : ''}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.btnGhost}
+                    disabled={feedbackLoading}
+                    onClick={() => loadFeedback(slug)}
+                  >
+                    {feedbackLoading ? 'Atualizando…' : 'Atualizar'}
+                  </button>
+                </div>
+
+                {feedbackLoading && !filteredFeedback.length ? (
+                  <SaFeedbackSkeleton />
+                ) : null}
+
+                {!feedbackLoading && !filteredFeedback.length ? (
+                  <p className={styles.muted}>Nenhuma mensagem neste filtro.</p>
+                ) : null}
+
+                {!feedbackLoading || filteredFeedback.length ? (
+                <div className={styles.feedbackList}>
+                  {filteredFeedback.map((item) => (
+                    <article key={item.id} className={styles.feedbackCard}>
+                      <header className={styles.feedbackCardHead}>
+                        <div>
+                          <strong>{item.categoriaLabel}</strong>
+                          <span className={styles.feedbackMeta}>
+                            {item.autorNome || item.autorEmail || 'Lojista'}
+                            {item.autorEmail ? ` · ${item.autorEmail}` : ''}
+                            {' · '}
+                            {formatDate(item.createdAt)}
+                          </span>
+                        </div>
+                        <span
+                          className={`${styles.feedbackStatus} ${styles[`feedbackStatus_${item.status}`] || ''}`}
+                        >
+                          {item.statusLabel}
+                        </span>
+                      </header>
+                      <p className={styles.feedbackMessage}>{item.mensagem}</p>
+                      <div className={styles.feedbackActions}>
+                        {item.status !== 'lido' ? (
+                          <button
+                            type="button"
+                            className={styles.btnGhost}
+                            disabled={saving}
+                            onClick={() => updateFeedbackStatus(item.id, 'lido')}
+                          >
+                            Marcar lido
+                          </button>
+                        ) : null}
+                        {item.status !== 'arquivado' ? (
+                          <button
+                            type="button"
+                            className={styles.btnGhost}
+                            disabled={saving}
+                            onClick={() => updateFeedbackStatus(item.id, 'arquivado')}
+                          >
+                            Arquivar
+                          </button>
+                        ) : null}
+                        {item.status !== 'aberto' ? (
+                          <button
+                            type="button"
+                            className={styles.btnGhost}
+                            disabled={saving}
+                            onClick={() => updateFeedbackStatus(item.id, 'aberto')}
+                          >
+                            Reabrir
+                          </button>
+                        ) : null}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+                ) : null}
+              </section>
+
+              {store.timeline?.length ? (
+                <section className={styles.crmPanel}>
+                  <h3 className={styles.panelTitle}>Linha do tempo</h3>
+                  <ul className={styles.timelineList}>
+                    {store.timeline.map((event) => (
+                      <li key={event.id} className={styles.timelineItem}>
+                        <strong>{event.titulo}</strong>
+                        {event.detalhe ? <p>{event.detalhe}</p> : null}
+                        <span className={styles.timelineDate}>{formatDate(event.created_at)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+
+              {store.suspensaoHistorico?.length ? (
+                <section className={styles.crmPanel}>
+                  <h3 className={styles.panelTitle}>Histórico de suspensão</h3>
+                  <ul className={styles.timelineList}>
+                    {store.suspensaoHistorico.map((event) => (
+                      <li key={event.id} className={styles.timelineItem}>
+                        <strong>{event.acao === 'suspender' ? 'Suspensa' : 'Reativada'}</strong>
+                        {event.motivo ? <p>{event.motivo}</p> : null}
+                        <span className={styles.timelineDate}>
+                          {formatDate(event.created_at)}
+                          {event.autor_email ? ` · ${event.autor_email}` : ''}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </div>
+
+      {notesModalOpen && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              className={styles.notesModalOverlay}
+              onClick={() => setNotesModalOpen(false)}
+              role="presentation"
+            >
+              <div
+                className={styles.notesModal}
+                onClick={(event) => event.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="nimbus-notes-modal-title"
+              >
+                <div className={styles.notesModalHead}>
+                  <h3 id="nimbus-notes-modal-title">Notas Nimbus</h3>
+                  <button
+                    type="button"
+                    className={styles.btnGhost}
+                    onClick={() => setNotesModalOpen(false)}
+                  >
+                    Fechar
+                  </button>
+                </div>
+                <div className={styles.notesModalBody}>
+                  <textarea
+                    className={styles.notesArea}
+                    rows={6}
+                    value={notesDraft}
+                    onChange={(event) => setNotesDraft(event.target.value)}
+                    placeholder="Ex.: piloto até agosto, domínio pendente, contato preferencial WhatsApp..."
+                    autoFocus
+                  />
+                </div>
+                <div className={styles.notesModalFooter}>
+                  <button
+                    type="button"
+                    className={styles.btnGhost}
+                    onClick={() => setNotesModalOpen(false)}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.btnPrimary}
+                    disabled={saving}
+                    onClick={() =>
+                      saveNotesAndGoLive({ notesValue: notesDraft, closeNotesModal: true })
+                    }
+                  >
+                    {saving ? 'Salvando...' : 'Confirmar'}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

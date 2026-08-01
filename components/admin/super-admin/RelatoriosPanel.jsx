@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import { rankingToCsv } from '@/lib/superAdmin/metricsCompare';
+import SuperAdminNavIcon from './SuperAdminNavIcon';
+import { SaRelatoriosSkeleton } from './SuperAdminSkeletons';
 
 const POLL_MS = 15_000;
 
@@ -71,9 +73,12 @@ export default function RelatoriosPanel({ onOpenStore }) {
 
   return (
     <div className="admin-content admin-sistema-page">
-      <AdminPageHeader title="Relatórios" icon="category" />
+      <AdminPageHeader title="Relatórios" iconNode={<SuperAdminNavIcon name="reports" />} />
 
-      <p className="admin-sistema-intro admin-sistema-intro-tight">{summaryLegend}</p>
+      <p className="admin-sistema-intro admin-sistema-intro-tight">
+        {summaryLegend} Ranking atual considera apenas vendas pelo <strong>cardápio online</strong>{' '}
+        (balcão/delivery interno entram no Desempenho da ficha da loja).
+      </p>
 
       <div className="admin-card admin-sistema-panel-card admin-sistema-panel-card-wide">
         <div className="admin-sistema-toolbar admin-sistema-reports-toolbar">
@@ -100,7 +105,7 @@ export default function RelatoriosPanel({ onOpenStore }) {
         </div>
 
         {error ? <p className="admin-sistema-error">{error}</p> : null}
-        {loading ? <p className="admin-sistema-muted">Carregando ranking...</p> : null}
+        {loading ? <SaRelatoriosSkeleton /> : null}
 
         {!loading && !ranking.length ? (
           <p className="admin-sistema-muted">Nenhuma loja cliente com pedidos no período.</p>

@@ -9,6 +9,8 @@ import { activityStatusLabel } from '@/lib/superAdmin/storeActivity';
 import CreateStoreModal from './CreateStoreModal';
 import CreateStoreSuccess from './CreateStoreSuccess';
 import StoreDetailDrawer from './StoreDetailDrawer';
+import SuperAdminNavIcon from './SuperAdminNavIcon';
+import { SaStoresSkeleton } from './SuperAdminSkeletons';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -32,7 +34,12 @@ function StoreAvatar({ nome, logoUrl, large = false }) {
   return <div className={className}>{initial}</div>;
 }
 
-export default function StoresPanel({ initialSelectedSlug = null, onSelectedSlugChange }) {
+export default function StoresPanel({
+  initialSelectedSlug = null,
+  onSelectedSlugChange,
+  initialTab,
+  onSelectedTabChange,
+}) {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -101,7 +108,7 @@ export default function StoresPanel({ initialSelectedSlug = null, onSelectedSlug
     <div className="admin-content admin-sistema-page">
       <AdminPageHeader
         title="Lojas"
-        icon="category"
+        iconNode={<SuperAdminNavIcon name="stores" />}
         actions={
           <button type="button" className="admin-btn admin-btn-primary" onClick={() => setModalOpen(true)}>
             <AdminIcon name="plus" />
@@ -130,12 +137,13 @@ export default function StoresPanel({ initialSelectedSlug = null, onSelectedSlug
             </label>
           </div>
 
-          {loading ? <p className="admin-sistema-muted">Carregando lojas...</p> : null}
+          {loading ? <SaStoresSkeleton /> : null}
 
           {!loading && !stores.length ? (
             <p className="admin-sistema-muted">Nenhuma loja encontrada.</p>
           ) : null}
 
+          {!loading ? (
           <ul className="admin-sistema-store-list-rich">
             {stores.map((store) => {
               const segmentLabel = getSegmentoLabel(store.segmento);
@@ -190,6 +198,7 @@ export default function StoresPanel({ initialSelectedSlug = null, onSelectedSlug
               );
             })}
           </ul>
+          ) : null}
         </div>
       </div>
 
@@ -203,6 +212,8 @@ export default function StoresPanel({ initialSelectedSlug = null, onSelectedSlug
           onSelectedSlugChange?.(nextSlug);
           loadStores(query, { silent: true });
         }}
+        initialTab={initialTab}
+        onTabChange={onSelectedTabChange}
       />
     </div>
   );

@@ -3,21 +3,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useEmpresa } from '@/hooks/useEmpresa';
-import { useAdminOrders } from '@/hooks/useAdminOrders';
 import AdminSplash from './AdminSplash';
 
-const MIN_HOLD_AFTER_READY_MS = 420;
+/** Metade do hold anterior (420ms) — pedidos abre com skeleton na 1ª carga. */
+const MIN_HOLD_AFTER_READY_MS = 210;
 const MAX_BOOT_WAIT_MS = 15000;
 
 export default function AdminBootGate({ children }) {
   const { ready: adminReady } = useAdminData();
   const { loading: empresaLoading } = useEmpresa();
-  const { loading: ordersLoading } = useAdminOrders();
   const [showSplash, setShowSplash] = useState(true);
   const [bootTimedOut, setBootTimedOut] = useState(false);
   const readyAtRef = useRef(null);
 
-  const bootReady = adminReady && !empresaLoading && !ordersLoading;
+  // Não espera pedidos: a tela de pedidos mostra skeleton só na 1ª abertura.
+  const bootReady = adminReady && !empresaLoading;
 
   useEffect(() => {
     const timer = window.setTimeout(() => setBootTimedOut(true), MAX_BOOT_WAIT_MS);

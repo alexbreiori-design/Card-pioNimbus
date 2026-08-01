@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 
-const FADE_MS = 320;
+const FADE_MS = 160;
 
 export default function AdminSplash({ show }) {
   const [mounted, setMounted] = useState(true);
@@ -29,8 +29,8 @@ export default function AdminSplash({ show }) {
         className="admin-splash-icon"
         src="/images/icon.png"
         alt=""
-        width={72}
-        height={72}
+        width={144}
+        height={144}
         priority
       />
     </div>
