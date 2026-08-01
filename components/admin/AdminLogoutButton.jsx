@@ -14,11 +14,13 @@ export default function AdminLogoutButton({ variant = 'default' }) {
   }
 
   const className =
-    variant === 'minimal'
-      ? 'admin-logout-icon-btn is-minimal'
-      : variant === 'full'
-        ? 'admin-logout-full-btn'
-        : 'admin-logout-icon-btn';
+    variant === 'sidebar'
+      ? 'admin-sidebar-support-icon-btn'
+      : variant === 'minimal'
+        ? 'admin-logout-icon-btn is-minimal'
+        : variant === 'full'
+          ? 'admin-logout-full-btn'
+          : 'admin-logout-icon-btn';
 
   if (variant === 'full') {
     return (
@@ -34,8 +36,14 @@ export default function AdminLogoutButton({ variant = 'default' }) {
   }
 
   return (
-    <button type="button" className={className} onClick={handleLogout} title="Sair">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
+    <button
+      type="button"
+      className={className}
+      onClick={handleLogout}
+      aria-label="Sair"
+      title={variant === 'sidebar' ? undefined : 'Sair'}
+    >
+      <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
         <path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5" />
         <path d="M10 17l5-5-5-5" />
         <path d="M15 12H3" />

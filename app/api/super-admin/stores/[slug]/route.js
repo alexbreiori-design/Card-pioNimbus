@@ -60,6 +60,7 @@ export async function PATCH(request, { params }) {
       segmento: body.segmento,
       slug: body.slug,
       pagamentos_online_habilitados: body.pagamentos_online_habilitados,
+      assinatura_nimbus_habilitada: body.assinatura_nimbus_habilitada,
     });
 
     return NextResponse.json({ ok: true, store: updated });
