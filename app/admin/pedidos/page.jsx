@@ -35,6 +35,7 @@ import { getEtaFromConfirmedAt } from '@/lib/deliveryDuration';
 import { buildOrderStatusNotifyUrl, buildOrderSummaryWhatsAppUrl } from '@/lib/orderWhatsApp';
 import { formatOrderAgePt } from '@/lib/orderTimeAgo';
 import { getOrderDeadlineStatus } from '@/lib/orders/orderDeadline';
+import { formatDeliveryAddressLine } from '@/lib/formatDeliveryAddress';
 import { useModelStoreDemoDeadline } from '@/hooks/useModelStoreDemoDeadline';
 import {
   buildAdminOrderCatalogProducts,
@@ -375,7 +376,13 @@ export default function PedidosPage() {
     const trocoPara = resolveDraftTroco(draft);
     const enderecoTexto =
       draft.tipo === 'delivery'
-        ? `${draft.logradouro || ''}${draft.numero ? `, ${draft.numero}` : ''} - ${draft.bairro || ''} - ${draft.cidade || ''}`
+        ? formatDeliveryAddressLine({
+            logradouro: draft.logradouro,
+            numero: draft.numero,
+            bairro: draft.bairro,
+            cidade: draft.cidade,
+            complemento: draft.complemento,
+          })
         : draft.tipo === 'retirada'
           ? 'Retirada no balcão'
           : 'Balcão';

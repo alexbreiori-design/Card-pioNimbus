@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { formatMarmitaCartObs } from '@/lib/marmita/marmitaWizard';
 import { formatPrice } from '@/lib/utils/format';
+import { formatDeliveryAddressLine } from '@/lib/formatDeliveryAddress';
 import { digitsOnly } from '@/lib/cpfCnpj';
 import { fetchViaCep } from '@/lib/cep/viacep';
 import { calculateCupomDiscount, findCupomByCode } from '@/lib/cupons';
@@ -1872,7 +1873,13 @@ export function CardapioProvider({
           ? { ...savedAddress }
           : null;
       const addressText = addressSnapshot
-        ? `${addressSnapshot.rua}${addressSnapshot.num ? `, ${addressSnapshot.num}` : ''} - ${addressSnapshot.bairro} - ${addressSnapshot.cidade || ''}`
+        ? formatDeliveryAddressLine({
+            logradouro: addressSnapshot.rua,
+            numero: addressSnapshot.num,
+            bairro: addressSnapshot.bairro,
+            cidade: addressSnapshot.cidade,
+            complemento: addressSnapshot.comp,
+          })
         : formatStoreAddress(storeConfig);
       let observacao = '';
       let trocoPara = 0;
