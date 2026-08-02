@@ -44,7 +44,15 @@ export function AdminToastProvider({ children }) {
 
       const nextToast = {
         id,
-        title: title || (variant === 'error' ? 'Erro' : variant === 'warning' ? 'Atenção' : 'Sucesso'),
+        title:
+          title ||
+          (variant === 'error'
+            ? 'Erro'
+            : variant === 'warning'
+              ? 'Atenção'
+              : variant === 'info'
+                ? 'Aviso'
+                : 'Sucesso'),
         description: description || (title && !description ? '' : message),
         variant,
         duration,

@@ -4,6 +4,7 @@
 
 import { useMemo, useState } from 'react';
 import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
+import { AdminCatalogSkeleton, useAdminMountSkeleton } from '@/components/admin/AdminSkeleton';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import { isJsonDirty } from '@/lib/admin/isFormDirty';
@@ -254,7 +255,8 @@ export default function CatalogManager({ mode = 'produtos' }) {
   const catKey = isProdutos ? 'categorias' : 'adicionaisCategorias';
   const itemKey = isProdutos ? 'produtos' : 'adicionaisItens';
 
-  const { data, saveData, activeSlug } = useAdminData();
+  const { data, saveData, activeSlug, ready } = useAdminData();
+  const showCatalogSkeleton = useAdminMountSkeleton(ready);
   const productTypeOptions = useMemo(() => ['comum', 'combo'], []);
   const [search, setSearch] = useState('');
   const [selectedCat, setSelectedCat] = useState(TAB_ALL);
@@ -909,6 +911,10 @@ export default function CatalogManager({ mode = 'produtos' }) {
     if (form.medidaQtd) parts.push(`${form.medidaQtd} ${form.medidaUn}`);
     if (form.servePessoas) parts.push(`Serve ${form.servePessoas}`);
     return parts.join(' / ');
+  }
+
+  if (showCatalogSkeleton) {
+    return <AdminCatalogSkeleton />;
   }
 
   return (

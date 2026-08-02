@@ -8,6 +8,7 @@ import { OrderPrintProvider } from '@/context/OrderPrintContext';
 import { AdminToastProvider } from '@/context/AdminToastContext';
 import AdminShell from '@/components/admin/AdminShell';
 import AdminBootGate from '@/components/admin/AdminBootGate';
+import WhatsNewGate from '@/components/admin/whats-new/WhatsNewGate';
 import EnvironmentBanner from '@/components/shared/EnvironmentBanner';
 
 export default function AdminProviders({ children }) {
@@ -42,7 +43,10 @@ export default function AdminProviders({ children }) {
           <AdminOrdersProvider>
             <OrderPrintProvider>
               <AdminBootGate>
-                <AdminShell>{children}</AdminShell>
+                <AdminShell>
+                  <WhatsNewGate />
+                  {children}
+                </AdminShell>
               </AdminBootGate>
             </OrderPrintProvider>
           </AdminOrdersProvider>
