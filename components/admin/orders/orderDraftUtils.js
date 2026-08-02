@@ -12,22 +12,28 @@ export const PAYMENT_METHODS = [
     hgiIcon: 'hgi-credit-card-add',
   },
   {
-    value: 'dinheiro',
-    label: 'Dinheiro',
-    color: '#3aaa34',
-    hgiIcon: 'hgi-money-03',
-  },
-  {
     value: 'debito',
     label: 'Débito',
     color: '#820ad1',
     hgiIcon: 'hgi-credit-card-accept',
   },
   {
+    value: 'dinheiro',
+    label: 'Dinheiro',
+    color: '#3aaa34',
+    hgiIcon: 'hgi-money-03',
+  },
+  {
     value: 'pix',
     label: 'Pix',
     color: '#00bdae',
     adminIcon: 'pix',
+  },
+  {
+    value: 'fiado',
+    label: 'Conta',
+    color: '#c45c5c',
+    hgiIcon: 'hgi-invoice-03',
   },
 ];
 
