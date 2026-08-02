@@ -2,6 +2,7 @@
 
 import { useRef } from 'react';
 import AdminIcon from '@/components/admin/AdminIcon';
+import AdminTooltip from '@/components/admin/AdminTooltip';
 import MoneyInput from './MoneyInput';
 import {
   currency,
@@ -19,8 +20,12 @@ export default function OrderPaymentTotalsBar({
   const trocoValueRef = useRef(null);
   const isDinheiro = draft.formaPagamento === 'dinheiro';
   const showTrocoValue = isDinheiro && draft.trocoAnswer === 'sim';
+  const hasIdentifiableCustomer =
+    Boolean(String(draft.clienteNome || '').trim()) &&
+    Boolean(String(draft.telefone || '').replace(/\D/g, ''));
 
   function setPaymentMethod(formaPagamento) {
+    if (formaPagamento === 'fiado' && !hasIdentifiableCustomer) return;
     setDraft((d) => ({
       ...d,
       formaPagamento,
@@ -48,11 +53,12 @@ export default function OrderPaymentTotalsBar({
           <div className="admin-order-payment-grid" role="group" aria-label="Formas de pagamento">
             {PAYMENT_METHODS.map((m) => {
               const active = draft.formaPagamento === m.value;
-              return (
+              const contaBlocked = m.value === 'fiado' && !hasIdentifiableCustomer;
+              const button = (
                 <button
-                  key={m.value}
                   type="button"
-                  className={`admin-order-payment-btn${active ? ' active' : ''}`}
+                  disabled={contaBlocked}
+                  className={`admin-order-payment-btn${active ? ' active' : ''}${contaBlocked ? ' is-disabled' : ''}`}
                   style={
                     active
                       ? {
@@ -74,6 +80,21 @@ export default function OrderPaymentTotalsBar({
                   </span>
                   <span>{m.label}</span>
                 </button>
+              );
+
+              return (
+                <AdminTooltip
+                  key={m.value}
+                  content={
+                    contaBlocked
+                      ? 'Informe nome e telefone do cliente para liberar Conta'
+                      : ''
+                  }
+                  delayMs={40}
+                  className="admin-order-payment-cell"
+                >
+                  <span className="admin-order-payment-cell-inner">{button}</span>
+                </AdminTooltip>
               );
             })}
           </div>

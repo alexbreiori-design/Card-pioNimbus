@@ -172,7 +172,9 @@ export default function OrderTicket({ order, store = {}, widthMm = 80, mode = 'p
           <div className="order-ticket-pay-hint">
             {payBadge.kind === 'paid'
               ? 'Já pago no cardápio — não cobrar do cliente.'
-              : 'Cobrar do cliente na entrega/retirada.'}
+              : payBadge.kind === 'on_account'
+                ? 'Conta interna — lançar na conta do cliente ao concluir.'
+                : 'Cobrar do cliente na entrega/retirada.'}
           </div>
         </section>
 

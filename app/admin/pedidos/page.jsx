@@ -41,6 +41,7 @@ import {
   buildAdminOrderCatalogProducts,
   buildAdminOrderCategories,
 } from '@/lib/admin/buildAdminCatalogProducts';
+import { AdminPedidosKanbanSkeleton } from '@/components/admin/AdminSkeleton';
 
 const DeliveryRoutesModal = dynamic(
   () => import('@/components/admin/delivery/DeliveryRoutesModal'),
@@ -79,6 +80,24 @@ const TYPE_FILTER_OPTIONS = [
 ];
 
 const TIPO_LABEL = { delivery: 'Delivery', retirada: 'Retirada', balcao: 'Balcão' };
+
+const PEDIDOS_SESSION_READY_KEY = 'admin-pedidos-session-ready';
+
+function readPedidosSessionReady() {
+  try {
+    return sessionStorage.getItem(PEDIDOS_SESSION_READY_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function markPedidosSessionReady() {
+  try {
+    sessionStorage.setItem(PEDIDOS_SESSION_READY_KEY, '1');
+  } catch {
+    /* ignore */
+  }
+}
 const STATUS_LABEL = {
   novo: 'Pedido recebido',
   em_preparo: 'Em preparo',
@@ -101,6 +120,7 @@ const PAYMENT_LABEL = {
   credito: 'Crédito',
   pix: 'Pix',
   dinheiro: 'Dinheiro',
+  fiado: 'Conta',
 };
 
 function deadlineLabel(order) {
@@ -120,6 +140,7 @@ export default function PedidosPage() {
   const { data, saveData } = useAdminData();
   const {
     orders: allOrders,
+    loading: ordersLoading,
     patchOrderStatus,
     cancelOrder,
     restoreArchived,
@@ -148,6 +169,8 @@ export default function PedidosPage() {
   const [archiveDateTo, setArchiveDateTo] = useState('');
   const [archiveStatusFilter, setArchiveStatusFilter] = useState('todos');
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  // Começa false no SSR e no 1º paint do client (evita hydration mismatch com sessionStorage).
+  const [allowFirstLoadSkeleton, setAllowFirstLoadSkeleton] = useState(false);
   const [caixaManageModal, setCaixaManageModal] = useState(false);
   const [caixaManageView, setCaixaManageView] = useState('menu');
   const [typeFilterOpen, setTypeFilterOpen] = useState(false);
@@ -158,6 +181,18 @@ export default function PedidosPage() {
   const typeFilterRef = useRef(null);
   const searchRowRef = useRef(null);
   const searchInputRef = useRef(null);
+
+  useEffect(() => {
+    setAllowFirstLoadSkeleton(!readPedidosSessionReady());
+  }, []);
+
+  useEffect(() => {
+    if (ordersLoading || !allowFirstLoadSkeleton) return;
+    markPedidosSessionReady();
+    setAllowFirstLoadSkeleton(false);
+  }, [ordersLoading, allowFirstLoadSkeleton]);
+
+  const showKanbanSkeleton = allowFirstLoadSkeleton && ordersLoading;
 
   useEffect(() => {
     void requestAdminNotificationPermission();
@@ -374,6 +409,14 @@ export default function PedidosPage() {
     const totals = computeOrderTotals(draft);
     const phoneDigits = normalizePhone(draft.telefone);
     const trocoPara = resolveDraftTroco(draft);
+
+    if (draft.formaPagamento === 'fiado') {
+      if (!String(draft.clienteNome || '').trim() || !phoneDigits) {
+        toast.error('Conta exige cliente com nome e telefone.');
+        return;
+      }
+    }
+
     const enderecoTexto =
       draft.tipo === 'delivery'
         ? formatDeliveryAddressLine({
@@ -423,6 +466,10 @@ export default function PedidosPage() {
           phone: draft.telefone,
           empresaId,
         });
+        if (draft.formaPagamento === 'fiado' && !customer?.id) {
+          toast.error('Não foi possível vincular o cliente ao pedido em conta.');
+          return;
+        }
         updatedOrder.cliente_id = customer?.id || editingOrder.customer_id || null;
         await updateOrder(updatedOrder, items);
 
@@ -490,6 +537,10 @@ export default function PedidosPage() {
         empresaId,
       });
       const customerId = customer?.id || null;
+      if (draft.formaPagamento === 'fiado' && !customerId) {
+        toast.error('Não foi possível vincular o cliente ao pedido em conta.');
+        return;
+      }
       newOrder.cliente_id = customerId;
 
       const created = await createOrder(newOrder, items);
@@ -691,6 +742,9 @@ export default function PedidosPage() {
       </div>
 
       <div className={`admin-kanban-wrap admin-kanban-wrap-pedidos${caixaBlocked ? ' is-caixa-locked' : ''}`}>
+        {showKanbanSkeleton ? (
+          <AdminPedidosKanbanSkeleton />
+        ) : (
         <div className="admin-kanban">
           {COLS.map((col) => {
             const colOrders = filteredOrders.filter((o) => o.status === col.key);
@@ -848,6 +902,7 @@ export default function PedidosPage() {
             );
           })}
         </div>
+        )}
         {caixaBlocked ? (
           <div className="admin-caixa-kanban-lock">
             <div className="admin-caixa-kanban-lock-panel">

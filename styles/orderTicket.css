@@ -319,3 +319,22 @@
     print-color-adjust: exact;
   }
 }
+
+/* Extrato de conta — mini-comandas */
+.order-ticket-conta-block {
+  margin-bottom: 8px;
+}
+
+.order-ticket-conta-block-title {
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.order-ticket-conta-total {
+  margin-top: 4px;
+}
+
+.order-ticket-conta-sep {
+  border-top: 1px dashed #111;
+  margin: 8px 0 4px;
+}
