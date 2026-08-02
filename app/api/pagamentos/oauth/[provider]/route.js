@@ -5,6 +5,7 @@ import { signOAuthState } from '@/lib/payments/crypto';
 import { requirePaymentFeatureForEmpresa } from '@/lib/payments/paymentFeature';
 import { getMercadoPagoAuthorizationUrl } from '@/lib/payments/providers/mercadoPago';
 import { getPagBankAuthorizationUrl } from '@/lib/payments/providers/pagbank';
+import { assertPagBankConnectAllowed } from '@/lib/payments/pagbankGate';
 import { getSiteOrigin } from '@/lib/siteUrl';
 import { requireStoreAdmin } from '@/lib/supabase/membership';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
@@ -21,6 +22,12 @@ export async function GET(request, { params }) {
 
   try {
     const user = await requireStoreAdmin(slug);
+    if (provider === 'pagbank') {
+      assertPagBankConnectAllowed({
+        slug,
+        cookieHeader: request.headers.get('cookie'),
+      });
+    }
     const supabase = getServiceClient();
     if (!supabase) throw Object.assign(new Error('Serviço indisponível.'), { status: 503 });
     const { data: empresa, error: empresaError } = await supabase

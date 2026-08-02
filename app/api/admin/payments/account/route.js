@@ -13,6 +13,7 @@ import {
 } from '@/lib/payments/paymentFeature';
 import { validateAsaasApiKey } from '@/lib/payments/providers/asaas';
 import { validateMercadoPagoAccessToken } from '@/lib/payments/providers/mercadoPago';
+import { isPagBankSandbox } from '@/lib/payments/providers/pagbank';
 import { allowsManualPaymentCredentials, getRuntimeEnvironment } from '@/lib/runtimeEnvironment';
 import { requireStoreAdmin } from '@/lib/supabase/membership';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
@@ -84,6 +85,8 @@ export async function GET(request) {
             connectionMode: account.metadata?.connection_mode || 'oauth',
           }
         : null,
+      // Modo da aplicação da plataforma (não da conta do lojista).
+      pagbankPlatformSandbox: isPagBankSandbox(),
       recentOrders,
     });
   } catch (error) {
