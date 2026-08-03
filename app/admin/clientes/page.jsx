@@ -243,7 +243,7 @@ function CustomerRowActions({ customer, waUrl, onOpen, onNewOrder, onDelete }) {
 export default function ClientesPage() {
   const router = useRouter();
   const { empresaId, loading: empresaLoading, error: empresaError } = useEmpresa();
-  const { data: adminData } = useAdminData();
+  const { data: adminData, saveData } = useAdminData();
   const { orders: adminOrders } = useAdminOrders();
   const { printOrder } = useOrderPrint();
   const { lookup: lookupCep, loading: cepLoading, error: cepError, clearError: clearCepError } = useCepLookup();
@@ -369,6 +369,10 @@ export default function ClientesPage() {
       (adminData.clientes || []).forEach((local) => {
         const phoneKey = fmtPhone(local.phone);
         const existing = byPhone.get(phoneKey);
+        // Com empresaId, o Supabase é a fonte da lista — não ressuscitar clientes
+        // apagados (ou só legados no blob da loja).
+        if (empresaId && !existing) return;
+
         const merged = {
           ...(existing || {}),
           id: existing?.id || local.id,
@@ -377,6 +381,10 @@ export default function ClientesPage() {
           total_orders: Math.max(Number(existing?.total_orders || 0), Number(local.total_orders || 0)),
           total_spent: Math.max(Number(existing?.total_spent || 0), Number(local.total_spent || 0)),
           last_order_at: existing?.last_order_at || local.last_order_at,
+          saldo_fiado:
+            existing?.saldo_fiado != null
+              ? existing.saldo_fiado
+              : Number(local.saldo_fiado || 0),
         };
         byPhone.set(phoneKey, merged);
         aMap[merged.id] = dedupeAddresses([
@@ -480,7 +488,15 @@ export default function ClientesPage() {
         phone: detail.phone,
         empresaId,
       });
+      const savedName = detail.name || '';
+      const savedPhone = detail.phone || '';
+      setCustomers((prev) =>
+        prev.map((c) =>
+          c.id === detail.id ? { ...c, name: savedName, phone: savedPhone } : c
+        )
+      );
       toast.success('Cliente atualizado.');
+      closeCustomerDetail();
       loadAll();
     } catch (e) {
       toast.error(`Erro ao salvar: ${e.message}`);
@@ -489,10 +505,37 @@ export default function ClientesPage() {
 
   async function handleDeleteCustomer(id) {
     if (!window.confirm('Excluir cliente?')) return;
+    const target = customers.find((c) => c.id === id) || (detail?.id === id ? detail : null);
+    const phoneKey = fmtPhone(target?.phone);
     try {
       await deleteCliente(id, empresaId);
-      toast.success('Cliente excluído.');
+      setCustomers((prev) => prev.filter((c) => c.id !== id));
+      setOrdersByCustomer((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setAddressesByCustomer((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       if (detail?.id === id) closeCustomerDetail();
+
+      try {
+        await saveData((prev) => ({
+          ...prev,
+          clientes: (prev.clientes || []).filter((c) => {
+            if (c.id === id) return false;
+            if (phoneKey && fmtPhone(c.phone) === phoneKey) return false;
+            return true;
+          }),
+        }));
+      } catch (storeError) {
+        console.warn('Falha ao limpar cliente do estado da loja:', storeError?.message || storeError);
+      }
+
+      toast.success('Cliente excluído.');
       loadAll();
     } catch (e) {
       toast.error(`Erro ao excluir: ${e.message}`);
@@ -517,6 +560,7 @@ export default function ClientesPage() {
       });
       const enderecos = await listClienteEnderecos(detail.id, empresaId);
       setAddressesByCustomer((prev) => ({ ...prev, [detail.id]: enderecos }));
+      setAddressesBaseline(JSON.stringify(enderecos));
       toast.success('Endereço adicionado. Preencha os campos e salve.');
     } catch (e) {
       toast.error(`Erro ao adicionar endereço: ${e.message}`);
@@ -542,6 +586,9 @@ export default function ClientesPage() {
       toast.success('Endereço salvo.');
       const enderecos = await listClienteEnderecos(clienteId, empresaId);
       setAddressesByCustomer((prev) => ({ ...prev, [clienteId]: enderecos }));
+      if (detail?.id === clienteId) {
+        setAddressesBaseline(JSON.stringify(enderecos));
+      }
     } catch (e) {
       toast.error(`Erro ao salvar endereço: ${e.message}`);
     }
@@ -568,10 +615,14 @@ export default function ClientesPage() {
     if (!window.confirm('Remover este endereço?')) return;
     try {
       await deleteClienteEndereco(addressId, empresaId);
+      const nextAddresses = (addressesByCustomer[clienteId] || []).filter((a) => a.id !== addressId);
       setAddressesByCustomer((prev) => ({
         ...prev,
-        [clienteId]: (prev[clienteId] || []).filter((a) => a.id !== addressId),
+        [clienteId]: nextAddresses,
       }));
+      if (detail?.id === clienteId) {
+        setAddressesBaseline(JSON.stringify(nextAddresses));
+      }
       toast.success('Endereço removido.');
     } catch (e) {
       toast.error(`Erro ao remover endereço: ${e.message}`);
