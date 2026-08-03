@@ -1,0 +1,35 @@
+{
+  "code": "00",
+  "data": {
+    "menu": [
+      {
+        "name": "Bolos",
+        "friendlyName": "Bolos",
+        "itens": [
+          {
+            "description": "Bolo de Chocolate",
+            "details": "Massa de chocolate com cobertura",
+            "unitPrice": 49.9,
+            "imagePath": "bolo-chocolate.jpg"
+          },
+          {
+            "description": "Bolo de Cenoura",
+            "details": "Com cobertura de chocolate",
+            "unitPrice": 42,
+            "imagePath": "bolo-cenoura.jpg"
+          }
+        ]
+      },
+      {
+        "name": "Doces",
+        "itens": [
+          {
+            "description": "Brigadeiro",
+            "details": "Unidade",
+            "unitPrice": 4.5
+          }
+        ]
+      }
+    ]
+  }
+}
