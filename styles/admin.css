@@ -18618,6 +18618,7 @@ textarea.admin-input::placeholder {
   display: grid;
   grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
   width: min(980px, 100%);
+  height: min(640px, calc(100vh - 48px));
   max-height: min(720px, calc(100vh - 48px));
   overflow: hidden;
   border-radius: 18px;
@@ -18887,7 +18888,14 @@ textarea.admin-input::placeholder {
   margin-top: 4px;
 }
 
+.admin-whats-new-cta-slot {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
 .admin-whats-new-cta {
+  margin: 0;
   border-radius: 999px !important;
 }
 
@@ -19285,6 +19293,7 @@ textarea.admin-input::placeholder {
 @media (max-width: 820px) {
   .admin-whats-new-modal {
     grid-template-columns: 1fr;
+    height: min(720px, calc(100vh - 24px));
     max-height: calc(100vh - 24px);
   }
 
