@@ -20,7 +20,9 @@ const EMPTY_STATE = {
 async function readJson(response) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data.ok === false) {
-    throw new Error(data.error || 'Erro na operação de caixa.');
+    const err = new Error(data.error || 'Erro na operação de caixa.');
+    if (data.code) err.code = data.code;
+    throw err;
   }
   return data;
 }

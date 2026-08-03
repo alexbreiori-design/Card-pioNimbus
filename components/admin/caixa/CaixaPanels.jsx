@@ -1,14 +1,23 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatCurrency } from '@/lib/admin/reports/reportFormatters';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import { formatMoneyBrInput, parseMoneyBrInput } from '@/lib/moneyMask';
 import { useCaixa } from '@/hooks/useCaixa';
 import { useAdminOrders } from '@/hooks/useAdminOrders';
+import { useAdminData } from '@/hooks/useAdminData';
 import { useOrderPrint } from '@/context/OrderPrintContext';
 import { roundMoney } from '@/lib/caixa/caixaUtils';
 import CaixaCloseSummary from '@/components/admin/caixa/CaixaCloseSummary';
+import CaixaBillingDialog from '@/components/admin/caixa/CaixaBillingDialog';
+import {
+  fetchCaixaBillingGate,
+  hasShownCarenciaWarning,
+  markCarenciaWarningShown,
+  resolveWarningMessage,
+} from '@/hooks/useCaixaBillingGate';
+import { CAIXA_BILLING_BLOCK_CODE } from '@/lib/stripe/billingGates';
 
 function formatTurnoTime(iso) {
   if (!iso) return '--:--';
@@ -155,6 +164,7 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
     error,
   } = useCaixa();
   const { orders, refreshOrders } = useAdminOrders();
+  const { activeSlug } = useAdminData();
   const { printCaixaSummary } = useOrderPrint();
 
   const openKanbanOrders = useMemo(
@@ -178,12 +188,57 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
   const [valorGaveta, setValorGaveta] = useState('');
   const [movValor, setMovValor] = useState('');
   const [movDescricao, setMovDescricao] = useState('');
+  const [billingDialog, setBillingDialog] = useState(null);
+  const [gateChecking, setGateChecking] = useState(false);
+  const openRequestIdRef = useRef(0);
 
   const { overlayPointerDown, overlayClick } = useAdminOverlayClose({ onClose, isDirty: false });
 
+  const tryEnterOpenView = async (nextView) => {
+    if (nextView !== 'abrir' && nextView !== 'reabrir') {
+      setView(nextView);
+      return true;
+    }
+
+    setGateChecking(true);
+    try {
+      const gate = await fetchCaixaBillingGate(activeSlug);
+      if (gate.blocked) {
+        setView('menu');
+        setBillingDialog({
+          mode: 'blocked',
+          message: gate.message,
+        });
+        return false;
+      }
+
+      if (
+        gate.warning &&
+        gate.warning !== 'none' &&
+        !hasShownCarenciaWarning(activeSlug, gate.warning)
+      ) {
+        setBillingDialog({
+          mode: 'warning',
+          warning: gate.warning,
+          message: resolveWarningMessage(gate.warning, gate.message),
+          pendingView: nextView,
+        });
+        return false;
+      }
+
+      setView(nextView);
+      return true;
+    } catch {
+      setView(nextView);
+      return true;
+    } finally {
+      setGateChecking(false);
+    }
+  };
+
   useEffect(() => {
-    if (!open) return;
-    setView(initialView);
+    if (!open) return undefined;
+    const requestId = ++openRequestIdRef.current;
     setCloseStep(1);
     setValorAbertura('');
     setValorContado('');
@@ -193,8 +248,24 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
     setMovValor('');
     setMovDescricao('');
     setOpenOrdersPrompt(false);
-    void refresh({ silent: true });
-  }, [open, initialView, refresh]);
+    setBillingDialog(null);
+
+    const boot = async () => {
+      if (initialView === 'abrir' || initialView === 'reabrir') {
+        setView('menu');
+        const allowed = await tryEnterOpenView(initialView);
+        if (openRequestIdRef.current !== requestId) return;
+        if (!allowed) return;
+      } else {
+        setView(initialView || 'menu');
+      }
+      void refresh({ silent: true });
+    };
+
+    void boot();
+    return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when modal opens / initialView changes
+  }, [open, initialView, activeSlug]);
 
   function handleSuccess(errorResult, successMessage) {
     if (errorResult instanceof Error) {
@@ -205,12 +276,25 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
     onClose?.();
   }
 
+  function handleBillingGateError(err) {
+    if (err?.code === CAIXA_BILLING_BLOCK_CODE || /carência encerrou/i.test(String(err?.message || ''))) {
+      setView('menu');
+      setBillingDialog({
+        mode: 'blocked',
+        message: err.message,
+      });
+      return true;
+    }
+    return false;
+  }
+
   async function handleAbrir(event) {
     event.preventDefault();
     try {
       await openTurno(parseMoneyBrInput(valorAbertura));
       handleSuccess(null, 'Caixa aberto.');
     } catch (err) {
+      if (handleBillingGateError(err)) return;
       if (String(err?.message || '').includes('Já existe')) {
         setView('menu');
       }
@@ -257,6 +341,7 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
       });
       handleSuccess(null, 'Caixa reaberto.');
     } catch (err) {
+      if (handleBillingGateError(err)) return;
       handleSuccess(err);
     }
   }
@@ -299,10 +384,11 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
     printCaixaSummary({ summary, turno, extras });
   }
 
-  if (!open) return null;
+  if (!open && !billingDialog) return null;
 
   return (
     <>
+      {open ? (
       <div className="admin-confirm-overlay" role="presentation" onPointerDown={overlayPointerDown} onClick={overlayClick}>
         <div
           className={`admin-caixa-modal${
@@ -354,14 +440,18 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
                         icon="abrir"
                         title="Abrir caixa"
                         description="Iniciar operação com fundo de troco"
-                        onClick={() => setView('abrir')}
+                        onClick={() => {
+                          if (!gateChecking) void tryEnterOpenView('abrir');
+                        }}
                       />
                     ) : (
                       <CaixaManageAction
                         icon="reabrir"
                         title="Reabrir caixa"
                         description="Retomar o caixa fechado hoje com justificativa"
-                        onClick={() => setView('reabrir')}
+                        onClick={() => {
+                          if (!gateChecking) void tryEnterOpenView('reabrir');
+                        }}
                       />
                     )}
                   </div>
@@ -601,6 +691,7 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
         ) : null}
         </div>
       </div>
+      ) : null}
 
       {openOrdersPrompt ? (
         <div className="admin-confirm-overlay admin-confirm-overlay-top" role="presentation">
@@ -640,6 +731,24 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
           </div>
         </div>
       ) : null}
+
+      <CaixaBillingDialog
+        open={Boolean(billingDialog)}
+        mode={billingDialog?.mode || 'blocked'}
+        message={billingDialog?.message}
+        onClose={() => {
+          const wasBlocked = billingDialog?.mode === 'blocked';
+          setBillingDialog(null);
+          if (wasBlocked) onClose?.();
+        }}
+        onContinue={() => {
+          const pendingView = billingDialog?.pendingView || 'abrir';
+          const warning = billingDialog?.warning;
+          if (warning) markCarenciaWarningShown(activeSlug, warning);
+          setBillingDialog(null);
+          setView(pendingView);
+        }}
+      />
     </>
   );
 }
