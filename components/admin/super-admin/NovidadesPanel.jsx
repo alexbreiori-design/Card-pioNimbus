@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog';
 import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
@@ -115,6 +115,19 @@ function IconDisable() {
   );
 }
 
+function IconGrip() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <circle cx="9" cy="7" r="1.4" fill="currentColor" />
+      <circle cx="15" cy="7" r="1.4" fill="currentColor" />
+      <circle cx="9" cy="12" r="1.4" fill="currentColor" />
+      <circle cx="15" cy="12" r="1.4" fill="currentColor" />
+      <circle cx="9" cy="17" r="1.4" fill="currentColor" />
+      <circle cx="15" cy="17" r="1.4" fill="currentColor" />
+    </svg>
+  );
+}
+
 function IconTrash() {
   return (
     <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
@@ -155,6 +168,10 @@ export default function NovidadesPanel() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [dragIndex, setDragIndex] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
+  const [listDragIndex, setListDragIndex] = useState(null);
+  const [listDragOverIndex, setListDragOverIndex] = useState(null);
+  const [reordering, setReordering] = useState(false);
+  const listDragFromHandleRef = useRef(false);
 
   const isDirty = editorOpen && serializeForm(form) !== formBaseline;
   const mediaCount = form.mediaItems?.length || 0;
@@ -205,7 +222,11 @@ export default function NovidadesPanel() {
     load();
   }, [load]);
 
-  const sortedItems = useMemo(() => items, [items]);
+  const sortedItems = useMemo(
+    () =>
+      [...items].sort((a, b) => (Number(a.sortOrder ?? 0) || 0) - (Number(b.sortOrder ?? 0) || 0)),
+    [items]
+  );
 
   function openCreate() {
     setEditingId(null);
@@ -359,6 +380,78 @@ export default function NovidadesPanel() {
     setDragOverIndex(null);
   }
 
+  async function persistListOrder(nextItems) {
+    const previous = items;
+    setItems(nextItems);
+    setReordering(true);
+    try {
+      const response = await fetch('/api/super-admin/whats-new/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderedIds: nextItems.map((item) => item.id) }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || 'Não foi possível salvar a ordem.');
+      }
+      setItems(
+        nextItems.map((item, index) => ({
+          ...item,
+          sortOrder: index,
+        }))
+      );
+    } catch (reorderError) {
+      setItems(previous);
+      toast.error(reorderError?.message || 'Erro ao reordenar.');
+    } finally {
+      setReordering(false);
+    }
+  }
+
+  function reorderList(fromIndex, toIndex) {
+    if (fromIndex === toIndex || fromIndex == null || toIndex == null) return;
+    if (fromIndex < 0 || toIndex < 0 || fromIndex >= sortedItems.length || toIndex >= sortedItems.length) {
+      return;
+    }
+    const next = [...sortedItems];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+    void persistListOrder(next);
+  }
+
+  function handleListDragStart(index, event) {
+    if (!listDragFromHandleRef.current || sortedItems.length < 2 || reordering) {
+      event.preventDefault();
+      listDragFromHandleRef.current = false;
+      return;
+    }
+    setListDragIndex(index);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(index));
+  }
+
+  function handleListDragOver(index, event) {
+    if (listDragIndex == null) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    if (listDragOverIndex !== index) setListDragOverIndex(index);
+  }
+
+  function handleListDrop(index, event) {
+    event.preventDefault();
+    const from = listDragIndex ?? Number(event.dataTransfer.getData('text/plain'));
+    reorderList(from, index);
+    listDragFromHandleRef.current = false;
+    setListDragIndex(null);
+    setListDragOverIndex(null);
+  }
+
+  function handleListDragEnd() {
+    listDragFromHandleRef.current = false;
+    setListDragIndex(null);
+    setListDragOverIndex(null);
+  }
+
   async function saveEntry({ publish = false } = {}) {
     const title = form.title.trim();
     if (!title) {
@@ -490,7 +583,7 @@ export default function NovidadesPanel() {
 
       <p className="admin-sistema-intro admin-sistema-intro-tight">
         Publique atualizações para o modal “Novidades” do Admin do lojista — título, descrição e
-        imagem(ns) ou vídeo.
+        imagem(ns) ou vídeo. Arraste as linhas da lista para definir a ordem dos slides.
       </p>
 
       {error ? <p className="admin-sistema-error">{error}</p> : null}
@@ -514,6 +607,9 @@ export default function NovidadesPanel() {
               <table className="admin-whats-new-sa-table">
                 <thead>
                   <tr>
+                    <th scope="col" className="admin-whats-new-sa-th-drag">
+                      <span className="sr-only">Ordem</span>
+                    </th>
                     <th scope="col">Título</th>
                     <th scope="col">Status</th>
                     <th scope="col">Publicação</th>
@@ -524,14 +620,40 @@ export default function NovidadesPanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedItems.map((item) => {
+                  {sortedItems.map((item, index) => {
                     const thumbCount = Array.isArray(item.mediaPaths)
                       ? item.mediaPaths.length
                       : item.mediaUrl
                         ? 1
                         : 0;
                     return (
-                      <tr key={item.id}>
+                      <tr
+                        key={item.id}
+                        className={`admin-whats-new-sa-row${
+                          listDragIndex === index ? ' is-dragging' : ''
+                        }${
+                          listDragOverIndex === index && listDragIndex !== index
+                            ? ' is-drop-target'
+                            : ''
+                        }`}
+                        draggable={sortedItems.length > 1 && !reordering}
+                        onDragStart={(event) => handleListDragStart(index, event)}
+                        onDragOver={(event) => handleListDragOver(index, event)}
+                        onDrop={(event) => handleListDrop(index, event)}
+                        onDragEnd={handleListDragEnd}
+                      >
+                        <td className="admin-whats-new-sa-td-drag">
+                          <span
+                            className="admin-whats-new-sa-drag-handle"
+                            title="Arrastar para reordenar"
+                            aria-hidden="true"
+                            onPointerDown={() => {
+                              listDragFromHandleRef.current = true;
+                            }}
+                          >
+                            <IconGrip />
+                          </span>
+                        </td>
                         <td>
                           <div className="admin-whats-new-sa-title-cell">
                             <div className="admin-whats-new-sa-thumb">
@@ -566,7 +688,7 @@ export default function NovidadesPanel() {
                                 type="button"
                                 className="admin-whats-new-sa-icon-btn"
                                 onClick={() => openEdit(item)}
-                                disabled={busyId === item.id}
+                                disabled={busyId === item.id || reordering}
                                 aria-label="Editar"
                               >
                                 <IconEdit />
@@ -578,7 +700,7 @@ export default function NovidadesPanel() {
                                   type="button"
                                   className="admin-whats-new-sa-icon-btn is-primary"
                                   onClick={() => publishItem(item)}
-                                  disabled={busyId === item.id}
+                                  disabled={busyId === item.id || reordering}
                                   aria-label="Publicar"
                                 >
                                   <IconPublish />
@@ -590,7 +712,7 @@ export default function NovidadesPanel() {
                                   type="button"
                                   className="admin-whats-new-sa-icon-btn"
                                   onClick={() => disableItem(item)}
-                                  disabled={busyId === item.id}
+                                  disabled={busyId === item.id || reordering}
                                   aria-label="Desativar"
                                 >
                                   <IconDisable />
@@ -602,7 +724,7 @@ export default function NovidadesPanel() {
                                 type="button"
                                 className="admin-whats-new-sa-icon-btn is-danger admin-whats-new-sa-icon-btn-last"
                                 onClick={() => setDeleteTarget(item)}
-                                disabled={busyId === item.id}
+                                disabled={busyId === item.id || reordering}
                                 aria-label="Remover"
                               >
                                 <IconTrash />

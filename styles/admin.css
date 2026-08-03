@@ -18636,27 +18636,51 @@ textarea.admin-input::placeholder {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  padding: 28px 20px 20px;
+  padding: 28px 0 20px;
   background: #fafafb;
   border-right: 1px solid var(--admin-border);
 }
 
 .admin-whats-new-sidebar h2 {
-  margin: 0 4px;
+  margin: 0 20px;
   font-size: 20px;
-  font-weight: 650;
+  font-weight: 400;
   letter-spacing: -0.02em;
   color: var(--admin-text);
+}
+
+.admin-whats-new-list-shell {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.admin-whats-new-list-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--admin-brand) 14%, transparent);
+  transition:
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms ease;
 }
 
 .admin-whats-new-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  gap: 2px;
-  overflow: auto;
-  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-content: flex-start;
+  gap: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .admin-whats-new-list-item {
@@ -18667,13 +18691,13 @@ textarea.admin-input::placeholder {
   color: var(--admin-text-light);
   font: inherit;
   font-size: 13.5px;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.4;
-  padding: 9px 10px;
+  padding: 9px 20px;
   border-radius: 0;
   cursor: pointer;
   position: relative;
-  transition: color 160ms ease;
+  transition: color 280ms ease;
 }
 
 .admin-whats-new-list-item:hover {
@@ -18682,21 +18706,10 @@ textarea.admin-input::placeholder {
 
 .admin-whats-new-list-item.is-active {
   color: var(--admin-text);
-  font-weight: 650;
-}
-
-.admin-whats-new-list-item.is-active::after {
-  content: '';
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: 4px;
-  height: 1px;
-  background: color-mix(in srgb, var(--admin-brand) 55%, transparent);
 }
 
 .admin-whats-new-sidebar-footer {
-  padding-top: 8px;
+  padding: 8px 20px 0;
 }
 
 .admin-whats-new-next {
@@ -18705,10 +18718,28 @@ textarea.admin-input::placeholder {
 
 .admin-whats-new-main {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: #fff;
+}
+
+.admin-whats-new-stage {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-rows: minmax(220px, 1fr) auto;
-  min-width: 0;
-  background: #fff;
+  animation: admin-whats-new-stage-in 360ms ease;
+}
+
+@keyframes admin-whats-new-stage-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .admin-whats-new-close {
@@ -18899,6 +18930,47 @@ textarea.admin-input::placeholder {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--admin-text-light);
+}
+
+.admin-whats-new-sa-th-drag {
+  width: 36px;
+  padding-left: 4px;
+  padding-right: 0;
+}
+
+.admin-whats-new-sa-td-drag {
+  width: 36px;
+  padding-left: 4px;
+  padding-right: 0;
+}
+
+.admin-whats-new-sa-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: #94a3b8;
+  cursor: grab;
+  user-select: none;
+}
+
+.admin-whats-new-sa-drag-handle:hover {
+  color: #64748b;
+  background: #eef0f6;
+}
+
+.admin-whats-new-sa-drag-handle:active {
+  cursor: grabbing;
+}
+
+.admin-whats-new-sa-row.is-dragging {
+  opacity: 0.55;
+}
+
+.admin-whats-new-sa-row.is-drop-target td {
+  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--admin-brand) 55%, transparent);
 }
 
 .admin-whats-new-sa-th-actions {

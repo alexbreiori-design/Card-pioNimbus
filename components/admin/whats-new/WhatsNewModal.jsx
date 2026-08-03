@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
@@ -19,6 +19,8 @@ export default function WhatsNewModal({
   const [activeIndex, setActiveIndex] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [progressKey, setProgressKey] = useState(0);
+  const listShellRef = useRef(null);
+  const [activeBand, setActiveBand] = useState({ top: 0, height: 0, ready: false });
 
   const { overlayPointerDown, overlayClick } = useAdminOverlayClose({
     onClose: () => onAckAndClose?.(),
@@ -33,6 +35,7 @@ export default function WhatsNewModal({
     if (!open) return;
     setActiveIndex(0);
     setProgressKey((key) => key + 1);
+    setActiveBand((prev) => ({ ...prev, ready: false }));
   }, [open, items]);
 
   const active = items[activeIndex] || null;
@@ -40,6 +43,29 @@ export default function WhatsNewModal({
     3000,
     (Number(active?.durationSeconds) || 8) * 1000 || DEFAULT_DURATION_MS
   );
+
+  useLayoutEffect(() => {
+    if (!open || !items.length) return undefined;
+
+    function measure() {
+      const shell = listShellRef.current;
+      if (!shell) return;
+      const btn = shell.querySelector('.admin-whats-new-list-item.is-active');
+      if (!btn) return;
+      setActiveBand({
+        top: btn.offsetTop,
+        height: btn.offsetHeight,
+        ready: true,
+      });
+    }
+
+    measure();
+    const shell = listShellRef.current;
+    if (!shell || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(shell);
+    return () => observer.disconnect();
+  }, [open, activeIndex, items]);
 
   useEffect(() => {
     if (!open || !items.length) return undefined;
@@ -82,7 +108,6 @@ export default function WhatsNewModal({
     if (active?.mediaType === 'video' && active?.mediaUrl) {
       return (
         <video
-          key={active.id}
           className="admin-whats-new-media-el"
           src={active.mediaUrl}
           controls
@@ -95,7 +120,6 @@ export default function WhatsNewModal({
     if (imageUrls.length) {
       return (
         <WhatsNewImageSlideshow
-          key={`${active?.id || 'slide'}-gallery`}
           urls={imageUrls}
           durationMs={durationMs}
           replayKey={progressKey}
@@ -150,19 +174,30 @@ export default function WhatsNewModal({
       >
         <aside className="admin-whats-new-sidebar">
           <h2 id="admin-whats-new-title">Novidades</h2>
-          <ul className="admin-whats-new-list">
-            {items.map((item, index) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  className={`admin-whats-new-list-item${index === activeIndex ? ' is-active' : ''}`}
-                  onClick={() => selectIndex(index)}
-                >
-                  {item.title}
-                </button>
-              </li>
-            ))}
-          </ul>
+          <div className="admin-whats-new-list-shell" ref={listShellRef}>
+            <div
+              className="admin-whats-new-list-band"
+              aria-hidden="true"
+              style={{
+                transform: `translateY(${activeBand.top}px)`,
+                height: activeBand.height,
+                opacity: activeBand.ready ? 1 : 0,
+              }}
+            />
+            <ul className="admin-whats-new-list">
+              {items.map((item, index) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    className={`admin-whats-new-list-item${index === activeIndex ? ' is-active' : ''}`}
+                    onClick={() => selectIndex(index)}
+                  >
+                    {item.title}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
           {showNext ? (
             <div className="admin-whats-new-sidebar-footer">
               <button
@@ -188,29 +223,31 @@ export default function WhatsNewModal({
             ×
           </button>
 
-          <div className="admin-whats-new-media">
-            {mediaNode}
-            <div
-              key={`${active?.id || 'slide'}-${progressKey}`}
-              className="admin-whats-new-progress"
-              style={{ animationDuration: `${durationMs}ms` }}
-              aria-hidden="true"
-            />
-          </div>
+          <div className="admin-whats-new-stage" key={active?.id || activeIndex}>
+            <div className="admin-whats-new-media">
+              {mediaNode}
+              <div
+                key={`${active?.id || 'slide'}-${progressKey}`}
+                className="admin-whats-new-progress"
+                style={{ animationDuration: `${durationMs}ms` }}
+                aria-hidden="true"
+              />
+            </div>
 
-          <div className="admin-whats-new-copy">
-            <h3>{active?.title}</h3>
-            {active?.description ? <p>{active.description}</p> : null}
-            {active?.ctaLabel && active?.ctaHref ? (
-              <button
-                type="button"
-                className="admin-btn admin-btn-primary admin-whats-new-cta"
-                onClick={handleCta}
-                disabled={acknowledging}
-              >
-                {active.ctaLabel}
-              </button>
-            ) : null}
+            <div className="admin-whats-new-copy">
+              <h3>{active?.title}</h3>
+              {active?.description ? <p>{active.description}</p> : null}
+              {active?.ctaLabel && active?.ctaHref ? (
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-primary admin-whats-new-cta"
+                  onClick={handleCta}
+                  disabled={acknowledging}
+                >
+                  {active.ctaLabel}
+                </button>
+              ) : null}
+            </div>
           </div>
         </section>
       </div>
