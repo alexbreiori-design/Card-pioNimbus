@@ -5,6 +5,7 @@ import { requireStoreAdmin } from '@/lib/supabase/membership';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 import { mapAssinaturaRow } from '@/lib/stripe/assinaturas';
 import { mapStripeSubscriptionStatus } from '@/lib/stripe/client';
+import { resolveCaixaBillingGate } from '@/lib/stripe/billingGates';
 
 const MANAGED_SUB_STATUSES = new Set(['active', 'trialing', 'past_due', 'unpaid', 'paused']);
 
@@ -31,6 +32,10 @@ export async function GET(request) {
 
     const enabled = isAssinaturaUiEnabled() && Boolean(empresa.assinatura_nimbus_habilitada);
     if (!enabled) {
+      const caixaGate = resolveCaixaBillingGate({
+        empresa: { ...empresa, assinatura_nimbus_habilitada: false },
+        assinatura: null,
+      });
       return NextResponse.json({
         ok: true,
         enabled: false,
@@ -38,6 +43,7 @@ export async function GET(request) {
         needsCheckout: false,
         canOpenPortal: false,
         hasCarencia: false,
+        caixaGate,
       });
     }
 
@@ -53,6 +59,7 @@ export async function GET(request) {
     const hasManagedSub =
       Boolean(row?.stripe_subscription_id) && MANAGED_SUB_STATUSES.has(status);
     const hasCarencia = assinatura.statusLocal === 'cortesia';
+    const caixaGate = resolveCaixaBillingGate({ empresa, assinatura });
 
     return NextResponse.json({
       ok: true,
@@ -61,6 +68,7 @@ export async function GET(request) {
       needsCheckout: !hasManagedSub,
       canOpenPortal: Boolean(assinatura.stripeCustomerId),
       hasCarencia,
+      caixaGate,
     });
   } catch (error) {
     return NextResponse.json(
