@@ -237,16 +237,18 @@ export default function WhatsNewModal({
             <div className="admin-whats-new-copy">
               <h3>{active?.title}</h3>
               {active?.description ? <p>{active.description}</p> : null}
-              {active?.ctaLabel && active?.ctaHref ? (
-                <button
-                  type="button"
-                  className="admin-btn admin-btn-primary admin-whats-new-cta"
-                  onClick={handleCta}
-                  disabled={acknowledging}
-                >
-                  {active.ctaLabel}
-                </button>
-              ) : null}
+              <div className="admin-whats-new-cta-slot">
+                {active?.ctaLabel && active?.ctaHref ? (
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-primary admin-whats-new-cta"
+                    onClick={handleCta}
+                    disabled={acknowledging}
+                  >
+                    {active.ctaLabel}
+                  </button>
+                ) : null}
+              </div>
             </div>
           </div>
         </section>
