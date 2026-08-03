@@ -14,6 +14,7 @@ export async function GET() {
     const { data: rows, error } = await supabase
       .from('whats_new_entries')
       .select('*')
+      .order('sort_order', { ascending: true })
       .order('published_at', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false });
     if (error) throw error;
@@ -73,6 +74,15 @@ export async function POST(request) {
     );
     const publishNow = Boolean(body.publish);
 
+    const { data: maxRows, error: maxError } = await supabase
+      .from('whats_new_entries')
+      .select('sort_order')
+      .order('sort_order', { ascending: false })
+      .limit(1);
+    if (maxError) throw maxError;
+    const maxSort = maxRows?.[0]?.sort_order;
+    const nextSortOrder = maxSort == null ? 0 : (Number(maxSort) || 0) + 1;
+
     const payload = {
       title,
       description,
@@ -82,6 +92,7 @@ export async function POST(request) {
       cta_label: ctaLabel,
       cta_href: ctaHref,
       duration_seconds: durationSeconds,
+      sort_order: nextSortOrder,
       status: publishNow ? 'published' : 'draft',
       published_at: publishNow ? new Date().toISOString() : null,
       created_by: admin.id,
