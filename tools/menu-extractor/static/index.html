@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nimbus — Extrator de cardápio</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="header">
+      <p class="brand">Cardápio Nimbus</p>
+      <h1>Extrator de cardápio</h1>
+      <p class="lede">
+        Cole o link público do iFood ou Anota AI. A ferramenta gera um JSON
+        compatível com o import do super-admin. Se o anti-bot bloquear, use a
+        aba de JSON bruto.
+      </p>
+    </header>
+
+    <section class="panel" aria-labelledby="form-title">
+      <h2 id="form-title" class="sr-only">Extrair</h2>
+      <div class="tabs" role="tablist">
+        <button type="button" class="tab active" data-tab="url" role="tab" aria-selected="true">Por URL</button>
+        <button type="button" class="tab" data-tab="raw" role="tab" aria-selected="false">Colar JSON bruto</button>
+      </div>
+
+      <div id="tab-url" class="tab-panel">
+        <label class="label" for="url">URL do cardápio</label>
+        <input
+          id="url"
+          type="url"
+          placeholder="https://www.ifood.com.br/delivery/.../<uuid> ou https://pedido.anota.ai/loja/..."
+          autocomplete="off"
+        />
+      </div>
+
+      <div id="tab-raw" class="tab-panel hidden">
+        <label class="label" for="platform">Plataforma</label>
+        <select id="platform">
+          <option value="ifood">iFood</option>
+          <option value="anota_ai">Anota AI</option>
+        </select>
+        <label class="label" for="merchantId">Merchant UUID (iFood, opcional)</label>
+        <input id="merchantId" type="text" placeholder="para montar URLs de imagem" autocomplete="off" />
+        <label class="label" for="rawJson">JSON capturado no DevTools</label>
+        <textarea id="rawJson" rows="8" placeholder='Cole aqui o JSON de /catalog (iFood) ou da API de cardápio (Anota AI)'></textarea>
+      </div>
+
+      <label class="label" for="slug">Slug Nimbus (opcional)</label>
+      <input id="slug" type="text" placeholder="ex.: minha-loja" autocomplete="off" />
+      <div class="actions">
+        <button id="extractBtn" type="button">Extrair</button>
+      </div>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <section id="result" class="panel result hidden" aria-labelledby="result-title">
+      <h2 id="result-title">Resultado</h2>
+      <p id="meta" class="meta"></p>
+      <div id="warnings" class="warnings"></div>
+      <div class="actions">
+        <button id="downloadBtn" type="button">Baixar JSON</button>
+        <button id="copyBtn" type="button" class="secondary">Copiar JSON</button>
+      </div>
+      <details open>
+        <summary>Preview do JSON Nimbus</summary>
+        <pre id="jsonPreview"></pre>
+      </details>
+      <details>
+        <summary>Produtos (resumo)</summary>
+        <div id="tableWrap" class="table-wrap"></div>
+      </details>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
