@@ -59,6 +59,111 @@ const icons = {
       <path d="M4 5h16v11H8l-4 4V5Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" fill="none" />
     </svg>
   ),
+  clock: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="2" fill="none" />
+      <path d="M12 8v5l3 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  ),
+  calculator: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="5" y="3" width="14" height="18" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
+      <path d="M8 7h8M8 12h2M12 12h2M16 12h2M8 16h2M12 16h2M16 16h2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
+  user: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="2" fill="none" />
+      <path d="M5.5 19c1.5-3 4-4.5 6.5-4.5s5 1.5 6.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+    </svg>
+  ),
+  trendUp: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 16l5-5 4 3 6-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path d="M15 7h4v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  ),
+  headphones: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M4 13v2.5A2.5 2.5 0 0 0 6.5 18H8v-5H5.5A1.5 1.5 0 0 0 4 14.5V13a8 8 0 1 1 16 0v1.5A1.5 1.5 0 0 1 18.5 13H16v5h1.5A2.5 2.5 0 0 0 20 15.5V13"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  ),
+  currency: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 4v16M16.5 7.5C15.7 6.2 14.4 5.5 12.5 5.5c-2.4 0-4 1.2-4 3 0 4 8 1.6 8 5.8 0 2-1.7 3.4-4 3.4-2 0-3.4-.8-4.2-2.2"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        fill="none"
+      />
+    </svg>
+  ),
+  frown: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="2" fill="none" />
+      <circle cx="9" cy="10" r="1" fill="currentColor" />
+      <circle cx="15" cy="10" r="1" fill="currentColor" />
+      <path d="M8.5 15.5c1.2-1.2 2.7-1.8 3.5-1.8s2.3.6 3.5 1.8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+    </svg>
+  ),
+  star: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 3.5l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.8 7.2 18.4l.9-5.4-3.9-3.8 5.4-.8L12 3.5Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  ),
+  sparkle: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 2.2 13.7 10.3 21.8 12 13.7 13.7 12 21.8 10.3 13.7 2.2 12 10.3 10.3 12 2.2Z"
+        fill="currentColor"
+      />
+    </svg>
+  ),
+  check: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M5 12.5 9.5 17 19 7.5"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  ),
+  shield: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 3.5 19 6.5v5.2c0 4.4-2.9 7.5-7 8.8-4.1-1.3-7-4.4-7-8.8V6.5L12 3.5Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <path
+        d="M9.2 12.2 11.2 14.2 15.2 9.8"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  ),
   truck: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M3 7h11v10H3V7Zm11 3h4l3 3v4h-7v-7Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" fill="none" />

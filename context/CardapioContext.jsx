@@ -59,6 +59,10 @@ import {
   getEtaFromConfirmedAt,
   getEstimateMinutesForOrderTipo,
 } from '@/lib/deliveryDuration';
+import {
+  LANDING_DEMO_CUSTOMER,
+  readCardapioEmbedFlags,
+} from '@/lib/landing/demoMode';
 
 const CardapioContext = createContext(null);
 const CardapioCatalogContext = createContext(null);
@@ -279,6 +283,8 @@ export function CardapioProvider({
   const [page, setPage] = useState('main');
   const [navActive, setNavActive] = useState('navInicio');
   const [mobileNavActive, setMobileNavActive] = useState('mNavInicio');
+  const [isLandingDemo, setIsLandingDemo] = useState(false);
+  const [isEmbed, setIsEmbed] = useState(false);
 
   const [cart, setCart] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -369,6 +375,26 @@ export function CardapioProvider({
     setProfileName(profile.name === 'Seu nome' ? '' : profile.name);
     setProfilePhone(profile.phone === '(00) 00000-0000' ? '' : profile.phone);
   }, []);
+
+  useEffect(() => {
+    const flags = readCardapioEmbedFlags();
+    setIsLandingDemo(flags.isLandingDemo);
+    setIsEmbed(flags.isEmbed);
+    if (flags.isEmbed) {
+      document.documentElement.classList.add('cardapio-embed');
+    }
+    return () => {
+      document.documentElement.classList.remove('cardapio-embed');
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isLandingDemo) return;
+    setStoreConfig((prev) => {
+      if (!prev || prev.aberta) return prev;
+      return { ...prev, aberta: true };
+    });
+  }, [isLandingDemo]);
 
   const [showMobileSacola, setShowMobileSacola] = useState(false);
 
@@ -1661,8 +1687,17 @@ export function CardapioProvider({
       void showAlert(`Pedido mínimo de ${formatPrice(minOrder)}. Adicione mais itens para continuar.`);
       return;
     }
-    const knownName = profileDisplayName === 'Seu nome' ? '' : profileDisplayName;
-    const knownPhone = profileDisplayPhone === '(00) 00000-0000' ? '' : profileDisplayPhone;
+    const demoActive = isLandingDemo || readCardapioEmbedFlags().isLandingDemo;
+    const knownName = demoActive
+      ? LANDING_DEMO_CUSTOMER.name
+      : profileDisplayName === 'Seu nome'
+        ? ''
+        : profileDisplayName;
+    const knownPhone = demoActive
+      ? LANDING_DEMO_CUSTOMER.phone
+      : profileDisplayPhone === '(00) 00000-0000'
+        ? ''
+        : profileDisplayPhone;
     setCheckoutStep(1);
     setCheckoutSuccess(false);
     setCheckoutAddressConfirmed(false);
@@ -1685,6 +1720,7 @@ export function CardapioProvider({
     setCheckoutCardDraft(null);
     setCheckoutOrderNumber('');
     setCheckoutOpen(true);
+    if (demoActive) return;
     trackMetaEvent('InitiateCheckout', {
       content_ids: cart.map((item) => String(item.productId)),
       content_type: 'product',
@@ -1702,7 +1738,18 @@ export function CardapioProvider({
         price: item.price,
       })),
     });
-  }, [cart.length, cartSubtotal, cartTotal, profileDisplayName, profileDisplayPhone, storeConfig.aberta, storeConfig.pedidoMinimo, formatPrice]);
+  }, [
+    cart,
+    cartSubtotal,
+    cartTotal,
+    formatPrice,
+    isLandingDemo,
+    profileDisplayName,
+    profileDisplayPhone,
+    showAlert,
+    storeConfig.aberta,
+    storeConfig.pedidoMinimo,
+  ]);
 
   const finalizeFromCartReview = useCallback(() => {
     setCartReviewOpen(false);
@@ -1963,6 +2010,13 @@ export function CardapioProvider({
         total,
       };
 
+      const demoActive = isLandingDemo || readCardapioEmbedFlags().isLandingDemo;
+      if (demoActive) {
+        const demoId = `DEMO-${String(Date.now()).slice(-6)}`;
+        publicOrder.id = demoId;
+        return { ...publicOrder, payment: null, landingDemo: true };
+      }
+
       const adminState = storeSnapshotRef.current;
       const previousCustomer = (adminState.clientes || []).find(
         (customer) => normalizePhone(customer.phone) === phoneDigits
@@ -2085,31 +2139,37 @@ export function CardapioProvider({
 
       return { ...publicOrder, payment: apiJson.payment || null };
     },
-    [PAY_LABELS, appliedCupom, cart, cartSubtotal, checkoutAddressConfirmed, checkoutData, deliveryFee, deliveryMeta, effectiveSlug, hydratePublicOrders, persistStoreSnapshot, savedAddress, slug, storeConfig]
+    [PAY_LABELS, appliedCupom, cart, cartSubtotal, checkoutAddressConfirmed, checkoutData, deliveryFee, deliveryMeta, effectiveSlug, hydratePublicOrders, isLandingDemo, persistStoreSnapshot, savedAddress, slug, storeConfig]
   );
 
   const completeCheckoutOrder = useCallback(
     async (completedOrder) => {
       const orderNumber = completedOrder.id;
-      trackMetaEvent('Purchase', {
-        content_ids: cart.map((item) => String(item.productId)),
-        content_type: 'product',
-        value: cartTotal(),
-        currency: 'BRL',
-        num_items: cart.reduce((sum, item) => sum + item.qty, 0),
-        order_id: orderNumber,
-      });
-      trackGooglePurchase({
-        transaction_id: orderNumber,
-        currency: 'BRL',
-        value: cartTotal(),
-        items: cart.map((item) => ({
-          item_id: String(item.productId),
-          item_name: item.name,
-          quantity: item.qty,
-          price: item.price,
-        })),
-      });
+      const demoActive =
+        Boolean(completedOrder?.landingDemo) ||
+        isLandingDemo ||
+        readCardapioEmbedFlags().isLandingDemo;
+      if (!demoActive) {
+        trackMetaEvent('Purchase', {
+          content_ids: cart.map((item) => String(item.productId)),
+          content_type: 'product',
+          value: cartTotal(),
+          currency: 'BRL',
+          num_items: cart.reduce((sum, item) => sum + item.qty, 0),
+          order_id: orderNumber,
+        });
+        trackGooglePurchase({
+          transaction_id: orderNumber,
+          currency: 'BRL',
+          value: cartTotal(),
+          items: cart.map((item) => ({
+            item_id: String(item.productId),
+            item_name: item.name,
+            quantity: item.qty,
+            price: item.price,
+          })),
+        });
+      }
       const subtotal = cartSubtotal();
       const taxaEntrega = checkoutData.delivery === 'entregar' ? Number(deliveryFee) || 0 : 0;
       const cupomOff = calculateCupomDiscount(appliedCupom, subtotal);
@@ -2136,13 +2196,26 @@ export function CardapioProvider({
         taxaEntrega,
         cupomOff,
         total,
+        landingDemo: demoActive,
       });
       setCheckoutOrderNumber(orderNumber);
       setCart([]);
       setAppliedCupom(null);
       setOnlinePayment(null);
       setCheckoutSuccess(true);
-      await hydratePublicOrders({ force: true });
+      if (demoActive && typeof window !== 'undefined' && window.parent && window.parent !== window) {
+        try {
+          window.parent.postMessage(
+            { type: 'nimbus-landing-demo-order-complete', orderNumber },
+            '*'
+          );
+        } catch {
+          /* ignore */
+        }
+      }
+      if (!demoActive) {
+        await hydratePublicOrders({ force: true });
+      }
     },
     [
       appliedCupom,
@@ -2154,6 +2227,7 @@ export function CardapioProvider({
       deliveryFee,
       formatPrice,
       hydratePublicOrders,
+      isLandingDemo,
       savedAddress,
     ]
   );
@@ -2682,6 +2756,8 @@ export function CardapioProvider({
       clearCheckoutCardDraft,
       submitOnlinePayment,
       cancelOnlinePayment,
+      isLandingDemo,
+      isEmbed,
       checkoutAddressConfirmed,
       addressFlowContext,
       cepOpen,
@@ -2764,6 +2840,8 @@ export function CardapioProvider({
       clearCheckoutCardDraft,
       submitOnlinePayment,
       cancelOnlinePayment,
+      isLandingDemo,
+      isEmbed,
       checkoutAddressConfirmed,
       addressFlowContext,
       cepOpen,
