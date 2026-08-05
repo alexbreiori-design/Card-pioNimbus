@@ -9,10 +9,12 @@ import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminIcon from '@/components/admin/AdminIcon';
 import OrderDetailModal from '@/components/admin/orders/OrderDetailModal';
+import ClienteContaPanel from '@/components/admin/clientes/ClienteContaPanel';
 import {
   buildOrderDraftFromCustomer,
   stashPendingNewOrderDraft,
 } from '@/components/admin/orders/orderDraftUtils';
+import { formatSaldoDevedor } from '@/lib/fiado/clienteConta';
 import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import { isJsonDirty } from '@/lib/admin/isFormDirty';
@@ -81,6 +83,7 @@ function customerWhatsAppUrl(phone) {
 
 const STATUS_FILTERS = [
   { key: 'todos', label: 'Todos' },
+  { key: 'com_saldo', label: 'Com pendência' },
   { key: 'inativo', label: 'Inativos' },
   { key: 'recorrente', label: 'Recorrentes' },
   { key: 'novo', label: 'Novos' },
@@ -240,7 +243,7 @@ function CustomerRowActions({ customer, waUrl, onOpen, onNewOrder, onDelete }) {
 export default function ClientesPage() {
   const router = useRouter();
   const { empresaId, loading: empresaLoading, error: empresaError } = useEmpresa();
-  const { data: adminData } = useAdminData();
+  const { data: adminData, saveData } = useAdminData();
   const { orders: adminOrders } = useAdminOrders();
   const { printOrder } = useOrderPrint();
   const { lookup: lookupCep, loading: cepLoading, error: cepError, clearError: clearCepError } = useCepLookup();
@@ -327,8 +330,12 @@ export default function ClientesPage() {
   const filteredCustomers = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return customers.filter((c) => {
-      const status = getCustomerStatus(c);
-      if (statusFilter !== 'todos' && status.key !== statusFilter) return false;
+      if (statusFilter === 'com_saldo') {
+        if (!(Number(c.saldo_fiado) > 0)) return false;
+      } else if (statusFilter !== 'todos') {
+        const status = getCustomerStatus(c);
+        if (status.key !== statusFilter) return false;
+      }
       if (!q) return true;
       return (
         String(c.name || '').toLowerCase().includes(q) ||
@@ -362,6 +369,10 @@ export default function ClientesPage() {
       (adminData.clientes || []).forEach((local) => {
         const phoneKey = fmtPhone(local.phone);
         const existing = byPhone.get(phoneKey);
+        // Com empresaId, o Supabase é a fonte da lista — não ressuscitar clientes
+        // apagados (ou só legados no blob da loja).
+        if (empresaId && !existing) return;
+
         const merged = {
           ...(existing || {}),
           id: existing?.id || local.id,
@@ -370,6 +381,10 @@ export default function ClientesPage() {
           total_orders: Math.max(Number(existing?.total_orders || 0), Number(local.total_orders || 0)),
           total_spent: Math.max(Number(existing?.total_spent || 0), Number(local.total_spent || 0)),
           last_order_at: existing?.last_order_at || local.last_order_at,
+          saldo_fiado:
+            existing?.saldo_fiado != null
+              ? existing.saldo_fiado
+              : Number(local.saldo_fiado || 0),
         };
         byPhone.set(phoneKey, merged);
         aMap[merged.id] = dedupeAddresses([
@@ -473,7 +488,15 @@ export default function ClientesPage() {
         phone: detail.phone,
         empresaId,
       });
+      const savedName = detail.name || '';
+      const savedPhone = detail.phone || '';
+      setCustomers((prev) =>
+        prev.map((c) =>
+          c.id === detail.id ? { ...c, name: savedName, phone: savedPhone } : c
+        )
+      );
       toast.success('Cliente atualizado.');
+      closeCustomerDetail();
       loadAll();
     } catch (e) {
       toast.error(`Erro ao salvar: ${e.message}`);
@@ -482,10 +505,37 @@ export default function ClientesPage() {
 
   async function handleDeleteCustomer(id) {
     if (!window.confirm('Excluir cliente?')) return;
+    const target = customers.find((c) => c.id === id) || (detail?.id === id ? detail : null);
+    const phoneKey = fmtPhone(target?.phone);
     try {
       await deleteCliente(id, empresaId);
-      toast.success('Cliente excluído.');
+      setCustomers((prev) => prev.filter((c) => c.id !== id));
+      setOrdersByCustomer((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setAddressesByCustomer((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       if (detail?.id === id) closeCustomerDetail();
+
+      try {
+        await saveData((prev) => ({
+          ...prev,
+          clientes: (prev.clientes || []).filter((c) => {
+            if (c.id === id) return false;
+            if (phoneKey && fmtPhone(c.phone) === phoneKey) return false;
+            return true;
+          }),
+        }));
+      } catch (storeError) {
+        console.warn('Falha ao limpar cliente do estado da loja:', storeError?.message || storeError);
+      }
+
+      toast.success('Cliente excluído.');
       loadAll();
     } catch (e) {
       toast.error(`Erro ao excluir: ${e.message}`);
@@ -510,6 +560,7 @@ export default function ClientesPage() {
       });
       const enderecos = await listClienteEnderecos(detail.id, empresaId);
       setAddressesByCustomer((prev) => ({ ...prev, [detail.id]: enderecos }));
+      setAddressesBaseline(JSON.stringify(enderecos));
       toast.success('Endereço adicionado. Preencha os campos e salve.');
     } catch (e) {
       toast.error(`Erro ao adicionar endereço: ${e.message}`);
@@ -535,6 +586,9 @@ export default function ClientesPage() {
       toast.success('Endereço salvo.');
       const enderecos = await listClienteEnderecos(clienteId, empresaId);
       setAddressesByCustomer((prev) => ({ ...prev, [clienteId]: enderecos }));
+      if (detail?.id === clienteId) {
+        setAddressesBaseline(JSON.stringify(enderecos));
+      }
     } catch (e) {
       toast.error(`Erro ao salvar endereço: ${e.message}`);
     }
@@ -561,10 +615,14 @@ export default function ClientesPage() {
     if (!window.confirm('Remover este endereço?')) return;
     try {
       await deleteClienteEndereco(addressId, empresaId);
+      const nextAddresses = (addressesByCustomer[clienteId] || []).filter((a) => a.id !== addressId);
       setAddressesByCustomer((prev) => ({
         ...prev,
-        [clienteId]: (prev[clienteId] || []).filter((a) => a.id !== addressId),
+        [clienteId]: nextAddresses,
       }));
+      if (detail?.id === clienteId) {
+        setAddressesBaseline(JSON.stringify(nextAddresses));
+      }
       toast.success('Endereço removido.');
     } catch (e) {
       toast.error(`Erro ao remover endereço: ${e.message}`);
@@ -644,6 +702,7 @@ export default function ClientesPage() {
                     <th>Telefone</th>
                     <th>Pedidos</th>
                     <th>Total gasto</th>
+                    <th>Saldo</th>
                     <th>Último pedido</th>
                     <th>Status</th>
                     <th className="admin-clientes-table-actions-col">Ações</th>
@@ -661,6 +720,15 @@ export default function ClientesPage() {
                         <td>{fmtPhone(c.phone) || '—'}</td>
                         <td>{c.total_orders || 0}</td>
                         <td>{money(c.total_spent)}</td>
+                        <td>
+                          {Number(c.saldo_fiado) > 0 ? (
+                            <span className="admin-clientes-saldo-value is-debt">
+                              {formatSaldoDevedor(c.saldo_fiado)}
+                            </span>
+                          ) : (
+                            <span className="admin-order-meta">—</span>
+                          )}
+                        </td>
                         <td>{fmtDateBr(c.last_order_at)}</td>
                         <td>
                           <span className={`admin-clientes-status-chip is-${status.key}`}>
@@ -700,6 +768,11 @@ export default function ClientesPage() {
                       <span>
                         {c.total_orders || 0} pedidos · {money(c.total_spent)}
                       </span>
+                      {Number(c.saldo_fiado) > 0 ? (
+                        <span className="admin-clientes-saldo-value is-debt">
+                          {formatSaldoDevedor(c.saldo_fiado)}
+                        </span>
+                      ) : null}
                       <span>Último: {fmtDateBr(c.last_order_at)}</span>
                     </div>
                     <CustomerRowActions
@@ -849,6 +922,9 @@ export default function ClientesPage() {
               </button>
               <button type="button" className={`admin-tab ${tab === 'historico' ? 'active' : ''}`} onClick={() => setTab('historico')}>
                 Histórico
+              </button>
+              <button type="button" className={`admin-tab ${tab === 'conta' ? 'active' : ''}`} onClick={() => setTab('conta')}>
+                Conta
               </button>
             </div>
 
@@ -1001,6 +1077,19 @@ export default function ClientesPage() {
                   );
                 })}
               </div>
+            ) : null}
+
+            {tab === 'conta' ? (
+              <ClienteContaPanel
+                customer={detail}
+                empresaId={empresaId}
+                onSaldoChange={(novoSaldo) => {
+                  setDetail((d) => (d ? { ...d, saldo_fiado: novoSaldo } : d));
+                  setCustomers((prev) =>
+                    prev.map((c) => (c.id === detail.id ? { ...c, saldo_fiado: novoSaldo } : c))
+                  );
+                }}
+              />
             ) : null}
 
             <div className="admin-confirm-actions">

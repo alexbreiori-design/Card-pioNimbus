@@ -6,6 +6,8 @@ import { usePathname } from 'next/navigation';
 import AdminIcon from './AdminIcon';
 import AdminLogoutButton from './AdminLogoutButton';
 import AdminStoreSwitcher from './AdminStoreSwitcher';
+import AdminFeedbackModal from './AdminFeedbackModal';
+import AdminTooltip from './AdminTooltip';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminToast } from '@/context/AdminToastContext';
 import {
@@ -13,9 +15,10 @@ import {
   CaixaSidebarStatus,
 } from '@/components/admin/caixa/CaixaPanels';
 import { isMarmitaSegment, isPizzariaSegment } from '@/lib/empresaSegmentos';
-import { NIMBUS_SUPPORT_LABEL, NIMBUS_SUPPORT_URL } from '@/lib/nimbusSupport';
+import { NIMBUS_SUPPORT_URL } from '@/lib/nimbusSupport';
 import { getStorePublicUrl } from '@/lib/siteUrl';
 import { STORE_REVIEWS_UI_ENABLED } from '@/lib/features';
+import { openWhatsNewReplay } from '@/components/admin/whats-new/WhatsNewGate';
 
 const BASE_NAV = [
   { href: '/admin/pedidos', label: 'Pedidos', icon: 'orders' },
@@ -128,6 +131,7 @@ export default function AdminSidebar({
   const [caixaManageModal, setCaixaManageModal] = useState(false);
   const toast = useAdminToast();
   const [supportUrl, setSupportUrl] = useState(NIMBUS_SUPPORT_URL);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const navItems = useMemo(() => {
     const items = BASE_NAV.filter(
@@ -312,8 +316,9 @@ export default function AdminSidebar({
           {superAdmin ? (
             <Link
               href="/admin/sistema"
-              className={`admin-sidebar-sistema-link${pathname.startsWith('/admin/sistema') ? ' is-current' : ''}`}
-              title={collapsed ? 'Sistema Nimbus' : undefined}
+              className={`admin-sidebar-sistema-link admin-sidebar-sistema-link-icon${pathname.startsWith('/admin/sistema') ? ' is-current' : ''}`}
+              title="Sistema Nimbus"
+              aria-label="Sistema Nimbus"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <rect x="3" y="3" width="7" height="7" rx="1" />
@@ -321,35 +326,66 @@ export default function AdminSidebar({
                 <rect x="3" y="14" width="7" height="7" rx="1" />
                 <rect x="14" y="14" width="7" height="7" rx="1" />
               </svg>
-              <span>Sistema</span>
             </Link>
           ) : (
             <span className="admin-sidebar-footer-spacer" aria-hidden="true" />
           )}
           <div className="admin-sidebar-footer-actions">
-            <a
-              className="admin-sidebar-support-icon-btn"
-              href={supportUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={NIMBUS_SUPPORT_LABEL}
-              aria-label={NIMBUS_SUPPORT_LABEL}
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.8" />
-                <path
-                  d="M9.5 9.25a2.5 2.5 0 0 1 4.8 1c0 1.5-2.3 1.75-2.3 3.25M12 16.5h.01"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </a>
-            <AdminLogoutButton variant="minimal" />
+            <AdminTooltip content="Novidades" variant="light" side="top" delayMs={40}>
+              <button
+                type="button"
+                className="admin-sidebar-support-icon-btn"
+                onClick={() => openWhatsNewReplay()}
+                aria-label="Novidades"
+              >
+                <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+                  <path
+                    d="M12 3.5l1.05 3.15 3.35.15-2.65 2.1.9 3.2L12 10.7 9.35 12.1l.9-3.2-2.65-2.1 3.35-.15L12 3.5z"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M18.2 14.2l.55 1.7 1.8.1-1.4 1.15.5 1.7-1.45-.9-1.45.9.5-1.7-1.4-1.15 1.8-.1.55-1.7z"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </AdminTooltip>
+            <AdminTooltip content="Fale com a Nimbus" variant="light" side="top" delayMs={40}>
+              <button
+                type="button"
+                className="admin-sidebar-support-icon-btn"
+                onClick={() => setFeedbackOpen(true)}
+                aria-label="Fale com a Nimbus"
+              >
+                <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.9" />
+                  <path
+                    d="M9.5 9.25a2.5 2.5 0 0 1 4.8 1c0 1.5-2.3 1.75-2.3 3.25M12 16.5h.01"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.9"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </AdminTooltip>
+            <AdminTooltip content="Sair" variant="light" side="top" delayMs={40}>
+              <AdminLogoutButton variant="sidebar" />
+            </AdminTooltip>
           </div>
         </div>
       </div>
+      <AdminFeedbackModal
+        open={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
+        supportUrl={supportUrl}
+      />
     </aside>
   );
 }

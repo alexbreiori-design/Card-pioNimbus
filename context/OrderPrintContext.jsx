@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { createPortal } from 'react-dom';
 import OrderTicket from '@/components/admin/orders/OrderTicket';
 import CaixaCloseTicket from '@/components/admin/caixa/CaixaCloseTicket';
+import ClienteContaExtratoTicket from '@/components/admin/clientes/ClienteContaExtratoTicket';
 import { useAdminData } from '@/hooks/useAdminData';
 import {
   AUTO_PRINT_NEW_ORDER_EVENT,
@@ -14,6 +15,7 @@ import {
 const OrderPrintContext = createContext({
   printOrder: () => {},
   printCaixaSummary: () => {},
+  printClienteConta: () => {},
 });
 
 export function useOrderPrint() {
@@ -58,6 +60,15 @@ export function OrderPrintProvider({ children }) {
     ({ summary, turno = null, extras = null, storeOverride = null } = {}) => {
       if (!summary) return;
       queueRef.current.push({ kind: 'caixa', summary, turno, extras, storeOverride });
+      pumpQueue();
+    },
+    [pumpQueue]
+  );
+
+  const printClienteConta = useCallback(
+    ({ customer, movimentos = [], saldo = 0, storeOverride = null } = {}) => {
+      if (!customer) return;
+      queueRef.current.push({ kind: 'cliente_conta', customer, movimentos, saldo, storeOverride });
       pumpQueue();
     },
     [pumpQueue]
@@ -135,10 +146,21 @@ export function OrderPrintProvider({ children }) {
       />,
       document.body
     );
+  } else if (portalReady && printJob?.kind === 'cliente_conta') {
+    ticketPortal = createPortal(
+      <ClienteContaExtratoTicket
+        store={store}
+        customer={printJob.customer}
+        movimentos={printJob.movimentos}
+        saldo={printJob.saldo}
+        widthMm={printJob.widthMm}
+      />,
+      document.body
+    );
   }
 
   return (
-    <OrderPrintContext.Provider value={{ printOrder, printCaixaSummary }}>
+    <OrderPrintContext.Provider value={{ printOrder, printCaixaSummary, printClienteConta }}>
       {children}
       {ticketPortal}
     </OrderPrintContext.Provider>

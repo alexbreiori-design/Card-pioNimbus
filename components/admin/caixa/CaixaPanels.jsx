@@ -1,13 +1,23 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatCurrency } from '@/lib/admin/reports/reportFormatters';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import { formatMoneyBrInput, parseMoneyBrInput } from '@/lib/moneyMask';
 import { useCaixa } from '@/hooks/useCaixa';
 import { useAdminOrders } from '@/hooks/useAdminOrders';
+import { useAdminData } from '@/hooks/useAdminData';
 import { useOrderPrint } from '@/context/OrderPrintContext';
 import { roundMoney } from '@/lib/caixa/caixaUtils';
+import CaixaCloseSummary from '@/components/admin/caixa/CaixaCloseSummary';
+import CaixaBillingDialog from '@/components/admin/caixa/CaixaBillingDialog';
+import {
+  fetchCaixaBillingGate,
+  hasShownCarenciaWarning,
+  markCarenciaWarningShown,
+  resolveWarningMessage,
+} from '@/hooks/useCaixaBillingGate';
+import { CAIXA_BILLING_BLOCK_CODE } from '@/lib/stripe/billingGates';
 
 function formatTurnoTime(iso) {
   if (!iso) return '--:--';
@@ -154,6 +164,7 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
     error,
   } = useCaixa();
   const { orders, refreshOrders } = useAdminOrders();
+  const { activeSlug } = useAdminData();
   const { printCaixaSummary } = useOrderPrint();
 
   const openKanbanOrders = useMemo(
@@ -177,12 +188,57 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
   const [valorGaveta, setValorGaveta] = useState('');
   const [movValor, setMovValor] = useState('');
   const [movDescricao, setMovDescricao] = useState('');
+  const [billingDialog, setBillingDialog] = useState(null);
+  const [gateChecking, setGateChecking] = useState(false);
+  const openRequestIdRef = useRef(0);
 
   const { overlayPointerDown, overlayClick } = useAdminOverlayClose({ onClose, isDirty: false });
 
+  const tryEnterOpenView = async (nextView) => {
+    if (nextView !== 'abrir' && nextView !== 'reabrir') {
+      setView(nextView);
+      return true;
+    }
+
+    setGateChecking(true);
+    try {
+      const gate = await fetchCaixaBillingGate(activeSlug);
+      if (gate.blocked) {
+        setView('menu');
+        setBillingDialog({
+          mode: 'blocked',
+          message: gate.message,
+        });
+        return false;
+      }
+
+      if (
+        gate.warning &&
+        gate.warning !== 'none' &&
+        !hasShownCarenciaWarning(activeSlug, gate.warning)
+      ) {
+        setBillingDialog({
+          mode: 'warning',
+          warning: gate.warning,
+          message: resolveWarningMessage(gate.warning, gate.message),
+          pendingView: nextView,
+        });
+        return false;
+      }
+
+      setView(nextView);
+      return true;
+    } catch {
+      setView(nextView);
+      return true;
+    } finally {
+      setGateChecking(false);
+    }
+  };
+
   useEffect(() => {
-    if (!open) return;
-    setView(initialView);
+    if (!open) return undefined;
+    const requestId = ++openRequestIdRef.current;
     setCloseStep(1);
     setValorAbertura('');
     setValorContado('');
@@ -192,8 +248,24 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
     setMovValor('');
     setMovDescricao('');
     setOpenOrdersPrompt(false);
-    void refresh({ silent: true });
-  }, [open, initialView, refresh]);
+    setBillingDialog(null);
+
+    const boot = async () => {
+      if (initialView === 'abrir' || initialView === 'reabrir') {
+        setView('menu');
+        const allowed = await tryEnterOpenView(initialView);
+        if (openRequestIdRef.current !== requestId) return;
+        if (!allowed) return;
+      } else {
+        setView(initialView || 'menu');
+      }
+      void refresh({ silent: true });
+    };
+
+    void boot();
+    return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when modal opens / initialView changes
+  }, [open, initialView, activeSlug]);
 
   function handleSuccess(errorResult, successMessage) {
     if (errorResult instanceof Error) {
@@ -204,12 +276,25 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
     onClose?.();
   }
 
+  function handleBillingGateError(err) {
+    if (err?.code === CAIXA_BILLING_BLOCK_CODE || /carência encerrou/i.test(String(err?.message || ''))) {
+      setView('menu');
+      setBillingDialog({
+        mode: 'blocked',
+        message: err.message,
+      });
+      return true;
+    }
+    return false;
+  }
+
   async function handleAbrir(event) {
     event.preventDefault();
     try {
       await openTurno(parseMoneyBrInput(valorAbertura));
       handleSuccess(null, 'Caixa aberto.');
     } catch (err) {
+      if (handleBillingGateError(err)) return;
       if (String(err?.message || '').includes('Já existe')) {
         setView('menu');
       }
@@ -256,6 +341,7 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
       });
       handleSuccess(null, 'Caixa reaberto.');
     } catch (err) {
+      if (handleBillingGateError(err)) return;
       handleSuccess(err);
     }
   }
@@ -298,19 +384,18 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
     printCaixaSummary({ summary, turno, extras });
   }
 
-  if (!open) return null;
-
-  const pagamentos = (summary?.pagamentos || []).filter((row) => Number(row.valor) > 0);
-  const tipos = (summary?.tipos || []).filter((row) => Number(row.pedidos) > 0);
-  const entregadores = (summary?.entregadores || []).filter((row) => Number(row.pedidos) > 0);
-  const sangriasTotal = Number(summary?.sangrias || 0);
-  const suprimentosTotal = Number(summary?.suprimentos || 0);
-  const showMovimentos = sangriasTotal > 0 || suprimentosTotal > 0;
+  if (!open && !billingDialog) return null;
 
   return (
     <>
+      {open ? (
       <div className="admin-confirm-overlay" role="presentation" onPointerDown={overlayPointerDown} onClick={overlayClick}>
-        <div className="admin-caixa-modal admin-caixa-modal-wide" onClick={(e) => e.stopPropagation()}>
+        <div
+          className={`admin-caixa-modal${
+            view === 'fechar' ? ' admin-caixa-modal-close' : ' admin-caixa-modal-wide'
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
         {view === 'menu' ? (
           <>
             <div className="admin-caixa-modal-head">
@@ -355,14 +440,18 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
                         icon="abrir"
                         title="Abrir caixa"
                         description="Iniciar operação com fundo de troco"
-                        onClick={() => setView('abrir')}
+                        onClick={() => {
+                          if (!gateChecking) void tryEnterOpenView('abrir');
+                        }}
                       />
                     ) : (
                       <CaixaManageAction
                         icon="reabrir"
                         title="Reabrir caixa"
                         description="Retomar o caixa fechado hoje com justificativa"
-                        onClick={() => setView('reabrir')}
+                        onClick={() => {
+                          if (!gateChecking) void tryEnterOpenView('reabrir');
+                        }}
                       />
                     )}
                   </div>
@@ -468,165 +557,99 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
         ) : null}
 
         {view === 'fechar' ? (
-          <form onSubmit={handleFechar}>
-            <div className="admin-caixa-modal-head">
-              <h3>Fechar caixa</h3>
-              <p>{closeStep === 1 ? 'Confira o resumo antes da contagem física.' : 'Conte o dinheiro na gaveta.'}</p>
-            </div>
+          <form
+            className={closeStep === 1 ? 'admin-caixa-close-form' : 'admin-caixa-close-form is-step2'}
+            onSubmit={handleFechar}
+          >
             {closeStep === 1 ? (
-              <>
-                <div className="admin-caixa-summary-grid">
-                  <div>
-                    <span>Pedidos</span>
-                    <strong>{summary?.totalPedidos || 0}</strong>
-                  </div>
-                  <div>
-                    <span>Vendas</span>
-                    <strong>{formatCurrency(summary?.totalVendas || 0)}</strong>
-                  </div>
-                  <div>
-                    <span>Dinheiro esperado</span>
-                    <strong>{formatCurrency(summary?.esperadoDinheiro || 0)}</strong>
-                  </div>
-                </div>
-
-                {tipos.length ? (
-                  <section className="admin-caixa-summary-section admin-caixa-summary-section--tipo">
-                    <h4 className="admin-caixa-summary-section-title">
-                      <span className="admin-caixa-summary-section-dot" aria-hidden="true" />
-                      Por tipo
-                    </h4>
-                    <div className="admin-caixa-summary-tiles">
-                      {tipos.map((row) => (
-                        <div key={row.codigo} className="admin-caixa-summary-tile">
-                          <span className="admin-caixa-summary-tile-label">{row.label}</span>
-                          <strong className="admin-caixa-summary-tile-value">
-                            {formatCurrency(row.valor)}
-                          </strong>
-                          <span className="admin-caixa-summary-tile-meta">
-                            {row.pedidos} pedido{row.pedidos === 1 ? '' : 's'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                ) : null}
-
-                {pagamentos.length ? (
-                  <section className="admin-caixa-summary-section admin-caixa-summary-section--pay">
-                    <h4 className="admin-caixa-summary-section-title">
-                      <span className="admin-caixa-summary-section-dot" aria-hidden="true" />
-                      Pagamentos
-                    </h4>
-                    <div className="admin-caixa-summary-tiles">
-                      {pagamentos.map((row) => (
-                        <div key={row.codigo} className="admin-caixa-summary-tile">
-                          <span className="admin-caixa-summary-tile-label">{row.label}</span>
-                          <strong className="admin-caixa-summary-tile-value">
-                            {formatCurrency(row.valor)}
-                          </strong>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                ) : null}
-
-                {showMovimentos ? (
-                  <section className="admin-caixa-summary-section admin-caixa-summary-section--mov">
-                    <h4 className="admin-caixa-summary-section-title">
-                      <span className="admin-caixa-summary-section-dot" aria-hidden="true" />
-                      Movimentos
-                    </h4>
-                    <div className="admin-caixa-summary-tiles">
-                      {sangriasTotal > 0 ? (
-                        <div className="admin-caixa-summary-tile admin-caixa-summary-tile--sangria">
-                          <span className="admin-caixa-summary-tile-label">Sangrias</span>
-                          <strong className="admin-caixa-summary-tile-value">
-                            −{formatCurrency(sangriasTotal)}
-                          </strong>
-                          <span className="admin-caixa-summary-tile-meta">Saída da gaveta</span>
-                        </div>
-                      ) : null}
-                      {suprimentosTotal > 0 ? (
-                        <div className="admin-caixa-summary-tile admin-caixa-summary-tile--suprimento">
-                          <span className="admin-caixa-summary-tile-label">Suprimentos</span>
-                          <strong className="admin-caixa-summary-tile-value">
-                            {formatCurrency(suprimentosTotal)}
-                          </strong>
-                          <span className="admin-caixa-summary-tile-meta">Entrada na gaveta</span>
-                        </div>
-                      ) : null}
-                    </div>
-                  </section>
-                ) : null}
-
-                {entregadores.length ? (
-                  <section className="admin-caixa-summary-section admin-caixa-summary-section--entrega">
-                    <h4 className="admin-caixa-summary-section-title">
-                      <span className="admin-caixa-summary-section-dot" aria-hidden="true" />
-                      Entregas
-                    </h4>
-                    <div className="admin-caixa-summary-tiles">
-                      {entregadores.map((row) => (
-                        <div key={row.id || row.nome} className="admin-caixa-summary-tile">
-                          <span className="admin-caixa-summary-tile-label">{row.nome}</span>
-                          <strong className="admin-caixa-summary-tile-value">
-                            {formatCurrency(row.valor)}
-                          </strong>
-                          <span className="admin-caixa-summary-tile-meta">
-                            {row.pedidos} entrega{row.pedidos === 1 ? '' : 's'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                ) : null}
-              </>
+              <CaixaCloseSummary
+                summary={summary}
+                busy={busy}
+                onBack={() => setView('menu')}
+                onPrint={handlePrintResumo}
+                onContinue={() => setCloseStep(2)}
+              />
             ) : (
               <>
-                <label className="admin-field">
-                  <span>Valor contado</span>
-                  <input
-                    className="admin-input"
-                    inputMode="decimal"
-                    value={valorContado}
-                    onChange={(e) => setValorContado(formatMoneyBrInput(e.target.value))}
-                    autoFocus
-                  />
-                </label>
-                <p className="admin-caixa-hint">Esperado: {formatCurrency(summary?.esperadoDinheiro || 0)}</p>
-                <label className="admin-field">
-                  <span>Observação (opcional)</span>
-                  <textarea
-                    className="admin-input"
-                    rows={3}
-                    value={observacao}
-                    onChange={(e) => setObservacao(e.target.value)}
-                  />
-                </label>
+                <header className="admin-caixa-close-header">
+                  <div className="admin-caixa-close-header-main">
+                    <span className="admin-caixa-close-header-icon" aria-hidden="true">
+                      <i className="ph ph-vault" />
+                    </span>
+                    <div>
+                      <h3>Fechar caixa</h3>
+                      <p>Conte o dinheiro na gaveta.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="admin-caixa-close-x"
+                    onClick={() => setCloseStep(1)}
+                    disabled={busy}
+                    aria-label="Voltar"
+                  >
+                    ×
+                  </button>
+                </header>
+
+                <div className="admin-caixa-close-step2">
+                  <label className="admin-field">
+                    <span>Valor contado</span>
+                    <input
+                      className="admin-input"
+                      inputMode="decimal"
+                      value={valorContado}
+                      onChange={(e) => setValorContado(formatMoneyBrInput(e.target.value))}
+                      autoFocus
+                    />
+                  </label>
+                  <p className="admin-caixa-hint">
+                    Esperado: {formatCurrency(summary?.esperadoDinheiro || 0)}
+                  </p>
+                  <label className="admin-field">
+                    <span>Observação (opcional)</span>
+                    <textarea
+                      className="admin-input"
+                      rows={3}
+                      value={observacao}
+                      onChange={(e) => setObservacao(e.target.value)}
+                    />
+                  </label>
+                </div>
+
+                <footer className="admin-caixa-close-footer">
+                  <div className="admin-caixa-close-footer-card">
+                    <div className="admin-caixa-close-footer-info">
+                      <span className="admin-caixa-close-kpi-icon" aria-hidden="true">
+                        <i className="ph ph-wallet" />
+                      </span>
+                      <div>
+                        <strong>Dinheiro esperado em caixa</strong>
+                        <span>Valor para conferência física</span>
+                      </div>
+                    </div>
+                    <strong className="admin-caixa-close-footer-value">
+                      {formatCurrency(summary?.esperadoDinheiro || 0)}
+                    </strong>
+                  </div>
+                  <div className="admin-caixa-close-footer-actions">
+                    <button
+                      type="button"
+                      className="admin-btn admin-caixa-close-print"
+                      onClick={handlePrintResumo}
+                      disabled={busy || !summary}
+                    >
+                      <i className="ph ph-printer" aria-hidden="true" />
+                      Imprimir resumo
+                    </button>
+                    <button type="submit" className="admin-btn admin-btn-primary admin-caixa-close-continue" disabled={busy}>
+                      {busy ? 'Fechando…' : 'Fechar caixa'}
+                      <i className="ph ph-caret-right" aria-hidden="true" />
+                    </button>
+                  </div>
+                </footer>
               </>
             )}
-            <div className="admin-confirm-actions admin-caixa-close-actions">
-              <button
-                type="button"
-                className="admin-btn admin-btn-ghost"
-                onClick={() => (closeStep === 2 ? setCloseStep(1) : setView('menu'))}
-                disabled={busy}
-              >
-                Voltar
-              </button>
-              <button
-                type="button"
-                className="admin-btn admin-btn-ghost"
-                onClick={handlePrintResumo}
-                disabled={busy || !summary}
-              >
-                Imprimir resumo
-              </button>
-              <button type="submit" className="admin-btn admin-btn-primary" disabled={busy}>
-                {busy ? 'Fechando…' : closeStep === 1 ? 'Continuar' : 'Fechar caixa'}
-              </button>
-            </div>
           </form>
         ) : null}
 
@@ -668,6 +691,7 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
         ) : null}
         </div>
       </div>
+      ) : null}
 
       {openOrdersPrompt ? (
         <div className="admin-confirm-overlay admin-confirm-overlay-top" role="presentation">
@@ -707,6 +731,24 @@ export function CaixaManageModal({ open, onClose, onSuccess, initialView = 'menu
           </div>
         </div>
       ) : null}
+
+      <CaixaBillingDialog
+        open={Boolean(billingDialog)}
+        mode={billingDialog?.mode || 'blocked'}
+        message={billingDialog?.message}
+        onClose={() => {
+          const wasBlocked = billingDialog?.mode === 'blocked';
+          setBillingDialog(null);
+          if (wasBlocked) onClose?.();
+        }}
+        onContinue={() => {
+          const pendingView = billingDialog?.pendingView || 'abrir';
+          const warning = billingDialog?.warning;
+          if (warning) markCarenciaWarningShown(activeSlug, warning);
+          setBillingDialog(null);
+          setView(pendingView);
+        }}
+      />
     </>
   );
 }

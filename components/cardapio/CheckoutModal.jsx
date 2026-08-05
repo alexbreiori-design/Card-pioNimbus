@@ -32,6 +32,10 @@ const PagBankPaymentPanel = dynamic(
   () => import('@/components/cardapio/PagBankPaymentPanel'),
   { ssr: false }
 );
+const LandingDemoPaymentPanel = dynamic(
+  () => import('@/components/landing/LandingDemoPaymentPanel'),
+  { ssr: false }
+);
 
 function PaymentIcon({ id }) {
   const svgProps = {
@@ -99,6 +103,7 @@ export default function CheckoutModal() {
     checkoutAddressConfirmed,
     openCheckoutAddressFlow,
     getDeliveryEstimateMinutes,
+    isLandingDemo,
   } = useCardapio();
 
   const [pixCopied, setPixCopied] = useState(false);
@@ -199,6 +204,9 @@ export default function CheckoutModal() {
   ) : null;
 
   function renderOnlinePanel(mode) {
+    if (isLandingDemo) {
+      return <LandingDemoPaymentPanel mode={mode} />;
+    }
     if (onlinePaymentConfig?.provider === 'asaas') {
       return <AsaasPaymentPanel mode={mode} />;
     }
@@ -354,15 +362,30 @@ export default function CheckoutModal() {
   const renderStepBody = () => {
     if (checkoutSuccess) {
       const isPix = checkoutSuccessSnapshot?.payment === 'pix';
-      const showPixBlock = isPix && Boolean(storeConfig?.chavePix);
+      const showPixBlock =
+        isPix && Boolean(storeConfig?.chavePix) && !checkoutSuccessSnapshot?.landingDemo;
       return (
         <div className="success-state">
           <div className="success-icon">🎉</div>
-          <div className="success-title">Pedido enviado!</div>
+          <div className="success-title">
+            {checkoutSuccessSnapshot?.landingDemo ? 'Pedido simulado!' : 'Pedido enviado!'}
+          </div>
           <div className="success-sub">
-            Seu pedido foi registrado com sucesso.
-            <br />
-            Nº do pedido: <strong>{checkoutSuccessSnapshot?.orderNumber || checkoutOrderNumber || '—'}</strong>
+            {checkoutSuccessSnapshot?.landingDemo ? (
+              <>
+                Simulação concluída — nenhum pedido real foi criado.
+                <br />
+                Nº da demonstração:{' '}
+                <strong>{checkoutSuccessSnapshot?.orderNumber || checkoutOrderNumber || '—'}</strong>
+              </>
+            ) : (
+              <>
+                Seu pedido foi registrado com sucesso.
+                <br />
+                Nº do pedido:{' '}
+                <strong>{checkoutSuccessSnapshot?.orderNumber || checkoutOrderNumber || '—'}</strong>
+              </>
+            )}
           </div>
           {checkoutSuccessSnapshot?.mpOrderId &&
           (onlinePaymentConfig?.sandbox ||
@@ -386,7 +409,7 @@ export default function CheckoutModal() {
               </p>
             </div>
           ) : null}
-          {whatsAppOrderUrl ? (
+          {whatsAppOrderUrl && !checkoutSuccessSnapshot?.landingDemo ? (
             <a
               className="btn-checkout-whatsapp"
               href={whatsAppOrderUrl}

@@ -3,6 +3,10 @@
 import CartItemOptsList from '@/components/cardapio/CartItemOptsList';
 import '@/styles/orderTicket.css';
 import { currency, fmtPhone } from './orderDraftUtils';
+import {
+  appendAddressComplement,
+  formatDeliveryAddressLine,
+} from '@/lib/formatDeliveryAddress';
 import { paymentStatusBadgeForOrder } from '@/lib/orders/mapAdminOrder';
 
 const TIPO_LABEL = { delivery: 'Delivery', retirada: 'Retirada', balcao: 'Balcão' };
@@ -31,10 +35,20 @@ function addressText(order) {
   if (order.tipo !== 'delivery') {
     return order.tipo === 'retirada' ? 'Retirada no estabelecimento' : 'Balcão';
   }
-  if (order.enderecoTexto) return order.enderecoTexto;
   const e = order.endereco || {};
-  const line = `${e.logradouro || ''}${e.numero ? `, ${e.numero}` : ''} - ${e.bairro || ''} - ${e.cidade || ''}`.trim();
-  return line || 'Endereço não informado';
+  const complemento = e.complemento || e.comp || '';
+  if (order.enderecoTexto) {
+    return appendAddressComplement(order.enderecoTexto, complemento) || 'Endereço não informado';
+  }
+  return (
+    formatDeliveryAddressLine({
+      logradouro: e.logradouro || e.rua,
+      numero: e.numero || e.num,
+      bairro: e.bairro,
+      cidade: e.cidade,
+      complemento,
+    }) || 'Endereço não informado'
+  );
 }
 
 export default function OrderTicket({ order, store = {}, widthMm = 80, mode = 'print' }) {
@@ -158,7 +172,9 @@ export default function OrderTicket({ order, store = {}, widthMm = 80, mode = 'p
           <div className="order-ticket-pay-hint">
             {payBadge.kind === 'paid'
               ? 'Já pago no cardápio — não cobrar do cliente.'
-              : 'Cobrar do cliente na entrega/retirada.'}
+              : payBadge.kind === 'on_account'
+                ? 'Conta interna — lançar na conta do cliente ao concluir.'
+                : 'Cobrar do cliente na entrega/retirada.'}
           </div>
         </section>
 

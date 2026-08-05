@@ -4,6 +4,7 @@ import {
   mapTurnoToClient,
   reopenCaixaTurno,
 } from '@/lib/caixa/caixaServer';
+import { loadCaixaBillingGate } from '@/lib/stripe/billingGates';
 import { normalizeSlug } from '@/lib/normalize';
 import { requireStoreAdmin } from '@/lib/supabase/membership';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
@@ -29,6 +30,19 @@ export async function POST(request) {
     const empresa = await getEmpresaBySlug(supabase, slug);
     if (!empresa?.id) {
       return NextResponse.json({ ok: false, error: 'Loja não encontrada.' }, { status: 404 });
+    }
+
+    const { gate } = await loadCaixaBillingGate(supabase, { empresaId: empresa.id });
+    if (gate.blocked) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: gate.message,
+          code: gate.code,
+          caixaGate: gate,
+        },
+        { status: 403 }
+      );
     }
 
     const result = await reopenCaixaTurno(supabase, {

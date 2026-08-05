@@ -47,3 +47,10 @@ next-env.d.ts
 supabase/ONBOARDING.md
 dev-err.txt
 dev-out.txt
+
+tmp/
+
+# Python (tools/menu-extractor)
+__pycache__/
+*.py[cod]
+.venv/

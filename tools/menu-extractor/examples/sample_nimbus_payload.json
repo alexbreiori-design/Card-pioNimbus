@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "slug": "loja-exemplo",
+  "notas": "Exemplo gerado para validar o contrato do import Nimbus.",
+  "modules": {
+    "produtos": {
+      "categorias": [
+        {
+          "nome": "Burgers",
+          "itens": [
+            {
+              "nome": "Classic Burger",
+              "preco": 32.9,
+              "descricao": "180g, queijo, molho da casa",
+              "imagemUrl": "https://example.com/classic.jpg",
+              "tipo": "comum"
+            },
+            {
+              "nome": "Bacon Burger",
+              "preco": 36.5,
+              "descricao": "180g, bacon, cheddar",
+              "tipo": "comum"
+            }
+          ]
+        },
+        {
+          "nome": "Bebidas",
+          "itens": [
+            {
+              "nome": "Refrigerante Lata",
+              "preco": 6,
+              "descricao": "",
+              "tipo": "comum"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

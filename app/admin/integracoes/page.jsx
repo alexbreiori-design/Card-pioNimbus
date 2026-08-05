@@ -7,6 +7,7 @@ import { useAdminData } from "@/hooks/useAdminData";
 import { useEmpresa } from "@/hooks/useEmpresa";
 import AdminConfirmDialog from "@/components/admin/AdminConfirmDialog";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
+import AssinaturaNimbusPanel from "@/components/admin/AssinaturaNimbusPanel";
 import MercadoPagoIntegrationCard from "@/components/admin/integrations/MercadoPagoIntegrationCard";
 import AsaasIntegrationCard from "@/components/admin/integrations/AsaasIntegrationCard";
 import PagBankIntegrationCard from "@/components/admin/integrations/PagBankIntegrationCard";
@@ -169,12 +170,17 @@ export default function IntegracoesPage() {
 
   return (
     <div className="admin-content admin-content-pedidos admin-catalog-page admin-section-page admin-compact-card-page">
-      <AdminPageHeader title="Integrações" icon="integration" />
+      <AdminPageHeader
+        title="Integrações"
+        icon="integration"
+      />
 
       {!paymentsCheckDone ? (
         <AdminIntegracoesSkeleton />
       ) : (
         <AdminContentReveal ready className="admin-integration-sections">
+        <AssinaturaNimbusPanel slug={slug} />
+
         {paymentIntegrationsEnabled ? (
           <section
             className="admin-integration-section"

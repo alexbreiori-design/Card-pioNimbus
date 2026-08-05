@@ -1,19 +1,17 @@
 'use client';
 
 import PizzaManager from '@/components/admin/pizza/PizzaManager';
+import { AdminCatalogSkeleton, useAdminMountSkeleton } from '@/components/admin/AdminSkeleton';
 import { useAdminData } from '@/hooks/useAdminData';
 import { isPizzariaSegment } from '@/lib/empresaSegmentos';
 
 export default function PizzasPage() {
   const { data, ready } = useAdminData();
+  const showSkeleton = useAdminMountSkeleton(ready);
   const enabled = isPizzariaSegment(data.loja?.segmento);
 
-  if (!ready) {
-    return (
-      <div className="admin-content admin-catalog-page">
-        <p className="admin-help-text">Carregando...</p>
-      </div>
-    );
+  if (showSkeleton) {
+    return <AdminCatalogSkeleton />;
   }
 
   if (!enabled) {

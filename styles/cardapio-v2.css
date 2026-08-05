@@ -575,6 +575,10 @@
 }
 
 @media (max-width: 1099px) {
+  .cardapio-v2-layout {
+    padding-top: 0;
+  }
+
   .cardapio-v2-layout .cardapio-v2-main > .cardapio-v2-hero {
     width: calc(100% + 32px);
     max-width: none;

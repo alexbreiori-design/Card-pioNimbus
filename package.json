@@ -16,10 +16,12 @@
     "@supabase/supabase-js": "^2.106.2",
     "@vercel/speed-insights": "^2.0.0",
     "leaflet": "^1.9.4",
+    "motion": "^12.23.12",
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "react-easy-crop": "^6.0.2"
+    "react-easy-crop": "^6.0.2",
+    "stripe": "^22.0.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

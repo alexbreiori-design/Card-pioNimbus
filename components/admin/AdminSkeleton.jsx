@@ -2,6 +2,28 @@
 
 import { useEffect, useState } from 'react';
 
+/** Tempo mínimo do skeleton de catálogo para ser perceptível na navegação. */
+const CATALOG_SKELETON_MIN_MS = 380;
+
+/**
+ * Mostra skeleton no mount (SSR + client iguais) e só libera depois de `ready`
+ * + um tempo mínimo — assim aparece de verdade ao abrir produtos/adicionais/etc.
+ */
+export function useAdminMountSkeleton(ready = false, minMs = CATALOG_SKELETON_MIN_MS) {
+  const [showSkeleton, setShowSkeleton] = useState(true);
+
+  useEffect(() => {
+    if (!ready) {
+      setShowSkeleton(true);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setShowSkeleton(false), minMs);
+    return () => window.clearTimeout(timer);
+  }, [ready, minMs]);
+
+  return showSkeleton;
+}
+
 /** Bloco cinza reutilizável para placeholders de carregamento. */
 export function AdminSkeletonBlock({ className = '', style, ...props }) {
   return (
@@ -179,6 +201,68 @@ export function AdminListSkeleton({ rows = 4 }) {
         <div key={index} className="admin-list-skeleton-row">
           <AdminSkeletonBlock className="admin-list-skeleton-avatar" />
           <AdminSkeletonLines count={2} className="admin-skeleton-card-body" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Placeholder de catálogo (produtos, adicionais, marmitas, pizzas). */
+export function AdminCatalogSkeleton() {
+  return (
+    <div
+      className="admin-content admin-content-pedidos admin-catalog-page"
+      aria-busy="true"
+      aria-label="Carregando catálogo"
+    >
+      <div className="admin-pedidos-search-row">
+        <AdminSkeletonBlock style={{ width: '100%', maxWidth: 420, height: 42, borderRadius: 12 }} />
+      </div>
+      <div className="admin-catalog-top-row admin-catalog-skeleton-top">
+        <div className="admin-catalog-cats admin-catalog-skeleton-pills">
+          {[120, 96, 110, 88].map((width) => (
+            <AdminSkeletonBlock key={width} style={{ width, height: 34, borderRadius: 999 }} />
+          ))}
+        </div>
+        <div className="admin-catalog-top-actions">
+          <AdminSkeletonBlock style={{ width: 140, height: 38, borderRadius: 10 }} />
+          <AdminSkeletonBlock style={{ width: 110, height: 38, borderRadius: 10 }} />
+        </div>
+      </div>
+      <div className="admin-card admin-catalog-skeleton-list">
+        {Array.from({ length: 5 }, (_, index) => (
+          <div key={index} className="admin-catalog-skeleton-row">
+            <AdminSkeletonBlock className="admin-catalog-skeleton-thumb" />
+            <div className="admin-catalog-skeleton-meta">
+              <AdminSkeletonBlock style={{ width: '42%', height: 16 }} />
+              <AdminSkeletonBlock style={{ width: '68%', height: 12, marginTop: 10 }} />
+            </div>
+            <AdminSkeletonBlock style={{ width: 72, height: 18, marginLeft: 'auto' }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Placeholder do kanban de pedidos (primeira carga da sessão). */
+export function AdminPedidosKanbanSkeleton() {
+  return (
+    <div className="admin-kanban admin-pedidos-kanban-skeleton" aria-busy="true" aria-label="Carregando pedidos">
+      {['Novos', 'Em preparo', 'Saiu para entrega'].map((label) => (
+        <div key={label} className="admin-kanban-col">
+          <div className="admin-kanban-col-header">
+            <AdminSkeletonBlock style={{ width: 120, height: 18 }} />
+            <AdminSkeletonBlock style={{ width: 28, height: 22, borderRadius: 8 }} />
+          </div>
+          {Array.from({ length: 3 }, (_, index) => (
+            <div key={index} className="admin-order-card admin-pedidos-skeleton-card">
+              <AdminSkeletonBlock style={{ width: '48%', height: 14 }} />
+              <AdminSkeletonBlock style={{ width: '72%', height: 12, marginTop: 12 }} />
+              <AdminSkeletonBlock style={{ width: '36%', height: 12, marginTop: 10 }} />
+              <AdminSkeletonBlock style={{ width: '100%', height: 34, marginTop: 16, borderRadius: 10 }} />
+            </div>
+          ))}
         </div>
       ))}
     </div>
