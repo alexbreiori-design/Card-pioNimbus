@@ -10,8 +10,10 @@ import LandingHeader from '@/components/landing/LandingHeader';
 import LandingIcon from '@/components/landing/LandingIcons';
 import LandingReveal from '@/components/landing/LandingReveal';
 import LandingScene from '@/components/landing/LandingScene';
-import LandingScreenshot from '@/components/landing/LandingScreenshot';
-import LandingSolutionsTimeline from '@/components/landing/LandingSolutionsTimeline';
+import LandingHeroDemo from '@/components/landing/LandingHeroDemo';
+import LandingHeroTitle from '@/components/landing/LandingHeroTitle';
+import LandingPainsSection from '@/components/landing/LandingPainsSection';
+import LandingPurposeSection from '@/components/landing/LandingPurposeSection';
 import LandingPricingSection from '@/components/landing/LandingPricingSection';
 import LandingStatsRow from '@/components/landing/LandingStatsRow';
 import { NIMBUS_DEMO_SLUG, whatsappUrl } from '@/lib/landing/constants';
@@ -23,9 +25,7 @@ import {
   landingFeaturesMain,
   landingFooter,
   landingHero,
-  landingPains,
   landingStats,
-  landingSteps,
   landingTestimonials,
 } from '@/lib/landing/content';
 
@@ -65,121 +65,46 @@ export default function LandingPage() {
       <main>
         <LandingScene id="topo" className="landing-hero-scene">
           <div className="landing-container">
-            <div className="landing-hero">
-              <div className="landing-hero__copy">
+            <div className="landing-hero landing-hero--showcase">
+              <div className="landing-hero__copy landing-hero__copy--center">
                 <LandingReveal onLoad delay={0}>
                   <p className="landing-kicker">{landingHero.kicker}</p>
                 </LandingReveal>
                 <LandingReveal onLoad delay={90}>
-                  <h1 className="landing-title">
-                    {landingHero.titleBefore}
-                    <span className="landing-title__highlight">{landingHero.titleHighlight}</span>
-                  </h1>
+                  <LandingHeroTitle
+                    before={landingHero.titleBefore}
+                    after={landingHero.titleAfter}
+                    words={landingHero.titleWords}
+                  />
                 </LandingReveal>
                 <LandingReveal onLoad delay={180}>
-                  <p className="landing-lead">{landingHero.lead}</p>
-                </LandingReveal>
-                <LandingReveal onLoad delay={270} className="landing-hero__actions">
-                  <WhatsAppButton className="landing-btn landing-btn--primary landing-btn--lg landing-interactive">
-                    Quero meu cardápio
-                  </WhatsAppButton>
-                  <a href="#como-funciona" className="landing-btn landing-btn--soft landing-btn--lg landing-interactive">
-                    Ver como funciona
-                  </a>
+                  <p className="landing-lead landing-lead--showcase">{landingHero.lead}</p>
                 </LandingReveal>
               </div>
 
-              <LandingReveal onLoad delay={220} className="landing-hero__visual">
-                <LandingScreenshot
-                  src="/images/landing/hero/cardapio-mobile.webp"
-                  alt="Cardápio Nimbus"
-                  placeholder="Print do cardápio"
-                  priority
-                  className="landing-hero__shot"
+              <LandingReveal onLoad delay={220} className="landing-hero__demo-wrap">
+                <LandingHeroDemo
+                  calloutTitle={landingHero.calloutTitle}
+                  calloutSub={landingHero.calloutSub}
+                  closeLabel={landingHero.demoClose}
                 />
-                <div
-                  className="landing-float-card landing-glass-card landing-float-card--stats landing-interactive"
-                  aria-hidden="true"
-                >
-                  <span>Pedidos ao vivo</span>
-                  <strong>+127 hoje</strong>
-                </div>
-                <div
-                  className="landing-float-card landing-glass-card landing-float-card--fee landing-interactive"
-                  aria-hidden="true"
-                >
-                  <span>Frete calculado</span>
-                  <strong>R$ 6,90</strong>
-                </div>
+              </LandingReveal>
+
+              <LandingReveal onLoad delay={300} className="landing-hero__actions landing-hero__actions--center landing-hero__actions--below">
+                <WhatsAppButton className="landing-btn landing-btn--primary landing-btn--lg landing-interactive">
+                  Quero meu cardápio
+                </WhatsAppButton>
+                <a href="#proposito" className="landing-btn landing-btn--soft landing-btn--lg landing-interactive">
+                  Ver como funciona
+                </a>
               </LandingReveal>
             </div>
-
-            <LandingReveal onLoad delay={380} className="landing-chip-row landing-chip-row--hero">
-              {landingHero.chips.map((chip) => (
-                <span key={chip} className="landing-chip landing-interactive">
-                  {chip}
-                </span>
-              ))}
-            </LandingReveal>
           </div>
         </LandingScene>
 
-        <LandingScene id="dores" className="landing-section-scene">
-          <div className="landing-container landing-split">
-            <div className="landing-split__copy">
-              <LandingReveal delay={0}>
-                <h2 className="landing-section-title">{landingPains.title}</h2>
-              </LandingReveal>
-              <LandingReveal delay={70}>
-                <p className="landing-section-lead">{landingPains.subtitle}</p>
-              </LandingReveal>
-              <LandingReveal delay={140}>
-                <ul className="landing-bullet-list">
-                  {landingPains.bullets.map((bullet) => (
-                    <li key={bullet}>{bullet}</li>
-                  ))}
-                </ul>
-              </LandingReveal>
-              <LandingReveal delay={220}>
-                <p className="landing-hook">{landingPains.hook}</p>
-              </LandingReveal>
-            </div>
+        <LandingPainsSection />
 
-            <LandingReveal delay={120} className="landing-split__visual landing-pains-visual">
-              <LandingScreenshot
-                src="/images/landing/features/dores.webp"
-                alt="Dores do delivery"
-                placeholder="Ilustração da rotina"
-                className="landing-pains-visual__shot"
-              />
-              {landingPains.floatCards.map((card, index) => (
-                <div
-                  key={card.title}
-                  className={`landing-pain-float landing-pain-float--${index + 1} landing-glass-card landing-interactive`}
-                >
-                  <LandingIcon name={card.icon} className="landing-pain-float__icon" />
-                  <div>
-                    <strong>{card.title}</strong>
-                    <span>{card.text}</span>
-                  </div>
-                </div>
-              ))}
-            </LandingReveal>
-          </div>
-        </LandingScene>
-
-        <LandingScene id="como-funciona" className="landing-section-scene">
-          <div className="landing-container">
-            <LandingReveal delay={0} className="landing-section-head landing-section-head--center">
-              <h2 className="landing-section-title">{landingSteps.title}</h2>
-              <p className="landing-section-lead">{landingSteps.subtitle}</p>
-            </LandingReveal>
-
-            <LandingReveal delay={100}>
-              <LandingSolutionsTimeline items={landingSteps.items} />
-            </LandingReveal>
-          </div>
-        </LandingScene>
+        <LandingPurposeSection />
 
         <LandingScene id="recursos" className="landing-section-scene">
           <div className="landing-container">

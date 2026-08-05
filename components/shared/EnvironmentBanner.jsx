@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import {
   getEnvironmentBannerCopy,
   getRuntimeEnvironment,
@@ -9,24 +9,38 @@ import {
 
 const LOCAL_BANNER_HIDE_KEY = 'nimbus:hide-local-env-banner';
 
+function subscribeEmbed() {
+  return () => {};
+}
+
+function getEmbedSnapshot() {
+  try {
+    return new URLSearchParams(window.location.search).get('embed') === '1';
+  } catch {
+    return false;
+  }
+}
+
+function getEmbedServerSnapshot() {
+  return false;
+}
+
 export default function EnvironmentBanner({ className = '' }) {
   const show = shouldShowEnvironmentBanner();
   const env = show ? getRuntimeEnvironment() : 'production';
   const copy = show ? getEnvironmentBannerCopy(env) : { title: '', detail: '' };
   const isAdminLocal =
     show && env === 'local' && String(className || '').includes('nimbus-env-banner-admin');
+  const embedHidden = useSyncExternalStore(subscribeEmbed, getEmbedSnapshot, getEmbedServerSnapshot);
 
-  const [hidden, setHidden] = useState(false);
-
-  useEffect(() => {
-    if (!isAdminLocal) return undefined;
+  const [hidden, setHidden] = useState(() => {
+    if (typeof window === 'undefined') return false;
     try {
-      setHidden(sessionStorage.getItem(LOCAL_BANNER_HIDE_KEY) === '1');
+      return sessionStorage.getItem(LOCAL_BANNER_HIDE_KEY) === '1';
     } catch {
-      // ignore
+      return false;
     }
-    return undefined;
-  }, [isAdminLocal]);
+  });
 
   function setBannerHidden(next) {
     setHidden(next);
@@ -38,7 +52,7 @@ export default function EnvironmentBanner({ className = '' }) {
     }
   }
 
-  if (!show) return null;
+  if (embedHidden || !show) return null;
 
   if (isAdminLocal && hidden) {
     return (

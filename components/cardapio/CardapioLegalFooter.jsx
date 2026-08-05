@@ -13,6 +13,8 @@ function useLegalFrom() {
 
 export default function CardapioLegalFooter() {
   const from = useLegalFrom();
+  const searchParams = useSearchParams();
+  if (searchParams.get('embed') === '1') return null;
 
   return (
     <footer className="cardapio-legal-footer" aria-label="Informações legais">
