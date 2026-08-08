@@ -220,6 +220,95 @@ const icons = {
       <path d="M8 9h8M8 13h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   ),
+  bag: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M6 8h12l-.8 11.2a2 2 0 0 1-2 1.8H8.8a2 2 0 0 1-2-1.8L6 8Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <path
+        d="M9 8V6.5A3 3 0 0 1 12 3.5 3 3 0 0 1 15 6.5V8"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        fill="none"
+      />
+    </svg>
+  ),
+  palette: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 3.5a8.5 8.5 0 0 0-1.2 16.9c.9.1 1.4-.5 1.4-1.2 0-.5.2-1 .6-1.3.4-.3.9-.4 1.4-.3 2.8.4 5.3-1.8 5.3-4.7A8.5 8.5 0 0 0 12 3.5Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <circle cx="8.2" cy="10" r="1.1" fill="currentColor" />
+      <circle cx="11" cy="7.5" r="1.1" fill="currentColor" />
+      <circle cx="14.5" cy="8.2" r="1.1" fill="currentColor" />
+      <circle cx="16" cy="11.5" r="1.1" fill="currentColor" />
+    </svg>
+  ),
+  store: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M4 9.5 5.5 5h13L20 9.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <path d="M4 9.5h16v9.5H4V9.5Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" fill="none" />
+      <path d="M9 19v-5h6v5" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" fill="none" />
+    </svg>
+  ),
+  bell: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M6.5 16.5h11l-1.2-1.5V11a4.3 4.3 0 1 0-8.6 0v4l-1.2 1.5Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <path d="M10 18.5a2 2 0 0 0 4 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+    </svg>
+  ),
+  mapPin: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 21s6-5.2 6-10.2A6 6 0 0 0 6 10.8C6 15.8 12 21 12 21Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <circle cx="12" cy="10.5" r="2.2" stroke="currentColor" strokeWidth="2" fill="none" />
+    </svg>
+  ),
+  image: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3.5" y="5" width="17" height="14" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
+      <circle cx="9" cy="10" r="1.6" fill="currentColor" />
+      <path
+        d="M5.5 16.5 9.5 13l3 2.5 3.5-4 2.5 5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  ),
+  chevronRight: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+    </svg>
+  ),
   chevronDown: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
