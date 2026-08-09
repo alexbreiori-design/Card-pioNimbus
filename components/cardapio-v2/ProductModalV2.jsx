@@ -141,35 +141,80 @@ function StepPreviewPopover({ preview, formatPrice, visible }) {
   );
 }
 
+const GENERIC_SEARCH_MIN_ITEMS = 8;
+
 function GenericStepOptions({ section, sectionIndex, selectedIds, onToggle, formatPrice }) {
+  const [query, setQuery] = useState('');
+  const filteredItems = useMemo(() => {
+    const items = section?.items || [];
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((item) => {
+      const name = String(item.name || '').toLowerCase();
+      const desc = String(item.desc || '').toLowerCase();
+      return name.includes(q) || desc.includes(q);
+    });
+  }, [section?.items, query]);
+  const totalItems = section?.items?.length || 0;
+  const showSearch = totalItems >= GENERIC_SEARCH_MIN_ITEMS;
+
   return (
-    <div className="cardapio-v2-product-modal-options">
-      {section.items.map((item) => {
-        const isActive = selectedIds.includes(item.id);
-        return (
-          <button
-            key={item.id}
-            type="button"
-            className={`cardapio-v2-product-modal-option${isActive ? ' is-selected' : ''}`}
-            onClick={() => onToggle(sectionIndex, item.id, item.extra)}
-          >
-            <MenuImageArea
-              imageUrl={item.imageUrl}
-              className="cardapio-v2-product-modal-option-thumb"
-              alt=""
-              sizes="48px"
-            />
-            <span className="cardapio-v2-product-modal-option-copy">
-              <strong>{item.name}</strong>
-              {item.desc ? <span>{item.desc}</span> : null}
-              {item.extra > 0 ? <em>+ {formatPrice(item.extra)}</em> : null}
-            </span>
-            <span className="cardapio-v2-product-modal-option-check" aria-hidden="true">
-              {isActive ? <V2Icon name="check" fill /> : null}
-            </span>
-          </button>
-        );
-      })}
+    <div className="cardapio-v2-product-modal-options-wrap">
+      {showSearch ? (
+        <div className="cardapio-v2-product-modal-options-search">
+          <input
+            type="search"
+            className="cardapio-v2-product-modal-options-search-input"
+            placeholder="Buscar opção..."
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            aria-label="Buscar opções"
+          />
+          <span className="cardapio-v2-product-modal-options-search-meta">
+            {filteredItems.length} de {totalItems}
+          </span>
+        </div>
+      ) : null}
+      {filteredItems.length ? (
+        <div
+          className={`cardapio-v2-product-modal-options${
+            section.exibirFotos === false ? ' is-text-only' : ''
+          }`}
+        >
+          {filteredItems.map((item) => {
+            const isActive = selectedIds.includes(item.id);
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={`cardapio-v2-product-modal-option${isActive ? ' is-selected' : ''}${
+                  section.exibirFotos === false ? ' is-text-only' : ''
+                }`}
+                onClick={() => onToggle(sectionIndex, item.id, item.extra)}
+              >
+                {section.exibirFotos !== false ? (
+                  <MenuImageArea
+                    imageUrl={item.imageUrl}
+                    className="cardapio-v2-product-modal-option-thumb"
+                    alt=""
+                    sizes="40px"
+                  />
+                ) : null}
+                <span className="cardapio-v2-product-modal-option-copy">
+                  <strong>{item.name}</strong>
+                  {item.extra > 0 ? <em>+ {formatPrice(item.extra)}</em> : null}
+                  {item.desc ? <span>{item.desc}</span> : null}
+                </span>
+                <span className="cardapio-v2-product-modal-option-check" aria-hidden="true">
+                  {isActive ? <V2Icon name="check" bold /> : null}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="cardapio-v2-product-modal-empty">Nenhuma opção encontrada.</p>
+      )}
     </div>
   );
 }
@@ -371,13 +416,15 @@ export default function ProductModalV2() {
     };
 
     push(product?.imageUrl, 'main');
-
-    if (showGenericAddons && currentGenericSection) {
-      currentGenericSection.items.forEach((item) => push(item.imageUrl, item.id));
-    }
+    const extraUrls = Array.isArray(product?.imageUrls)
+      ? product.imageUrls
+      : Array.isArray(product?.gallery)
+        ? product.gallery
+        : [];
+    extraUrls.forEach((url, index) => push(url, `gallery-${index}`));
 
     return images.length ? images : [{ id: 'main', url: '' }];
-  }, [product?.imageUrl, showGenericAddons, currentGenericSection]);
+  }, [product]);
 
   useEffect(() => {
     setMarmitaStep(0);
@@ -600,7 +647,7 @@ export default function ProductModalV2() {
               imageUrl={activeImageUrl || product.imageUrl}
               className="cardapio-v2-product-modal-hero"
               alt={product.name}
-              sizes="420px"
+              sizes="360px"
             />
             {galleryImages.length > 1 ? (
               <div className="cardapio-v2-product-modal-thumbs">
@@ -624,19 +671,7 @@ export default function ProductModalV2() {
                 ))}
               </div>
             ) : null}
-          </div>
-
-          <div className="cardapio-v2-product-modal-panel">
-            <button
-              type="button"
-              className="cardapio-v2-product-modal-close"
-              onClick={closeProductPopup}
-              aria-label="Fechar"
-            >
-              ×
-            </button>
-
-            <div className="cardapio-v2-product-modal-head">
+            <div className="cardapio-v2-product-modal-gallery-meta">
               <h2 id="cardapio-v2-product-modal-title" className="cardapio-v2-product-modal-title">
                 {product.name}
               </h2>
@@ -658,6 +693,17 @@ export default function ProductModalV2() {
                 )}
               </div>
             </div>
+          </div>
+
+          <div className="cardapio-v2-product-modal-panel">
+            <button
+              type="button"
+              className="cardapio-v2-product-modal-close"
+              onClick={closeProductPopup}
+              aria-label="Fechar"
+            >
+              ×
+            </button>
 
             {stepLabels.length > 1 ? (
               <div className="cardapio-v2-product-modal-stepper-wrap">
@@ -685,7 +731,11 @@ export default function ProductModalV2() {
                   Passe o mouse nos passos para pré-visualizar as opções disponíveis
                 </p>
               </div>
-            ) : null}
+            ) : (
+              <div className="cardapio-v2-product-modal-head cardapio-v2-product-modal-head--compact">
+                <p className="cardapio-v2-product-modal-assembly-label">Montagem</p>
+              </div>
+            )}
 
             <div className="cardapio-v2-product-modal-body">
               {!onNoteStep && showGenericAddons && currentGenericSection ? (
@@ -695,6 +745,7 @@ export default function ProductModalV2() {
                     <span>{genericRequirementLabel}</span>
                   </div>
                   <GenericStepOptions
+                    key={`generic-step-${genericStep}`}
                     section={currentGenericSection}
                     sectionIndex={genericStep}
                     selectedIds={currentGenericSelected}

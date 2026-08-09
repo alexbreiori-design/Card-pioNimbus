@@ -1,10 +1,11 @@
 'use client';
 
 /** Ícones Phosphor — CSS importado em CardapioAppV2. */
-export function V2Icon({ name, className = '', fill = false, duotone = false }) {
+export function V2Icon({ name, className = '', fill = false, bold = false, duotone = false }) {
   let prefix = 'ph';
   if (duotone) prefix = 'ph-duotone';
   else if (fill) prefix = 'ph-fill';
+  else if (bold) prefix = 'ph-bold';
 
   const map = {
     home: 'ph-house',
