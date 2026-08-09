@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import AdminIcon from '@/components/admin/AdminIcon';
-import AdminSortableList from '@/components/admin/AdminSortableList';
 import ImagePlaceholder from '@/components/admin/ImagePlaceholder';
+import { DraggableReorderList } from '@/components/lightswind/draggable-reorder-list';
 import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
 import { isJsonDirty } from '@/lib/admin/isFormDirty';
@@ -44,7 +44,6 @@ export default function PizzaSaboresPanel() {
   const [sizesDraft, setSizesDraft] = useState(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('todos');
-  const [ordering, setOrdering] = useState(false);
   const [draftBaseline, setDraftBaseline] = useState(null);
   const [sizesBaseline, setSizesBaseline] = useState(null);
   const toast = useAdminToast();
@@ -228,7 +227,6 @@ export default function PizzaSaboresPanel() {
         .join(' · ')
     : 'Nenhum tamanho ativo';
 
-  const orderedSabores = useMemo(() => sortByOrdem(sabores), [sabores]);
   const isDraftDirty = useMemo(() => {
     if (!draft || !draftBaseline) return false;
     return isJsonDirty(normalizePizzaSabor(draft), draftBaseline);
@@ -289,10 +287,6 @@ export default function PizzaSaboresPanel() {
             <AdminIcon name="plus" />
             Novo sabor
           </button>
-          <button type="button" className="admin-catalog-order-btn" onClick={() => setOrdering((value) => !value)}>
-            <AdminIcon name="sort" />
-            {ordering ? 'Voltar' : 'Ordenar'}
-          </button>
         </div>
       </div>
 
@@ -307,46 +301,39 @@ export default function PizzaSaboresPanel() {
         </button>
       </section>
 
-      {ordering ? (
-        <div className="admin-card admin-sortable-panel">
-          <p className="admin-help-text admin-sortable-panel-hint">Arraste os sabores para definir a ordem no cardápio.</p>
-          {orderedSabores.length ? (
-            <AdminSortableList
-              items={orderedSabores}
-              onReorder={(next) => persist({ ...cardapio, sabores: next }, 'Ordem atualizada.')}
-              rowClassName="admin-sortable-row admin-catalog-item-row"
-              renderItem={(sabor) => (
-                <>
-                  {sabor.imagemUrl ? (
-                    <img className="admin-catalog-item-img" src={sabor.imagemUrl} alt="" loading="lazy" decoding="async" />
-                  ) : (
-                    <ImagePlaceholder size={112} />
-                  )}
-                  <div className="admin-catalog-item-main">
-                    <div className="admin-item-title">{sabor.nome || 'Sem nome'}</div>
-                    <div className="admin-item-desc">{sabor.descricao || '—'}</div>
-                  </div>
-                </>
-              )}
-            />
-          ) : (
-            <div className="admin-empty-catalog">Nenhum sabor cadastrado.</div>
-          )}
-        </div>
-      ) : (
-        <div className="admin-card admin-catalog-card">
-          <div className="admin-pizza-block-header">
-            <div>
-              <h3>Sabores</h3>
-              <p className="admin-help-text">
-                Cadastre cada sabor com foto, descrição e preço por tamanho. Depois vincule-os nas categorias.
-              </p>
-            </div>
+      <div className="admin-card admin-catalog-card">
+        <div className="admin-pizza-block-header">
+          <div>
+            <h3>Sabores</h3>
+            <p className="admin-help-text">
+              Cadastre cada sabor com foto, descrição e preço por tamanho. Segure os pontinhos para reordenar.
+            </p>
           </div>
+        </div>
 
-          {visibleSabores.length ? (
-            visibleSabores.map((sabor) => (
-              <div key={sabor.id} className="admin-catalog-item-row admin-pizza-sabor-row">
+        {visibleSabores.length ? (
+          <DraggableReorderList
+            className="admin-pizza-draggable-list"
+            items={visibleSabores}
+            onReorder={(nextVisible) => {
+              const visibleIds = new Set(visibleSabores.map((sabor) => sabor.id));
+              let cursor = 0;
+              const merged = sortByOrdem(sabores).map((sabor) => {
+                if (!visibleIds.has(sabor.id)) return sabor;
+                const replacement = nextVisible[cursor];
+                cursor += 1;
+                return replacement || sabor;
+              });
+              persist(
+                {
+                  ...cardapio,
+                  sabores: merged.map((sabor, ordem) => ({ ...sabor, ordem })),
+                },
+                'Ordem atualizada.'
+              );
+            }}
+            renderItem={(sabor) => (
+              <div className="admin-catalog-item-row admin-pizza-sabor-row admin-grouped-sort-browse-item">
                 {sabor.imagemUrl ? (
                   <img className="admin-catalog-item-img" src={sabor.imagemUrl} alt="" loading="lazy" decoding="async" />
                 ) : (
@@ -379,12 +366,12 @@ export default function PizzaSaboresPanel() {
                   </button>
                 </div>
               </div>
-            ))
-          ) : (
-            <div className="admin-empty-catalog">Nenhum sabor cadastrado.</div>
-          )}
-        </div>
-      )}
+            )}
+          />
+        ) : (
+          <div className="admin-empty-catalog">Nenhum sabor cadastrado.</div>
+        )}
+      </div>
 
       {sizesDraft ? (
         <PizzaEditorShell

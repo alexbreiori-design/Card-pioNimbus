@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { GripIcon } from '@/components/lightswind/draggable-reorder-list';
 
 export const ADMIN_UNGROUPED_ID = '__ungrouped__';
 
@@ -47,7 +48,6 @@ function applyItemDrop({
   if (!moving) return items;
 
   const toKey = normalizeGroupKey(targetGroupId === ADMIN_UNGROUPED_ID ? '' : targetGroupId, includeUngrouped);
-  const fromKey = normalizeGroupKey(getItemGroupId(moving), includeUngrouped);
   moving[groupIdKey] = toKey === ADMIN_UNGROUPED_ID ? '' : toKey;
 
   const lists = new Map();
@@ -87,20 +87,28 @@ export default function AdminGroupedSortablePanel({
   getItemId = (item) => item.id,
   includeUngroupedSection = false,
   ungroupedLabel = 'Sem grupo',
+  defaultExpandAll = true,
+  browseMode = false,
   onGroupsReorder,
   onItemsChange,
   renderGroupHeader,
+  renderGroupActions,
   renderItemPreview,
-  hint = 'Segure o ícone à esquerda e arraste para reposicionar. Ao mover um item sobre outra categoria, ela se expande para você soltar na posição desejada.',
+  hint = '',
 }) {
   const panelRef = useRef(null);
   const dragRef = useRef(null);
   const [dragState, setDragState] = useState(null);
   const [expandedGroupIds, setExpandedGroupIds] = useState(() => new Set());
+  /** Após arrastar categoria, mantém acordeão fechado até “Mostrar itens”. */
+  const [categoriesOnlyMode, setCategoriesOnlyMode] = useState(false);
   const [floatOffset, setFloatOffset] = useState({ x: 0, y: 0 });
-  const [rowSize, setRowSize] = useState({ width: 0, height: 0 });
-  const startPointer = useRef({ x: 0, y: 0 });
-  const startRect = useRef(null);
+  const [dragOrigin, setDragOrigin] = useState(null);
+  const initializedExpand = useRef(false);
+
+  useEffect(() => {
+    dragRef.current = dragState;
+  }, [dragState]);
 
   const orderedGroups = useMemo(
     () => [...groups].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0)),
@@ -120,6 +128,29 @@ export default function AdminGroupedSortablePanel({
     [getGroupId, sectionGroups]
   );
 
+  const sectionGroupIdsKey = sectionGroupIds.join('|');
+
+  useEffect(() => {
+    if (!defaultExpandAll || categoriesOnlyMode) return;
+    if (!initializedExpand.current) {
+      initializedExpand.current = true;
+      setExpandedGroupIds(new Set(sectionGroupIds));
+      return;
+    }
+    setExpandedGroupIds((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      sectionGroupIds.forEach((id) => {
+        if (!next.has(id)) {
+          next.add(id);
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- expand when group id set changes
+  }, [categoriesOnlyMode, defaultExpandAll, sectionGroupIdsKey]);
+
   const itemsByGroup = useMemo(() => {
     const map = new Map();
     sectionGroupIds.forEach((groupId) => map.set(groupId, []));
@@ -135,14 +166,23 @@ export default function AdminGroupedSortablePanel({
 
   const flatItemsOnly = sectionGroups.length === 0;
 
-  const toggleGroup = useCallback((groupId) => {
-    setExpandedGroupIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(groupId)) next.delete(groupId);
-      else next.add(groupId);
-      return next;
-    });
-  }, []);
+  const exitCategoriesOnlyMode = useCallback(() => {
+    setCategoriesOnlyMode(false);
+    setExpandedGroupIds(new Set(sectionGroupIds));
+  }, [sectionGroupIds]);
+
+  const toggleGroup = useCallback(
+    (groupId) => {
+      if (categoriesOnlyMode) return;
+      setExpandedGroupIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(groupId)) next.delete(groupId);
+        else next.add(groupId);
+        return next;
+      });
+    },
+    [categoriesOnlyMode]
+  );
 
   const finishDrag = useCallback(
     (commit) => {
@@ -150,7 +190,7 @@ export default function AdminGroupedSortablePanel({
       dragRef.current = null;
       setDragState(null);
       setFloatOffset({ x: 0, y: 0 });
-      startRect.current = null;
+      setDragOrigin(null);
       if (!commit || !active) return;
 
       if (active.kind === 'group' && onGroupsReorder) {
@@ -214,28 +254,30 @@ export default function AdminGroupedSortablePanel({
   );
 
   useEffect(() => {
-    if (!dragState) return undefined;
+    if (!dragState || !dragOrigin) return undefined;
 
     function onPointerMove(event) {
       setFloatOffset({
-        x: event.clientX - startPointer.current.x,
-        y: event.clientY - startPointer.current.y,
+        x: event.clientX - dragOrigin.startX,
+        y: event.clientY - dragOrigin.startY,
       });
       if (!panelRef.current || !dragRef.current) return;
 
       if (dragRef.current.kind === 'group') {
         const headers = [...panelRef.current.querySelectorAll('.admin-grouped-sort-group-header')];
         const nextIndex = getInsertIndex(headers, event.clientY);
-        dragRef.current = { ...dragRef.current, insertIndex: nextIndex };
-        setDragState({ ...dragRef.current });
+        const next = { ...dragRef.current, insertIndex: nextIndex };
+        dragRef.current = next;
+        setDragState(next);
         return;
       }
 
       if (flatItemsOnly) {
         const rows = [...panelRef.current.querySelectorAll('.admin-grouped-sort-item-row')];
         const nextIndex = getInsertIndex(rows, event.clientY);
-        dragRef.current = { ...dragRef.current, insertIndex: nextIndex };
-        setDragState({ ...dragRef.current });
+        const next = { ...dragRef.current, insertIndex: nextIndex };
+        dragRef.current = next;
+        setDragState(next);
         return;
       }
 
@@ -250,12 +292,13 @@ export default function AdminGroupedSortablePanel({
       });
       const itemRows = [...groupEl.querySelectorAll('.admin-grouped-sort-item-row')];
       const nextIndex = getInsertIndex(itemRows, event.clientY);
-      dragRef.current = {
+      const next = {
         ...dragRef.current,
         targetGroupId,
         insertIndex: nextIndex,
       };
-      setDragState({ ...dragRef.current });
+      dragRef.current = next;
+      setDragState(next);
     }
 
     function onPointerUp() {
@@ -270,7 +313,7 @@ export default function AdminGroupedSortablePanel({
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
     };
-  }, [dragState, finishDrag, flatItemsOnly]);
+  }, [dragState, dragOrigin, finishDrag, flatItemsOnly]);
 
   function beginDrag(event, payload, rowSelector) {
     if (event.button !== 0) return;
@@ -278,27 +321,37 @@ export default function AdminGroupedSortablePanel({
     if (!row) return;
     event.preventDefault();
     const rect = row.getBoundingClientRect();
-    startRect.current = rect;
-    setRowSize({ width: rect.width, height: rect.height });
-    startPointer.current = { x: event.clientX, y: event.clientY };
-    dragRef.current = payload;
+    setDragOrigin({
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+      startX: event.clientX,
+      startY: event.clientY,
+    });
+
+    if (payload.kind === 'group') {
+      setCategoriesOnlyMode(true);
+      setExpandedGroupIds(new Set());
+    }
+
     setDragState(payload);
   }
 
   function renderDraggingStyle(isDragging) {
-    if (!isDragging || !startRect.current) return undefined;
+    if (!isDragging || !dragOrigin) return undefined;
     return {
       position: 'fixed',
-      left: startRect.current.left,
-      top: startRect.current.top,
-      width: rowSize.width || startRect.current.width,
-      transform: `translate(${floatOffset.x}px, ${floatOffset.y}px)`,
+      left: dragOrigin.left,
+      top: dragOrigin.top,
+      width: dragOrigin.width,
+      transform: `translate(${floatOffset.x}px, ${floatOffset.y}px) scale(1.02)`,
       zIndex: 1200,
-      boxShadow: '0 14px 32px rgba(15, 23, 42, 0.18)',
+      boxShadow: '0 16px 40px rgba(15, 23, 42, 0.16)',
     };
   }
 
-  function renderItemRow(item, groupId, index, groupItems) {
+  function renderItemRow(item, groupId, index) {
     const id = getItemId(item);
     const isDragging = dragState?.kind === 'item' && dragState.id === id;
     const showPlaceholder =
@@ -310,7 +363,7 @@ export default function AdminGroupedSortablePanel({
     return (
       <div key={id} className="admin-grouped-sort-item-slot">
         {showPlaceholder ? (
-          <div className="admin-sortable-placeholder" style={{ height: rowSize.height || 52 }} />
+          <div className="admin-sortable-placeholder" style={{ height: dragOrigin?.height || 52 }} />
         ) : null}
         <div
           className={`admin-grouped-sort-item-row ${isDragging ? 'is-dragging' : ''}`}
@@ -318,21 +371,23 @@ export default function AdminGroupedSortablePanel({
         >
           <button
             type="button"
-            className="admin-sortable-handle"
+            className="admin-draggable-reorder-handle admin-grouped-sort-grip"
             onPointerDown={(event) =>
-              beginDrag(event, {
-                kind: 'item',
-                id,
-                sourceGroupId: groupId,
-                targetGroupId: groupId,
-                insertIndex: index,
-              }, '.admin-grouped-sort-item-row')
+              beginDrag(
+                event,
+                {
+                  kind: 'item',
+                  id,
+                  sourceGroupId: groupId,
+                  targetGroupId: groupId,
+                  insertIndex: index,
+                },
+                '.admin-grouped-sort-item-row'
+              )
             }
             aria-label="Arrastar para reordenar"
           >
-            <span />
-            <span />
-            <span />
+            <GripIcon />
           </button>
           {renderItemPreview(item)}
         </div>
@@ -341,25 +396,50 @@ export default function AdminGroupedSortablePanel({
   }
 
   const flatItems = [...items].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
+  const hideItems = categoriesOnlyMode || dragState?.kind === 'group';
+  const defaultHint = browseMode
+    ? 'Segure os pontinhos para reordenar. Arrastar uma categoria fecha as listas; use Mostrar itens para expandir de novo.'
+    : '';
 
   return (
-    <div className="admin-grouped-sortable-panel" ref={panelRef}>
-      {hint ? <p className="admin-help-text admin-sortable-panel-hint">{hint}</p> : null}
+    <div
+      className={`admin-grouped-sortable-panel${browseMode ? ' is-browse' : ''}${
+        hideItems ? ' is-categories-only' : ''
+      }`}
+      ref={panelRef}
+    >
+      {(hint || defaultHint) ? (
+        <p className="admin-help-text admin-sortable-panel-hint">{hint || defaultHint}</p>
+      ) : null}
+      {categoriesOnlyMode ? (
+        <div className="admin-grouped-sort-categories-bar">
+          <p className="admin-help-text admin-grouped-sort-categories-hint">
+            Modo categorias: arraste pelos pontinhos para reordenar os grupos.
+          </p>
+          <button
+            type="button"
+            className="admin-btn admin-btn-ghost admin-btn-sm"
+            onClick={exitCategoriesOnlyMode}
+          >
+            Mostrar itens
+          </button>
+        </div>
+      ) : null}
 
       {flatItemsOnly ? (
         <div className="admin-grouped-sort-items admin-grouped-sort-items-flat" data-group-sort-id="__flat__">
-          {flatItems.map((item, index) => renderItemRow(item, '__flat__', index, flatItems))}
+          {flatItems.map((item, index) => renderItemRow(item, '__flat__', index))}
           {dragState?.kind === 'item' &&
           dragState.targetGroupId === '__flat__' &&
           dragState.insertIndex === flatItems.length ? (
-            <div className="admin-sortable-placeholder" style={{ height: rowSize.height || 52 }} />
+            <div className="admin-sortable-placeholder" style={{ height: dragOrigin?.height || 52 }} />
           ) : null}
         </div>
       ) : (
         sectionGroups.map((group, groupIndex) => {
           const groupId = getGroupId(group);
           const groupItems = itemsByGroup.get(groupId) || [];
-          const isExpanded = expandedGroupIds.has(groupId);
+          const isExpanded = !hideItems && expandedGroupIds.has(groupId);
           const isDraggingGroup = dragState?.kind === 'group' && dragState.id === groupId;
           const showGroupPlaceholder =
             dragState?.kind === 'group' && dragState.insertIndex === groupIndex && !isDraggingGroup;
@@ -367,20 +447,24 @@ export default function AdminGroupedSortablePanel({
           return (
             <div key={groupId} className="admin-grouped-sort-group-slot">
               {showGroupPlaceholder ? (
-                <div className="admin-sortable-placeholder" style={{ height: rowSize.height || 56 }} />
+                <div className="admin-sortable-placeholder" style={{ height: dragOrigin?.height || 56 }} />
               ) : null}
               <div
-                className="admin-card admin-catalog-card admin-grouped-sort-group-card"
+                className={`admin-card admin-catalog-card admin-grouped-sort-group-card${
+                  hideItems ? ' is-collapsed-only' : ''
+                }`}
                 data-group-sort-id={groupId}
               >
                 <div
-                  className={`admin-catalog-header-bar admin-grouped-sort-group-header ${isDraggingGroup ? 'is-dragging' : ''}`}
+                  className={`admin-catalog-header-bar admin-grouped-sort-group-header ${
+                    isDraggingGroup ? 'is-dragging' : ''
+                  }${hideItems ? ' is-compact' : ''}`}
                   style={renderDraggingStyle(isDraggingGroup)}
                 >
                   {onGroupsReorder && groupId !== ADMIN_UNGROUPED_ID ? (
                     <button
                       type="button"
-                      className="admin-sortable-handle"
+                      className="admin-draggable-reorder-handle admin-grouped-sort-grip"
                       onPointerDown={(event) =>
                         beginDrag(
                           event,
@@ -394,37 +478,43 @@ export default function AdminGroupedSortablePanel({
                       }
                       aria-label={`Arrastar grupo ${group.nome}`}
                     >
-                      <span />
-                      <span />
-                      <span />
+                      <GripIcon />
                     </button>
                   ) : (
                     <span className="admin-grouped-sort-handle-spacer" aria-hidden="true" />
                   )}
-                  <button
-                    type="button"
-                    className="admin-grouped-sort-group-toggle"
-                    onClick={() => toggleGroup(groupId)}
-                    aria-expanded={isExpanded}
-                  >
-                    {renderGroupHeader(group, { isExpanded, itemCount: groupItems.length })}
-                  </button>
+                  <div className="admin-grouped-sort-group-main">
+                    {renderGroupHeader(group, {
+                      isExpanded,
+                      itemCount: groupItems.length,
+                      categoriesOnly: hideItems,
+                      onToggle: () => toggleGroup(groupId),
+                    })}
+                  </div>
+                  {!hideItems && renderGroupActions
+                    ? renderGroupActions(group, { itemCount: groupItems.length })
+                    : null}
                 </div>
 
-                {isExpanded ? (
-                  <div className="admin-grouped-sort-items">
-                    {groupItems.length ? (
-                      groupItems.map((item, index) => renderItemRow(item, groupId, index, groupItems))
-                    ) : (
-                      <div className="admin-grouped-sort-empty">Nenhum item nesta categoria.</div>
-                    )}
-                    {dragState?.kind === 'item' &&
-                    dragState.targetGroupId === groupId &&
-                    dragState.insertIndex === groupItems.length ? (
-                      <div className="admin-sortable-placeholder" style={{ height: rowSize.height || 52 }} />
-                    ) : null}
-                  </div>
-                ) : null}
+                <div
+                  className={`admin-grouped-sort-items-wrap${isExpanded ? ' is-open' : ''}`}
+                  aria-hidden={!isExpanded}
+                >
+                  {isExpanded ? (
+                    <div className="admin-grouped-sort-items">
+                      {groupItems.length ? (
+                        groupItems.map((item, index) => renderItemRow(item, groupId, index))
+                      ) : (
+                        <div className="admin-grouped-sort-empty">Nenhum item nesta categoria.</div>
+                      )}
+                      {dragState?.kind === 'item' &&
+                      dragState.targetGroupId === groupId &&
+                      dragState.insertIndex === groupItems.length ? (
+                        <div className="admin-sortable-placeholder" style={{ height: dragOrigin?.height || 52 }} />
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </div>
           );

@@ -4,6 +4,7 @@
 
 import { useMemo, useState } from 'react';
 import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
+import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog';
 import { AdminCatalogSkeleton, useAdminMountSkeleton } from '@/components/admin/AdminSkeleton';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
@@ -15,7 +16,15 @@ import AdminIcon from './AdminIcon';
 import CategoryIcon from './CategoryIcon';
 import CategoryIconPicker from '@/components/admin/CategoryIconPicker';
 import CategoryLayoutPicker from '@/components/admin/CategoryLayoutPicker';
+import ProductAddonPassoModal from '@/components/admin/ProductAddonPassoModal';
+import AdminComboProductPickerModal from '@/components/admin/AdminComboProductPickerModal';
+import { DraggableReorderList } from '@/components/lightswind/draggable-reorder-list';
 import { CATEGORY_LAYOUT_DEFAULT } from '@/lib/cardapio/categoryLayouts';
+import {
+  normalizeAddonPassos,
+  resolveProductAddonPassos,
+  syncAddonPassosToSelection,
+} from '@/lib/productAddonPassos';
 import {
   COMBO_SUGGESTED_DISCOUNT_PERCENT,
   formatComboPriceBr,
@@ -23,6 +32,7 @@ import {
   normalizePecaTambemIds,
   suggestedComboPrice,
 } from '@/lib/productSuggestions';
+import { formatMoneyBrInput } from '@/lib/moneyMask';
 
 const TAB_ALL = 'all';
 
@@ -60,6 +70,7 @@ const EMPTY_FORM = {
   remocoes: EMPTY_SELECTION,
   adicionais: EMPTY_SELECTION,
   adicionaisConfig: EMPTY_ADDON_RULES,
+  adicionaisPassos: [],
   comboConfig: EMPTY_COMBO_CONFIG,
 };
 
@@ -101,7 +112,9 @@ function parseMoney(value) {
 
 function moneyInput(value) {
   if (value === undefined || value === null || value === '') return '';
-  return String(value).replace('.', ',');
+  const num = typeof value === 'number' ? value : parseMoney(value);
+  if (!Number.isFinite(num)) return '';
+  return formatMoneyBrInput(String(Math.round(num * 100)));
 }
 
 function selectionFrom(value) {
@@ -155,6 +168,7 @@ function itemToForm(item, fallbackCategoryId) {
     remocoes: selectionFrom(item.remocoes),
     adicionais: selectionFrom(item.adicionais),
     adicionaisConfig: normalizeAddonRules(item.adicionaisConfig),
+    adicionaisPassos: [],
     comboConfig: normalizeComboConfig(item.comboConfig),
   };
 }
@@ -260,8 +274,6 @@ export default function CatalogManager({ mode = 'produtos' }) {
   const productTypeOptions = useMemo(() => ['comum', 'combo'], []);
   const [search, setSearch] = useState('');
   const [selectedCat, setSelectedCat] = useState(TAB_ALL);
-  const [ordering, setOrdering] = useState(false);
-  const [collapsedCats, setCollapsedCats] = useState(() => new Set());
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState('');
   const [categoryMenuId, setCategoryMenuId] = useState('');
@@ -277,10 +289,14 @@ export default function CatalogManager({ mode = 'produtos' }) {
   const [pickerType, setPickerType] = useState('');
   const [pickerSearch, setPickerSearch] = useState('');
   const [comboPickerOpen, setComboPickerOpen] = useState(false);
-  const [comboSearch, setComboSearch] = useState('');
   const [comboPriceManual, setComboPriceManual] = useState(false);
   const [pecaTambemPickerOpen, setPecaTambemPickerOpen] = useState(false);
   const [pecaTambemSearch, setPecaTambemSearch] = useState('');
+  const [addonPassoModalOpen, setAddonPassoModalOpen] = useState(false);
+  const [editingAddonPassoId, setEditingAddonPassoId] = useState('');
+  const [removingAddonPassoId, setRemovingAddonPassoId] = useState('');
+  const [descricaoEditing, setDescricaoEditing] = useState(false);
+  const [descricaoDraft, setDescricaoDraft] = useState('');
 
   const categories = useMemo(() => data[catKey] || [], [data, catKey]);
   const items = useMemo(() => data[itemKey] || [], [data, itemKey]);
@@ -297,28 +313,29 @@ export default function CatalogManager({ mode = 'produtos' }) {
     return filteredCategories.filter((c) => c.id === selectedCat);
   }, [filteredCategories, selectedCat]);
 
+  const browseItems = useMemo(() => {
+    const visibleIds = new Set(visibleCategories.map((cat) => cat.id));
+    const q = search.trim().toLowerCase();
+    return items.filter((item) => {
+      if (!visibleIds.has(item.categoriaId)) return false;
+      if (!q) return true;
+      return (
+        String(item.nome || '').toLowerCase().includes(q) ||
+        String(item.descricao || '').toLowerCase().includes(q)
+      );
+    });
+  }, [items, search, visibleCategories]);
+
   const pickerSelection = pickerType ? form[pickerType] : EMPTY_SELECTION;
   const pickerTitle = pickerType === 'remocoes' ? 'Remocao de ingredientes' : 'Selecao de adicionais';
-  const selectedAddonGroups = useMemo(() => {
-    const selected = selectionFrom(form.adicionais);
-    const explicitCatIds = new Set(selected.categoriaIds);
-    selected.itemIds.forEach((itemId) => {
-      const item = addonItems.find((x) => x.id === itemId);
-      if (item?.categoriaId) explicitCatIds.add(item.categoriaId);
-    });
-    return [...explicitCatIds]
-      .map((catId) => {
-        const cat = addonCategories.find((c) => c.id === catId);
-        if (!cat) return null;
-        const baseItems = addonItems.filter((item) => item.categoriaId === catId && item.ativo !== false);
-        const items =
-          selected.categoriaIds.includes(catId)
-            ? baseItems
-            : baseItems.filter((item) => selected.itemIds.includes(item.id));
-        return { id: cat.id, nome: cat.nome, items };
-      })
-      .filter(Boolean);
-  }, [form.adicionais, addonCategories, addonItems]);
+  const addonPassos = useMemo(
+    () => normalizeAddonPassos(form.adicionaisPassos),
+    [form.adicionaisPassos]
+  );
+  const editingAddonPasso = useMemo(
+    () => addonPassos.find((passo) => passo.id === editingAddonPassoId) || null,
+    [addonPassos, editingAddonPassoId]
+  );
   const productPickerCandidates = useMemo(
     () =>
       (data.produtos || []).filter(
@@ -338,25 +355,6 @@ export default function CatalogManager({ mode = 'produtos' }) {
         .filter(Boolean),
     [form.pecaTambemIds, data.produtos]
   );
-
-  function categoryItems(catId) {
-    return items
-      .filter((p) => p.categoriaId === catId)
-      .filter((p) => {
-        if (!search.trim()) return true;
-        const q = search.toLowerCase();
-        return p.nome.toLowerCase().includes(q) || (p.descricao || '').toLowerCase().includes(q);
-      });
-  }
-
-  function toggleCategoryCollapse(catId) {
-    setCollapsedCats((prev) => {
-      const next = new Set(prev);
-      if (next.has(catId)) next.delete(catId);
-      else next.add(catId);
-      return next;
-    });
-  }
 
   function openNewCategory() {
     if (isProdutos) {
@@ -536,34 +534,48 @@ export default function CatalogManager({ mode = 'produtos' }) {
 
   function openNewItemModal(catId) {
     setEditingItemId('');
-    const initial = { ...EMPTY_FORM, categoriaId: catId };
+    const initial = { ...EMPTY_FORM, categoriaId: catId, adicionaisPassos: [] };
     setForm(initial);
     setFormBaseline(initial);
     setFormImage('');
     setFormImageBaseline('');
     setSaveError('');
-    setComboSearch('');
     setComboPickerOpen(false);
     setComboPriceManual(false);
     setPecaTambemSearch('');
     setPecaTambemPickerOpen(false);
+    setAddonPassoModalOpen(false);
+    setEditingAddonPassoId('');
+    setRemovingAddonPassoId('');
+    setDescricaoEditing(false);
+    setDescricaoDraft('');
     setModalOpen(true);
   }
 
   function openEditItemModal(item) {
     setEditingItemId(item.id);
-    const initial = itemToForm(item, item.categoriaId);
+    const initial = {
+      ...itemToForm(item, item.categoriaId),
+      adicionaisPassos: resolveProductAddonPassos(item, {
+        categories: addonCategories,
+        items: addonItems,
+      }),
+    };
     setForm(initial);
     setFormBaseline(initial);
     const image = item.imagemUrl || '';
     setFormImage(image);
     setFormImageBaseline(image);
     setSaveError('');
-    setComboSearch('');
     setComboPickerOpen(false);
     setComboPriceManual(true);
     setPecaTambemSearch('');
     setPecaTambemPickerOpen(false);
+    setAddonPassoModalOpen(false);
+    setEditingAddonPassoId('');
+    setRemovingAddonPassoId('');
+    setDescricaoEditing(false);
+    setDescricaoDraft('');
     setModalOpen(true);
   }
 
@@ -574,10 +586,14 @@ export default function CatalogManager({ mode = 'produtos' }) {
     setPickerType('');
     setPickerSearch('');
     setComboPickerOpen(false);
-    setComboSearch('');
     setComboPriceManual(false);
     setPecaTambemPickerOpen(false);
     setPecaTambemSearch('');
+    setAddonPassoModalOpen(false);
+    setEditingAddonPassoId('');
+    setRemovingAddonPassoId('');
+    setDescricaoEditing(false);
+    setDescricaoDraft('');
   }
 
   const isItemFormDirty = useMemo(() => {
@@ -610,20 +626,31 @@ export default function CatalogManager({ mode = 'produtos' }) {
       setSaveError('Combo precisa ter pelo menos 2 produtos.');
       return;
     }
-    const addonRules = normalizeAddonRules(form.adicionaisConfig);
+    const syncedAddons =
+      form.tipo === 'combo'
+        ? {
+            adicionaisPassos: [],
+            adicionais: EMPTY_SELECTION,
+            adicionaisConfig: EMPTY_ADDON_RULES,
+          }
+        : syncAddonPassosToSelection(form.adicionaisPassos, { items: addonItems });
+
     if (form.tipo !== 'combo') {
-      for (const group of selectedAddonGroups) {
-        const rule = addonRules.grupos[group.id];
-        if (!rule) continue;
-        const min = Number(rule.min || 0);
-        const max = Number(rule.max || 0);
-        const totalItens = group.items.length;
-        if (min > max) {
-          setSaveError(`No grupo "${group.nome}", o minimo nao pode ser maior que o maximo.`);
+      for (const passo of syncedAddons.adicionaisPassos) {
+        const cat = addonCategories.find((row) => row.id === passo.categoriaAdicionalId);
+        const catName = cat?.nome || passo.titulo || 'Adicionais';
+        if (!passo.categoriaAdicionalId || !passo.itemIds.length) {
+          setSaveError(`Complete o passo "${passo.titulo || catName}" com categoria e itens.`);
           return;
         }
-        if (min > totalItens) {
-          setSaveError(`No grupo "${group.nome}", o minimo nao pode ser maior que a quantidade de itens do grupo.`);
+        if (Number(passo.min || 0) > Number(passo.max || 0)) {
+          setSaveError(`No passo "${passo.titulo || catName}", o mínimo não pode ser maior que o máximo.`);
+          return;
+        }
+        if (Number(passo.min || 0) > passo.itemIds.length) {
+          setSaveError(
+            `No passo "${passo.titulo || catName}", o mínimo não pode ser maior que a quantidade de itens selecionados.`
+          );
           return;
         }
       }
@@ -649,8 +676,9 @@ export default function CatalogManager({ mode = 'produtos' }) {
       ingredientesRemoviveis: false,
       adicionaisHabilitados: form.tipo === 'combo' ? false : form.adicionaisHabilitados,
       remocoes: EMPTY_SELECTION,
-      adicionais: form.tipo === 'combo' ? EMPTY_SELECTION : selectionFrom(form.adicionais),
-      adicionaisConfig: form.tipo === 'combo' ? EMPTY_ADDON_RULES : addonRules,
+      adicionais: syncedAddons.adicionais,
+      adicionaisConfig: syncedAddons.adicionaisConfig,
+      adicionaisPassos: syncedAddons.adicionaisPassos,
       comboConfig:
         form.tipo === 'combo'
           ? {
@@ -693,6 +721,95 @@ export default function CatalogManager({ mode = 'produtos' }) {
     }
   }
 
+  function toggleAddonCategory(catId, catItems) {
+    if (!pickerType) return;
+    const itemIdsInCategory = new Set(catItems.map((item) => item.id));
+    setForm((prev) => {
+      const current = selectionFrom(prev[pickerType]);
+      const fullySelected =
+        current.categoriaIds.includes(catId) ||
+        (catItems.length > 0 && catItems.every((item) => current.itemIds.includes(item.id)));
+
+      if (fullySelected) {
+        return {
+          ...prev,
+          [pickerType]: {
+            categoriaIds: current.categoriaIds.filter((id) => id !== catId),
+            itemIds: current.itemIds.filter((id) => !itemIdsInCategory.has(id)),
+          },
+        };
+      }
+
+      return {
+        ...prev,
+        [pickerType]: {
+          categoriaIds: [...current.categoriaIds.filter((id) => id !== catId), catId],
+          itemIds: current.itemIds.filter((id) => !itemIdsInCategory.has(id)),
+        },
+      };
+    });
+  }
+
+  function toggleAddonItem(catId, itemId, catItems) {
+    if (!pickerType) return;
+    const itemIdsInCategory = catItems.map((item) => item.id);
+    setForm((prev) => {
+      const current = selectionFrom(prev[pickerType]);
+
+      if (current.categoriaIds.includes(catId)) {
+        const nextItemIds = itemIdsInCategory.filter((id) => id !== itemId);
+        return {
+          ...prev,
+          [pickerType]: {
+            categoriaIds: current.categoriaIds.filter((id) => id !== catId),
+            itemIds: [
+              ...current.itemIds.filter((id) => !itemIdsInCategory.includes(id)),
+              ...nextItemIds,
+            ],
+          },
+        };
+      }
+
+      const has = current.itemIds.includes(itemId);
+      let nextItemIds = has
+        ? current.itemIds.filter((id) => id !== itemId)
+        : [...current.itemIds, itemId];
+
+      const allSelected =
+        itemIdsInCategory.length > 0 && itemIdsInCategory.every((id) => nextItemIds.includes(id));
+      if (allSelected) {
+        return {
+          ...prev,
+          [pickerType]: {
+            categoriaIds: [...current.categoriaIds.filter((id) => id !== catId), catId],
+            itemIds: nextItemIds.filter((id) => !itemIdsInCategory.includes(id)),
+          },
+        };
+      }
+
+      return {
+        ...prev,
+        [pickerType]: {
+          categoriaIds: current.categoriaIds.filter((id) => id !== catId),
+          itemIds: nextItemIds,
+        },
+      };
+    });
+  }
+
+  function isAddonCategorySelected(catId, catItems) {
+    const current = pickerSelection;
+    if (current.categoriaIds.includes(catId)) return true;
+    return (
+      catItems.length > 0 && catItems.every((item) => current.itemIds.includes(item.id))
+    );
+  }
+
+  function isAddonItemSelected(catId, itemId) {
+    if (pickerSelection.categoriaIds.includes(catId)) return true;
+    return pickerSelection.itemIds.includes(itemId);
+  }
+
   function toggleSelection(target, id) {
     if (!pickerType) return;
     setForm((prev) => {
@@ -722,100 +839,6 @@ export default function CatalogManager({ mode = 'produtos' }) {
         if (!q) return true;
         return item.nome.toLowerCase().includes(q) || (item.descricao || '').toLowerCase().includes(q);
       });
-  }
-
-  function updateAddonRules(updater) {
-    setForm((prev) => ({
-      ...prev,
-      adicionaisConfig: updater(normalizeAddonRules(prev.adicionaisConfig)),
-    }));
-  }
-
-  function getGroupRule(groupId) {
-    const rules = normalizeAddonRules(form.adicionaisConfig);
-    const category = addonCategories.find((cat) => cat.id === groupId);
-    const defaults = {
-      tipoSelecao: category?.tipoSelecao === 'simples' ? 'simples' : 'multipla',
-      min: category?.min ?? 0,
-      max: category?.max ?? 99,
-      obrigatorio: category?.obrigatorio === true,
-      itens: {},
-    };
-    return rules.grupos[groupId] ? { ...defaults, ...rules.grupos[groupId] } : defaults;
-  }
-
-  function setGroupRule(groupId, patch) {
-    updateAddonRules((rules) => {
-      const current = rules.grupos[groupId] || {
-        tipoSelecao: 'multipla',
-        min: 0,
-        max: 99,
-        obrigatorio: false,
-        itens: {},
-      };
-      const next = { ...current, ...patch };
-      if (next.tipoSelecao === 'simples') {
-        next.min = Math.min(1, Math.max(0, Number(next.min || 0)));
-        next.max = 1;
-      }
-      if (Number(next.min) > Number(next.max)) next.max = Number(next.min);
-      if (Number(next.min) < 0) next.min = 0;
-      return {
-        ...rules,
-        grupos: {
-          ...rules.grupos,
-          [groupId]: next,
-        },
-      };
-    });
-  }
-
-  function setAddonItemRule(groupId, itemId, patch) {
-    updateAddonRules((rules) => {
-      const group = rules.grupos[groupId] || {
-        tipoSelecao: 'multipla',
-        min: 0,
-        max: 99,
-        obrigatorio: false,
-        itens: {},
-      };
-      const currentItem = group.itens?.[itemId] || {
-        precoAdicional: '',
-        permiteQuantidade: 1,
-        opcional: true,
-      };
-      return {
-        ...rules,
-        grupos: {
-          ...rules.grupos,
-          [groupId]: {
-            ...group,
-            itens: {
-              ...(group.itens || {}),
-              [itemId]: {
-                ...currentItem,
-                ...patch,
-              },
-            },
-          },
-        },
-      };
-    });
-  }
-
-  function duplicateGroupRules(fromGroupId, toGroupId) {
-    if (!fromGroupId || !toGroupId || fromGroupId === toGroupId) return;
-    updateAddonRules((rules) => {
-      const source = rules.grupos[fromGroupId];
-      if (!source) return rules;
-      return {
-        ...rules,
-        grupos: {
-          ...rules.grupos,
-          [toGroupId]: JSON.parse(JSON.stringify(source)),
-        },
-      };
-    });
   }
 
   function withComboPriceSuggestion(cfg, manual = comboPriceManual) {
@@ -891,6 +914,46 @@ export default function CatalogManager({ mode = 'produtos' }) {
     });
   }
 
+  function toggleProdutoNoCombo(product) {
+    updateComboConfig((cfg) => {
+      if (cfg.itens.some((item) => item.produtoId === product.id)) {
+        return {
+          ...cfg,
+          itens: cfg.itens.filter((item) => item.produtoId !== product.id),
+        };
+      }
+      return {
+        ...cfg,
+        itens: [
+          ...cfg.itens,
+          {
+            produtoId: product.id,
+            nome: product.nome,
+            preco: Number(product.preco || 0),
+            quantidade: 1,
+          },
+        ],
+      };
+    });
+  }
+
+  function setComboSelectedIds(nextIds) {
+    const idSet = new Set(nextIds);
+    updateComboConfig((cfg) => {
+      const kept = cfg.itens.filter((item) => idSet.has(item.produtoId));
+      const keptIds = new Set(kept.map((item) => item.produtoId));
+      const added = comboCandidates
+        .filter((product) => idSet.has(product.id) && !keptIds.has(product.id))
+        .map((product) => ({
+          produtoId: product.id,
+          nome: product.nome,
+          preco: Number(product.preco || 0),
+          quantidade: 1,
+        }));
+      return { ...cfg, itens: [...kept, ...added] };
+    });
+  }
+
   function updateComboItemQty(produtoId, quantidade) {
     const qty = Math.max(1, Number(quantidade || 1));
     updateComboConfig((cfg) => ({
@@ -904,13 +967,6 @@ export default function CatalogManager({ mode = 'produtos' }) {
       ...cfg,
       itens: cfg.itens.filter((item) => item.produtoId !== produtoId),
     }));
-  }
-
-  function previewMeta() {
-    const parts = [];
-    if (form.medidaQtd) parts.push(`${form.medidaQtd} ${form.medidaUn}`);
-    if (form.servePessoas) parts.push(`Serve ${form.servePessoas}`);
-    return parts.join(' / ');
   }
 
   if (showCatalogSkeleton) {
@@ -947,210 +1003,155 @@ export default function CatalogManager({ mode = 'produtos' }) {
             <AdminIcon name="plus" />
             Nova categoria
           </button>
-          <button type="button" className="admin-catalog-order-btn" onClick={() => setOrdering((v) => !v)}>
-            <AdminIcon name="sort" />
-            {ordering ? 'Voltar' : 'Ordenar'}
-          </button>
         </div>
       </div>
 
-      {ordering ? (
-        <div className="admin-card admin-sortable-panel">
-          <AdminGroupedSortablePanel
-            groups={categories}
-            items={items}
-            groupIdKey="categoriaId"
-            onGroupsReorder={(next) => saveData((prev) => ({ ...prev, [catKey]: next }))}
-            onItemsChange={(next) => saveData((prev) => ({ ...prev, [itemKey]: next }))}
-            renderGroupHeader={(cat, { isExpanded, itemCount }) => (
-              <div className="admin-catalog-title-row admin-grouped-sort-title-row">
-                <span className={`admin-collapse-chevron ${isExpanded ? '' : 'is-collapsed'}`} aria-hidden>
-                  ›
-                </span>
-                <span className="admin-section-icon">
-                  {isProdutos ? (
-                    <CategoryIcon name={cat.icone || 'burger'} size={22} tinted />
-                  ) : (
-                    <AdminIcon name="category" />
-                  )}
-                </span>
-                <h3>{cat.nome}</h3>
-                <span className="admin-grouped-sort-count">{itemCount}</span>
-              </div>
-            )}
-            renderItemPreview={(item) => (
-              <div className="admin-grouped-sort-item-preview">
-                {item.imagemUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    className="admin-grouped-sort-item-img"
-                    src={item.imagemUrl}
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                  />
+      <AdminGroupedSortablePanel
+        browseMode
+        defaultExpandAll
+        groups={visibleCategories}
+        items={browseItems}
+        groupIdKey="categoriaId"
+        onGroupsReorder={(next) => {
+          const orderMap = new Map(next.map((cat, ordem) => [cat.id, ordem]));
+          saveData((prev) => ({
+            ...prev,
+            [catKey]: prev[catKey].map((cat) =>
+              orderMap.has(cat.id) ? { ...cat, ordem: orderMap.get(cat.id) } : cat
+            ),
+          }));
+        }}
+        onItemsChange={(next) => saveData((prev) => ({ ...prev, [itemKey]: next }))}
+        renderGroupHeader={(cat, { isExpanded, onToggle }) => (
+          <div className="admin-catalog-title-row admin-grouped-sort-title-row">
+            <button
+              type="button"
+              className="admin-catalog-collapse-btn"
+              onClick={onToggle}
+              aria-expanded={isExpanded}
+            >
+              <span className={`admin-collapse-chevron ${isExpanded ? '' : 'is-collapsed'}`} aria-hidden>
+                ›
+              </span>
+              <span className="admin-section-icon">
+                {isProdutos ? (
+                  <CategoryIcon name={cat.icone || 'burger'} size={22} tinted />
                 ) : (
-                  <ImagePlaceholder size={48} />
+                  <AdminIcon name="category" />
                 )}
-                <span className="admin-item-title">{item.nome}</span>
-              </div>
-            )}
-          />
-        </div>
-      ) : (
-        visibleCategories.map((cat) => {
-          const catItems = categoryItems(cat.id);
-          return (
-            <div key={cat.id} className="admin-card admin-catalog-card">
-              <div className="admin-catalog-header-bar">
-                <div className="admin-catalog-title-row">
-                  <span className="admin-section-icon">
-                    {isProdutos ? (
-                      <CategoryIcon name={cat.icone || 'burger'} size={22} tinted />
-                    ) : (
-                      <AdminIcon name="category" />
-                    )}
-                  </span>
+              </span>
+              <h3>{cat.nome}</h3>
+            </button>
+            <span>Disponivel</span>
+            <Switch
+              checked={Boolean(cat.ativo)}
+              label={`Alterar disponibilidade da categoria ${cat.nome}`}
+              onChange={(checked) =>
+                saveData((prev) => ({
+                  ...prev,
+                  [catKey]: prev[catKey].map((c) => (c.id === cat.id ? { ...c, ativo: checked } : c)),
+                }))
+              }
+            />
+          </div>
+        )}
+        renderGroupActions={(cat) => (
+          <div className="admin-category-actions">
+            <button type="button" className="admin-btn admin-btn-ghost" onClick={() => openNewItemModal(cat.id)}>
+              <AdminIcon name="plus" />
+              Novo item
+            </button>
+            <div className="admin-category-menu-wrap">
+              <button
+                type="button"
+                className="admin-kebab-btn"
+                aria-label={`Opcoes da categoria ${cat.nome}`}
+                onClick={() => setCategoryMenuId((id) => (id === cat.id ? '' : cat.id))}
+              >
+                <span />
+                <span />
+                <span />
+              </button>
+              {categoryMenuId === cat.id ? (
+                <div className="admin-floating-menu">
+                  <button type="button" onClick={() => openEditCategory(cat)}>Editar categoria</button>
                   <button
                     type="button"
-                    className="admin-catalog-collapse-btn"
-                    onClick={() => toggleCategoryCollapse(cat.id)}
-                    aria-expanded={!collapsedCats.has(cat.id)}
+                    onClick={() => {
+                      setDuplicateCategoryTarget(cat);
+                      setCategoryMenuId('');
+                    }}
                   >
-                    <span className={`admin-collapse-chevron ${collapsedCats.has(cat.id) ? 'is-collapsed' : ''}`} aria-hidden>
-                      ›
-                    </span>
-                    <h3>{cat.nome}</h3>
+                    Duplicar categoria
                   </button>
-                  <span>Disponivel</span>
-                  <Switch
-                    checked={Boolean(cat.ativo)}
-                    label={`Alterar disponibilidade da categoria ${cat.nome}`}
-                    onChange={(checked) =>
-                      saveData((prev) => ({
-                        ...prev,
-                        [catKey]: prev[catKey].map((c) => (c.id === cat.id ? { ...c, ativo: checked } : c)),
-                      }))
-                    }
-                  />
-                </div>
-                <div className="admin-category-actions">
-                  <button type="button" className="admin-btn admin-btn-ghost" onClick={() => openNewItemModal(cat.id)}>
-                    <AdminIcon name="plus" />
-                    Novo item
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={() => {
+                      setRemovingCategory(cat);
+                      setCategoryMenuId('');
+                    }}
+                  >
+                    Remover categoria
                   </button>
-                  <div className="admin-category-menu-wrap">
-                    <button
-                      type="button"
-                      className="admin-kebab-btn"
-                      aria-label={`Opcoes da categoria ${cat.nome}`}
-                      onClick={() => setCategoryMenuId((id) => (id === cat.id ? '' : cat.id))}
-                    >
-                      <span />
-                      <span />
-                      <span />
-                    </button>
-                    {categoryMenuId === cat.id ? (
-                      <div className="admin-floating-menu">
-                        {isProdutos ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setCategoryMenuId('');
-                              setOrdering(true);
-                              setOrderOpenCat(cat.id);
-                            }}
-                          >
-                            Ordenar Produtos
-                          </button>
-                        ) : null}
-                        <button type="button" onClick={() => openEditCategory(cat)}>Editar categoria</button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDuplicateCategoryTarget(cat);
-                            setCategoryMenuId('');
-                          }}
-                        >
-                          Duplicar categoria
-                        </button>
-                        <button
-                          type="button"
-                          className="danger"
-                          onClick={() => {
-                            setRemovingCategory(cat);
-                            setCategoryMenuId('');
-                          }}
-                        >
-                          Remover categoria
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
                 </div>
-              </div>
-
-              {!collapsedCats.has(cat.id) && catItems.length ? (
-                catItems.map((item) => (
-                  <div key={item.id} className="admin-catalog-item-row">
-                  {item.imagemUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        className="admin-catalog-item-img"
-                        src={item.imagemUrl}
-                        alt=""
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    ) : (
-                      <ImagePlaceholder size={112} />
-                    )}
-                    <div className="admin-catalog-item-main">
-                      <div className="admin-item-title">{item.nome}</div>
-                      <div className="admin-item-desc">{item.descricao || '-'}</div>
-                      <div className="admin-catalog-item-tags">
-                        {item.medida ? <span>{item.medida}</span> : null}
-                        {item.servePessoas ? <span>Serve {item.servePessoas}</span> : null}
-                        {item.tipo ? <span>{item.tipo}</span> : null}
-                      </div>
-                      <div className="admin-order-price">R$ {Number(item.preco || 0).toFixed(2).replace('.', ',')}</div>
-                    </div>
-                    <div className="admin-item-actions-col">
-                      <div className="admin-availability-cell">
-                        <span>Disponivel</span>
-                        <Switch
-                          checked={Boolean(item.ativo)}
-                          label={`Alterar disponibilidade de ${item.nome}`}
-                          onChange={(checked) =>
-                            saveData((prev) => ({
-                              ...prev,
-                              [itemKey]: prev[itemKey].map((p) => (p.id === item.id ? { ...p, ativo: checked } : p)),
-                            }))
-                          }
-                        />
-                      </div>
-                      <button type="button" className="admin-link-btn" onClick={() => openEditItemModal(item)}>Editar</button>
-                      <button type="button" className="admin-link-btn" onClick={() => duplicateItem(item, cat.id)}>
-                        Duplicar
-                      </button>
-                      <button
-                        type="button"
-                        className="admin-link-btn"
-                        style={{ color: 'var(--admin-danger, #dc2626)' }}
-                        onClick={() => setRemovingProduct(item)}
-                      >
-                        Remover
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : !collapsedCats.has(cat.id) ? (
-                <div className="admin-empty-catalog">Nenhum item nesta categoria.</div>
               ) : null}
             </div>
-          );
-        })
-      )}
+          </div>
+        )}
+        renderItemPreview={(item) => (
+          <div className="admin-catalog-item-row admin-grouped-sort-browse-item">
+            {item.imagemUrl ? (
+              <img
+                className="admin-catalog-item-img"
+                src={item.imagemUrl}
+                alt=""
+                loading="lazy"
+                decoding="async"
+              />
+            ) : (
+              <ImagePlaceholder size={112} />
+            )}
+            <div className="admin-catalog-item-main">
+              <div className="admin-item-title">{item.nome}</div>
+              <div className="admin-item-desc">{item.descricao || '-'}</div>
+              <div className="admin-catalog-item-tags">
+                {item.medida ? <span>{item.medida}</span> : null}
+                {item.servePessoas ? <span>Serve {item.servePessoas}</span> : null}
+                {item.tipo ? <span>{item.tipo}</span> : null}
+              </div>
+              <div className="admin-order-price">R$ {Number(item.preco || 0).toFixed(2).replace('.', ',')}</div>
+            </div>
+            <div className="admin-item-actions-col">
+              <div className="admin-availability-cell">
+                <span>Disponivel</span>
+                <Switch
+                  checked={Boolean(item.ativo)}
+                  label={`Alterar disponibilidade de ${item.nome}`}
+                  onChange={(checked) =>
+                    saveData((prev) => ({
+                      ...prev,
+                      [itemKey]: prev[itemKey].map((p) => (p.id === item.id ? { ...p, ativo: checked } : p)),
+                    }))
+                  }
+                />
+              </div>
+              <button type="button" className="admin-link-btn" onClick={() => openEditItemModal(item)}>Editar</button>
+              <button type="button" className="admin-link-btn" onClick={() => duplicateItem(item, item.categoriaId)}>
+                Duplicar
+              </button>
+              <button
+                type="button"
+                className="admin-link-btn"
+                style={{ color: 'var(--admin-danger, #dc2626)' }}
+                onClick={() => setRemovingProduct(item)}
+              >
+                Remover
+              </button>
+            </div>
+          </div>
+        )}
+      />
 
       {modalOpen ? (
         <>
@@ -1161,6 +1162,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
           onClick={overlayClick}
         >
           <div className="product-popup admin-product-popup" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-product-popup-main">
             <div className="popup-details-col admin-item-form-col">
               <div className="popup-header admin-item-popup-header">
                 <div className="admin-modal-title-row">
@@ -1190,32 +1192,70 @@ export default function CatalogManager({ mode = 'produtos' }) {
 
                 {saveError ? <div className="admin-error">{saveError}</div> : null}
 
-                <div className="admin-catalog-form-grid">
+                <div className="admin-catalog-form-grid admin-product-form-grid">
+                  <div className="admin-form-group">
+                    <label className="admin-label">{isProdutos ? 'Nome do produto' : 'Nome do item'}</label>
+                    <input
+                      className="admin-input"
+                      value={form.nome}
+                      onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))}
+                      placeholder={isProdutos ? 'Ex: Burger artesanal da casa' : 'Ex: Bacon crocante'}
+                    />
+                  </div>
+                  <div className="admin-form-group">
+                    <label className="admin-label">Preço</label>
+                    <input
+                      className="admin-input"
+                      inputMode="numeric"
+                      value={form.preco}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, preco: formatMoneyBrInput(e.target.value) }))
+                      }
+                      placeholder="R$ 0,00"
+                    />
+                  </div>
                   <div className="admin-form-group">
                     <label className="admin-label">Categoria</label>
-                    <select className="admin-input" value={form.categoriaId} onChange={(e) => setForm((p) => ({ ...p, categoriaId: e.target.value }))}>
+                    <select
+                      className="admin-input"
+                      value={form.categoriaId}
+                      onChange={(e) => setForm((p) => ({ ...p, categoriaId: e.target.value }))}
+                    >
                       <option value="">Selecione</option>
-                      {categories.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.nome}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="admin-form-group">
-                    <label className="admin-label">Codigo PDV</label>
-                    <input className="admin-input" value={form.codigoPdv} onChange={(e) => setForm((p) => ({ ...p, codigoPdv: e.target.value }))} placeholder="Ex: 12345" />
-                  </div>
-                  <div className="admin-form-group">
-                    <label className="admin-label">Titulo do item</label>
-                    <input className="admin-input" value={form.nome} onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))} placeholder={isProdutos ? 'Ex: Burger artesanal da casa' : 'Ex: Bacon crocante'} />
-                  </div>
-                  <div className="admin-form-group">
-                    <label className="admin-label">Preco</label>
-                    <input className="admin-input" value={form.preco} onChange={(e) => setForm((p) => ({ ...p, preco: e.target.value }))} placeholder="Ex: 32,90" />
+                    <label className="admin-label">Estoque</label>
+                    <input
+                      className="admin-input"
+                      value={form.estoque}
+                      onChange={(e) => setForm((p) => ({ ...p, estoque: e.target.value }))}
+                      placeholder="Quantidade disponível"
+                    />
                   </div>
                   {form.tipo !== 'combo' ? (
-                    <div className="admin-form-group">
-                      <label className="admin-label">Medida</label>
-                      <div className="admin-measure-grid">
-                        <input className="admin-input" value={form.medidaQtd} onChange={(e) => setForm((p) => ({ ...p, medidaQtd: e.target.value }))} placeholder="Ex: 180" />
-                        <select className="admin-input" value={form.medidaUn} onChange={(e) => setForm((p) => ({ ...p, medidaUn: e.target.value }))}>
+                    <div className="admin-product-form-measure-row">
+                      <div className="admin-form-group">
+                        <label className="admin-label">Medida</label>
+                        <input
+                          className="admin-input"
+                          value={form.medidaQtd}
+                          onChange={(e) => setForm((p) => ({ ...p, medidaQtd: e.target.value }))}
+                          placeholder="Ex: 180"
+                        />
+                      </div>
+                      <div className="admin-form-group">
+                        <label className="admin-label">Unidade de medida</label>
+                        <select
+                          className="admin-input"
+                          value={form.medidaUn}
+                          onChange={(e) => setForm((p) => ({ ...p, medidaUn: e.target.value }))}
+                        >
                           <option value="un">Un</option>
                           <option value="g">Gramas</option>
                           <option value="ml">ml</option>
@@ -1223,133 +1263,260 @@ export default function CatalogManager({ mode = 'produtos' }) {
                           <option value="cm">cm</option>
                         </select>
                       </div>
+                      <div className="admin-form-group">
+                        <label className="admin-label">Serve quantas pessoas?</label>
+                        <input
+                          className="admin-input"
+                          value={form.servePessoas}
+                          onChange={(e) => setForm((p) => ({ ...p, servePessoas: e.target.value }))}
+                          placeholder="Ex: 2 pessoas"
+                        />
+                      </div>
                     </div>
-                  ) : null}
-                  <div className="admin-form-group">
-                    <label className="admin-label">Serve quantas pessoas?</label>
-                    <input className="admin-input" value={form.servePessoas} onChange={(e) => setForm((p) => ({ ...p, servePessoas: e.target.value }))} placeholder="Ex: 2 pessoas" />
+                  ) : (
+                    <div className="admin-form-group">
+                      <label className="admin-label">Serve quantas pessoas?</label>
+                      <input
+                        className="admin-input"
+                        value={form.servePessoas}
+                        onChange={(e) => setForm((p) => ({ ...p, servePessoas: e.target.value }))}
+                        placeholder="Ex: 2 pessoas"
+                      />
+                    </div>
+                  )}
+                  <div className="admin-form-group admin-form-full admin-product-descricao-block">
+                    <div className="admin-order-collapsed-head">
+                      <label className="admin-label">Descrição</label>
+                      {!descricaoEditing ? (
+                        <button
+                          type="button"
+                          className="admin-link-btn"
+                          onClick={() => {
+                            setDescricaoDraft(form.descricao || '');
+                            setDescricaoEditing(true);
+                          }}
+                        >
+                          {form.descricao?.trim() ? 'Editar' : 'Adicionar'}
+                        </button>
+                      ) : null}
+                    </div>
+                    {descricaoEditing ? (
+                      <div className="admin-product-descricao-editor">
+                        <textarea
+                          className="admin-input admin-product-descricao-textarea"
+                          maxLength={400}
+                          value={descricaoDraft}
+                          onChange={(e) => setDescricaoDraft(e.target.value)}
+                          placeholder="Descreva o produto, preparo, sabores etc. (Opcional)"
+                          rows={7}
+                        />
+                        <div className="admin-product-descricao-editor-actions">
+                          <span className="admin-help-text">{descricaoDraft.length}/400</span>
+                          <div className="admin-product-descricao-editor-btns">
+                            <button
+                              type="button"
+                              className="admin-btn admin-btn-ghost admin-btn-sm"
+                              onClick={() => {
+                                setDescricaoEditing(false);
+                                setDescricaoDraft('');
+                              }}
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              className="admin-btn admin-btn-primary admin-btn-sm"
+                              onClick={() => {
+                                setForm((p) => ({ ...p, descricao: descricaoDraft }));
+                                setDescricaoEditing(false);
+                              }}
+                            >
+                              Salvar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p
+                        className={
+                          form.descricao?.trim()
+                            ? 'admin-order-collapsed-summary'
+                            : 'admin-order-collapsed-empty'
+                        }
+                      >
+                        {form.descricao?.trim() || 'Nenhuma descrição cadastrada.'}
+                      </p>
+                    )}
                   </div>
-                  <div className="admin-form-group">
-                    <label className="admin-label">Estoque</label>
-                    <input className="admin-input" value={form.estoque} onChange={(e) => setForm((p) => ({ ...p, estoque: e.target.value }))} placeholder="Quantidade disponível" />
-                  </div>
-                  <div className="admin-form-group admin-form-full">
-                    <label className="admin-label">Descricao</label>
-                    <textarea
-                      className="admin-input"
-                      maxLength={400}
-                      value={form.descricao}
-                      onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))}
-                      placeholder="Descreva o produto, preparo, sabores etc. (Opcional)"
-                    />
-                    <div className="admin-help-text">Maximo 400 caracteres</div>
-                  </div>
-                </div>
 
-                {isProdutos && form.tipo === 'combo' ? (
-                  <div className="admin-pizza-sections">
-                    <section className="admin-pizza-block">
-                      <div className="admin-form-section-title">Produtos do combo</div>
+                  <div className="admin-form-group admin-form-full admin-product-disponibilidade-block">
+                    <label className="admin-label">Disponibilidade</label>
+                    <div className="admin-product-disponibilidade-toggles" role="group" aria-label="Disponibilidade">
                       <button
                         type="button"
-                        className="admin-btn admin-btn-ghost admin-icon-add-btn"
-                        onClick={() => setComboPickerOpen(true)}
-                        title="Adicionar produto ao combo"
-                        aria-label="Adicionar produto ao combo"
+                        className={`admin-product-disponibilidade-toggle${form.entregaRetirada ? ' is-on' : ''}`}
+                        onClick={() =>
+                          setForm((p) => ({ ...p, entregaRetirada: !p.entregaRetirada }))
+                        }
+                        aria-pressed={form.entregaRetirada === true}
                       >
-                        +
+                        Entrega e retirada
                       </button>
-                      <div className="admin-combo-list">
-                        {normalizeComboConfig(form.comboConfig).itens.map((item) => {
-                          const subtotal = Number(item.preco || 0) * Number(item.quantidade || 1);
-                          return (
-                            <div key={item.produtoId} className="admin-combo-row">
-                              <div>
-                                <strong>{item.nome}</strong>
-                                <p>R$ {Number(item.preco || 0).toFixed(2).replace('.', ',')} cada</p>
+                      <button
+                        type="button"
+                        className={`admin-product-disponibilidade-toggle${form.mesaBalcao ? ' is-on' : ''}`}
+                        onClick={() => setForm((p) => ({ ...p, mesaBalcao: !p.mesaBalcao }))}
+                        aria-pressed={form.mesaBalcao === true}
+                      >
+                        Mesa e Balcão
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="popup-details-col admin-preview-col admin-product-side-col">
+              <div className="popup-header admin-preview-header">
+                <div className="popup-header-title">Foto e opções</div>
+              </div>
+              <div className="popup-body admin-product-side-body">
+                <label className="admin-upload-box admin-upload-box-compact">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setSaveError('');
+                      try {
+                        setFormImage(await compressImageFile(file));
+                      } catch {
+                        setSaveError('Nao foi possivel processar essa imagem. Tente outra foto.');
+                      }
+                    }}
+                  />
+                  {formImage ? <img src={formImage} alt="Preview item" /> : <ImagePlaceholder size={90} />}
+                  <span className="admin-upload-caption">Adicione uma foto</span>
+                  <small className="admin-upload-caption-hint">JPEG, PNG até 3MB</small>
+                </label>
+
+                {isProdutos && form.tipo === 'combo' ? (
+                  <div className="admin-product-side-section admin-product-combo-side">
+                    <section className="admin-product-combo-block">
+                      <div className="admin-product-combo-head">
+                        <div className="admin-form-section-title">Produtos do combo</div>
+                        <button
+                          type="button"
+                          className="admin-btn admin-btn-ghost admin-icon-add-btn admin-product-combo-add"
+                          onClick={() => setComboPickerOpen(true)}
+                          title="Adicionar produto ao combo"
+                          aria-label="Adicionar produto ao combo"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <div className="admin-combo-list admin-product-combo-list">
+                        {normalizeComboConfig(form.comboConfig).itens.length ? (
+                          normalizeComboConfig(form.comboConfig).itens.map((item) => (
+                            <div key={item.produtoId} className="admin-product-combo-item">
+                              <div className="admin-product-combo-item-main">
+                                <span className="admin-product-combo-item-name">{item.nome}</span>
+                                <span className="admin-product-combo-item-price">
+                                  R$ {Number(item.preco || 0).toFixed(2).replace('.', ',')}
+                                </span>
                               </div>
                               <input
                                 type="number"
                                 min={1}
-                                className="admin-input"
+                                className="admin-input admin-product-combo-qty"
                                 value={item.quantidade}
                                 onChange={(e) => updateComboItemQty(item.produtoId, e.target.value)}
+                                aria-label={`Quantidade de ${item.nome}`}
                               />
-                              <span>Subtotal: R$ {subtotal.toFixed(2).replace('.', ',')}</span>
-                              <button type="button" className="admin-btn admin-btn-danger" onClick={() => removeComboItem(item.produtoId)}>
-                                Remover
+                              <button
+                                type="button"
+                                className="admin-product-combo-remove"
+                                onClick={() => removeComboItem(item.produtoId)}
+                                title="Remover"
+                                aria-label={`Remover ${item.nome}`}
+                              >
+                                ×
                               </button>
                             </div>
-                          );
-                        })}
+                          ))
+                        ) : (
+                          <p className="admin-help-text">Nenhum produto no combo ainda.</p>
+                        )}
                       </div>
                     </section>
-                    <section className="admin-pizza-block">
-                      <div className="admin-form-section-title">Calculos do combo</div>
-                      <div className="admin-help-text" title="Soma de todos os produtos internos com quantidade.">
-                        Valor total dos itens: R$ {comboTotals.totalItens.toFixed(2).replace('.', ',')}
-                      </div>
-                      <div className="admin-help-text">
-                        Preço sugerido com {COMBO_SUGGESTED_DISCOUNT_PERCENT}% de desconto: R{' '}
-                        {formatComboPriceBr(comboTotals.sugestao)}
-                      </div>
-                      <div className="admin-form-group">
-                        <label className="admin-label" title="Preco final de venda do combo. Pode ser alterado livremente.">Preco do combo</label>
+
+                    <section className="admin-product-combo-block admin-product-combo-calc">
+                      <div className="admin-form-section-title">Cálculos do Combo</div>
+                      <p className="admin-product-combo-calc-meta">
+                        <span title="Soma de todos os produtos internos com quantidade.">
+                          Valor total dos itens: R${' '}
+                          {comboTotals.totalItens.toFixed(2).replace('.', ',')}
+                        </span>
+                        <span className="admin-product-combo-calc-sep" aria-hidden="true">
+                          •
+                        </span>
+                        <span title={`Sugestão com ${COMBO_SUGGESTED_DISCOUNT_PERCENT}% de desconto.`}>
+                          Valor Sugerido: R$ {formatComboPriceBr(comboTotals.sugestao)}
+                        </span>
+                      </p>
+                      <div className="admin-form-group admin-product-combo-price-field">
+                        <label
+                          className="admin-label"
+                          title="Preço final de venda do combo. Pode ser alterado livremente."
+                        >
+                          Preço do combo
+                        </label>
                         <input
                           className="admin-input"
+                          inputMode="numeric"
                           value={normalizeComboConfig(form.comboConfig).precoCombo}
                           onChange={(e) => {
                             setComboPriceManual(true);
-                            updateComboConfig((cfg) => ({ ...cfg, precoCombo: e.target.value }), { manual: true });
+                            updateComboConfig(
+                              (cfg) => ({ ...cfg, precoCombo: formatMoneyBrInput(e.target.value) }),
+                              { manual: true }
+                            );
                           }}
                           placeholder={formatComboPriceBr(comboTotals.sugestao)}
                         />
                       </div>
-                      <div className="admin-help-text" title="Diferenca entre soma dos itens e preco final do combo.">
+                      <p
+                        className="admin-product-combo-calc-meta"
+                        title="Diferença entre soma dos itens e preço final do combo."
+                      >
                         Economia: R$ {comboTotals.economia.toFixed(2).replace('.', ',')}
                         {!Number.isNaN(comboTotals.precoCombo) && comboTotals.totalItens > 0
                           ? ` (${comboTotals.descontoPercent}% de desconto)`
-                          : ''}
-                      </div>
+                          : ' (0% de desconto)'}
+                      </p>
                     </section>
                   </div>
                 ) : null}
 
-                <div className="admin-form-section-title">Disponibilidade</div>
-                <div className="admin-catalog-switch-row">
-                  <div className="admin-option-row">
-                    <span>Entrega e retirada</span>
-                    <Switch checked={form.entregaRetirada} label="Entrega e retirada" onChange={(checked) => setForm((p) => ({ ...p, entregaRetirada: checked }))} />
-                  </div>
-                  <div className="admin-option-row">
-                    <span>Mesa e Balcão</span>
-                    <Switch checked={form.mesaBalcao} label="Mesa e Balcão" onChange={(checked) => setForm((p) => ({ ...p, mesaBalcao: checked }))} />
-                  </div>
-                </div>
-
-                {isProdutos ? (
-                  <div className="admin-product-links">
-                    {form.tipo !== 'combo' ? (
-                      <div className="admin-product-config-row">
-                        <div className="admin-product-config-copy">
-                          <strong>Peça também (cardápio)</strong>
-                          <p>
-                            Sugestões na sacola ao adicionar este produto (máximo {MAX_PECA_TAMBEM}).
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          className="admin-select-link"
-                          onClick={() => {
-                            setSaveError('');
-                            setPecaTambemPickerOpen(true);
-                          }}
-                        >
-                          Selecionar ({pecaTambemSelected.length}/{MAX_PECA_TAMBEM})
-                        </button>
+                {isProdutos && form.tipo !== 'combo' ? (
+                  <div className="admin-product-side-section admin-product-links">
+                    <div className="admin-product-config-row">
+                      <div className="admin-product-config-copy">
+                        <strong>Peça também</strong>
+                        <p>Sugestões na sacola (máx. {MAX_PECA_TAMBEM}).</p>
                       </div>
-                    ) : null}
-                    {form.tipo !== 'combo' && pecaTambemSelected.length ? (
+                      <button
+                        type="button"
+                        className="admin-select-link"
+                        onClick={() => {
+                          setSaveError('');
+                          setPecaTambemPickerOpen(true);
+                        }}
+                      >
+                        Selecionar ({pecaTambemSelected.length}/{MAX_PECA_TAMBEM})
+                      </button>
+                    </div>
+                    {pecaTambemSelected.length ? (
                       <div className="admin-peca-tambem-list">
                         {pecaTambemSelected.map((product) => (
                           <div key={product.id} className="admin-combo-row admin-peca-tambem-row">
@@ -1368,321 +1535,88 @@ export default function CatalogManager({ mode = 'produtos' }) {
                         ))}
                       </div>
                     ) : null}
-                    {form.tipo !== 'combo' ? (
-                      <>
-                        <div className="admin-product-config-row">
-                          <div className="admin-product-config-copy">
-                            <strong>Adicionais, complementos, modificadores</strong>
-                            <p>Configure grupos de adicionais para aparecer no produto.</p>
-                          </div>
-                          <button type="button" className="admin-select-link" onClick={() => setPickerType('adicionais')}>
-                            Selecionar adicionais ({countSelection(form.adicionais)})
-                          </button>
-                        </div>
-                        {selectedAddonGroups.length ? (
-                          <div className="admin-addon-rules-wrap">
-                            {selectedAddonGroups.map((group) => {
-                              const rule = getGroupRule(group.id);
-                              const itemCount = group.items.length;
-                              const min = Number(rule.min || 0);
-                              const max = Number(rule.max || 0);
-                              return (
-                                <details key={group.id} className="admin-addon-group-accordion">
-                                  <summary>
-                                    <strong>
-                                      {group.nome}
-                                      {rule.obrigatorio ? <span className="admin-required-star">*</span> : null}
-                                    </strong>
-                                    <span>
-                                      Ex: cliente podera escolher {min} a {max} itens deste grupo.
-                                    </span>
-                                  </summary>
-                                  <div className="admin-addon-group-body">
-                                    <div className="admin-addon-group-controls">
-                                      <label>
-                                        <input
-                                          type="radio"
-                                          name={`tipo-${group.id}`}
-                                          checked={rule.tipoSelecao === 'simples'}
-                                          onChange={() => setGroupRule(group.id, { tipoSelecao: 'simples', min: Math.min(1, Number(rule.min || 0)), max: 1 })}
-                                        />
-                                        Escolha simples
-                                      </label>
-                                      <label>
-                                        <input
-                                          type="radio"
-                                          name={`tipo-${group.id}`}
-                                          checked={rule.tipoSelecao !== 'simples'}
-                                          onChange={() => setGroupRule(group.id, { tipoSelecao: 'multipla', max: Math.max(Number(rule.max || 99), Number(rule.min || 0)) })}
-                                        />
-                                        Múltipla escolha
-                                      </label>
-                                      <div className="admin-addon-group-minmax">
-                                        <div className="admin-form-group">
-                                          <label className="admin-label">Mínimo</label>
-                                          <input
-                                            type="number"
-                                            min={0}
-                                            max={rule.tipoSelecao === 'simples' ? 1 : Math.max(99, itemCount)}
-                                            className="admin-input"
-                                            value={rule.min}
-                                            disabled={rule.tipoSelecao === 'simples'}
-                                            onChange={(e) => setGroupRule(group.id, { min: Number(e.target.value || 0) })}
-                                          />
-                                        </div>
-                                        <div className="admin-form-group">
-                                          <label className="admin-label">Máximo</label>
-                                          <input
-                                            type="number"
-                                            min={rule.tipoSelecao === 'simples' ? 1 : 0}
-                                            max={Math.max(99, itemCount)}
-                                            className="admin-input"
-                                            value={rule.max}
-                                            onChange={(e) => setGroupRule(group.id, { max: Number(e.target.value || 0) })}
-                                            disabled={rule.tipoSelecao === 'simples'}
-                                          />
-                                        </div>
-                                      </div>
-                                    </div>
-                                    {min >= 1 ? (
-                                      <label className="admin-option-row">
-                                        <span>Itens obrigatorios</span>
-                                        <Switch
-                                          checked={rule.obrigatorio === true}
-                                          label={`Obrigatoriedade do grupo ${group.nome}`}
-                                          onChange={(checked) => setGroupRule(group.id, { obrigatorio: checked })}
-                                        />
-                                      </label>
-                                    ) : null}
-                                    <div className="admin-addon-items-table">
-                                      {group.items.map((item) => {
-                                        const itemRule = rule.itens?.[item.id] || {
-                                          precoAdicional: moneyInput(item.preco),
-                                          permiteQuantidade: 1,
-                                          opcional: true,
-                                        };
-                                        return (
-                                          <div key={item.id} className="admin-addon-item-row">
-                                            <strong>{item.nome}</strong>
-                                            <input
-                                              className="admin-input"
-                                              value={itemRule.precoAdicional}
-                                              onChange={(e) => setAddonItemRule(group.id, item.id, { precoAdicional: e.target.value })}
-                                              placeholder="Preco adicional"
-                                            />
-                                            <input
-                                              type="number"
-                                              min={1}
-                                              className="admin-input"
-                                              value={itemRule.permiteQuantidade || 1}
-                                              onChange={(e) => setAddonItemRule(group.id, item.id, { permiteQuantidade: Math.max(1, Number(e.target.value || 1)) })}
-                                            />
-                                            <label className="admin-option-row">
-                                              <span>Item opcional?</span>
-                                              <Switch
-                                                checked={itemRule.opcional !== false}
-                                                label={`Item opcional ${item.nome}`}
-                                                onChange={(checked) => setAddonItemRule(group.id, item.id, { opcional: checked })}
-                                              />
-                                            </label>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                    {selectedAddonGroups.length > 1 ? (
-                                      <div className="admin-addon-duplicate-row">
-                                        <span>Duplicar regras para:</span>
-                                        <select
-                                          className="admin-input"
-                                          defaultValue=""
-                                          onChange={(e) => {
-                                            duplicateGroupRules(group.id, e.target.value);
-                                            e.target.value = '';
-                                          }}
-                                        >
-                                          <option value="" disabled>Selecione o grupo</option>
-                                          {selectedAddonGroups
-                                            .filter((g) => g.id !== group.id)
-                                            .map((g) => <option key={g.id} value={g.id}>{g.nome}</option>)}
-                                        </select>
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                </details>
-                              );
-                            })}
-                          </div>
-                        ) : null}
-                      </>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-              <div className="popup-footer">
-                <button type="button" className="admin-btn admin-btn-ghost" onClick={requestCloseItemModal}>Cancelar</button>
-                <button type="button" className="admin-btn admin-btn-primary" onClick={saveItem}>Salvar</button>
-              </div>
-            </div>
-            <div className="popup-details-col admin-preview-col">
-              <div className="popup-header admin-preview-header"><div className="popup-header-title">Preview</div></div>
-              <div className="popup-body">
-                <label className="admin-upload-box">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      setSaveError('');
-                      try {
-                        setFormImage(await compressImageFile(file));
-                      } catch {
-                        setSaveError('Nao foi possivel processar essa imagem. Tente outra foto.');
-                      }
-                    }}
-                  />
-                  {formImage ? <img src={formImage} alt="Preview item" /> : <ImagePlaceholder size={90} />}
-                  <span>Adicione uma foto</span>
-                  <small>JPEG, PNG ate 3MB</small>
-                </label>
-                <div className="admin-preview-card">
-                  <strong>{form.nome || 'Nome do item'}</strong>
-                  {previewMeta() ? <span>{previewMeta()}</span> : null}
-                  <p>{form.descricao || 'Descricao do item'}</p>
-                  <div>
-                    R$ {(
-                      form.tipo === 'combo'
-                        ? (Number.isNaN(comboTotals.precoCombo) ? comboTotals.sugestao : comboTotals.precoCombo)
-                        : (Number.isNaN(parseMoney(form.preco)) ? 0 : parseMoney(form.preco))
-                    ).toFixed(2).replace('.', ',')}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {pickerType ? (
-            <div className="admin-picker-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="admin-picker-header">
-                <div>
-                  <h3>{pickerTitle}</h3>
-                  <p>Escolha categorias inteiras ou itens individuais cadastrados em Adicionais.</p>
-                </div>
-                <button type="button" className="admin-picker-close" onClick={() => setPickerType('')}>x</button>
-              </div>
-              <div className="admin-picker-search-row">
-                <input className="admin-input" placeholder="Pesquisar categoria ou item adicional..." value={pickerSearch} onChange={(e) => setPickerSearch(e.target.value)} />
-              </div>
-              <div className="admin-picker-content">
-                {addonCategories.length ? (
-                  addonCategories.map((cat) => {
-                    const catItems = filteredAddonItems(cat.id);
-                    const categoryChecked = pickerSelection.categoriaIds.includes(cat.id);
-                    if (pickerSearch.trim() && !cat.nome.toLowerCase().includes(pickerSearch.toLowerCase()) && !catItems.length) return null;
-                    return (
-                      <section key={cat.id} className="admin-picker-section">
-                        <div className="admin-picker-section-head">
-                          <div>
-                            <h4>{cat.nome}</h4>
-                            <span>{catItems.length} itens</span>
-                          </div>
-                          <button
-                            type="button"
-                            className={`admin-picker-check ${categoryChecked ? 'checked' : ''}`}
-                            onClick={() => toggleSelection('categoria', cat.id)}
-                          >
-                            {categoryChecked ? 'Categoria selecionada' : 'Selecionar categoria'}
-                          </button>
-                        </div>
-                        {catItems.map((item) => {
-                          const itemChecked = pickerSelection.itemIds.includes(item.id);
+                    <div className="admin-product-addon-steps">
+                      <div className="admin-product-config-copy">
+                        <strong>Adicionais e complementos</strong>
+                        <p>Cada passo vira uma pergunta no cardápio.</p>
+                      </div>
+
+                      <DraggableReorderList
+                        items={addonPassos}
+                        emptyLabel="Nenhum passo ainda."
+                        onReorder={(next) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            adicionaisPassos: normalizeAddonPassos(
+                              next.map((passo, index) => ({ ...passo, ordem: index }))
+                            ),
+                          }))
+                        }
+                        renderItem={(passo) => {
+                          const cat = addonCategories.find((row) => row.id === passo.categoriaAdicionalId);
+                          const totalInCat = addonItems.filter(
+                            (item) =>
+                              item.categoriaId === passo.categoriaAdicionalId && item.ativo !== false
+                          ).length;
+                          const selectedCount = passo.itemIds.length;
                           return (
-                            <div key={item.id} className="admin-picker-item">
-                              {item.imagemUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={item.imagemUrl} alt="" loading="lazy" decoding="async" />
-                              ) : (
-                                <ImagePlaceholder size={48} />
-                              )}
-                              <div>
-                                <strong>{item.nome}</strong>
-                                <p>{item.descricao || 'Sem descricao'}</p>
-                              </div>
-                              <span>R$ {Number(item.preco || 0).toFixed(2).replace('.', ',')}</span>
+                            <div className="admin-addon-passo-summary">
                               <button
                                 type="button"
-                                className={`admin-square-check ${itemChecked ? 'checked' : ''}`}
-                                aria-label={`Selecionar ${item.nome}`}
-                                onClick={() => toggleSelection('item', item.id)}
+                                className="admin-addon-passo-summary-main"
+                                onClick={() => {
+                                  setEditingAddonPassoId(passo.id);
+                                  setAddonPassoModalOpen(true);
+                                }}
                               >
-                                {itemChecked ? '✓' : ''}
+                                <strong>{passo.titulo || cat?.nome || 'Passo sem título'}</strong>
+                                <span>
+                                  {cat?.nome || 'Sem categoria'}
+                                  {' · '}
+                                  {passo.tipoSelecao === 'simples' ? 'Uma opção' : 'Várias opções'}
+                                  {' · '}
+                                  {selectedCount}/{totalInCat || selectedCount} itens
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                className="admin-addon-passo-summary-remove"
+                                aria-label="Remover passo"
+                                onClick={() => setRemovingAddonPassoId(passo.id)}
+                              >
+                                ×
                               </button>
                             </div>
                           );
-                        })}
-                      </section>
-                    );
-                  })
-                ) : (
-                  <div className="admin-empty-catalog">Cadastre grupos e itens em Adicionais para usar esta selecao.</div>
-                )}
-              </div>
-              <div className="admin-picker-footer">
-                <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setPickerType('')}>Cancelar</button>
-                <button type="button" className="admin-btn admin-btn-primary" onClick={() => setPickerType('')}>Salvar selecao</button>
-              </div>
-            </div>
-          ) : null}
+                        }}
+                      />
 
-          {comboPickerOpen ? (
-            <div className="admin-picker-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="admin-picker-header">
-                <div>
-                  <h3>Adicionar produto ao combo</h3>
-                  <p>Selecione produtos existentes para montar o combo.</p>
-                </div>
-                <button type="button" className="admin-picker-close" onClick={() => setComboPickerOpen(false)}>x</button>
-              </div>
-              <div className="admin-picker-search-row">
-                <input className="admin-input" placeholder="Pesquisar produto..." value={comboSearch} onChange={(e) => setComboSearch(e.target.value)} />
-              </div>
-              <div className="admin-picker-content">
-                {comboCandidates
-                  .filter((item) => !comboSearch.trim() || item.nome.toLowerCase().includes(comboSearch.toLowerCase()))
-                  .map((item) => {
-                    const exists = normalizeComboConfig(form.comboConfig).itens.some((comboItem) => comboItem.produtoId === item.id);
-                    return (
-                      <div key={item.id} className="admin-picker-item">
-                        {item.imagemUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={item.imagemUrl} alt="" loading="lazy" decoding="async" />
-                              ) : (
-                                <ImagePlaceholder size={48} />
-                              )}
-                        <div>
-                          <strong>{item.nome}</strong>
-                          <p>{item.descricao || 'Sem descricao'}</p>
-                        </div>
-                        <span>R$ {Number(item.preco || 0).toFixed(2).replace('.', ',')}</span>
-                        <button
-                          type="button"
-                          className={`admin-btn admin-icon-add-btn ${exists ? 'admin-btn-ghost' : 'admin-btn-primary'}`}
-                          onClick={() => addProdutoToCombo(item)}
-                          disabled={exists}
-                          title={exists ? 'Já adicionado' : 'Adicionar ao combo'}
-                          aria-label={exists ? 'Já adicionado' : 'Adicionar ao combo'}
-                        >
-                          {exists ? '✓' : '+'}
-                        </button>
-                      </div>
-                    );
-                  })}
-              </div>
-              <div className="admin-picker-footer">
-                <button type="button" className="admin-btn admin-btn-primary" onClick={() => setComboPickerOpen(false)}>Concluir</button>
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn-ghost admin-addon-passo-add"
+                        onClick={() => {
+                          setEditingAddonPassoId('');
+                          setAddonPassoModalOpen(true);
+                        }}
+                      >
+                        Adicionar passo
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
-          ) : null}
+            </div>
+            <div className="popup-footer admin-product-popup-footer">
+              <button type="button" className="admin-btn admin-btn-ghost" onClick={requestCloseItemModal}>
+                Cancelar
+              </button>
+              <button type="button" className="admin-btn admin-btn-primary" onClick={saveItem}>
+                Salvar
+              </button>
+            </div>
+          </div>
 
           {pecaTambemPickerOpen ? (
             <div className="admin-picker-modal" onClick={(e) => e.stopPropagation()}>
@@ -1747,10 +1681,134 @@ export default function CatalogManager({ mode = 'produtos' }) {
             </div>
           ) : null}
         </div>
+        {pickerType ? (
+          <div className="admin-picker-overlay" onClick={() => setPickerType('')}>
+            <div className="admin-picker-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="admin-picker-header">
+                <div>
+                  <h3>{pickerTitle}</h3>
+                  <p>Escolha categorias inteiras ou itens individuais cadastrados em Adicionais.</p>
+                </div>
+                <button type="button" className="admin-picker-close" onClick={() => setPickerType('')}>x</button>
+              </div>
+              <div className="admin-picker-search-row">
+                <input className="admin-input" placeholder="Pesquisar categoria ou item adicional..." value={pickerSearch} onChange={(e) => setPickerSearch(e.target.value)} />
+              </div>
+              <div className="admin-picker-content">
+                {addonCategories.length ? (
+                  addonCategories.map((cat) => {
+                    const allCatItems = addonItems.filter((item) => item.categoriaId === cat.id);
+                    const catItems = filteredAddonItems(cat.id);
+                    const categoryChecked = isAddonCategorySelected(cat.id, allCatItems);
+                    if (pickerSearch.trim() && !cat.nome.toLowerCase().includes(pickerSearch.toLowerCase()) && !catItems.length) return null;
+                    return (
+                      <section key={cat.id} className="admin-picker-section">
+                        <div className="admin-picker-section-head">
+                          <div>
+                            <h4>{cat.nome}</h4>
+                            <span>{allCatItems.length} itens</span>
+                          </div>
+                          <button
+                            type="button"
+                            className={`admin-picker-check ${categoryChecked ? 'checked' : ''}`}
+                            onClick={() => toggleAddonCategory(cat.id, allCatItems)}
+                          >
+                            {categoryChecked ? 'Categoria selecionada' : 'Selecionar categoria'}
+                          </button>
+                        </div>
+                        {catItems.map((item) => {
+                          const itemChecked = isAddonItemSelected(cat.id, item.id);
+                          return (
+                            <div key={item.id} className="admin-picker-item">
+                              {item.imagemUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={item.imagemUrl} alt="" loading="lazy" decoding="async" />
+                              ) : (
+                                <ImagePlaceholder size={48} />
+                              )}
+                              <div>
+                                <strong>{item.nome}</strong>
+                                <p>{item.descricao || 'Sem descricao'}</p>
+                              </div>
+                              <span>R$ {Number(item.preco || 0).toFixed(2).replace('.', ',')}</span>
+                              <button
+                                type="button"
+                                className={`admin-square-check ${itemChecked ? 'checked' : ''}`}
+                                aria-label={`Selecionar ${item.nome}`}
+                                onClick={() => toggleAddonItem(cat.id, item.id, allCatItems)}
+                              >
+                                {itemChecked ? '✓' : ''}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </section>
+                    );
+                  })
+                ) : (
+                  <div className="admin-empty-catalog">Cadastre grupos e itens em Adicionais para usar esta selecao.</div>
+                )}
+              </div>
+              <div className="admin-picker-footer">
+                <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setPickerType('')}>Cancelar</button>
+                <button type="button" className="admin-btn admin-btn-primary" onClick={() => setPickerType('')}>Salvar selecao</button>
+              </div>
+            </div>
+          </div>
+        ) : null}
         <AdminDiscardDialog
           open={itemDiscardOpen}
           onConfirm={confirmDiscardItemModal}
           onCancel={cancelDiscardItemModal}
+        />
+        <AdminComboProductPickerModal
+          open={comboPickerOpen}
+          products={comboCandidates}
+          categories={categories}
+          selectedIds={normalizeComboConfig(form.comboConfig).itens.map((item) => item.produtoId)}
+          onToggle={toggleProdutoNoCombo}
+          onSetSelectedIds={setComboSelectedIds}
+          onClose={() => setComboPickerOpen(false)}
+        />
+        <ProductAddonPassoModal
+          open={addonPassoModalOpen}
+          passo={editingAddonPasso}
+          categories={addonCategories.filter((cat) => cat.ativo !== false)}
+          items={addonItems}
+          onClose={() => {
+            setAddonPassoModalOpen(false);
+            setEditingAddonPassoId('');
+          }}
+          onSave={(passo) => {
+            setForm((prev) => {
+              const current = normalizeAddonPassos(prev.adicionaisPassos);
+              const exists = current.some((row) => row.id === passo.id);
+              const next = exists
+                ? current.map((row) => (row.id === passo.id ? { ...passo, ordem: row.ordem } : row))
+                : [...current, { ...passo, ordem: current.length }];
+              return { ...prev, adicionaisPassos: normalizeAddonPassos(next) };
+            });
+            setAddonPassoModalOpen(false);
+            setEditingAddonPassoId('');
+          }}
+        />
+        <AdminConfirmDialog
+          open={Boolean(removingAddonPassoId)}
+          title="Remover passo?"
+          message="Esse passo de adicionais será removido deste produto."
+          confirmLabel="Remover"
+          cancelLabel="Cancelar"
+          danger
+          onCancel={() => setRemovingAddonPassoId('')}
+          onConfirm={() => {
+            setForm((prev) => ({
+              ...prev,
+              adicionaisPassos: normalizeAddonPassos(
+                (prev.adicionaisPassos || []).filter((passo) => passo.id !== removingAddonPassoId)
+              ),
+            }));
+            setRemovingAddonPassoId('');
+          }}
         />
         </>
       ) : null}

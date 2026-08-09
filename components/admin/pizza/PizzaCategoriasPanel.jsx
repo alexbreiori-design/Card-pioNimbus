@@ -1,9 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog';
 import AdminIcon from '@/components/admin/AdminIcon';
-import AdminSortableList from '@/components/admin/AdminSortableList';
 import ImagePlaceholder from '@/components/admin/ImagePlaceholder';
+import ProductAddonPassoModal from '@/components/admin/ProductAddonPassoModal';
+import { DraggableReorderList } from '@/components/lightswind/draggable-reorder-list';
 import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
 import { isJsonDirty } from '@/lib/admin/isFormDirty';
@@ -16,6 +18,11 @@ import {
   normalizePizzaCategoria,
 } from '@/lib/pizza/pizzaModel';
 import { resolvePizzaCardapioFromStore } from '@/lib/pizza/pizzaCardapioResolve';
+import {
+  normalizeAddonPassos,
+  resolveProductAddonPassos,
+  syncAddonPassosToSelection,
+} from '@/lib/productAddonPassos';
 import { normalizePecaTambemIds } from '@/lib/productSuggestions';
 import CategoryLayoutPicker from '@/components/admin/CategoryLayoutPicker';
 import { CATEGORY_LAYOUT_DEFAULT } from '@/lib/cardapio/categoryLayouts';
@@ -28,10 +35,8 @@ import {
   compressImageFile,
   formatCurrency,
   savePizzaCardapio,
-  selectionFrom,
   sortByOrdem,
 } from './pizzaAdminShared';
-import PizzaAdicionaisPickerModal from './PizzaAdicionaisPickerModal';
 import PizzaPecaTambemPickerModal from './PizzaPecaTambemPickerModal';
 import PizzaSaboresPickerModal from './PizzaSaboresPickerModal';
 
@@ -66,12 +71,36 @@ export default function PizzaCategoriasPanel() {
   const [draft, setDraft] = useState(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('todos');
-  const [ordering, setOrdering] = useState(false);
   const [saborPickerOpen, setSaborPickerOpen] = useState(false);
   const [pecaPickerOpen, setPecaPickerOpen] = useState(false);
-  const [addonPickerOpen, setAddonPickerOpen] = useState(false);
+  const [addonPassoModalOpen, setAddonPassoModalOpen] = useState(false);
+  const [editingAddonPassoId, setEditingAddonPassoId] = useState('');
+  const [removingAddonPassoId, setRemovingAddonPassoId] = useState('');
   const [draftBaseline, setDraftBaseline] = useState(null);
   const toast = useAdminToast();
+
+  const addonPassos = useMemo(
+    () => normalizeAddonPassos(draft?.adicionaisPassos),
+    [draft?.adicionaisPassos]
+  );
+  const editingAddonPasso = useMemo(
+    () => addonPassos.find((passo) => passo.id === editingAddonPassoId) || null,
+    [addonPassos, editingAddonPassoId]
+  );
+
+  function hydrateCategoriaDraft(item) {
+    const normalized = normalizePizzaCategoria(item);
+    const hadStoredPassos =
+      Array.isArray(item?.adicionaisPassos) && item.adicionaisPassos.length > 0;
+    let adicionaisPassos = resolveProductAddonPassos(normalized, {
+      categories: addonCategories,
+      items: addonItems,
+    });
+    if (!hadStoredPassos && normalized.exibirFotosAdicionais === false) {
+      adicionaisPassos = adicionaisPassos.map((passo) => ({ ...passo, exibirFotos: false }));
+    }
+    return { ...normalized, adicionaisPassos };
+  }
 
   function persist(nextCardapio, successMsg) {
     const normalized = normalizePizzaCardapio(nextCardapio);
@@ -108,14 +137,14 @@ export default function PizzaCategoriasPanel() {
     item.ordem = categorias.length;
     item.saborIds = saboresAtivos.map((sabor) => sabor.id);
     item.tamanhoIds = tamanhosAtivos.map((tam) => tam.id);
-    const normalized = normalizePizzaCategoria(item);
+    const normalized = hydrateCategoriaDraft(item);
     setDraft(normalized);
     setDraftBaseline(normalized);
     setEditingId(item.id);
   }
 
   function openEditCategoria(item) {
-    const normalized = normalizePizzaCategoria(item);
+    const normalized = hydrateCategoriaDraft(item);
     setDraft(normalized);
     setDraftBaseline(normalized);
     setEditingId(item.id);
@@ -127,7 +156,9 @@ export default function PizzaCategoriasPanel() {
     setDraftBaseline(null);
     setSaborPickerOpen(false);
     setPecaPickerOpen(false);
-    setAddonPickerOpen(false);
+    setAddonPassoModalOpen(false);
+    setEditingAddonPassoId('');
+    setRemovingAddonPassoId('');
   }
 
   async function handleCategoriaImage(file) {
@@ -168,7 +199,39 @@ export default function PizzaCategoriasPanel() {
       return;
     }
 
-    const normalized = normalizePizzaCategoria(draft);
+    const syncedAddons = syncAddonPassosToSelection(draft.adicionaisPassos, {
+      items: addonItems,
+    });
+    for (const passo of syncedAddons.adicionaisPassos) {
+      if (!passo.titulo?.trim()) {
+        toast.error('Todo passo de adicionais precisa de uma pergunta.');
+        return;
+      }
+      if (!passo.categoriaAdicionalId) {
+        toast.error('Todo passo de adicionais precisa de uma categoria.');
+        return;
+      }
+      if (!passo.itemIds?.length) {
+        toast.error('Todo passo de adicionais precisa de ao menos um item.');
+        return;
+      }
+      if (passo.tipoSelecao === 'multipla' && Number(passo.min || 0) > Number(passo.max || 0)) {
+        toast.error('Em um passo, o mínimo não pode ser maior que o máximo.');
+        return;
+      }
+      if (
+        passo.tipoSelecao === 'multipla' &&
+        Number(passo.min || 0) > Number(passo.itemIds.length || 0)
+      ) {
+        toast.error('Em um passo, o mínimo não pode ser maior que a quantidade de itens.');
+        return;
+      }
+    }
+
+    const normalized = normalizePizzaCategoria({
+      ...draft,
+      ...syncedAddons,
+    });
     const list = [...categorias];
     const index = list.findIndex((item) => item.id === normalized.id);
     if (index >= 0) list[index] = { ...list[index], ...normalized };
@@ -177,6 +240,7 @@ export default function PizzaCategoriasPanel() {
     persist({ ...cardapio, categorias: sortByOrdem(list) }, 'Categoria salva.');
     setEditingId('');
     setDraft(null);
+    setDraftBaseline(null);
   }
 
   const visibleCategorias = useMemo(() => {
@@ -194,7 +258,6 @@ export default function PizzaCategoriasPanel() {
     });
   }, [categorias, search, statusFilter]);
 
-  const orderedCategorias = useMemo(() => sortByOrdem(categorias), [categorias]);
   const isDraftDirty = useMemo(() => {
     if (!draft || !draftBaseline) return false;
     return isJsonDirty(normalizePizzaCategoria(draft), draftBaseline);
@@ -206,19 +269,6 @@ export default function PizzaCategoriasPanel() {
       .map((id) => productCandidates.find((item) => item.id === id))
       .filter(Boolean);
   }, [draft, productCandidates]);
-
-  const adicionaisSelectedSummary = useMemo(() => {
-    if (!draft) return 'Nenhum adicional selecionado';
-    const current = selectionFrom(draft.adicionais);
-    const categoryNames = current.categoriaIds
-      .map((id) => addonCategories.find((cat) => cat.id === id)?.nome)
-      .filter(Boolean);
-    const itemNames = current.itemIds
-      .map((id) => addonItems.find((item) => item.id === id)?.nome)
-      .filter(Boolean);
-    const parts = [...categoryNames, ...itemNames];
-    return parts.length ? parts.join(', ') : 'Nenhum adicional selecionado';
-  }, [draft, addonCategories, addonItems]);
 
   return (
     <div className="admin-pizza-categorias-panel">
@@ -256,55 +306,44 @@ export default function PizzaCategoriasPanel() {
             <AdminIcon name="plus" />
             Nova categoria
           </button>
-          <button type="button" className="admin-catalog-order-btn" onClick={() => setOrdering((value) => !value)}>
-            <AdminIcon name="sort" />
-            {ordering ? 'Voltar' : 'Ordenar'}
-          </button>
         </div>
       </div>
 
-      {ordering ? (
-        <div className="admin-card admin-sortable-panel">
-          <p className="admin-help-text admin-sortable-panel-hint">Arraste as categorias para definir a ordem no cardápio.</p>
-          {orderedCategorias.length ? (
-            <AdminSortableList
-              items={orderedCategorias}
-              onReorder={(next) => persist({ ...cardapio, categorias: next }, 'Ordem atualizada.')}
-              rowClassName="admin-sortable-row admin-catalog-item-row"
-              renderItem={(cat) => (
-                <>
-                  {cat.imagemUrl ? (
-                    <img className="admin-catalog-item-img" src={cat.imagemUrl} alt="" loading="lazy" decoding="async" />
-                  ) : (
-                    <ImagePlaceholder size={112} />
-                  )}
-                  <div className="admin-catalog-item-main">
-                    <div className="admin-item-title">{cat.nomePublico || 'Sem nome'}</div>
-                    <div className="admin-item-desc">{cat.descricao || '—'}</div>
-                  </div>
-                </>
-              )}
-            />
-          ) : (
-            <div className="admin-empty-catalog">Nenhuma categoria cadastrada.</div>
-          )}
-        </div>
-      ) : (
-        <div className="admin-card admin-catalog-card">
-          <div className="admin-pizza-block-header">
-            <div>
-              <h3>Categorias no cardápio</h3>
-              <p className="admin-help-text">
-                Cada categoria aparece como um item no cardápio público. O cliente monta a pizza dentro dela.
-              </p>
-            </div>
+      <div className="admin-card admin-catalog-card">
+        <div className="admin-pizza-block-header">
+          <div>
+            <h3>Categorias no cardápio</h3>
+            <p className="admin-help-text">
+              Cada categoria aparece como um item no cardápio público. Segure os pontinhos para reordenar.
+            </p>
           </div>
+        </div>
 
-          {visibleCategorias.length ? (
-            visibleCategorias.map((cat) => {
+        {visibleCategorias.length ? (
+          <DraggableReorderList
+            className="admin-pizza-draggable-list"
+            items={visibleCategorias}
+            onReorder={(nextVisible) => {
+              const visibleIds = new Set(visibleCategorias.map((cat) => cat.id));
+              let cursor = 0;
+              const merged = sortByOrdem(categorias).map((cat) => {
+                if (!visibleIds.has(cat.id)) return cat;
+                const replacement = nextVisible[cursor];
+                cursor += 1;
+                return replacement || cat;
+              });
+              persist(
+                {
+                  ...cardapio,
+                  categorias: merged.map((cat, ordem) => ({ ...cat, ordem })),
+                },
+                'Ordem atualizada.'
+              );
+            }}
+            renderItem={(cat) => {
               const fromPrice = computeCategoriaFromPrice(cardapio, cat);
               return (
-                <div key={cat.id} className="admin-catalog-item-row admin-pizza-cat-row">
+                <div className="admin-catalog-item-row admin-pizza-cat-row admin-grouped-sort-browse-item">
                   {cat.imagemUrl ? (
                     <img className="admin-catalog-item-img" src={cat.imagemUrl} alt="" loading="lazy" decoding="async" />
                   ) : (
@@ -347,12 +386,12 @@ export default function PizzaCategoriasPanel() {
                   </div>
                 </div>
               );
-            })
-          ) : (
-            <div className="admin-empty-catalog">Nenhuma categoria cadastrada.</div>
-          )}
-        </div>
-      )}
+            }}
+          />
+        ) : (
+          <div className="admin-empty-catalog">Nenhuma categoria cadastrada.</div>
+        )}
+      </div>
 
       {draft ? (
         <PizzaEditorShell
@@ -519,22 +558,75 @@ export default function PizzaCategoriasPanel() {
               </div>
 
               <div className="admin-pizza-editor-section">
-                <div className="admin-pizza-sabores-select-row">
-                  <div>
-                    <strong>Adicionais vinculados</strong>
-                    <span className="admin-pizza-section-sub">
-                      Use os grupos já cadastrados em Adicionais, como bordas e complementos.
-                    </span>
+                <div className="admin-product-addon-steps">
+                  <div className="admin-product-config-copy">
+                    <strong>Adicionais e complementos</strong>
+                    <p>Cada passo vira uma pergunta no cardápio, como em Produtos.</p>
                   </div>
+
+                  <DraggableReorderList
+                    items={addonPassos}
+                    emptyLabel="Nenhum passo ainda."
+                    onReorder={(next) =>
+                      setDraft((prev) => ({
+                        ...prev,
+                        adicionaisPassos: normalizeAddonPassos(
+                          next.map((passo, index) => ({ ...passo, ordem: index }))
+                        ),
+                      }))
+                    }
+                    renderItem={(passo) => {
+                      const cat = addonCategories.find(
+                        (row) => row.id === passo.categoriaAdicionalId
+                      );
+                      const totalInCat = addonItems.filter(
+                        (item) =>
+                          item.categoriaId === passo.categoriaAdicionalId && item.ativo !== false
+                      ).length;
+                      const selectedCount = passo.itemIds.length;
+                      return (
+                        <div className="admin-addon-passo-summary">
+                          <button
+                            type="button"
+                            className="admin-addon-passo-summary-main"
+                            onClick={() => {
+                              setEditingAddonPassoId(passo.id);
+                              setAddonPassoModalOpen(true);
+                            }}
+                          >
+                            <strong>{passo.titulo || cat?.nome || 'Passo sem título'}</strong>
+                            <span>
+                              {cat?.nome || 'Sem categoria'}
+                              {' · '}
+                              {passo.tipoSelecao === 'simples' ? 'Uma opção' : 'Várias opções'}
+                              {' · '}
+                              {selectedCount}/{totalInCat || selectedCount} itens
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-addon-passo-summary-remove"
+                            aria-label="Remover passo"
+                            onClick={() => setRemovingAddonPassoId(passo.id)}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    }}
+                  />
+
                   <button
                     type="button"
-                    className="admin-btn admin-btn-ghost admin-btn-sm"
-                    onClick={() => setAddonPickerOpen(true)}
+                    className="admin-btn admin-btn-ghost admin-addon-passo-add"
+                    onClick={() => {
+                      setEditingAddonPassoId('');
+                      setAddonPassoModalOpen(true);
+                    }}
                   >
-                    Selecionar
+                    Adicionar passo
                   </button>
                 </div>
-                <p className="admin-help-text">{adicionaisSelectedSummary}</p>
               </div>
 
               <div className="admin-pizza-editor-section">
@@ -564,35 +656,70 @@ export default function PizzaCategoriasPanel() {
               </div>
             </div>
           </div>
-
-          {saborPickerOpen ? (
-            <PizzaSaboresPickerModal
-              sabores={saboresAtivos}
-              selectedIds={draft.saborIds}
-              onChange={(next) => setDraft((prev) => ({ ...prev, saborIds: next }))}
-              onClose={() => setSaborPickerOpen(false)}
-            />
-          ) : null}
-          {addonPickerOpen ? (
-            <PizzaAdicionaisPickerModal
-              categories={addonCategories}
-              items={addonItems.filter((item) => item.ativo !== false)}
-              selection={draft.adicionais}
-              onChange={(next) => setDraft((prev) => ({ ...prev, adicionais: next }))}
-              onClose={() => setAddonPickerOpen(false)}
-            />
-          ) : null}
-          {pecaPickerOpen ? (
-            <PizzaPecaTambemPickerModal
-              products={productCandidates}
-              categories={(data.categorias || []).filter((cat) => cat.ativo !== false)}
-              selectedIds={normalizePecaTambemIds(draft.pecaTambemIds)}
-              onChange={(next) => setDraft((prev) => ({ ...prev, pecaTambemIds: next }))}
-              onClose={() => setPecaPickerOpen(false)}
-            />
-          ) : null}
         </PizzaEditorShell>
       ) : null}
+
+      {draft && saborPickerOpen ? (
+        <PizzaSaboresPickerModal
+          sabores={saboresAtivos}
+          selectedIds={draft.saborIds}
+          onChange={(next) => setDraft((prev) => ({ ...prev, saborIds: next }))}
+          exibirFotos={draft.exibirFotosSabores !== false}
+          onExibirFotosChange={(next) =>
+            setDraft((prev) => ({ ...prev, exibirFotosSabores: next }))
+          }
+          onClose={() => setSaborPickerOpen(false)}
+        />
+      ) : null}
+      {draft && pecaPickerOpen ? (
+        <PizzaPecaTambemPickerModal
+          products={productCandidates}
+          categories={(data.categorias || []).filter((cat) => cat.ativo !== false)}
+          selectedIds={normalizePecaTambemIds(draft.pecaTambemIds)}
+          onChange={(next) => setDraft((prev) => ({ ...prev, pecaTambemIds: next }))}
+          onClose={() => setPecaPickerOpen(false)}
+        />
+      ) : null}
+      <ProductAddonPassoModal
+        open={addonPassoModalOpen}
+        passo={editingAddonPasso}
+        categories={addonCategories}
+        items={addonItems}
+        onClose={() => {
+          setAddonPassoModalOpen(false);
+          setEditingAddonPassoId('');
+        }}
+        onSave={(passo) => {
+          setDraft((prev) => {
+            const current = normalizeAddonPassos(prev.adicionaisPassos);
+            const exists = current.some((row) => row.id === passo.id);
+            const next = exists
+              ? current.map((row) => (row.id === passo.id ? { ...passo, ordem: row.ordem } : row))
+              : [...current, { ...passo, ordem: current.length }];
+            return { ...prev, adicionaisPassos: normalizeAddonPassos(next) };
+          });
+          setAddonPassoModalOpen(false);
+          setEditingAddonPassoId('');
+        }}
+      />
+      <AdminConfirmDialog
+        open={Boolean(removingAddonPassoId)}
+        title="Remover passo?"
+        message="Esse passo de adicionais será removido desta categoria de pizza."
+        confirmLabel="Remover"
+        cancelLabel="Cancelar"
+        danger
+        onCancel={() => setRemovingAddonPassoId('')}
+        onConfirm={() => {
+          setDraft((prev) => ({
+            ...prev,
+            adicionaisPassos: normalizeAddonPassos(
+              (prev.adicionaisPassos || []).filter((passo) => passo.id !== removingAddonPassoId)
+            ),
+          }));
+          setRemovingAddonPassoId('');
+        }}
+      />
     </div>
   );
 }

@@ -20,6 +20,102 @@ import AddonThumb from '@/components/cardapio/AddonThumb';
 import MenuImageArea from '@/components/cardapio/MenuImageArea';
 import { IconClose } from './icons';
 
+const GENERIC_SEARCH_MIN_ITEMS = 8;
+const DESC_COLLAPSE_CHARS = 110;
+
+function isGenericStepComplete(section, selectedIds = []) {
+  const minRequired = section?.required
+    ? Math.max(1, Number(section.min || 1))
+    : Number(section?.min || 0);
+  return selectedIds.length >= minRequired;
+}
+
+function findFirstIncompleteGenericStep(sections, selectedAddons) {
+  for (let index = 0; index < sections.length; index += 1) {
+    const selected = selectedAddons[index] || [];
+    if (!isGenericStepComplete(sections[index], selected)) return index;
+  }
+  return -1;
+}
+
+function MobileAddonSection({ sec, si, selected, formatPrice, onToggle }) {
+  const [query, setQuery] = useState('');
+  const items = sec.items || [];
+  const showSearch = items.length >= GENERIC_SEARCH_MIN_ITEMS;
+  const filteredItems = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((item) => {
+      const name = String(item.name || '').toLowerCase();
+      const desc = String(item.desc || '').toLowerCase();
+      return name.includes(q) || desc.includes(q);
+    });
+  }, [items, query]);
+
+  return (
+    <div className="addon-section">
+      <div className="addon-section-header">
+        <div className="addon-section-title">{sec.stepTitle || sec.section}</div>
+      </div>
+      <div className="addon-section-meta">
+        <span className="addon-count-badge">
+          {selected.length} / {sec.max}
+        </span>
+        {sec.required ? <span className="obrigatorio-badge">OBRIGATÓRIO</span> : null}
+        <span className="addon-section-hint">
+          Escolha até {sec.max} {sec.max > 1 ? 'opções' : 'opção'}
+        </span>
+      </div>
+      {showSearch ? (
+        <div className="addon-section-search">
+          <input
+            type="search"
+            className="addon-section-search-input"
+            placeholder="Buscar opção..."
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            aria-label={`Buscar em ${sec.stepTitle || sec.section}`}
+          />
+          <span className="addon-section-search-meta">
+            {filteredItems.length} de {items.length}
+          </span>
+        </div>
+      ) : null}
+      {filteredItems.length ? (
+        <div className={`addon-items-grid${sec.exibirFotos === false ? ' is-text-only' : ''}`}>
+          {filteredItems.map((item) => {
+            const isActive = selected.includes(item.id);
+            return (
+              <button
+                type="button"
+                className={`addon-item addon-item--grid${isActive ? ' is-selected' : ''}${
+                  sec.exibirFotos === false ? ' is-text-only' : ''
+                }`}
+                key={item.id}
+                onClick={() => onToggle(si, item.id, item.extra)}
+              >
+                {sec.exibirFotos !== false ? <AddonThumb imageUrl={item.imageUrl} /> : null}
+                <div className="addon-info">
+                  <div className="addon-name">{item.name}</div>
+                  {item.desc ? <div className="addon-desc">{item.desc}</div> : null}
+                  {item.extra > 0 ? (
+                    <div className="addon-price">+ {formatPrice(item.extra)}</div>
+                  ) : null}
+                </div>
+                <span className={`addon-add-btn ${isActive ? 'active' : ''}`} aria-hidden="true">
+                  {isActive ? '✓' : '+'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="popup-empty-addons">Nenhuma opção encontrada.</p>
+      )}
+    </div>
+  );
+}
+
 export default function ProductModal() {
   const { formatPrice, filteredProducts } = useCardapioCatalog();
   const {
@@ -53,7 +149,9 @@ export default function ProductModal() {
   const [pizzaStep, setPizzaStep] = useState(0);
   const [pizzaState, setPizzaState] = useState({ sizeId: '', flavorSlots: [] });
   const [marmitaStep, setMarmitaStep] = useState(0);
+  const [genericStep, setGenericStep] = useState(0);
   const [onNoteStep, setOnNoteStep] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
 
   const pizzaSteps = useMemo(
     () =>
@@ -95,12 +193,27 @@ export default function ProductModal() {
     ? isMarmitaStepComplete(currentMarmitaSection, currentMarmitaSelected)
     : true;
   const isLastMarmitaStep = hasMarmitaWizard && marmitaStep >= marmitaSteps.length - 1;
+
+  const showGenericWizard = !isPizza && !isMarmita && productAddons.length > 0;
+  const showEmptyAddonsMessage = !isPizza && !isMarmita && productAddons.length === 0;
+  const currentGenericSection = showGenericWizard ? productAddons[genericStep] : null;
+  const currentGenericSelected = selectedAddons[genericStep] || [];
+  const canGenericAdvance = currentGenericSection
+    ? isGenericStepComplete(currentGenericSection, currentGenericSelected)
+    : true;
+  const isLastGenericStep = showGenericWizard && genericStep >= productAddons.length - 1;
+
   const showProductNote =
-    onNoteStep || (!hasPizzaWizard && !hasMarmitaWizard);
+    onNoteStep || (!hasPizzaWizard && !hasMarmitaWizard && !showGenericWizard);
+
+  const productDesc = String(product?.desc || '').trim();
+  const canToggleDesc = productDesc.length > DESC_COLLAPSE_CHARS;
 
   useEffect(() => {
     setMarmitaStep(0);
+    setGenericStep(0);
     setOnNoteStep(false);
+    setDescExpanded(false);
     if (product?.pizzaPromoShortcut) {
       const { saborId, tamanhoId } = product.pizzaPromoShortcut;
       setPizzaState({ sizeId: tamanhoId, flavorSlots: [saborId] });
@@ -206,6 +319,25 @@ export default function ProductModal() {
     setMarmitaStep((value) => Math.min(value + 1, marmitaSteps.length - 1));
   }
 
+  function handleGenericPrimaryAction() {
+    if (onNoteStep) {
+      const incompleteStep = findFirstIncompleteGenericStep(productAddons, selectedAddons);
+      if (incompleteStep >= 0) {
+        setGenericStep(incompleteStep);
+        setOnNoteStep(false);
+        return;
+      }
+      addToCart();
+      return;
+    }
+    if (!canGenericAdvance) return;
+    if (isLastGenericStep) {
+      setOnNoteStep(true);
+      return;
+    }
+    setGenericStep((value) => Math.min(value + 1, productAddons.length - 1));
+  }
+
   function handleWizardBack() {
     if (onNoteStep) {
       setOnNoteStep(false);
@@ -217,6 +349,10 @@ export default function ProductModal() {
     }
     if (hasMarmitaWizard) {
       setMarmitaStep((value) => Math.max(0, value - 1));
+      return;
+    }
+    if (showGenericWizard) {
+      setGenericStep((value) => Math.max(0, value - 1));
     }
   }
 
@@ -232,9 +368,7 @@ export default function ProductModal() {
 
   if (!productOpen || !product) return null;
 
-  const showGenericAddons = !isPizza && !isMarmita;
-  const showEmptyAddonsMessage = showGenericAddons && productAddons.length === 0;
-  const wizardMode = hasPizzaWizard || hasMarmitaWizard;
+  const genericUnitTotal = (product.price + addonExtras) * currentQty;
 
   return (
     <div
@@ -259,8 +393,6 @@ export default function ProductModal() {
         <div
           className="popup-details-col"
           id="popupDetailsCol"
-          ref={popupDetailsRef}
-          onScroll={handleScroll}
         >
           <button type="button" className="popup-close-details" onClick={closeProductPopup} aria-label="Fechar">
             <IconClose />
@@ -272,7 +404,24 @@ export default function ProductModal() {
                 Tamanho: {product.tamanhoSelecionado.nome}
               </div>
             ) : null}
-            <div className="popup-header-desc">{product.desc}</div>
+            {productDesc ? (
+              <div className="popup-header-desc-block">
+                <div
+                  className={`popup-header-desc${descExpanded ? ' is-expanded' : ''}`}
+                >
+                  {productDesc}
+                </div>
+                {canToggleDesc ? (
+                  <button
+                    type="button"
+                    className="popup-header-desc-toggle"
+                    onClick={() => setDescExpanded((value) => !value)}
+                  >
+                    {descExpanded ? 'Ver menos' : 'Ver mais'}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
             <div
               className={`popup-header-price ${
                 product.isPromocao && product.promoOriginalPrice > product.price ? 'has-promo' : ''
@@ -292,6 +441,11 @@ export default function ProductModal() {
               )}
             </div>
           </div>
+          <div
+            className="popup-scroll"
+            ref={popupDetailsRef}
+            onScroll={handleScroll}
+          >
           <div className="popup-body" id="popupBody">
             {pizzaPromoShortcut ? (
               <div className="pizza-promo-preset-summary">
@@ -330,49 +484,16 @@ export default function ProductModal() {
               <p className="popup-empty-addons">Sem opções adicionais para este produto.</p>
             ) : null}
 
-            {showGenericAddons && !onNoteStep
-              ? productAddons.map((sec, si) => {
-                  const selected = selectedAddons[si] || [];
-                  return (
-                    <div className="addon-section" key={sec.section}>
-                      <div className="addon-section-header">
-                        <div className="addon-section-title">{sec.stepTitle || sec.section}</div>
-                      </div>
-                      <div className="addon-section-meta">
-                        <span className="addon-count-badge">
-                          {selected.length} / {sec.max}
-                        </span>
-                        {sec.required ? <span className="obrigatorio-badge">OBRIGATÓRIO</span> : null}
-                        <span className="addon-section-hint">
-                          Escolha até {sec.max} {sec.max > 1 ? 'opções' : 'opção'}
-                        </span>
-                      </div>
-                      {sec.items.map((item) => {
-                        const isActive = selected.includes(item.id);
-                        return (
-                          <div className="addon-item" key={item.id}>
-                            <AddonThumb imageUrl={item.imageUrl} />
-                            <div className="addon-info">
-                              <div className="addon-name">{item.name}</div>
-                              {item.desc ? <div className="addon-desc">{item.desc}</div> : null}
-                              {item.extra > 0 ? (
-                                <div className="addon-price">+ {formatPrice(item.extra)}</div>
-                              ) : null}
-                            </div>
-                            <button
-                              type="button"
-                              className={`addon-add-btn ${isActive ? 'active' : ''}`}
-                              onClick={() => toggleAddon(si, item.id, item.extra)}
-                            >
-                              {isActive ? '✓' : '+'}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })
-              : null}
+            {showGenericWizard && !onNoteStep && currentGenericSection ? (
+              <MobileAddonSection
+                key={`generic-step-${genericStep}`}
+                sec={currentGenericSection}
+                si={genericStep}
+                selected={currentGenericSelected}
+                formatPrice={formatPrice}
+                onToggle={toggleAddon}
+              />
+            ) : null}
 
             {showProductNote ? (
               <div className="product-note-field">
@@ -391,9 +512,10 @@ export default function ProductModal() {
               </div>
             ) : null}
           </div>
+          </div>
           <div
             className={`popup-footer ${
-              hasMarmitaWizard ? 'popup-footer-marmita-wizard' : ''
+              hasMarmitaWizard || showGenericWizard ? 'popup-footer-marmita-wizard' : ''
             } ${hasPizzaWizard ? 'popup-footer-pizza-wizard' : ''}`}
           >
             <div className="qty-controls">
@@ -440,9 +562,9 @@ export default function ProductModal() {
                   <span>{formatPrice(pizzaUnitPrice * currentQty)}</span>
                 </button>
               </div>
-            ) : hasMarmitaWizard ? (
+            ) : hasMarmitaWizard || showGenericWizard ? (
               <div className="marmita-wizard-footer-actions">
-                {marmitaStep > 0 || onNoteStep ? (
+                {(hasMarmitaWizard ? marmitaStep > 0 : genericStep > 0) || onNoteStep ? (
                   <button
                     type="button"
                     className="marmita-wizard-nav-btn wizard-nav-btn"
@@ -467,11 +589,15 @@ export default function ProductModal() {
                 <button
                   type="button"
                   className="btn-adicionar marmita-wizard-primary-btn"
-                  disabled={!onNoteStep && !canMarmitaAdvance}
-                  onClick={handleMarmitaPrimaryAction}
+                  disabled={
+                    !onNoteStep && (hasMarmitaWizard ? !canMarmitaAdvance : !canGenericAdvance)
+                  }
+                  onClick={hasMarmitaWizard ? handleMarmitaPrimaryAction : handleGenericPrimaryAction}
                 >
                   <span>{onNoteStep ? 'Adicionar' : 'Próximo'}</span>
-                  <span>{formatPrice(marmitaUnitTotal)}</span>
+                  <span>
+                    {formatPrice(hasMarmitaWizard ? marmitaUnitTotal : genericUnitTotal)}
+                  </span>
                 </button>
               </div>
             ) : (
