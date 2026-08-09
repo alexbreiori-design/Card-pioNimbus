@@ -29,8 +29,6 @@ const TAB_META = {
   },
 };
 
-const STORE_PURPLE = '#6d28d9';
-
 function createPinIcon(status, selected = false) {
   const pin =
     status === 'concluido'
@@ -50,12 +48,13 @@ function createPinIcon(status, selected = false) {
 }
 
 function createStoreIcon() {
-  const size = 34;
+  const width = 22;
+  const height = 20;
   return L.divIcon({
     className: 'delivery-route-store-pin',
-    html: `<i class="ph-fill ph-house-line delivery-route-store-icon" style="font-size:${size}px;color:${STORE_PURPLE};"></i>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
+    html: `<img src="/icons/store-pin.svg" alt="" class="delivery-route-store-icon" width="${width}" height="${height}" draggable="false" />`,
+    iconSize: [width, height],
+    iconAnchor: [width / 2, height / 2],
   });
 }
 

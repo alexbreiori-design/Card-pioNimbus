@@ -102,8 +102,8 @@ function MobileAddonSection({ sec, si, selected, formatPrice, onToggle }) {
                     <div className="addon-price">+ {formatPrice(item.extra)}</div>
                   ) : null}
                 </div>
-                <span className={`addon-add-btn ${isActive ? 'active' : ''}`} aria-hidden="true">
-                  {isActive ? '✓' : '+'}
+                <span className={`addon-add-btn${isActive ? ' active' : ''}`} aria-hidden="true">
+                  {isActive ? '✓' : null}
                 </span>
               </button>
             );

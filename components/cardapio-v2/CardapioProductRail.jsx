@@ -33,6 +33,7 @@ export default function CardapioProductRail({
 
   const CardComponent = isListLayout ? CardapioProductCardV2List : CardapioProductCardV2;
   const cardSelector = isListLayout ? '.cardapio-v2-product-card-list' : '.cardapio-v2-product-card';
+  const isListaLarga = layoutId === 'lista-1';
 
   const updateScrollState = useCallback(() => {
     const el = scrollRef.current;
@@ -105,13 +106,22 @@ export default function CardapioProductRail({
       {expanded ? (
         <div className={gridClassName}>
           {items.map((product) => (
-            <CardComponent key={product.id} product={product} layout="grid" />
+            <CardComponent
+              key={product.id}
+              product={product}
+              layout="grid"
+              variant={isListaLarga ? 'lista-larga' : undefined}
+            />
           ))}
         </div>
       ) : isListLayout ? (
         <div className={gridClassName}>
           {collapsedItems.map((product) => (
-            <CardComponent key={product.id} product={product} />
+            <CardComponent
+              key={product.id}
+              product={product}
+              variant={isListaLarga ? 'lista-larga' : undefined}
+            />
           ))}
         </div>
       ) : (

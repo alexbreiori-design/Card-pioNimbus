@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { calculateDeliveryFee } from '@/lib/delivery/calculateFee';
 import { getLocationIqKey, getOpenRouteServiceKey, hasDeliveryApiKeys } from '@/lib/env/server';
-import { getEmpresaBySlug, listZonasByEmpresaId } from '@/lib/supabase/empresaServer';
+import {
+  getEmpresaBySlug,
+  listAreasExclusaoByEmpresaId,
+  listZonasByEmpresaId,
+} from '@/lib/supabase/empresaServer';
 import { getServiceClient } from '@/lib/supabase/serviceRole';
 
 /**
@@ -52,9 +56,17 @@ export async function POST(request) {
       );
     }
 
+    let exclusoes = [];
+    try {
+      exclusoes = await listAreasExclusaoByEmpresaId(supabase, empresa.id);
+    } catch {
+      exclusoes = [];
+    }
+
     const result = await calculateDeliveryFee({
       empresa,
       zonas,
+      exclusoes,
       endereco: enderecoResolvido,
       locationIqKey: getLocationIqKey(),
       orsKey: getOpenRouteServiceKey(),

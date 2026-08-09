@@ -5,6 +5,7 @@
 import { useMemo, useState } from 'react';
 import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog';
+import AdminFaixaModal from '@/components/admin/AdminFaixaModal';
 import { AdminCatalogSkeleton, useAdminMountSkeleton } from '@/components/admin/AdminSkeleton';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
@@ -20,6 +21,14 @@ import ProductAddonPassoModal from '@/components/admin/ProductAddonPassoModal';
 import AdminComboProductPickerModal from '@/components/admin/AdminComboProductPickerModal';
 import { DraggableReorderList } from '@/components/lightswind/draggable-reorder-list';
 import { CATEGORY_LAYOUT_DEFAULT } from '@/lib/cardapio/categoryLayouts';
+import {
+  createFaixaFromMembers,
+  findFaixaForMember,
+  removeFaixaExibicao,
+  removeMemberFromFaixas,
+  sanitizeFaixasExibicao,
+  updateFaixaExibicao,
+} from '@/lib/cardapio/faixasExibicao';
 import {
   normalizeAddonPassos,
   resolveProductAddonPassos,
@@ -297,8 +306,19 @@ export default function CatalogManager({ mode = 'produtos' }) {
   const [removingAddonPassoId, setRemovingAddonPassoId] = useState('');
   const [descricaoEditing, setDescricaoEditing] = useState(false);
   const [descricaoDraft, setDescricaoDraft] = useState('');
+  const [faixaModal, setFaixaModal] = useState(null);
 
   const categories = useMemo(() => data[catKey] || [], [data, catKey]);
+  const faixasExibicao = useMemo(
+    () =>
+      isProdutos
+        ? sanitizeFaixasExibicao(
+            data.faixasExibicao,
+            (data.categorias || []).map((cat) => cat.id)
+          )
+        : [],
+    [isProdutos, data.faixasExibicao, data.categorias]
+  );
   const items = useMemo(() => data[itemKey] || [], [data, itemKey]);
   const addonCategories = useMemo(() => data.adicionaisCategorias || [], [data.adicionaisCategorias]);
   const addonItems = useMemo(() => data.adicionaisItens || [], [data.adicionaisItens]);
@@ -472,9 +492,73 @@ export default function CatalogManager({ mode = 'produtos' }) {
       ...prev,
       [catKey]: prev[catKey].filter((cat) => cat.id !== removingCategory.id),
       [itemKey]: prev[itemKey].filter((item) => item.categoriaId !== removingCategory.id),
+      ...(isProdutos
+        ? {
+            faixasExibicao: removeMemberFromFaixas(prev.faixasExibicao, removingCategory.id),
+          }
+        : {}),
     }));
     if (selectedCat === removingCategory.id) setSelectedCat(TAB_ALL);
     setRemovingCategory(null);
+  }
+
+  function openCreateFaixaModal() {
+    if (!isProdutos || categories.length < 2) return;
+    setFaixaModal({
+      mode: 'create',
+      faixaId: null,
+      membroIds: [],
+      nome: '',
+      layout: CATEGORY_LAYOUT_DEFAULT,
+    });
+  }
+
+  function openEditFaixaModal(faixa) {
+    setFaixaModal({
+      mode: 'edit',
+      faixaId: faixa.id,
+      membroIds: [...(faixa.membroIds || [])],
+      nome: faixa.nome,
+      layout: faixa.layout,
+    });
+  }
+
+  function confirmFaixaModal({ nome, layout, membroIds }) {
+    if (!faixaModal || !isProdutos) return;
+    const ids = Array.isArray(membroIds) ? membroIds : [];
+    saveData((prev) => {
+      const current = sanitizeFaixasExibicao(
+        prev.faixasExibicao,
+        (prev.categorias || []).map((cat) => cat.id)
+      );
+      const cleaned = current.map((faixa) => {
+        if (faixaModal.mode === 'edit' && faixa.id === faixaModal.faixaId) return faixa;
+        return {
+          ...faixa,
+          membroIds: faixa.membroIds.filter((id) => !ids.includes(id)),
+        };
+      });
+      if (faixaModal.mode === 'edit' && faixaModal.faixaId) {
+        return {
+          ...prev,
+          faixasExibicao: updateFaixaExibicao(cleaned, faixaModal.faixaId, {
+            nome,
+            layout,
+            membroIds: ids,
+          }),
+        };
+      }
+      return {
+        ...prev,
+        faixasExibicao: createFaixaFromMembers({
+          nome,
+          layout,
+          membroIds: ids,
+          existing: cleaned,
+        }),
+      };
+    });
+    setFaixaModal(null);
   }
 
   function confirmRemoveProduct() {
@@ -999,6 +1083,11 @@ export default function CatalogManager({ mode = 'produtos' }) {
           ))}
         </div>
         <div className="admin-catalog-top-actions">
+          {isProdutos && categories.length >= 2 ? (
+            <button type="button" className="admin-btn admin-btn-ghost" onClick={openCreateFaixaModal}>
+              Agrupar categorias
+            </button>
+          ) : null}
           <button type="button" className="admin-btn admin-btn-ghost" onClick={openNewCategory}>
             <AdminIcon name="plus" />
             Nova categoria
@@ -1022,8 +1111,10 @@ export default function CatalogManager({ mode = 'produtos' }) {
           }));
         }}
         onItemsChange={(next) => saveData((prev) => ({ ...prev, [itemKey]: next }))}
-        renderGroupHeader={(cat, { isExpanded, onToggle }) => (
-          <div className="admin-catalog-title-row admin-grouped-sort-title-row">
+        renderGroupHeader={(cat, { isExpanded, onToggle }) => {
+          const faixa = isProdutos ? findFaixaForMember(faixasExibicao, cat.id) : null;
+          return (
+          <div className={`admin-catalog-title-row admin-grouped-sort-title-row${faixa ? ' is-in-faixa' : ''}`}>
             <button
               type="button"
               className="admin-catalog-collapse-btn"
@@ -1042,6 +1133,15 @@ export default function CatalogManager({ mode = 'produtos' }) {
               </span>
               <h3>{cat.nome}</h3>
             </button>
+            {faixa ? (
+              <button
+                type="button"
+                className="admin-faixa-badge"
+                onClick={() => openEditFaixaModal(faixa)}
+              >
+                Seção: {faixa.nome}
+              </button>
+            ) : null}
             <span>Disponivel</span>
             <Switch
               checked={Boolean(cat.ativo)}
@@ -1054,8 +1154,11 @@ export default function CatalogManager({ mode = 'produtos' }) {
               }
             />
           </div>
-        )}
-        renderGroupActions={(cat) => (
+          );
+        }}
+        renderGroupActions={(cat) => {
+          const faixa = isProdutos ? findFaixaForMember(faixasExibicao, cat.id) : null;
+          return (
           <div className="admin-category-actions">
             <button type="button" className="admin-btn admin-btn-ghost" onClick={() => openNewItemModal(cat.id)}>
               <AdminIcon name="plus" />
@@ -1075,6 +1178,45 @@ export default function CatalogManager({ mode = 'produtos' }) {
               {categoryMenuId === cat.id ? (
                 <div className="admin-floating-menu">
                   <button type="button" onClick={() => openEditCategory(cat)}>Editar categoria</button>
+                  {faixa ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        openEditFaixaModal(faixa);
+                        setCategoryMenuId('');
+                      }}
+                    >
+                      Editar seção do cardápio
+                    </button>
+                  ) : null}
+                  {faixa ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        saveData((prev) => ({
+                          ...prev,
+                          faixasExibicao: removeMemberFromFaixas(prev.faixasExibicao, cat.id),
+                        }));
+                        setCategoryMenuId('');
+                      }}
+                    >
+                      Remover da seção
+                    </button>
+                  ) : null}
+                  {faixa ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        saveData((prev) => ({
+                          ...prev,
+                          faixasExibicao: removeFaixaExibicao(prev.faixasExibicao, faixa.id),
+                        }));
+                        setCategoryMenuId('');
+                      }}
+                    >
+                      Desagrupar seção
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => {
@@ -1098,7 +1240,8 @@ export default function CatalogManager({ mode = 'produtos' }) {
               ) : null}
             </div>
           </div>
-        )}
+          );
+        }}
         renderItemPreview={(item) => (
           <div className="admin-catalog-item-row admin-grouped-sort-browse-item">
             {item.imagemUrl ? (
@@ -2005,6 +2148,20 @@ export default function CatalogManager({ mode = 'produtos' }) {
           </div>
         </div>
       ) : null}
+      <AdminFaixaModal
+        open={Boolean(faixaModal)}
+        mode={faixaModal?.mode || 'create'}
+        title={faixaModal?.mode === 'edit' ? 'Editar seção do cardápio' : 'Agrupar categorias'}
+        initialNome={faixaModal?.nome || ''}
+        initialLayout={faixaModal?.layout || CATEGORY_LAYOUT_DEFAULT}
+        initialMemberIds={faixaModal?.membroIds || []}
+        categories={categories}
+        getCategoryId={(cat) => cat.id}
+        getCategoryLabel={(cat) => cat.nome}
+        confirmLabel={faixaModal?.mode === 'edit' ? 'Salvar seção' : 'Agrupar'}
+        onClose={() => setFaixaModal(null)}
+        onConfirm={confirmFaixaModal}
+      />
     </div>
   );
 }

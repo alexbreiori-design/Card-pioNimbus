@@ -2,7 +2,7 @@
 
 import { getMarmitaStepBadge } from '@/lib/marmita/marmitaWizard';
 import AddonThumb from '@/components/cardapio/AddonThumb';
-import { IconCheck, IconPlus } from './icons';
+import { IconCheck } from './icons';
 
 export default function MarmitaWizardSteps({
   steps,
@@ -17,6 +17,7 @@ export default function MarmitaWizardSteps({
   const selected = selectedAddons[stepIndex] || [];
   const badge = getMarmitaStepBadge(section, selected);
   const stepTitle = section.stepTitle || section.section;
+  const showPhotos = section.exibirFotos !== false;
 
   return (
     <div className="marmita-wizard">
@@ -36,29 +37,34 @@ export default function MarmitaWizardSteps({
           </span>
         </div>
 
-        {section.items.map((item) => {
-          const isActive = selected.includes(item.id);
-          return (
-            <div className="addon-item" key={item.id}>
-              <AddonThumb imageUrl={item.imageUrl} />
-              <div className="addon-info">
-                <div className="addon-name">{item.name}</div>
-                {item.desc ? <div className="addon-desc">{item.desc}</div> : null}
-                {item.extra > 0 ? (
-                  <div className="addon-price">+ {formatPrice(item.extra)}</div>
-                ) : null}
-              </div>
+        <div className={`addon-items-grid${showPhotos ? '' : ' is-text-only'}`}>
+          {section.items.map((item) => {
+            const isActive = selected.includes(item.id);
+            return (
               <button
                 type="button"
-                className={`addon-add-btn ${isActive ? 'active' : ''}`}
+                className={`addon-item addon-item--grid${showPhotos ? '' : ' is-text-only'}${
+                  isActive ? ' is-selected' : ''
+                }`}
+                key={item.id}
                 onClick={() => toggleAddon(stepIndex, item.id, item.extra)}
                 aria-pressed={isActive}
               >
-                {isActive ? <IconCheck /> : <IconPlus />}
+                {showPhotos ? <AddonThumb imageUrl={item.imageUrl} /> : null}
+                <div className="addon-info">
+                  <div className="addon-name">{item.name}</div>
+                  {item.desc ? <div className="addon-desc">{item.desc}</div> : null}
+                  {item.extra > 0 ? (
+                    <div className="addon-price">+ {formatPrice(item.extra)}</div>
+                  ) : null}
+                </div>
+                <span className={`addon-add-btn${isActive ? ' active' : ''}`} aria-hidden="true">
+                  {isActive ? <IconCheck /> : null}
+                </span>
               </button>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
