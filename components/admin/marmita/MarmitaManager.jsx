@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog';
+import AdminFaixaModal from '@/components/admin/AdminFaixaModal';
 import AdminIcon from '@/components/admin/AdminIcon';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdminGroupedSortablePanel, { ADMIN_UNGROUPED_ID } from '@/components/admin/AdminGroupedSortablePanel';
@@ -24,6 +25,14 @@ import {
 } from '@/lib/marmita/marmitaWeekdays';
 import MarmitaGrupoEditorModal from '@/components/admin/marmita/MarmitaGrupoEditorModal';
 import { CATEGORY_LAYOUT_DEFAULT } from '@/lib/cardapio/categoryLayouts';
+import {
+  createFaixaFromMembers,
+  findFaixaForMember,
+  removeFaixaExibicao,
+  removeMemberFromFaixas,
+  sanitizeFaixasExibicao,
+  updateFaixaExibicao,
+} from '@/lib/cardapio/faixasExibicao';
 import {
   defaultMarmitaCardapio,
   describeMarmitaCardapioForAdmin,
@@ -151,6 +160,7 @@ export default function MarmitaManager() {
   const [saveError, setSaveError] = useState('');
   const [grupoModal, setGrupoModal] = useState(null);
   const [grupoMenuId, setGrupoMenuId] = useState('');
+  const [faixaModal, setFaixaModal] = useState(null);
   const [passoModalOpen, setPassoModalOpen] = useState(false);
   const [editingPassoId, setEditingPassoId] = useState('');
   const [removingPassoId, setRemovingPassoId] = useState('');
@@ -160,6 +170,14 @@ export default function MarmitaManager() {
   const savedCardapio = useMemo(
     () => normalizeMarmitaCardapio(data.marmitaCardapio),
     [data.marmitaCardapio]
+  );
+  const faixasExibicao = useMemo(
+    () =>
+      sanitizeFaixasExibicao(
+        savedCardapio.faixasExibicao,
+        marmitaGrupos.map((grupo) => grupo.id)
+      ),
+    [savedCardapio.faixasExibicao, marmitaGrupos]
   );
   const [cardapioEditing, setCardapioEditing] = useState(false);
   const [cardapioDraft, setCardapioDraft] = useState(() => defaultMarmitaCardapio());
@@ -318,7 +336,7 @@ export default function MarmitaManager() {
           ...emptyMarmitaGrupo(),
           id: grupoModal.id,
           nome,
-          icone: grupoModal.icone || 'combo',
+          icone: 'marmita',
           ordem: (prev.marmitaGrupos || []).length,
           permitirDiasDuplicados: grupoModal.permitirDiasDuplicados === true,
           exibicaoCardapio: grupoModal.exibicaoCardapio || CATEGORY_LAYOUT_DEFAULT,
@@ -334,7 +352,7 @@ export default function MarmitaManager() {
       isNew: false,
       id: grupo.id,
       nome: grupo.nome,
-      icone: grupo.icone || 'combo',
+      icone: 'marmita',
       permitirDiasDuplicados: grupo.permitirDiasDuplicados === true,
       exibicaoCardapio: grupo.exibicaoCardapio || CATEGORY_LAYOUT_DEFAULT,
     });
@@ -355,7 +373,7 @@ export default function MarmitaManager() {
     const previous = marmitaGrupos.find((row) => row.id === grupoModal.id);
     const permitirDiasDuplicados = grupoModal.permitirDiasDuplicados === true;
     const exibicaoCardapio = grupoModal.exibicaoCardapio || CATEGORY_LAYOUT_DEFAULT;
-    const icone = grupoModal.icone || 'combo';
+    const icone = 'marmita';
     const disablingDuplicates =
       previous?.permitirDiasDuplicados === true && !permitirDiasDuplicados;
 
@@ -397,14 +415,104 @@ export default function MarmitaManager() {
     if (grupo.id === '__sem_grupo__' || grupo.id === '__all__') return;
     const confirmed = window.confirm(`Remover o grupo "${grupo.nome}"? As marmitas ficarão sem grupo.`);
     if (!confirmed) return;
-    await saveData((prev) => ({
-      ...prev,
-      marmitaGrupos: (prev.marmitaGrupos || []).filter((row) => row.id !== grupo.id),
-      marmitas: (prev.marmitas || []).map((row) =>
-        row.grupoId === grupo.id ? { ...row, grupoId: '' } : row
-      ),
-    }));
+    await saveData((prev) => {
+      const cardapio = normalizeMarmitaCardapio(prev.marmitaCardapio);
+      return {
+        ...prev,
+        marmitaGrupos: (prev.marmitaGrupos || []).filter((row) => row.id !== grupo.id),
+        marmitas: (prev.marmitas || []).map((row) =>
+          row.grupoId === grupo.id ? { ...row, grupoId: '' } : row
+        ),
+        marmitaCardapio: {
+          ...cardapio,
+          faixasExibicao: removeMemberFromFaixas(cardapio.faixasExibicao, grupo.id),
+        },
+      };
+    });
     setGrupoMenuId('');
+  }
+
+  function openCreateFaixaModal() {
+    if (grupos.length < 2) {
+      toast.error('Cadastre ao menos dois grupos para agrupar.');
+      return;
+    }
+    setFaixaModal({
+      mode: 'create',
+      faixaId: null,
+      membroIds: [],
+      nome: '',
+      layout: CATEGORY_LAYOUT_DEFAULT,
+    });
+  }
+
+  function openEditFaixaModal(faixa) {
+    setFaixaModal({
+      mode: 'edit',
+      faixaId: faixa.id,
+      membroIds: [...(faixa.membroIds || [])],
+      nome: faixa.nome,
+      layout: faixa.layout,
+    });
+  }
+
+  function confirmFaixaModal({ nome, layout, membroIds }) {
+    if (!faixaModal) return;
+    const ids = Array.isArray(membroIds) ? membroIds : [];
+    saveData((prev) => {
+      const cardapio = normalizeMarmitaCardapio(prev.marmitaCardapio);
+      const current = sanitizeFaixasExibicao(
+        cardapio.faixasExibicao,
+        (prev.marmitaGrupos || []).map((grupo) => grupo.id)
+      );
+      const cleaned = current.map((faixa) => {
+        if (faixaModal.mode === 'edit' && faixa.id === faixaModal.faixaId) return faixa;
+        return {
+          ...faixa,
+          membroIds: faixa.membroIds.filter((id) => !ids.includes(id)),
+        };
+      });
+      const nextFaixas =
+        faixaModal.mode === 'edit' && faixaModal.faixaId
+          ? updateFaixaExibicao(cleaned, faixaModal.faixaId, {
+              nome,
+              layout,
+              membroIds: ids,
+            })
+          : createFaixaFromMembers({
+              nome,
+              layout,
+              membroIds: ids,
+              existing: cleaned,
+            });
+      return {
+        ...prev,
+        marmitaCardapio: { ...cardapio, faixasExibicao: nextFaixas },
+      };
+    });
+    setFaixaModal(null);
+    toast.success(
+      faixaModal.mode === 'edit' ? 'Seção do cardápio atualizada.' : 'Grupos agrupados no cardápio.'
+    );
+  }
+
+  function patchFaixas(updater, successMsg) {
+    saveData((prev) => {
+      const cardapio = normalizeMarmitaCardapio(prev.marmitaCardapio);
+      const current = sanitizeFaixasExibicao(
+        cardapio.faixasExibicao,
+        (prev.marmitaGrupos || []).map((grupo) => grupo.id)
+      );
+      return {
+        ...prev,
+        marmitaCardapio: {
+          ...cardapio,
+          faixasExibicao: updater(current),
+        },
+      };
+    }).then(() => {
+      if (successMsg) toast.success(successMsg);
+    });
   }
 
   async function duplicateGrupo(grupo) {
@@ -454,7 +562,10 @@ export default function MarmitaManager() {
   }
 
   async function saveCardapioSettings() {
-    const payload = normalizeMarmitaCardapio(cardapioDraft);
+    const payload = normalizeMarmitaCardapio({
+      ...cardapioDraft,
+      faixasExibicao: savedCardapio.faixasExibicao,
+    });
     if (
       payload.vincularHorario &&
       payload.continuarModo === 'depois' &&
@@ -1016,6 +1127,11 @@ export default function MarmitaManager() {
 
       <div className="admin-catalog-top-row admin-marmita-top-row">
         <div className="admin-catalog-top-actions">
+          {grupos.length >= 2 ? (
+            <button type="button" className="admin-btn admin-btn-ghost" onClick={openCreateFaixaModal}>
+              Agrupar categorias
+            </button>
+          ) : null}
           <button
             type="button"
             className="admin-btn admin-btn-ghost"
@@ -1040,8 +1156,12 @@ export default function MarmitaManager() {
           ungroupedLabel="Sem grupo"
           onGroupsReorder={(next) => saveData((prev) => ({ ...prev, marmitaGrupos: next }))}
           onItemsChange={handleMarmitasReorder}
-          renderGroupHeader={(grupo, { isExpanded, onToggle }) => (
-            <div className="admin-catalog-title-row admin-grouped-sort-title-row">
+          renderGroupHeader={(grupo, { isExpanded, onToggle }) => {
+            const isRealGrupo =
+              grupo.id !== ADMIN_UNGROUPED_ID && grupo.id !== '__sem_grupo__' && grupo.id !== '__all__';
+            const faixa = isRealGrupo ? findFaixaForMember(faixasExibicao, grupo.id) : null;
+            return (
+            <div className={`admin-catalog-title-row admin-grouped-sort-title-row${faixa ? ' is-in-faixa' : ''}`}>
               <button
                 type="button"
                 className="admin-catalog-collapse-btn"
@@ -1053,7 +1173,16 @@ export default function MarmitaManager() {
                 </span>
                 <h3>{grupo.id === ADMIN_UNGROUPED_ID ? 'Sem grupo' : grupo.nome}</h3>
               </button>
-              {grupo.id !== ADMIN_UNGROUPED_ID && grupo.id !== '__sem_grupo__' && grupo.id !== '__all__' ? (
+              {faixa ? (
+                <button
+                  type="button"
+                  className="admin-faixa-badge"
+                  onClick={() => openEditFaixaModal(faixa)}
+                >
+                  Seção: {faixa.nome}
+                </button>
+              ) : null}
+              {isRealGrupo ? (
                 <>
                   <span>Ativo</span>
                   <Switch
@@ -1064,9 +1193,14 @@ export default function MarmitaManager() {
                 </>
               ) : null}
             </div>
-          )}
-          renderGroupActions={(grupo) =>
-            grupo.id !== ADMIN_UNGROUPED_ID && grupo.id !== '__sem_grupo__' && grupo.id !== '__all__' ? (
+            );
+          }}
+          renderGroupActions={(grupo) => {
+            const isRealGrupo =
+              grupo.id !== ADMIN_UNGROUPED_ID && grupo.id !== '__sem_grupo__' && grupo.id !== '__all__';
+            if (!isRealGrupo) return null;
+            const faixa = findFaixaForMember(faixasExibicao, grupo.id);
+            return (
               <div className="admin-category-actions">
                 <button type="button" className="admin-btn admin-btn-ghost" onClick={() => openNew(grupo.id)}>
                   <AdminIcon name="plus" />
@@ -1088,6 +1222,45 @@ export default function MarmitaManager() {
                       <button type="button" onClick={() => openEditGrupo(grupo)}>
                         Editar grupo
                       </button>
+                      {faixa ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            openEditFaixaModal(faixa);
+                            setGrupoMenuId('');
+                          }}
+                        >
+                          Editar seção do cardápio
+                        </button>
+                      ) : null}
+                      {faixa ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            patchFaixas(
+                              (current) => removeMemberFromFaixas(current, grupo.id),
+                              'Grupo removido da seção.'
+                            );
+                            setGrupoMenuId('');
+                          }}
+                        >
+                          Remover da seção
+                        </button>
+                      ) : null}
+                      {faixa ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            patchFaixas(
+                              (current) => removeFaixaExibicao(current, faixa.id),
+                              'Seção desagrupada.'
+                            );
+                            setGrupoMenuId('');
+                          }}
+                        >
+                          Desagrupar seção
+                        </button>
+                      ) : null}
                       <button type="button" onClick={() => duplicateGrupo(grupo)}>
                         Duplicar com marmitas
                       </button>
@@ -1098,11 +1271,26 @@ export default function MarmitaManager() {
                   ) : null}
                 </div>
               </div>
-            ) : null
-          }
+            );
+          }}
           renderItemPreview={(item) => renderMarmitaRow(item)}
         />
       )}
+
+      <AdminFaixaModal
+        open={Boolean(faixaModal)}
+        mode={faixaModal?.mode || 'create'}
+        title={faixaModal?.mode === 'edit' ? 'Editar seção do cardápio' : 'Agrupar categorias'}
+        initialNome={faixaModal?.nome || ''}
+        initialLayout={faixaModal?.layout || CATEGORY_LAYOUT_DEFAULT}
+        initialMemberIds={faixaModal?.membroIds || []}
+        categories={grupos}
+        getCategoryId={(grupo) => grupo.id}
+        getCategoryLabel={(grupo) => grupo.nome}
+        confirmLabel={faixaModal?.mode === 'edit' ? 'Salvar seção' : 'Agrupar'}
+        onClose={() => setFaixaModal(null)}
+        onConfirm={confirmFaixaModal}
+      />
 
       {modalOpen ? (
         <>

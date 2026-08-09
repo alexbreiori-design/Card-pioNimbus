@@ -1,6 +1,5 @@
 'use client';
 
-import CategoryIconPicker from '@/components/admin/CategoryIconPicker';
 import CategoryLayoutPicker from '@/components/admin/CategoryLayoutPicker';
 import { CATEGORY_LAYOUT_DEFAULT } from '@/lib/cardapio/categoryLayouts';
 
@@ -52,14 +51,6 @@ export default function MarmitaGrupoEditorModal({
             onChange={(event) => onChange({ ...draft, nome: event.target.value })}
             placeholder="Ex.: Segunda-feira"
             autoFocus
-          />
-        </div>
-
-        <div className="admin-form-group">
-          <label className="admin-label">Ícone no cardápio</label>
-          <CategoryIconPicker
-            value={draft.icone || 'combo'}
-            onChange={(icone) => onChange({ ...draft, icone })}
           />
         </div>
 

@@ -2,7 +2,6 @@
 
 import { useMemo } from 'react';
 import { useCardapio } from '@/context/CardapioContext';
-import { getSiteOrigin } from '@/lib/siteUrl';
 import { V2Icon } from './CardapioV2Icons';
 import { useCardapioV2Mobile } from './useCardapioV2Mobile';
 import { CARDAPIO_V2_SECTION } from './cardapioV2Sections';
@@ -26,7 +25,6 @@ export default function CardapioInfoFooter() {
     deliveryDurationLabel,
   } = useCardapio();
 
-  const landingUrl = getSiteOrigin();
   const todayKey = getFooterTodayKey();
   const addressLine = useMemo(() => {
     const formatted = formatStoreAddress(storeConfig);
@@ -191,27 +189,6 @@ export default function CardapioInfoFooter() {
           </section>
         </div>
       </div>
-
-      <a
-        href={landingUrl}
-        className="cardapio-v2-info-footer-nimbus"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Desenvolvido por Cardápio Nimbus — conheça a plataforma"
-      >
-        <span className="cardapio-v2-info-footer-nimbus-label">Desenvolvido por</span>
-        <span className="cardapio-v2-info-footer-nimbus-icon-wrap" aria-hidden="true">
-          <img
-            src="/images/icon-wt.png"
-            alt=""
-            width={24}
-            height={24}
-            className="cardapio-v2-info-footer-nimbus-icon"
-            decoding="async"
-          />
-        </span>
-        <span className="cardapio-v2-info-footer-nimbus-name">Cardápio Nimbus</span>
-      </a>
     </footer>
   );
 }

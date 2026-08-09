@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog';
+import AdminFaixaModal from '@/components/admin/AdminFaixaModal';
 import AdminIcon from '@/components/admin/AdminIcon';
 import ImagePlaceholder from '@/components/admin/ImagePlaceholder';
 import ProductAddonPassoModal from '@/components/admin/ProductAddonPassoModal';
@@ -9,6 +10,14 @@ import { DraggableReorderList } from '@/components/lightswind/draggable-reorder-
 import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
 import { isJsonDirty } from '@/lib/admin/isFormDirty';
+import {
+  createFaixaFromMembers,
+  findFaixaForMember,
+  removeFaixaExibicao,
+  removeMemberFromFaixas,
+  sanitizeFaixasExibicao,
+  updateFaixaExibicao,
+} from '@/lib/cardapio/faixasExibicao';
 import { computeCategoriaFromPrice } from '@/lib/pizza/pizzaPricing';
 import {
   emptyPizzaCategoria,
@@ -77,7 +86,17 @@ export default function PizzaCategoriasPanel() {
   const [editingAddonPassoId, setEditingAddonPassoId] = useState('');
   const [removingAddonPassoId, setRemovingAddonPassoId] = useState('');
   const [draftBaseline, setDraftBaseline] = useState(null);
+  const [faixaModal, setFaixaModal] = useState(null);
   const toast = useAdminToast();
+
+  const faixasExibicao = useMemo(
+    () =>
+      sanitizeFaixasExibicao(
+        cardapio.faixasExibicao,
+        categorias.map((cat) => cat.id)
+      ),
+    [cardapio.faixasExibicao, categorias]
+  );
 
   const addonPassos = useMemo(
     () => normalizeAddonPassos(draft?.adicionaisPassos),
@@ -103,12 +122,75 @@ export default function PizzaCategoriasPanel() {
   }
 
   function persist(nextCardapio, successMsg) {
-    const normalized = normalizePizzaCardapio(nextCardapio);
+    const normalized = normalizePizzaCardapio({
+      ...nextCardapio,
+      faixasExibicao: sanitizeFaixasExibicao(
+        nextCardapio.faixasExibicao,
+        (nextCardapio.categorias || []).map((cat) => cat.id)
+      ),
+    });
     savePizzaCardapio(saveData, () => normalized)
       .then(() => {
         if (successMsg) toast.success(successMsg);
       })
       .catch(() => toast.error('Não foi possível salvar.'));
+  }
+
+  function persistFaixas(nextFaixas, successMsg) {
+    persist({ ...cardapio, faixasExibicao: nextFaixas }, successMsg);
+  }
+
+  function openCreateFaixaModal() {
+    if (categorias.length < 2) {
+      toast.error('Cadastre ao menos duas categorias para agrupar.');
+      return;
+    }
+    setFaixaModal({
+      mode: 'create',
+      faixaId: null,
+      membroIds: [],
+      nome: '',
+      layout: CATEGORY_LAYOUT_DEFAULT,
+    });
+  }
+
+  function openEditFaixaModal(faixa) {
+    setFaixaModal({
+      mode: 'edit',
+      faixaId: faixa.id,
+      membroIds: [...(faixa.membroIds || [])],
+      nome: faixa.nome,
+      layout: faixa.layout,
+    });
+  }
+
+  function confirmFaixaModal({ nome, layout, membroIds }) {
+    if (!faixaModal) return;
+    const ids = Array.isArray(membroIds) ? membroIds : [];
+    const cleaned = faixasExibicao.map((faixa) => {
+      if (faixaModal.mode === 'edit' && faixa.id === faixaModal.faixaId) return faixa;
+      return {
+        ...faixa,
+        membroIds: faixa.membroIds.filter((id) => !ids.includes(id)),
+      };
+    });
+    if (faixaModal.mode === 'edit' && faixaModal.faixaId) {
+      persistFaixas(
+        updateFaixaExibicao(cleaned, faixaModal.faixaId, { nome, layout, membroIds: ids }),
+        'Seção do cardápio atualizada.'
+      );
+    } else {
+      persistFaixas(
+        createFaixaFromMembers({
+          nome,
+          layout,
+          membroIds: ids,
+          existing: cleaned,
+        }),
+        'Categorias agrupadas no cardápio.'
+      );
+    }
+    setFaixaModal(null);
   }
 
   function toggleCategoriaAtivo(id, checked) {
@@ -127,9 +209,14 @@ export default function PizzaCategoriasPanel() {
       setDraft(null);
     }
     persist(
-      { ...cardapio, categorias: cardapio.categorias.filter((item) => item.id !== id) },
+      {
+        ...cardapio,
+        categorias: cardapio.categorias.filter((item) => item.id !== id),
+        faixasExibicao: removeMemberFromFaixas(faixasExibicao, id),
+      },
       'Categoria removida.'
     );
+    setSelectedFaixaIds((prev) => prev.filter((row) => row !== id));
   }
 
   function openNewCategoria() {
@@ -302,6 +389,11 @@ export default function PizzaCategoriasPanel() {
           ))}
         </div>
         <div className="admin-catalog-top-actions">
+          {categorias.length >= 2 ? (
+            <button type="button" className="admin-btn admin-btn-ghost" onClick={openCreateFaixaModal}>
+              Agrupar categorias
+            </button>
+          ) : null}
           <button type="button" className="admin-btn admin-btn-ghost" onClick={openNewCategoria}>
             <AdminIcon name="plus" />
             Nova categoria
@@ -314,7 +406,8 @@ export default function PizzaCategoriasPanel() {
           <div>
             <h3>Categorias no cardápio</h3>
             <p className="admin-help-text">
-              Cada categoria aparece como um item no cardápio público. Segure os pontinhos para reordenar.
+              Use &quot;Agrupar categorias&quot; para exibir várias categorias numa seção só no cardápio.
+              Segure os pontinhos para reordenar.
             </p>
           </div>
         </div>
@@ -342,8 +435,13 @@ export default function PizzaCategoriasPanel() {
             }}
             renderItem={(cat) => {
               const fromPrice = computeCategoriaFromPrice(cardapio, cat);
+              const faixa = findFaixaForMember(faixasExibicao, cat.id);
               return (
-                <div className="admin-catalog-item-row admin-pizza-cat-row admin-grouped-sort-browse-item">
+                <div
+                  className={`admin-catalog-item-row admin-pizza-cat-row admin-grouped-sort-browse-item${
+                    faixa ? ' is-in-faixa' : ''
+                  }`}
+                >
                   {cat.imagemUrl ? (
                     <img className="admin-catalog-item-img" src={cat.imagemUrl} alt="" loading="lazy" decoding="async" />
                   ) : (
@@ -351,6 +449,15 @@ export default function PizzaCategoriasPanel() {
                   )}
                   <div className="admin-catalog-item-main">
                     <div className="admin-item-title">{cat.nomePublico || 'Sem nome'}</div>
+                    {faixa ? (
+                      <button
+                        type="button"
+                        className="admin-faixa-badge"
+                        onClick={() => openEditFaixaModal(faixa)}
+                      >
+                        Seção no cardápio: {faixa.nome}
+                      </button>
+                    ) : null}
                     <div className="admin-item-desc">{cat.descricao || '—'}</div>
                     <div className="admin-catalog-item-tags">
                       <span>{cat.saborIds?.length || 0} sabores</span>
@@ -375,6 +482,34 @@ export default function PizzaCategoriasPanel() {
                     <button type="button" className="admin-link-btn" onClick={() => openEditCategoria(cat)}>
                       Editar
                     </button>
+                    {faixa ? (
+                      <button
+                        type="button"
+                        className="admin-link-btn"
+                        onClick={() =>
+                          persistFaixas(
+                            removeMemberFromFaixas(faixasExibicao, cat.id),
+                            'Categoria removida da seção.'
+                          )
+                        }
+                      >
+                        Remover da seção
+                      </button>
+                    ) : null}
+                    {faixa ? (
+                      <button
+                        type="button"
+                        className="admin-link-btn"
+                        onClick={() =>
+                          persistFaixas(
+                            removeFaixaExibicao(faixasExibicao, faixa.id),
+                            'Seção desagrupada.'
+                          )
+                        }
+                      >
+                        Desagrupar seção
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       className="admin-link-btn"
@@ -392,6 +527,21 @@ export default function PizzaCategoriasPanel() {
           <div className="admin-empty-catalog">Nenhuma categoria cadastrada.</div>
         )}
       </div>
+
+      <AdminFaixaModal
+        open={Boolean(faixaModal)}
+        mode={faixaModal?.mode || 'create'}
+        title={faixaModal?.mode === 'edit' ? 'Editar seção do cardápio' : 'Agrupar categorias'}
+        initialNome={faixaModal?.nome || ''}
+        initialLayout={faixaModal?.layout || CATEGORY_LAYOUT_DEFAULT}
+        initialMemberIds={faixaModal?.membroIds || []}
+        categories={categorias}
+        getCategoryId={(cat) => cat.id}
+        getCategoryLabel={(cat) => cat.nomePublico || 'Sem nome'}
+        confirmLabel={faixaModal?.mode === 'edit' ? 'Salvar seção' : 'Agrupar'}
+        onClose={() => setFaixaModal(null)}
+        onConfirm={confirmFaixaModal}
+      />
 
       {draft ? (
         <PizzaEditorShell
