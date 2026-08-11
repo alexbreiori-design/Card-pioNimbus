@@ -6,7 +6,7 @@ import LandingAmbient from '@/components/landing/LandingAmbient';
 import LandingFaq from '@/components/landing/LandingFaq';
 import LandingFeaturesSection from '@/components/landing/LandingFeaturesSection';
 import LandingHeader from '@/components/landing/LandingHeader';
-import LandingReveal from '@/components/landing/LandingReveal';
+import LandingReveal, { LandingRevealGroup } from '@/components/landing/LandingReveal';
 import LandingScene from '@/components/landing/LandingScene';
 import LandingHeroDemo from '@/components/landing/LandingHeroDemo';
 import LandingHeroTitle from '@/components/landing/LandingHeroTitle';
@@ -38,38 +38,28 @@ export default function LandingPage() {
         <LandingScene id="topo" className="landing-hero-scene">
           <div className="landing-container">
             <div className="landing-hero landing-hero--showcase">
-              <div className="landing-hero__copy landing-hero__copy--center">
-                <LandingReveal onLoad delay={0}>
-                  <p className="landing-kicker">{landingHero.kicker}</p>
-                </LandingReveal>
-                <LandingReveal onLoad delay={90}>
-                  <LandingHeroTitle
-                    before={landingHero.titleBefore}
-                    after={landingHero.titleAfter}
-                    words={landingHero.titleWords}
+              <LandingRevealGroup step={240} onLoad>
+                <div className="landing-hero__copy landing-hero__copy--center">
+                  <LandingReveal>
+                    <LandingHeroTitle
+                      before={landingHero.titleBefore}
+                      after={landingHero.titleAfter}
+                      words={landingHero.titleWords}
+                    />
+                  </LandingReveal>
+                  <LandingReveal>
+                    <p className="landing-lead landing-lead--showcase">{landingHero.lead}</p>
+                  </LandingReveal>
+                </div>
+
+                <LandingReveal className="landing-hero__demo-wrap">
+                  <LandingHeroDemo
+                    calloutTitle={landingHero.calloutTitle}
+                    calloutSub={landingHero.calloutSub}
+                    closeLabel={landingHero.demoClose}
                   />
                 </LandingReveal>
-                <LandingReveal onLoad delay={180}>
-                  <p className="landing-lead landing-lead--showcase">{landingHero.lead}</p>
-                </LandingReveal>
-              </div>
-
-              <LandingReveal onLoad delay={220} className="landing-hero__demo-wrap">
-                <LandingHeroDemo
-                  calloutTitle={landingHero.calloutTitle}
-                  calloutSub={landingHero.calloutSub}
-                  closeLabel={landingHero.demoClose}
-                />
-              </LandingReveal>
-
-              <LandingReveal onLoad delay={300} className="landing-hero__actions landing-hero__actions--center landing-hero__actions--below">
-                <WhatsAppButton className="landing-btn landing-btn--primary landing-btn--lg landing-interactive">
-                  Quero meu cardápio
-                </WhatsAppButton>
-                <a href="#proposito" className="landing-btn landing-btn--soft landing-btn--lg landing-interactive">
-                  Ver como funciona
-                </a>
-              </LandingReveal>
+              </LandingRevealGroup>
             </div>
           </div>
         </LandingScene>
@@ -88,12 +78,12 @@ export default function LandingPage() {
 
         <LandingScene id="faq" className="landing-section-scene">
           <div className="landing-container landing-faq-wrap">
-            <LandingReveal delay={0} className="landing-section-head landing-section-head--center">
-              <h2 className="landing-section-title">Perguntas frequentes</h2>
-            </LandingReveal>
-            <LandingReveal delay={80}>
+            <LandingRevealGroup step={160}>
+              <LandingReveal className="landing-section-head landing-section-head--center">
+                <h2 className="landing-section-title">Perguntas frequentes</h2>
+              </LandingReveal>
               <LandingFaq items={landingFaq} />
-            </LandingReveal>
+            </LandingRevealGroup>
           </div>
         </LandingScene>
       </main>
