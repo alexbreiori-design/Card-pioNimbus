@@ -22,7 +22,7 @@ const APEX_RESERVED_SEGMENTS = new Set([
   'rota',
 ]);
 
-const PASSTHROUGH_PREFIXES = ['/api', '/_next'];
+const PASSTHROUGH_PREFIXES = ['/api', '/_next', '/monitoring'];
 
 function shouldPassthrough(pathname) {
   return PASSTHROUGH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
@@ -94,6 +94,6 @@ export async function proxy(request) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|mp3|woff2?)$).*)',
+    '/((?!monitoring|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|mp3|woff2?)$).*)',
   ],
 };
