@@ -4,9 +4,10 @@ import { useCardapio } from '@/context/CardapioContext';
 import MenuImageArea from '@/components/cardapio/MenuImageArea';
 import ProductPromoChip from '@/components/cardapio/ProductPromoChip';
 
-export default function CardapioProductCardV2List({ product, layout = 'rail' }) {
+export default function CardapioProductCardV2List({ product, layout = 'rail', variant = '' }) {
   const { addProductFromCard, formatPrice } = useCardapio();
   const isPromo = product.isPromocao && product.promoOriginalPrice > product.price;
+  const isListaLarga = variant === 'lista-larga';
 
   function handleOpen() {
     addProductFromCard(product.id);
@@ -26,7 +27,7 @@ export default function CardapioProductCardV2List({ product, layout = 'rail' }) 
 
   return (
     <article
-      className={`cardapio-v2-product-card-list${layout === 'grid' ? ' is-grid' : ''}`}
+      className={`cardapio-v2-product-card-list${layout === 'grid' ? ' is-grid' : ''}${isListaLarga ? ' is-lista-larga' : ''}`}
       onClick={handleOpen}
       onKeyDown={handleKeyDown}
       role="button"
@@ -37,7 +38,7 @@ export default function CardapioProductCardV2List({ product, layout = 'rail' }) 
           imageUrl={product.imageUrl}
           className="cardapio-v2-product-card-list-media"
           alt={product.name}
-          sizes="120px"
+          sizes={isListaLarga ? '(max-width: 1100px) 42vw, 280px' : '120px'}
         />
         {isPromo ? (
           <ProductPromoChip originalPrice={product.promoOriginalPrice} promoPrice={product.price} />

@@ -3,13 +3,16 @@
 import { CATEGORY_LAYOUT_OPTIONS } from '@/lib/cardapio/categoryLayouts';
 
 function LayoutPreview({ layoutId }) {
-  if (layoutId === 'lista') {
+  if (layoutId === 'lista' || layoutId === 'lista-1') {
     return (
-      <span className="admin-category-layout-preview is-lista" aria-hidden="true">
+      <span
+        className={`admin-category-layout-preview is-lista${layoutId === 'lista-1' ? ' is-lista-1' : ''}`}
+        aria-hidden="true"
+      >
         <span />
         <span />
-        <span />
-        <span />
+        {layoutId === 'lista' ? <span /> : null}
+        {layoutId === 'lista' ? <span /> : null}
       </span>
     );
   }

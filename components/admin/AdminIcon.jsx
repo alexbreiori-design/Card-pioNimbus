@@ -82,6 +82,16 @@ export default function AdminIcon({ name, className = '' }) {
         <rect x="13" y="13" width="6" height="6" rx="1.5" />
       </>
     ),
+    layoutList: (
+      <>
+        <path d="M8 6h13" />
+        <path d="M8 12h13" />
+        <path d="M8 18h13" />
+        <path d="M3 6h.01" />
+        <path d="M3 12h.01" />
+        <path d="M3 18h.01" />
+      </>
+    ),
     customer: (
       <>
         <path d="M18 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />

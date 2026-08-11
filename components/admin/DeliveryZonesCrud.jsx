@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import AdminAvailabilitySwitch from '@/components/admin/AdminAvailabilitySwitch';
 import { AdminListSkeleton } from '@/components/admin/AdminSkeleton';
+import DeliveryZoneModal from '@/components/admin/delivery/DeliveryZoneModal';
 import { useAdminToast } from '@/context/AdminToastContext';
+import {
+  listAreasExclusaoByEmpresaId,
+  syncAreasExclusao,
+} from '@/lib/supabase/areasExclusao';
 import {
   createZona,
   deleteZona,
@@ -16,21 +21,6 @@ function moneyToInput(value) {
   return String(value).replace('.', ',');
 }
 
-function inputToMoney(value) {
-  const parsed = Number(
-    String(value || '')
-      .replace(/[^\d,.-]/g, '')
-      .replace(/\./g, '')
-      .replace(',', '.')
-  );
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function inputToRaio(value) {
-  const parsed = Number(String(value || '').replace(',', '.'));
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
 function formatCurrency(value) {
   return Number(value || 0).toLocaleString('pt-BR', {
     style: 'currency',
@@ -39,27 +29,39 @@ function formatCurrency(value) {
 }
 
 function emptyDraft() {
-  return { nome: '', raio_km: '', taxa_entrega: '' };
+  return { nome: '', raio_km: '3', taxa_entrega: '' };
 }
 
-export default function DeliveryZonesCrud({ empresaId }) {
+export default function DeliveryZonesCrud({
+  empresaId,
+  storeLat = null,
+  storeLng = null,
+  storeLabel = 'Loja',
+}) {
   const [areas, setAreas] = useState([]);
+  const [exclusions, setExclusions] = useState([]);
   const [loading, setLoading] = useState(true);
   const toast = useAdminToast();
   const [draft, setDraft] = useState(emptyDraft());
   const [editingId, setEditingId] = useState(null);
-  const [formOpen, setFormOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     if (!empresaId) {
       setAreas([]);
+      setExclusions([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      const rows = await listZonasByEmpresaId(empresaId);
-      setAreas(rows);
+      const [zoneRows, exclusionRows] = await Promise.all([
+        listZonasByEmpresaId(empresaId),
+        listAreasExclusaoByEmpresaId(empresaId).catch(() => []),
+      ]);
+      setAreas(zoneRows);
+      setExclusions(exclusionRows);
     } catch (e) {
       toast.error(e?.message || 'Erro ao carregar áreas.');
     } finally {
@@ -71,48 +73,59 @@ export default function DeliveryZonesCrud({ empresaId }) {
     load();
   }, [load]);
 
-  function resetForm() {
+  function resetModal() {
     setDraft(emptyDraft());
     setEditingId(null);
-    setFormOpen(false);
+    setModalOpen(false);
+    setSaving(false);
   }
 
   function openNewForm() {
     setDraft(emptyDraft());
     setEditingId(null);
-    setFormOpen(true);
+    setModalOpen(true);
   }
 
-  async function handleSave(e) {
-    e.preventDefault();
+  function startEdit(area) {
+    setEditingId(area.id);
+    setDraft({
+      nome: area.nome,
+      raio_km: String(area.raio_km ?? ''),
+      taxa_entrega: moneyToInput(area.taxa_entrega),
+    });
+    setModalOpen(true);
+  }
+
+  async function handleSave(payload) {
     if (!empresaId) return;
-    const payload = {
-      nome: draft.nome.trim(),
-      raio_km: inputToRaio(draft.raio_km),
-      taxa_entrega: inputToMoney(draft.taxa_entrega),
-      ativo: true,
-      ordem: areas.length,
-    };
-    if (!payload.nome || payload.raio_km <= 0) {
-      toast.error('Informe nome e raio (km) válidos.');
-      return;
-    }
+    setSaving(true);
     try {
+      const { exclusoes = [], ...zonePayload } = payload;
       if (editingId) {
         const current = areas.find((a) => a.id === editingId);
         await updateZona(editingId, {
-          ...payload,
+          ...zonePayload,
           ativo: current?.ativo !== false,
           ordem: current?.ordem ?? 0,
         });
       } else {
-        await createZona(empresaId, payload);
+        await createZona(empresaId, {
+          ...zonePayload,
+          ativo: true,
+          ordem: areas.length,
+        });
       }
-      resetForm();
+
+      const previousIds = exclusions.map((item) => item.id).filter(Boolean);
+      const savedExclusions = await syncAreasExclusao(empresaId, exclusoes, previousIds);
+      setExclusions(savedExclusions);
+
+      resetModal();
       await load();
       toast.success(editingId ? 'Área atualizada.' : 'Área cadastrada.');
     } catch (err) {
       toast.error(err?.message || 'Erro ao salvar área.');
+      setSaving(false);
     }
   }
 
@@ -129,21 +142,11 @@ export default function DeliveryZonesCrud({ empresaId }) {
     if (!window.confirm('Remover esta área de entrega?')) return;
     try {
       await deleteZona(id);
-      if (editingId === id) resetForm();
+      if (editingId === id) resetModal();
       await load();
     } catch (e) {
       toast.error(e?.message || 'Erro ao remover área.');
     }
-  }
-
-  function startEdit(area) {
-    setEditingId(area.id);
-    setDraft({
-      nome: area.nome,
-      raio_km: String(area.raio_km ?? ''),
-      taxa_entrega: moneyToInput(area.taxa_entrega),
-    });
-    setFormOpen(true);
   }
 
   if (!empresaId) {
@@ -158,57 +161,13 @@ export default function DeliveryZonesCrud({ empresaId }) {
     <div className="admin-delivery-areas">
       <div className="admin-delivery-areas-toolbar">
         <p className="admin-help-text admin-delivery-areas-hint">
-          Cadastre áreas com raio em km e taxa. O sistema usa a menor área que cobrir a distância do cliente.
+          Cadastre áreas com raio em km e taxa. Use exclusões no mapa para bloquear regiões mesmo
+          dentro do raio.
         </p>
         <button type="button" className="admin-btn admin-btn-primary" onClick={openNewForm}>
           + Nova área
         </button>
       </div>
-
-      {formOpen ? (
-        <form className="admin-delivery-area-form admin-card" onSubmit={handleSave}>
-          <h3 className="admin-delivery-area-form-title">
-            {editingId ? 'Editar área' : 'Nova área de entrega'}
-          </h3>
-          <div className="admin-delivery-zone-form-grid">
-            <div className="admin-form-group">
-              <label className="admin-label">Nome da área</label>
-              <input
-                className="admin-input"
-                value={draft.nome}
-                onChange={(e) => setDraft((d) => ({ ...d, nome: e.target.value }))}
-                placeholder="Ex: Centro"
-              />
-            </div>
-            <div className="admin-form-group">
-              <label className="admin-label">Raio máximo (km)</label>
-              <input
-                className="admin-input"
-                value={draft.raio_km}
-                onChange={(e) => setDraft((d) => ({ ...d, raio_km: e.target.value }))}
-                placeholder="3"
-              />
-            </div>
-            <div className="admin-form-group">
-              <label className="admin-label">Taxa de entrega</label>
-              <input
-                className="admin-input"
-                value={draft.taxa_entrega}
-                onChange={(e) => setDraft((d) => ({ ...d, taxa_entrega: e.target.value }))}
-                placeholder="R$ 4,25"
-              />
-            </div>
-          </div>
-          <div className="admin-delivery-area-form-actions">
-            <button type="button" className="admin-btn" onClick={resetForm}>
-              Cancelar
-            </button>
-            <button type="submit" className="admin-btn admin-btn-primary">
-              {editingId ? 'Salvar alterações' : 'Cadastrar área'}
-            </button>
-          </div>
-        </form>
-      ) : null}
 
       {loading ? (
         <AdminListSkeleton rows={3} />
@@ -248,6 +207,19 @@ export default function DeliveryZonesCrud({ empresaId }) {
           ))}
         </div>
       )}
+
+      <DeliveryZoneModal
+        open={modalOpen}
+        onClose={resetModal}
+        onSave={handleSave}
+        initialDraft={draft}
+        initialExclusions={exclusions}
+        editing={Boolean(editingId)}
+        storeLat={storeLat}
+        storeLng={storeLng}
+        storeLabel={storeLabel}
+        saving={saving}
+      />
     </div>
   );
 }

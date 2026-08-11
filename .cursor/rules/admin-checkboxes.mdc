@@ -1,0 +1,29 @@
+---
+description: Checkboxes no admin usam o padrão visual do sistema, nunca o nativo do browser
+alwaysApply: true
+---
+
+# Checkboxes no admin
+
+Todo controle de seleção múltipla (checkbox) no admin deve usar o padrão visual do sistema — **nunca** o `<input type="checkbox">` nativo/quadradinho padrão do browser.
+
+## Padrão canônico
+
+Usar a estrutura do check de pizza (já estilizado em `styles/admin.css`):
+
+```jsx
+<label className="admin-pizza-check">
+  <input type="checkbox" checked={checked} onChange={...} />
+  <span className="admin-pizza-check-box" aria-hidden="true" />
+  <span className="admin-pizza-check-label">Rótulo</span>
+</label>
+```
+
+- O `input` fica invisível (`opacity: 0`); o visual é `.admin-pizza-check-box`.
+- Em listas de cards/tiles, preferir `.admin-pizza-check-pill` / `.admin-addon-passo-card` quando já for o padrão da tela.
+- Para marcar/desmarcar em pickers em grid, manter o card selecionado (borda/estado `is-selected`), não um checkbox nativo solto.
+
+## Não fazer
+
+- Colocar `<input type="checkbox">` visível sem o wrapper `.admin-pizza-check` + `.admin-pizza-check-box`.
+- Inventar um checkbox novo com estilo diferente do restante do admin.

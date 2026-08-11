@@ -175,6 +175,26 @@ CREATE TABLE zonas_entrega (
 CREATE INDEX idx_zonas_entrega_empresa ON zonas_entrega (empresa_id);
 
 -- -----------------------------------------------------------------------------
+-- ÁREAS DE EXCLUSÃO DE ENTREGA
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE areas_exclusao_entrega (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  empresa_id UUID NOT NULL REFERENCES empresas (id) ON DELETE CASCADE,
+  nome TEXT NOT NULL DEFAULT 'Exclusão',
+  sul NUMERIC(10, 7) NOT NULL,
+  oeste NUMERIC(10, 7) NOT NULL,
+  norte NUMERIC(10, 7) NOT NULL,
+  leste NUMERIC(10, 7) NOT NULL,
+  ordem INT NOT NULL DEFAULT 0,
+  ativo BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT areas_exclusao_bounds_check CHECK (norte >= sul AND leste >= oeste)
+);
+
+CREATE INDEX idx_areas_exclusao_empresa ON areas_exclusao_entrega (empresa_id);
+
+-- -----------------------------------------------------------------------------
 -- CLIENTES
 -- -----------------------------------------------------------------------------
 
@@ -307,6 +327,7 @@ ALTER TABLE grupo_adicionais ENABLE ROW LEVEL SECURITY;
 ALTER TABLE adicional_itens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE formas_pagamento ENABLE ROW LEVEL SECURITY;
 ALTER TABLE zonas_entrega ENABLE ROW LEVEL SECURITY;
+ALTER TABLE areas_exclusao_entrega ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clientes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cliente_enderecos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pedidos ENABLE ROW LEVEL SECURITY;
@@ -366,6 +387,16 @@ CREATE POLICY formas_pagamento_membro ON formas_pagamento FOR ALL
 CREATE POLICY zonas_entrega_membro ON zonas_entrega FOR ALL
   USING (usuario_pertence_empresa(empresa_id))
   WITH CHECK (usuario_pertence_empresa(empresa_id));
+
+CREATE POLICY areas_exclusao_membro ON areas_exclusao_entrega FOR ALL
+  USING (usuario_pertence_empresa(empresa_id))
+  WITH CHECK (usuario_pertence_empresa(empresa_id));
+
+CREATE POLICY areas_exclusao_publica ON areas_exclusao_entrega FOR SELECT
+  USING (
+    ativo = true
+    AND EXISTS (SELECT 1 FROM empresas e WHERE e.id = empresa_id AND e.aberta = true)
+  );
 
 CREATE POLICY clientes_membro ON clientes FOR ALL
   USING (usuario_pertence_empresa(empresa_id))

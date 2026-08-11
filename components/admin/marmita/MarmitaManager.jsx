@@ -4,10 +4,14 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
+import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog';
+import AdminFaixaModal from '@/components/admin/AdminFaixaModal';
 import AdminIcon from '@/components/admin/AdminIcon';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
-import AdminGroupedSortablePanel from '@/components/admin/AdminGroupedSortablePanel';
+import AdminGroupedSortablePanel, { ADMIN_UNGROUPED_ID } from '@/components/admin/AdminGroupedSortablePanel';
+import ProductAddonPassoModal from '@/components/admin/ProductAddonPassoModal';
 import ImagePlaceholder from '@/components/admin/ImagePlaceholder';
+import { DraggableReorderList } from '@/components/lightswind/draggable-reorder-list';
 import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
@@ -22,6 +26,14 @@ import {
 import MarmitaGrupoEditorModal from '@/components/admin/marmita/MarmitaGrupoEditorModal';
 import { CATEGORY_LAYOUT_DEFAULT } from '@/lib/cardapio/categoryLayouts';
 import {
+  createFaixaFromMembers,
+  findFaixaForMember,
+  removeFaixaExibicao,
+  removeMemberFromFaixas,
+  sanitizeFaixasExibicao,
+  updateFaixaExibicao,
+} from '@/lib/cardapio/faixasExibicao';
+import {
   defaultMarmitaCardapio,
   describeMarmitaCardapioForAdmin,
   normalizeMarmitaCardapio,
@@ -35,6 +47,7 @@ import {
 } from '@/lib/marmita/marmitaPublic';
 import { emptyMarmita, emptyMarmitaGrupo, marmitaUid, normalizeMarmita } from '@/lib/marmita/marmitaModel';
 import { uploadMenuAssetIfNeeded } from '@/lib/upload/menuAsset';
+import { normalizeAddonPasso } from '@/lib/productAddonPassos';
 
 const MAX_IMAGE_SIZE = 900;
 const IMAGE_QUALITY = 0.72;
@@ -128,22 +141,6 @@ function Switch({ checked, onChange, label }) {
   );
 }
 
-function MarmitaCheck({ checked, onChange, label, stacked = false }) {
-  return (
-    <label className={`admin-marmita-check${stacked ? ' is-stacked' : ''}`}>
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-      <span className="admin-marmita-check-box" aria-hidden="true">
-        {checked ? (
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M3.5 8.2 6.4 11l6.1-6.4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        ) : null}
-      </span>
-      <span className="admin-marmita-check-label">{label}</span>
-    </label>
-  );
-}
-
 export default function MarmitaManager() {
   const { data, saveData, activeSlug } = useAdminData();
   const marmitas = data.marmitas || [];
@@ -161,13 +158,26 @@ export default function MarmitaManager() {
   const [formImage, setFormImage] = useState('');
   const [formImageBaseline, setFormImageBaseline] = useState('');
   const [saveError, setSaveError] = useState('');
-  const [ordering, setOrdering] = useState(false);
   const [grupoModal, setGrupoModal] = useState(null);
-  const [collapsedGrupos, setCollapsedGrupos] = useState(() => new Set());
   const [grupoMenuId, setGrupoMenuId] = useState('');
+  const [faixaModal, setFaixaModal] = useState(null);
+  const [passoModalOpen, setPassoModalOpen] = useState(false);
+  const [editingPassoId, setEditingPassoId] = useState('');
+  const [removingPassoId, setRemovingPassoId] = useState('');
+  const [descricaoEditing, setDescricaoEditing] = useState(false);
+  const [descricaoDraft, setDescricaoDraft] = useState('');
+  const [editingTamanhoId, setEditingTamanhoId] = useState('');
   const savedCardapio = useMemo(
     () => normalizeMarmitaCardapio(data.marmitaCardapio),
     [data.marmitaCardapio]
+  );
+  const faixasExibicao = useMemo(
+    () =>
+      sanitizeFaixasExibicao(
+        savedCardapio.faixasExibicao,
+        marmitaGrupos.map((grupo) => grupo.id)
+      ),
+    [savedCardapio.faixasExibicao, marmitaGrupos]
   );
   const [cardapioEditing, setCardapioEditing] = useState(false);
   const [cardapioDraft, setCardapioDraft] = useState(() => defaultMarmitaCardapio());
@@ -280,6 +290,12 @@ export default function MarmitaManager() {
     setEditingId(null);
     setModalOpen(false);
     setSaveError('');
+    setDescricaoEditing(false);
+    setDescricaoDraft('');
+    setEditingTamanhoId('');
+    setPassoModalOpen(false);
+    setEditingPassoId('');
+    setRemovingPassoId('');
   }
 
   const isItemFormDirty = useMemo(() => {
@@ -301,15 +317,6 @@ export default function MarmitaManager() {
     isDirty: isItemFormDirty,
   });
 
-  function toggleGrupoCollapse(grupoId) {
-    setCollapsedGrupos((prev) => {
-      const next = new Set(prev);
-      if (next.has(grupoId)) next.delete(grupoId);
-      else next.add(grupoId);
-      return next;
-    });
-  }
-
   function openNewGrupoModal() {
     setGrupoModal({
       isNew: true,
@@ -329,7 +336,7 @@ export default function MarmitaManager() {
           ...emptyMarmitaGrupo(),
           id: grupoModal.id,
           nome,
-          icone: grupoModal.icone || 'combo',
+          icone: 'marmita',
           ordem: (prev.marmitaGrupos || []).length,
           permitirDiasDuplicados: grupoModal.permitirDiasDuplicados === true,
           exibicaoCardapio: grupoModal.exibicaoCardapio || CATEGORY_LAYOUT_DEFAULT,
@@ -345,7 +352,7 @@ export default function MarmitaManager() {
       isNew: false,
       id: grupo.id,
       nome: grupo.nome,
-      icone: grupo.icone || 'combo',
+      icone: 'marmita',
       permitirDiasDuplicados: grupo.permitirDiasDuplicados === true,
       exibicaoCardapio: grupo.exibicaoCardapio || CATEGORY_LAYOUT_DEFAULT,
     });
@@ -366,7 +373,7 @@ export default function MarmitaManager() {
     const previous = marmitaGrupos.find((row) => row.id === grupoModal.id);
     const permitirDiasDuplicados = grupoModal.permitirDiasDuplicados === true;
     const exibicaoCardapio = grupoModal.exibicaoCardapio || CATEGORY_LAYOUT_DEFAULT;
-    const icone = grupoModal.icone || 'combo';
+    const icone = 'marmita';
     const disablingDuplicates =
       previous?.permitirDiasDuplicados === true && !permitirDiasDuplicados;
 
@@ -408,14 +415,104 @@ export default function MarmitaManager() {
     if (grupo.id === '__sem_grupo__' || grupo.id === '__all__') return;
     const confirmed = window.confirm(`Remover o grupo "${grupo.nome}"? As marmitas ficarão sem grupo.`);
     if (!confirmed) return;
-    await saveData((prev) => ({
-      ...prev,
-      marmitaGrupos: (prev.marmitaGrupos || []).filter((row) => row.id !== grupo.id),
-      marmitas: (prev.marmitas || []).map((row) =>
-        row.grupoId === grupo.id ? { ...row, grupoId: '' } : row
-      ),
-    }));
+    await saveData((prev) => {
+      const cardapio = normalizeMarmitaCardapio(prev.marmitaCardapio);
+      return {
+        ...prev,
+        marmitaGrupos: (prev.marmitaGrupos || []).filter((row) => row.id !== grupo.id),
+        marmitas: (prev.marmitas || []).map((row) =>
+          row.grupoId === grupo.id ? { ...row, grupoId: '' } : row
+        ),
+        marmitaCardapio: {
+          ...cardapio,
+          faixasExibicao: removeMemberFromFaixas(cardapio.faixasExibicao, grupo.id),
+        },
+      };
+    });
     setGrupoMenuId('');
+  }
+
+  function openCreateFaixaModal() {
+    if (grupos.length < 2) {
+      toast.error('Cadastre ao menos dois grupos para agrupar.');
+      return;
+    }
+    setFaixaModal({
+      mode: 'create',
+      faixaId: null,
+      membroIds: [],
+      nome: '',
+      layout: CATEGORY_LAYOUT_DEFAULT,
+    });
+  }
+
+  function openEditFaixaModal(faixa) {
+    setFaixaModal({
+      mode: 'edit',
+      faixaId: faixa.id,
+      membroIds: [...(faixa.membroIds || [])],
+      nome: faixa.nome,
+      layout: faixa.layout,
+    });
+  }
+
+  function confirmFaixaModal({ nome, layout, membroIds }) {
+    if (!faixaModal) return;
+    const ids = Array.isArray(membroIds) ? membroIds : [];
+    saveData((prev) => {
+      const cardapio = normalizeMarmitaCardapio(prev.marmitaCardapio);
+      const current = sanitizeFaixasExibicao(
+        cardapio.faixasExibicao,
+        (prev.marmitaGrupos || []).map((grupo) => grupo.id)
+      );
+      const cleaned = current.map((faixa) => {
+        if (faixaModal.mode === 'edit' && faixa.id === faixaModal.faixaId) return faixa;
+        return {
+          ...faixa,
+          membroIds: faixa.membroIds.filter((id) => !ids.includes(id)),
+        };
+      });
+      const nextFaixas =
+        faixaModal.mode === 'edit' && faixaModal.faixaId
+          ? updateFaixaExibicao(cleaned, faixaModal.faixaId, {
+              nome,
+              layout,
+              membroIds: ids,
+            })
+          : createFaixaFromMembers({
+              nome,
+              layout,
+              membroIds: ids,
+              existing: cleaned,
+            });
+      return {
+        ...prev,
+        marmitaCardapio: { ...cardapio, faixasExibicao: nextFaixas },
+      };
+    });
+    setFaixaModal(null);
+    toast.success(
+      faixaModal.mode === 'edit' ? 'Seção do cardápio atualizada.' : 'Grupos agrupados no cardápio.'
+    );
+  }
+
+  function patchFaixas(updater, successMsg) {
+    saveData((prev) => {
+      const cardapio = normalizeMarmitaCardapio(prev.marmitaCardapio);
+      const current = sanitizeFaixasExibicao(
+        cardapio.faixasExibicao,
+        (prev.marmitaGrupos || []).map((grupo) => grupo.id)
+      );
+      return {
+        ...prev,
+        marmitaCardapio: {
+          ...cardapio,
+          faixasExibicao: updater(current),
+        },
+      };
+    }).then(() => {
+      if (successMsg) toast.success(successMsg);
+    });
   }
 
   async function duplicateGrupo(grupo) {
@@ -465,7 +562,10 @@ export default function MarmitaManager() {
   }
 
   async function saveCardapioSettings() {
-    const payload = normalizeMarmitaCardapio(cardapioDraft);
+    const payload = normalizeMarmitaCardapio({
+      ...cardapioDraft,
+      faixasExibicao: savedCardapio.faixasExibicao,
+    });
     if (
       payload.vincularHorario &&
       payload.continuarModo === 'depois' &&
@@ -634,7 +734,7 @@ export default function MarmitaManager() {
   function renderMarmitaRow(item) {
     const activeSizes = item.tamanhos.filter((tam) => tam.ativo !== false);
     return (
-      <div key={item.id} className="admin-catalog-item-row admin-marmita-item-row">
+      <div className="admin-catalog-item-row admin-marmita-item-row admin-grouped-sort-browse-item">
         <button
           type="button"
           className="admin-marmita-item-media-btn"
@@ -707,6 +807,9 @@ export default function MarmitaManager() {
     setEditingId(null);
     setModalOpen(true);
     setSaveError('');
+    setDescricaoEditing(false);
+    setDescricaoDraft('');
+    setEditingTamanhoId('');
   }
 
   function openEdit(item) {
@@ -726,6 +829,9 @@ export default function MarmitaManager() {
     setEditingId(item.id);
     setModalOpen(true);
     setSaveError('');
+    setDescricaoEditing(false);
+    setDescricaoDraft('');
+    setEditingTamanhoId('');
   }
 
   function updateForm(patch) {
@@ -736,6 +842,40 @@ export default function MarmitaManager() {
       }
       return next;
     });
+  }
+
+  const editingPasso = useMemo(
+    () => (form.passos || []).find((passo) => passo.id === editingPassoId) || null,
+    [form.passos, editingPassoId]
+  );
+
+  function toMarmitaPasso(passo, ordem) {
+    const normalized = normalizeAddonPasso(passo, ordem);
+    return {
+      id: normalized.id,
+      titulo: normalized.titulo,
+      categoriaAdicionalId: normalized.categoriaAdicionalId,
+      itemIds: normalized.itemIds,
+      obrigatorio: normalized.obrigatorio,
+      min: normalized.min,
+      max: normalized.max,
+      tipoSelecao: normalized.tipoSelecao,
+      ordem: Number.isFinite(ordem) ? ordem : normalized.ordem,
+    };
+  }
+
+  function addPasso() {
+    setEditingPassoId('');
+    setPassoModalOpen(true);
+  }
+
+  function removePassoById(passoId) {
+    setForm((prev) => ({
+      ...prev,
+      passos: prev.passos
+        .filter((passo) => passo.id !== passoId)
+        .map((passo, ordem) => ({ ...passo, ordem })),
+    }));
   }
 
   function updateTamanho(index, patch) {
@@ -757,66 +897,6 @@ export default function MarmitaManager() {
     });
   }
 
-  function addPasso() {
-    setForm((prev) => ({
-      ...prev,
-      passos: [
-        ...prev.passos,
-        {
-          id: marmitaUid('passo'),
-          titulo: '',
-          categoriaAdicionalId: '',
-          itemIds: [],
-          obrigatorio: true,
-          min: 1,
-          max: 1,
-          tipoSelecao: 'simples',
-          ordem: prev.passos.length,
-        },
-      ],
-    }));
-  }
-
-  function updatePasso(index, patch) {
-    setForm((prev) => ({
-      ...prev,
-      passos: prev.passos.map((passo, idx) => (idx === index ? { ...passo, ...patch } : passo)),
-    }));
-  }
-
-  function togglePassoItem(index, itemId) {
-    setForm((prev) => ({
-      ...prev,
-      passos: prev.passos.map((passo, idx) => {
-        if (idx !== index) return passo;
-        const current = new Set(passo.itemIds || []);
-        if (current.has(itemId)) current.delete(itemId);
-        else current.add(itemId);
-        return { ...passo, itemIds: [...current] };
-      }),
-    }));
-  }
-
-  function removePasso(index) {
-    setForm((prev) => ({
-      ...prev,
-      passos: prev.passos
-        .filter((_, idx) => idx !== index)
-        .map((passo, ordem) => ({ ...passo, ordem })),
-    }));
-  }
-
-  function movePasso(index, direction) {
-    setForm((prev) => {
-      const next = [...prev.passos];
-      const target = index + direction;
-      if (target < 0 || target >= next.length) return prev;
-      const [moved] = next.splice(index, 1);
-      next.splice(target, 0, moved);
-      return { ...prev, passos: next.map((passo, ordem) => ({ ...passo, ordem })) };
-    });
-  }
-
   async function handleSave(event) {
     event.preventDefault();
     setSaveError('');
@@ -825,7 +905,7 @@ export default function MarmitaManager() {
     const nomePublico = String(form.nomePublico || '').trim();
 
     if (!tagAdmin) {
-      setSaveError('Informe a tag de controle (ex.: Segunda-feira).');
+      setSaveError('Informe o nome interno (ex.: Segunda-feira).');
       return;
     }
     if (!nomePublico) {
@@ -1047,6 +1127,11 @@ export default function MarmitaManager() {
 
       <div className="admin-catalog-top-row admin-marmita-top-row">
         <div className="admin-catalog-top-actions">
+          {grupos.length >= 2 ? (
+            <button type="button" className="admin-btn admin-btn-ghost" onClick={openCreateFaixaModal}>
+              Agrupar categorias
+            </button>
+          ) : null}
           <button
             type="button"
             className="admin-btn admin-btn-ghost"
@@ -1055,128 +1140,157 @@ export default function MarmitaManager() {
             <AdminIcon name="plus" />
             Novo grupo
           </button>
-          <button type="button" className="admin-catalog-order-btn" onClick={() => setOrdering((value) => !value)}>
-            <AdminIcon name="sort" />
-            {ordering ? 'Voltar' : 'Ordenar'}
-          </button>
         </div>
       </div>
 
-      {ordering ? (
-        <div className="admin-card admin-sortable-panel">
-          <AdminGroupedSortablePanel
-            groups={grupos}
-            items={marmitas}
-            groupIdKey="grupoId"
-            includeUngroupedSection={grupos.length > 0 && filteredMarmitas.some((item) => !item.grupoId)}
-            ungroupedLabel="Sem grupo"
-            onGroupsReorder={(next) => saveData((prev) => ({ ...prev, marmitaGrupos: next }))}
-            onItemsChange={handleMarmitasReorder}
-            renderGroupHeader={(grupo, { isExpanded, itemCount }) => (
-              <div className="admin-catalog-title-row admin-grouped-sort-title-row">
+      {!grupos.length && !filteredMarmitas.length ? (
+        <div className="admin-card admin-empty-catalog">Nenhuma marmita cadastrada.</div>
+      ) : (
+        <AdminGroupedSortablePanel
+          browseMode
+          defaultExpandAll
+          groups={grupos}
+          items={filteredMarmitas}
+          groupIdKey="grupoId"
+          includeUngroupedSection={grupos.length > 0 && filteredMarmitas.some((item) => !item.grupoId)}
+          ungroupedLabel="Sem grupo"
+          onGroupsReorder={(next) => saveData((prev) => ({ ...prev, marmitaGrupos: next }))}
+          onItemsChange={handleMarmitasReorder}
+          renderGroupHeader={(grupo, { isExpanded, onToggle }) => {
+            const isRealGrupo =
+              grupo.id !== ADMIN_UNGROUPED_ID && grupo.id !== '__sem_grupo__' && grupo.id !== '__all__';
+            const faixa = isRealGrupo ? findFaixaForMember(faixasExibicao, grupo.id) : null;
+            return (
+            <div className={`admin-catalog-title-row admin-grouped-sort-title-row${faixa ? ' is-in-faixa' : ''}`}>
+              <button
+                type="button"
+                className="admin-catalog-collapse-btn"
+                onClick={onToggle}
+                aria-expanded={isExpanded}
+              >
                 <span className={`admin-collapse-chevron ${isExpanded ? '' : 'is-collapsed'}`} aria-hidden>
                   ›
                 </span>
-                <h3>{grupo.nome}</h3>
-                <span className="admin-grouped-sort-count">{itemCount}</span>
-              </div>
-            )}
-            renderItemPreview={(item) => (
-              <div className="admin-grouped-sort-item-preview">
-                {item.imagemUrl ? (
-                  <img className="admin-grouped-sort-item-img" src={item.imagemUrl} alt="" />
-                ) : (
-                  <ImagePlaceholder size={48} />
-                )}
-                <span className="admin-item-title admin-marmita-order-item-title">
-                  <span className="admin-marmita-weekday">{getMarmitaWeekdayLabel(item.diaSemana)}</span>
-                  <span className="admin-marmita-title-sep">—</span>
-                  <span>{item.tagAdmin || item.nomePublico}</span>
-                </span>
-              </div>
-            )}
-          />
-        </div>
-      ) : !grupos.length && !filteredMarmitas.length ? (
-        <div className="admin-card admin-empty-catalog">Nenhuma marmita cadastrada.</div>
-      ) : (
-        groupedSections.map((grupo) => (
-          <div key={grupo.id} className="admin-card admin-catalog-card admin-marmita-list-card">
-            <div className="admin-catalog-header-bar">
-              <div className="admin-catalog-title-row">
+                <h3>{grupo.id === ADMIN_UNGROUPED_ID ? 'Sem grupo' : grupo.nome}</h3>
+              </button>
+              {faixa ? (
                 <button
                   type="button"
-                  className="admin-catalog-collapse-btn"
-                  onClick={() => toggleGrupoCollapse(grupo.id)}
-                  aria-expanded={!collapsedGrupos.has(grupo.id)}
+                  className="admin-faixa-badge"
+                  onClick={() => openEditFaixaModal(faixa)}
                 >
-                  <span
-                    className={`admin-collapse-chevron ${collapsedGrupos.has(grupo.id) ? 'is-collapsed' : ''}`}
-                    aria-hidden
-                  >
-                    ›
-                  </span>
-                  <h3>{grupo.nome}</h3>
+                  Seção: {faixa.nome}
                 </button>
-                {grupo.id !== '__sem_grupo__' && grupo.id !== '__all__' ? (
-                  <>
-                    <span>Ativo</span>
-                    <Switch
-                      checked={grupo.ativo !== false}
-                      label={`Alterar disponibilidade do grupo ${grupo.nome}`}
-                      onChange={() => toggleGrupoAtivo(grupo)}
-                    />
-                  </>
-                ) : null}
-              </div>
-              {grupo.id !== '__sem_grupo__' && grupo.id !== '__all__' ? (
-                <div className="admin-category-actions">
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn-ghost"
-                    onClick={() => openNew(grupo.id)}
-                  >
-                    <AdminIcon name="plus" />
-                    Novo item
-                  </button>
-                  <div className="admin-category-menu-wrap">
-                    <button
-                      type="button"
-                      className="admin-kebab-btn"
-                      aria-label={`Opções do grupo ${grupo.nome}`}
-                      onClick={() => setGrupoMenuId((id) => (id === grupo.id ? '' : grupo.id))}
-                    >
-                      <span />
-                      <span />
-                      <span />
-                    </button>
-                    {grupoMenuId === grupo.id ? (
-                      <div className="admin-floating-menu">
-                        <button type="button" onClick={() => openEditGrupo(grupo)}>
-                          Editar grupo
-                        </button>
-                        <button type="button" onClick={() => duplicateGrupo(grupo)}>
-                          Duplicar com marmitas
-                        </button>
-                        <button type="button" className="danger" onClick={() => removeGrupo(grupo)}>
-                          Remover grupo
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
+              ) : null}
+              {isRealGrupo ? (
+                <>
+                  <span>Ativo</span>
+                  <Switch
+                    checked={grupo.ativo !== false}
+                    label={`Alterar disponibilidade do grupo ${grupo.nome}`}
+                    onChange={() => toggleGrupoAtivo(grupo)}
+                  />
+                </>
               ) : null}
             </div>
-            {!collapsedGrupos.has(grupo.id) ? (
-              grupo.items.length ? (
-                grupo.items.map((item) => renderMarmitaRow(item))
-              ) : (
-                <div className="admin-empty-catalog">Nenhuma marmita neste grupo.</div>
-              )
-            ) : null}
-          </div>
-        ))
+            );
+          }}
+          renderGroupActions={(grupo) => {
+            const isRealGrupo =
+              grupo.id !== ADMIN_UNGROUPED_ID && grupo.id !== '__sem_grupo__' && grupo.id !== '__all__';
+            if (!isRealGrupo) return null;
+            const faixa = findFaixaForMember(faixasExibicao, grupo.id);
+            return (
+              <div className="admin-category-actions">
+                <button type="button" className="admin-btn admin-btn-ghost" onClick={() => openNew(grupo.id)}>
+                  <AdminIcon name="plus" />
+                  Novo item
+                </button>
+                <div className="admin-category-menu-wrap">
+                  <button
+                    type="button"
+                    className="admin-kebab-btn"
+                    aria-label={`Opções do grupo ${grupo.nome}`}
+                    onClick={() => setGrupoMenuId((id) => (id === grupo.id ? '' : grupo.id))}
+                  >
+                    <span />
+                    <span />
+                    <span />
+                  </button>
+                  {grupoMenuId === grupo.id ? (
+                    <div className="admin-floating-menu">
+                      <button type="button" onClick={() => openEditGrupo(grupo)}>
+                        Editar grupo
+                      </button>
+                      {faixa ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            openEditFaixaModal(faixa);
+                            setGrupoMenuId('');
+                          }}
+                        >
+                          Editar seção do cardápio
+                        </button>
+                      ) : null}
+                      {faixa ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            patchFaixas(
+                              (current) => removeMemberFromFaixas(current, grupo.id),
+                              'Grupo removido da seção.'
+                            );
+                            setGrupoMenuId('');
+                          }}
+                        >
+                          Remover da seção
+                        </button>
+                      ) : null}
+                      {faixa ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            patchFaixas(
+                              (current) => removeFaixaExibicao(current, faixa.id),
+                              'Seção desagrupada.'
+                            );
+                            setGrupoMenuId('');
+                          }}
+                        >
+                          Desagrupar seção
+                        </button>
+                      ) : null}
+                      <button type="button" onClick={() => duplicateGrupo(grupo)}>
+                        Duplicar com marmitas
+                      </button>
+                      <button type="button" className="danger" onClick={() => removeGrupo(grupo)}>
+                        Remover grupo
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            );
+          }}
+          renderItemPreview={(item) => renderMarmitaRow(item)}
+        />
       )}
+
+      <AdminFaixaModal
+        open={Boolean(faixaModal)}
+        mode={faixaModal?.mode || 'create'}
+        title={faixaModal?.mode === 'edit' ? 'Editar seção do cardápio' : 'Agrupar categorias'}
+        initialNome={faixaModal?.nome || ''}
+        initialLayout={faixaModal?.layout || CATEGORY_LAYOUT_DEFAULT}
+        initialMemberIds={faixaModal?.membroIds || []}
+        categories={grupos}
+        getCategoryId={(grupo) => grupo.id}
+        getCategoryLabel={(grupo) => grupo.nome}
+        confirmLabel={faixaModal?.mode === 'edit' ? 'Salvar seção' : 'Agrupar'}
+        onClose={() => setFaixaModal(null)}
+        onConfirm={confirmFaixaModal}
+      />
 
       {modalOpen ? (
         <>
@@ -1187,6 +1301,7 @@ export default function MarmitaManager() {
           onClick={overlayClick}
         >
           <div className="product-popup admin-product-popup admin-marmita-popup" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-product-popup-main">
             <div className="popup-details-col admin-item-form-col">
               <div className="popup-header admin-item-popup-header">
                 <div className="admin-modal-title-row">
@@ -1198,7 +1313,7 @@ export default function MarmitaManager() {
                       {editingId ? 'Editando marmita' : 'Nova marmita'}
                     </div>
                     <div className="popup-header-desc">
-                      Tag para organização interna e nome que o cliente vê no cardápio.
+                      Nome interno para organização e nome externo que o cliente vê no cardápio.
                     </div>
                   </div>
                 </div>
@@ -1212,12 +1327,14 @@ export default function MarmitaManager() {
                 </div>
               </div>
 
-              <form className="popup-body admin-item-popup-body" onSubmit={handleSave}>
+              <form id="admin-marmita-item-form" className="popup-body admin-item-popup-body" onSubmit={handleSave}>
                 {saveError ? <div className="admin-error">{saveError}</div> : null}
 
                 <div className="admin-catalog-form-grid">
                   <div className="admin-form-group">
-                    <label className="admin-label">Tag (só no admin)</label>
+                    <label className="admin-label">
+                      Nome interno <span className="admin-label-hint">(só pra você)</span>
+                    </label>
                     <input
                       className="admin-input"
                       value={form.tagAdmin}
@@ -1227,7 +1344,10 @@ export default function MarmitaManager() {
                     />
                   </div>
                   <div className="admin-form-group">
-                    <label className="admin-label">Nome no cardápio público</label>
+                    <label className="admin-label">
+                      Nome externo{' '}
+                      <span className="admin-label-hint">(como aparece para o cliente)</span>
+                    </label>
                     <input
                       className="admin-input"
                       value={form.nomePublico}
@@ -1251,7 +1371,9 @@ export default function MarmitaManager() {
                     </select>
                   </div>
                   <div className="admin-form-group">
-                    <label className="admin-label">Grupo (só no admin)</label>
+                    <label className="admin-label">
+                      Grupos <span className="admin-label-hint">(só pra você)</span>
+                    </label>
                     <select
                       className="admin-input"
                       value={form.grupoId}
@@ -1265,290 +1387,190 @@ export default function MarmitaManager() {
                       ))}
                     </select>
                   </div>
-                  <div className="admin-form-group admin-marmita-vitrine-field">
-                    <MarmitaCheck
-                      checked={form.vitrine === true}
-                      label="Vitrine de preços (exibir quando não houver cardápio do dia)"
-                      onChange={(checked) => updateForm({ vitrine: checked })}
-                    />
+                </div>
+
+                <div className="admin-form-group admin-form-full admin-product-descricao-block">
+                  <div className="admin-order-collapsed-head">
+                    <label className="admin-label">Descrição</label>
+                    {!descricaoEditing ? (
+                      <button
+                        type="button"
+                        className="admin-link-btn"
+                        onClick={() => {
+                          setDescricaoDraft(form.descricao || '');
+                          setDescricaoEditing(true);
+                        }}
+                      >
+                        {form.descricao?.trim() ? 'Editar' : 'Adicionar'}
+                      </button>
+                    ) : null}
                   </div>
-                </div>
-
-                <div className="admin-form-group">
-                  <label className="admin-label">Descrição</label>
-                  <textarea
-                    className="admin-input"
-                    rows={3}
-                    value={form.descricao}
-                    onChange={(e) => updateForm({ descricao: e.target.value })}
-                    placeholder="Texto exibido em todos os tamanhos."
-                  />
-                </div>
-
-                <section className="admin-marmita-form-section">
-                  <h4>Tamanhos — viram cards no cardápio</h4>
-                  <p className="admin-help-text">
-                    Ex.: &quot;{form.nomePublico || 'Marmita do dia'} — Média&quot; com o preço abaixo.
-                  </p>
-                  <div className="admin-marmita-size-grid">
-                    {form.tamanhos.map((tam, index) => (
-                      <div key={tam.id} className="admin-marmita-size-card">
-                        <input
-                          className="admin-input admin-marmita-size-name"
-                          value={tam.nome}
-                          onChange={(e) => updateTamanho(index, { nome: e.target.value })}
-                          placeholder="Mini"
-                        />
-                        <input
-                          className="admin-input admin-marmita-size-price"
-                          value={precoToFormInput(tam.preco)}
-                          onChange={(e) =>
-                            updateTamanho(index, { preco: formatMoneyBrInput(e.target.value) })
-                          }
-                          placeholder="R$ 0,00"
-                          inputMode="decimal"
-                        />
-                        <MarmitaCheck
-                          stacked
-                          checked={tam.ativo !== false}
-                          label="Ativo"
-                          onChange={(checked) => updateTamanho(index, { ativo: checked })}
-                        />
-                        <button
-                          type="button"
-                          className="admin-btn admin-btn-sm admin-marmita-passo-remove"
-                          onClick={() => removeTamanho(index)}
-                          disabled={form.tamanhos.length <= 1}
-                          title={
-                            form.tamanhos.length <= 1
-                              ? 'É necessário manter pelo menos um tamanho'
-                              : `Remover tamanho ${tam.nome || index + 1}`
-                          }
-                          aria-label={`Remover tamanho ${tam.nome || index + 1}`}
-                        >
-                          ×
-                        </button>
+                  {descricaoEditing ? (
+                    <div className="admin-product-descricao-editor">
+                      <textarea
+                        className="admin-input admin-product-descricao-textarea"
+                        maxLength={400}
+                        value={descricaoDraft}
+                        onChange={(e) => setDescricaoDraft(e.target.value)}
+                        placeholder="Texto exibido em todos os tamanhos. (Opcional)"
+                        rows={7}
+                      />
+                      <div className="admin-product-descricao-editor-actions">
+                        <span className="admin-help-text">{descricaoDraft.length}/400</span>
+                        <div className="admin-product-descricao-editor-btns">
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-ghost admin-btn-sm"
+                            onClick={() => {
+                              setDescricaoEditing(false);
+                              setDescricaoDraft('');
+                            }}
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-primary admin-btn-sm"
+                            onClick={() => {
+                              updateForm({ descricao: descricaoDraft });
+                              setDescricaoEditing(false);
+                            }}
+                          >
+                            Salvar
+                          </button>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn-ghost admin-btn-sm"
-                    onClick={() =>
-                      updateForm({
-                        tamanhos: [
-                          ...form.tamanhos,
-                          {
-                            id: marmitaUid('tam'),
-                            nome: 'Novo',
-                            preco: '',
-                            ativo: true,
-                            ordem: form.tamanhos.length,
-                          },
-                        ],
-                      })
-                    }
-                  >
-                    + Adicionar tamanho
-                  </button>
-                </section>
+                    </div>
+                  ) : (
+                    <p
+                      className={
+                        form.descricao?.trim()
+                          ? 'admin-order-collapsed-summary'
+                          : 'admin-order-collapsed-empty'
+                      }
+                    >
+                      {form.descricao?.trim() || 'Nenhuma descrição cadastrada.'}
+                    </p>
+                  )}
+                </div>
 
                 <section className="admin-marmita-form-section">
                   <div className="admin-marmita-section-head">
-                    <h4>Passos de montagem</h4>
-                    <button type="button" className="admin-btn admin-btn-ghost admin-btn-sm" onClick={addPasso}>
-                      + Adicionar passo
+                    <h4>Tamanhos</h4>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-ghost admin-btn-sm"
+                      onClick={() => {
+                        const id = marmitaUid('tam');
+                        updateForm({
+                          tamanhos: [
+                            ...form.tamanhos,
+                            {
+                              id,
+                              nome: 'Novo',
+                              preco: '',
+                              ativo: true,
+                              ordem: form.tamanhos.length,
+                            },
+                          ],
+                        });
+                        setEditingTamanhoId(id);
+                      }}
+                    >
+                      + Adicionar
                     </button>
                   </div>
-                  <p className="admin-help-text admin-marmita-passos-note">
-                    Ex.: categoria Feijão ou Arroz; em &quot;Várias opções&quot;, defina de quantos a quantos itens o cliente pode escolher.
-                  </p>
-
-                  {!form.passos.length ? (
-                    <p className="admin-help-text">Nenhum passo configurado.</p>
-                  ) : (
-                    <div className="admin-marmita-passos-grid">
-                      {form.passos.map((passo, index) => {
-                        const categoryItems = addonItems.filter(
-                          (item) => item.categoriaId === passo.categoriaAdicionalId
-                        );
-                        return (
-                          <div key={passo.id} className="admin-marmita-passo-card">
-                            <div className="admin-marmita-passo-toolbar">
-                              <span className="admin-marmita-passo-index">Passo {index + 1}</span>
-                              <div className="admin-marmita-passo-actions">
-                                <button
-                                  type="button"
-                                  className="admin-btn admin-btn-ghost admin-btn-sm"
-                                  onClick={() => movePasso(index, -1)}
-                                  disabled={index === 0}
-                                  aria-label={`Subir passo ${index + 1}`}
-                                >
-                                  ↑
-                                </button>
-                                <button
-                                  type="button"
-                                  className="admin-btn admin-btn-ghost admin-btn-sm"
-                                  onClick={() => movePasso(index, 1)}
-                                  disabled={index === form.passos.length - 1}
-                                  aria-label={`Descer passo ${index + 1}`}
-                                >
-                                  ↓
-                                </button>
-                                <button
-                                  type="button"
-                                  className="admin-btn admin-btn-sm admin-marmita-passo-remove"
-                                  onClick={() => removePasso(index)}
-                                  aria-label={`Remover passo ${index + 1}`}
-                                >
-                                  ×
-                                </button>
-                              </div>
-                            </div>
-                            <div className="admin-marmita-passo-row1">
-                              <div className="admin-form-group admin-marmita-passo-field">
-                                <label className="admin-label">Pergunta no cardápio</label>
-                                <input
-                                  className="admin-input"
-                                  value={passo.titulo}
-                                  onChange={(e) => updatePasso(index, { titulo: e.target.value })}
-                                  placeholder="Ex.: Deseja feijão?"
-                                />
-                              </div>
-                              <div className="admin-form-group admin-marmita-passo-field">
-                                <label className="admin-label">Categoria de adicionais</label>
-                                <select
-                                  className="admin-input"
-                                  value={passo.categoriaAdicionalId}
-                                  onChange={(e) =>
-                                    updatePasso(index, {
-                                      categoriaAdicionalId: e.target.value,
-                                      itemIds: [],
-                                    })
-                                  }
-                                >
-                                  <option value="">Selecione</option>
-                                  {addonCategories.map((cat) => (
-                                    <option key={cat.id} value={cat.id}>
-                                      {cat.nome}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                              <div className="admin-form-group admin-marmita-passo-field">
-                                <label className="admin-label">Seleção</label>
-                                <select
-                                  className="admin-input"
-                                  value={passo.tipoSelecao}
-                                  onChange={(e) => {
-                                    const tipoSelecao = e.target.value;
-                                    const itemCount = categoryItems.length || 99;
-                                    updatePasso(index, {
-                                      tipoSelecao,
-                                      max:
-                                        tipoSelecao === 'simples'
-                                          ? 1
-                                          : Math.min(Math.max(Number(passo.max || 2), 1), itemCount),
-                                      min:
-                                        tipoSelecao === 'simples'
-                                          ? passo.obrigatorio
-                                            ? 1
-                                            : 0
-                                          : Math.min(
-                                              Number(passo.min ?? (passo.obrigatorio ? 1 : 0)),
-                                              itemCount
-                                            ),
-                                    });
-                                  }}
-                                >
-                                  <option value="simples">Uma opção</option>
-                                  <option value="multipla">Várias opções</option>
-                                </select>
-                              </div>
-                            </div>
-                            <div className="admin-marmita-passo-row2">
-                              {categoryItems.length ? (
-                                <div className="admin-marmita-passo-items-inline">
-                                  <span className="admin-label">Itens</span>
-                                  <div className="admin-marmita-passo-item-list">
-                                    {categoryItems.map((item) => (
-                                      <MarmitaCheck
-                                        key={item.id}
-                                        checked={(passo.itemIds || []).includes(item.id)}
-                                        label={item.nome}
-                                        onChange={() => togglePassoItem(index, item.id)}
-                                      />
-                                    ))}
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="admin-help-text admin-marmita-passo-empty-items">
-                                  Selecione uma categoria para filtrar itens.
-                                </span>
-                              )}
-                              {passo.tipoSelecao === 'multipla' ? (
-                                <div className="admin-marmita-passo-limits">
-                                  <span className="admin-label">Escolher</span>
-                                  <input
-                                    type="number"
-                                    className="admin-input admin-marmita-passo-limit-input"
-                                    min={passo.obrigatorio ? 1 : 0}
-                                    max={Math.max(1, Number(passo.max || 1))}
-                                    value={Number(passo.min ?? (passo.obrigatorio ? 1 : 0))}
-                                    onChange={(e) =>
-                                      updatePasso(index, {
-                                        min: Math.max(
-                                          passo.obrigatorio ? 1 : 0,
-                                          Number(e.target.value || 0)
-                                        ),
-                                      })
-                                    }
-                                  />
-                                  <span className="admin-marmita-passo-limits-sep">a</span>
-                                  <input
-                                    type="number"
-                                    className="admin-input admin-marmita-passo-limit-input"
-                                    min={Math.max(passo.obrigatorio ? 1 : 0, Number(passo.min || 0))}
-                                    max={categoryItems.length || 99}
-                                    value={Number(passo.max || 1)}
-                                    onChange={(e) =>
-                                      updatePasso(index, {
-                                        max: Math.max(
-                                          Number(passo.min || 0),
-                                          Number(e.target.value || 1)
-                                        ),
-                                      })
-                                    }
-                                  />
-                                  <span className="admin-help-text admin-marmita-passo-limits-hint">itens</span>
-                                </div>
-                              ) : null}
-                              <MarmitaCheck
-                                checked={passo.obrigatorio === true}
-                                label="Obrigatório"
-                                onChange={(checked) =>
-                                  updatePasso(index, {
-                                    obrigatorio: checked,
-                                    min: checked ? Math.max(1, Number(passo.min || 1)) : 0,
-                                  })
+                  <div className="admin-marmita-size-tile-grid">
+                    {form.tamanhos.map((tam, index) => {
+                      const isActive = tam.ativo !== false;
+                      const isEditing = editingTamanhoId === tam.id;
+                      return (
+                        <div
+                          key={tam.id}
+                          role="button"
+                          tabIndex={0}
+                          className={`admin-marmita-size-tile${isActive ? ' is-active' : ''}${isEditing ? ' is-editing' : ''}`}
+                          aria-pressed={isActive}
+                          onClick={() => {
+                            if (isEditing) return;
+                            updateTamanho(index, { ativo: !isActive });
+                          }}
+                          onKeyDown={(event) => {
+                            if (isEditing) return;
+                            if (event.key !== 'Enter' && event.key !== ' ') return;
+                            event.preventDefault();
+                            updateTamanho(index, { ativo: !isActive });
+                          }}
+                        >
+                          {isEditing ? (
+                            <div
+                              className="admin-marmita-size-tile-fields"
+                              onClick={(event) => event.stopPropagation()}
+                              onKeyDown={(event) => event.stopPropagation()}
+                            >
+                              <input
+                                className="admin-input admin-marmita-size-tile-input"
+                                value={tam.nome}
+                                onChange={(e) => updateTamanho(index, { nome: e.target.value })}
+                                placeholder="Nome"
+                                aria-label="Nome do tamanho"
+                              />
+                              <input
+                                className="admin-input admin-marmita-size-tile-input"
+                                value={precoToFormInput(tam.preco)}
+                                onChange={(e) =>
+                                  updateTamanho(index, { preco: formatMoneyBrInput(e.target.value) })
                                 }
+                                placeholder="R$ 0,00"
+                                inputMode="decimal"
+                                aria-label="Preço do tamanho"
                               />
                             </div>
+                          ) : (
+                            <div className="admin-marmita-size-tile-main">
+                              <span className="admin-marmita-size-tile-name">{tam.nome || 'Sem nome'}</span>
+                              <span className="admin-marmita-size-tile-price">
+                                {precoToFormInput(tam.preco) || 'R$ 0,00'}
+                              </span>
+                            </div>
+                          )}
+                          <div className="admin-marmita-size-tile-actions">
+                            <button
+                              type="button"
+                              className="admin-marmita-size-tile-action"
+                              title={isEditing ? 'Concluir edição' : 'Editar tamanho'}
+                              aria-label={isEditing ? 'Concluir edição' : `Editar ${tam.nome || 'tamanho'}`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setEditingTamanhoId(isEditing ? '' : tam.id);
+                              }}
+                            >
+                              <AdminIcon name={isEditing ? 'check' : 'edit'} />
+                            </button>
+                            <button
+                              type="button"
+                              className="admin-marmita-size-tile-action is-danger"
+                              title={
+                                form.tamanhos.length <= 1
+                                  ? 'É necessário manter pelo menos um tamanho'
+                                  : `Remover tamanho ${tam.nome || index + 1}`
+                              }
+                              aria-label={`Remover tamanho ${tam.nome || index + 1}`}
+                              disabled={form.tamanhos.length <= 1}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                if (editingTamanhoId === tam.id) setEditingTamanhoId('');
+                                removeTamanho(index);
+                              }}
+                            >
+                              <AdminIcon name="close" />
+                            </button>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </section>
-
-                <div className="popup-footer">
-                  <button type="button" className="admin-btn admin-btn-ghost" onClick={requestCloseItemModal}>
-                    Cancelar
-                  </button>
-                  <button type="submit" className="admin-btn admin-btn-primary">
-                    Salvar marmita
-                  </button>
-                </div>
               </form>
             </div>
             <div className="popup-details-col admin-preview-col admin-marmita-preview-col">
@@ -1556,7 +1578,7 @@ export default function MarmitaManager() {
                 <div className="popup-header-title">Prévia</div>
               </div>
               <div className="popup-body admin-marmita-preview-body">
-                <label className="admin-upload-box">
+                <label className="admin-upload-box admin-marmita-upload-box">
                   <input
                     type="file"
                     accept="image/*"
@@ -1567,33 +1589,82 @@ export default function MarmitaManager() {
                     }}
                   />
                   {formImage ? <img src={formImage} alt="Preview marmita" /> : <ImagePlaceholder size={90} />}
-                  <span>Adicione uma foto</span>
-                  <small>JPEG, PNG até 3MB</small>
+                  <span className="admin-upload-caption">Adicione uma foto</span>
+                  <small className="admin-upload-caption-hint">JPEG, PNG até 3MB</small>
                 </label>
-                <div className="admin-marmita-preview-meta">
-                  <div className="admin-marmita-preview-public-name">
-                    {form.nomePublico || 'Marmita do dia'}
-                    {form.tagAdmin ? (
-                      <span className="admin-marmita-preview-admin-tag"> ({form.tagAdmin})</span>
-                    ) : null}
+
+                <section className="admin-product-side-section admin-marmita-passos-side">
+                  <div className="admin-product-config-copy">
+                    <strong>Passos de montagem</strong>
+                    <p>Cada passo vira uma pergunta no cardápio.</p>
                   </div>
-                  <div className="admin-marmita-preview-weekday">
-                    {getMarmitaWeekdayLabel(form.diaSemana)}
-                  </div>
-                  <p className="admin-marmita-preview-desc">
-                    {form.descricao?.trim() || 'Sem descrição cadastrada.'}
-                  </p>
-                  <div className="admin-marmita-preview-sizes">
-                    {form.tamanhos
-                      .filter((tam) => tam.ativo !== false)
-                      .map((tam) => (
-                        <span key={tam.id} className="admin-marmita-size-chip">
-                          {tam.nome}: {precoToFormInput(tam.preco) || 'R$ 0,00'}
-                        </span>
-                      ))}
-                  </div>
-                </div>
+
+                  <DraggableReorderList
+                    items={form.passos}
+                    emptyLabel="Nenhum passo ainda."
+                    onReorder={(next) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        passos: next.map((passo, index) => ({ ...passo, ordem: index })),
+                      }))
+                    }
+                    renderItem={(passo) => {
+                      const cat = addonCategories.find((row) => row.id === passo.categoriaAdicionalId);
+                      const totalInCat = addonItems.filter(
+                        (item) =>
+                          item.categoriaId === passo.categoriaAdicionalId && item.ativo !== false
+                      ).length;
+                      const selectedCount = (passo.itemIds || []).length;
+                      return (
+                        <div className="admin-addon-passo-summary">
+                          <button
+                            type="button"
+                            className="admin-addon-passo-summary-main"
+                            onClick={() => {
+                              setEditingPassoId(passo.id);
+                              setPassoModalOpen(true);
+                            }}
+                          >
+                            <strong>{passo.titulo || cat?.nome || 'Passo sem título'}</strong>
+                            <span>
+                              {cat?.nome || 'Sem categoria'}
+                              {' · '}
+                              {passo.tipoSelecao === 'simples' ? 'Uma opção' : 'Várias opções'}
+                              {' · '}
+                              {selectedCount}/{totalInCat || selectedCount} itens
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-addon-passo-summary-remove"
+                            aria-label="Remover passo"
+                            onClick={() => setRemovingPassoId(passo.id)}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    }}
+                  />
+
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-ghost admin-addon-passo-add"
+                    onClick={addPasso}
+                  >
+                    Adicionar passo
+                  </button>
+                </section>
               </div>
+            </div>
+            </div>
+            <div className="popup-footer admin-product-popup-footer">
+              <button type="button" className="admin-btn admin-btn-ghost" onClick={requestCloseItemModal}>
+                Cancelar
+              </button>
+              <button type="submit" form="admin-marmita-item-form" className="admin-btn admin-btn-primary">
+                Salvar marmita
+              </button>
             </div>
           </div>
         </div>
@@ -1673,6 +1744,49 @@ export default function MarmitaManager() {
         open={cardapioDiscardOpen}
         onConfirm={confirmDiscardCardapioModal}
         onCancel={cancelDiscardCardapioModal}
+      />
+
+      <ProductAddonPassoModal
+        open={passoModalOpen}
+        passo={editingPasso}
+        categories={addonCategories}
+        items={addonItems}
+        showExibirFotos={false}
+        onClose={() => {
+          setPassoModalOpen(false);
+          setEditingPassoId('');
+        }}
+        onSave={(passo) => {
+          setForm((prev) => {
+            const current = prev.passos || [];
+            const exists = current.some((row) => row.id === passo.id);
+            const next = exists
+              ? current.map((row) =>
+                  row.id === passo.id ? toMarmitaPasso(passo, row.ordem) : row
+                )
+              : [...current, toMarmitaPasso(passo, current.length)];
+            return {
+              ...prev,
+              passos: next.map((row, ordem) => ({ ...row, ordem })),
+            };
+          });
+          setPassoModalOpen(false);
+          setEditingPassoId('');
+        }}
+      />
+
+      <AdminConfirmDialog
+        open={Boolean(removingPassoId)}
+        title="Remover passo?"
+        message="Esse passo de montagem será removido desta marmita."
+        confirmLabel="Remover"
+        cancelLabel="Cancelar"
+        danger
+        onCancel={() => setRemovingPassoId('')}
+        onConfirm={() => {
+          removePassoById(removingPassoId);
+          setRemovingPassoId('');
+        }}
       />
     </div>
   );

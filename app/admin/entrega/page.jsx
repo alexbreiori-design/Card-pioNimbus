@@ -154,7 +154,12 @@ export default function EntregaPage() {
               hint="Taxa por distância em km a partir da loja."
             />
             <div className="admin-delivery-areas-body">
-              <DeliveryZonesCrud empresaId={empresa?.id} />
+              <DeliveryZonesCrud
+                empresaId={empresa?.id}
+                storeLat={empresa?.latitude}
+                storeLng={empresa?.longitude}
+                storeLabel={empresa?.nome || loja?.nome || 'Loja'}
+              />
             </div>
           </div>
         </section>

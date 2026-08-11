@@ -18,6 +18,7 @@ import CardapioDesktopLayout from './CardapioDesktopLayout';
 import CardapioMobileLayout from './CardapioMobileLayout';
 import CardapioProductModal from './CardapioProductModal';
 import CardapioLegalFooter from '@/components/cardapio/CardapioLegalFooter';
+import CardapioNimbusCredit from './CardapioNimbusCredit';
 import '@/styles/cardapio.css';
 import '@phosphor-icons/web/regular/style.css';
 import '@phosphor-icons/web/bold/style.css';
@@ -50,9 +51,12 @@ export default function CardapioAppV2() {
       <DeliveryCheckNumberModal />
       <DeliveryCheckResultModal />
       <StoreClosedNotice />
-      <Suspense fallback={null}>
-        <CardapioLegalFooter />
-      </Suspense>
+      <div className="cardapio-v2-site-footer">
+        <CardapioNimbusCredit />
+        <Suspense fallback={null}>
+          <CardapioLegalFooter />
+        </Suspense>
+      </div>
     </div>
   );
 }

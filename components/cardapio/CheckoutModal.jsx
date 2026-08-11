@@ -70,6 +70,7 @@ export default function CheckoutModal() {
     checkoutData,
     checkoutSuccess,
     checkoutSuccessSnapshot,
+    checkoutSubmitting,
     checkoutOrderNumber,
     checkoutName,
     setCheckoutName,
@@ -151,7 +152,7 @@ export default function CheckoutModal() {
   }
 
   const handleOverlayClick = (e) => {
-    if (checkoutSuccess) return;
+    if (checkoutSuccess || checkoutSubmitting) return;
     if (e.target.id === 'checkoutOverlay') closeCheckout();
   };
 
@@ -643,13 +644,18 @@ export default function CheckoutModal() {
   const btnLabel =
     checkoutSuccess
       ? ''
-      : checkoutStep === 5 && isCardOnline
-        ? onlinePayment?.loading
-          ? 'Processando…'
-          : 'Confirmar pagamento'
-        : checkoutStep === 4
-          ? 'Enviar pedido'
-          : 'Continuar';
+      : checkoutSubmitting
+        ? 'Enviando pedido…'
+        : checkoutStep === 5 && isCardOnline
+          ? onlinePayment?.loading
+            ? 'Processando…'
+            : 'Confirmar pagamento'
+          : checkoutStep === 4
+            ? 'Enviar pedido'
+            : 'Continuar';
+
+  const footerBusy =
+    checkoutSubmitting || Boolean(isCardOnline && checkoutStep === 5 && onlinePayment?.loading);
 
   return (
     <div
@@ -667,11 +673,17 @@ export default function CheckoutModal() {
             className="checkout-back-btn"
             style={{ visibility: checkoutStep > 1 && !checkoutSuccess ? 'visible' : 'hidden' }}
             onClick={checkoutBack}
+            disabled={checkoutSubmitting}
           >
             <IconBack />
           </button>
           <div className="checkout-title">{checkoutTitle}</div>
-          <button type="button" className="checkout-close-btn" onClick={closeCheckout}>
+          <button
+            type="button"
+            className="checkout-close-btn"
+            onClick={closeCheckout}
+            disabled={checkoutSubmitting}
+          >
             <IconClose />
           </button>
         </div>
@@ -711,12 +723,16 @@ export default function CheckoutModal() {
           <div className="checkout-footer">
             <button
               type="button"
-              className="btn-checkout-continue"
+              className={`btn-checkout-continue${footerBusy ? ' is-loading' : ''}`}
               onClick={checkoutNext}
-              disabled={Boolean(isCardOnline && checkoutStep === 5 && onlinePayment?.loading)}
+              disabled={footerBusy}
+              aria-busy={footerBusy}
             >
-              <span>{btnLabel}</span>
-              <IconContinue />
+              <span className="btn-checkout-continue-label">
+                {footerBusy ? <span className="btn-checkout-spinner" aria-hidden="true" /> : null}
+                <span>{btnLabel}</span>
+              </span>
+              {!footerBusy ? <IconContinue /> : <span className="btn-checkout-continue-spacer" />}
             </button>
           </div>
         ) : null}

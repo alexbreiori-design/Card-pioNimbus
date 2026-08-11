@@ -322,6 +322,7 @@ export function CardapioProvider({
   });
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
   const [checkoutSuccessSnapshot, setCheckoutSuccessSnapshot] = useState(null);
+  const [checkoutSubmitting, setCheckoutSubmitting] = useState(false);
   const [checkoutOrderNumber, setCheckoutOrderNumber] = useState('');
   const [checkoutName, setCheckoutName] = useState('');
   const [checkoutPhone, setCheckoutPhone] = useState('');
@@ -1700,6 +1701,8 @@ export function CardapioProvider({
         : profileDisplayPhone;
     setCheckoutStep(1);
     setCheckoutSuccess(false);
+    setCheckoutSubmitting(false);
+    checkoutSubmittingRef.current = false;
     setCheckoutAddressConfirmed(false);
     setCheckoutData({
       name: knownName,
@@ -1777,6 +1780,8 @@ export function CardapioProvider({
     }
     setCheckoutOpen(false);
     setCheckoutSuccess(false);
+    setCheckoutSubmitting(false);
+    checkoutSubmittingRef.current = false;
     setCheckoutSuccessSnapshot(null);
     setCheckoutOrderNumber('');
     setCheckoutAddressConfirmed(false);
@@ -2459,6 +2464,7 @@ export function CardapioProvider({
       }
       if (checkoutSubmittingRef.current) return;
       checkoutSubmittingRef.current = true;
+      setCheckoutSubmitting(true);
       try {
         const completedOrder = await persistCompletedOrder({
           customerName: checkoutData.name,
@@ -2469,6 +2475,7 @@ export function CardapioProvider({
         void showAlert(error?.message || 'Não foi possível enviar o pedido. Tente novamente.');
       } finally {
         checkoutSubmittingRef.current = false;
+        setCheckoutSubmitting(false);
       }
     } else if (checkoutStep === 5) {
       if (checkoutData.payment !== 'credito_online' || !checkoutCardDraft?.payload) return;
@@ -2510,6 +2517,7 @@ export function CardapioProvider({
   ]);
 
   const checkoutBack = useCallback(() => {
+    if (checkoutSubmittingRef.current) return;
     if (checkoutStep > 1 && !checkoutSuccess) {
       if (
         (checkoutStep === 4 || checkoutStep === 5) &&
@@ -2739,6 +2747,7 @@ export function CardapioProvider({
       setCheckoutData,
       checkoutSuccess,
       checkoutSuccessSnapshot,
+      checkoutSubmitting,
       checkoutOrderNumber,
       checkoutName,
       setCheckoutName,
@@ -2827,6 +2836,7 @@ export function CardapioProvider({
       setCheckoutData,
       checkoutSuccess,
       checkoutSuccessSnapshot,
+      checkoutSubmitting,
       checkoutOrderNumber,
       checkoutName,
       checkoutPhone,

@@ -16,7 +16,7 @@
   width: 100%;
   max-width: 100%;
   margin: 0 auto;
-  padding: 12px 16px calc(80px + env(safe-area-inset-bottom, 0px));
+  padding: 12px 16px 8px;
   gap: 20px;
   box-sizing: border-box;
 }
@@ -52,7 +52,7 @@
     width: 100%;
     max-width: 1920px;
     margin: 0 auto;
-    padding: 16px max(16px, calc((100% - 1731px) / 2)) 40px;
+    padding: 16px max(16px, calc((100% - 1731px) / 2)) 16px;
   }
 
   .cardapio-v2-layout .cardapio-v2-sidebar {
@@ -183,7 +183,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 10px;
+  padding: 8px 10px;
   border: none;
   border-radius: 10px;
   background: transparent;
@@ -197,10 +197,16 @@
 }
 
 .cardapio-v2-sidebar-link span {
+  min-width: 0;
+  flex: 1;
   line-height: 1.25;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .cardapio-v2-sidebar-link .cardapio-v2-icon {
@@ -1084,7 +1090,8 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.cardapio-v2-rail-grid.is-cols-1 {
+.cardapio-v2-rail-grid.is-cols-1,
+.cardapio-v2-rail-grid.is-list.is-cols-1 {
   grid-template-columns: minmax(0, 1fr);
 }
 
@@ -1511,6 +1518,57 @@
   line-height: 1;
 }
 
+/* Lista larga (1 item por linha): mais baixa, foto larga (pode cortar) */
+.cardapio-v2-product-card-list.is-lista-larga {
+  min-height: 150px;
+  height: 150px;
+}
+
+.cardapio-v2-product-card-list.is-lista-larga .cardapio-v2-product-card-list-media-wrap {
+  flex: 0 0 min(42%, 300px);
+  width: min(42%, 300px);
+  align-self: stretch;
+}
+
+.cardapio-v2-product-card-list.is-lista-larga .cardapio-v2-product-card-list-media,
+.cardapio-v2-product-card-list.is-lista-larga .cardapio-v2-product-card-list-media.menu-img-next .menu-img-next-fill {
+  object-fit: cover;
+  object-position: center;
+}
+
+.cardapio-v2-product-card-list.is-lista-larga .cardapio-v2-product-card-list-body {
+  padding: 12px 16px 12px 18px;
+  gap: 4px;
+  min-height: 0;
+}
+
+.cardapio-v2-product-card-list.is-lista-larga .cardapio-v2-product-card-list-title {
+  margin: 0 0 2px;
+  font-size: 16px;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
+.cardapio-v2-product-card-list.is-lista-larga .cardapio-v2-product-card-list-desc {
+  font-size: 13px;
+  line-height: 1.35;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.cardapio-v2-product-card-list.is-lista-larga .cardapio-v2-product-card-list-footer {
+  padding-top: 6px;
+}
+
+.cardapio-v2-product-card-list.is-lista-larga .cardapio-v2-product-card-list-price {
+  font-size: 15px;
+}
+
+.cardapio-v2-product-card-list.is-lista-larga .cardapio-v2-product-card-list-add {
+  width: 36px;
+  height: 36px;
+}
+
 @media (max-width: 1099px) {
   .cardapio-v2-rail-section {
     scroll-margin-top: 12px;
@@ -1742,6 +1800,32 @@
 
   .cardapio-v2-product-card-list-media {
     border-right: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  .cardapio-v2-product-card-list.is-lista-larga {
+    min-height: 110px;
+    height: 110px;
+  }
+
+  .cardapio-v2-product-card-list.is-lista-larga .cardapio-v2-product-card-list-media-wrap {
+    flex: 0 0 42%;
+    width: 42%;
+    min-width: 140px;
+    max-width: 200px;
+  }
+
+  .cardapio-v2-product-card-list.is-lista-larga .cardapio-v2-product-card-list-body {
+    padding: 10px 12px 10px 14px;
+  }
+
+  .cardapio-v2-product-card-list.is-lista-larga .cardapio-v2-product-card-list-title {
+    font-size: 14px;
+  }
+
+  .cardapio-v2-product-card-list.is-lista-larga .cardapio-v2-product-card-list-desc {
+    font-size: 12px;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
   }
 }
 
@@ -2367,9 +2451,6 @@
 .cardapio-v2-info-footer {
   margin-top: 8px;
   scroll-margin-top: 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
 }
 
 .cardapio-v2-info-footer-inner {
@@ -2570,7 +2651,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin: 14px auto 0;
+  margin: 0;
   padding: 8px 14px;
   border-radius: 999px;
   text-decoration: none;
@@ -2797,11 +2878,6 @@
   .cardapio-v2-info-footer-detail dd {
     font-size: 11px;
   }
-
-  .cardapio-v2-info-footer-nimbus {
-    margin-top: 12px;
-    padding: 8px 12px;
-  }
 }
 
 /* ——— Sacola ——— */
@@ -2976,30 +3052,42 @@
 }
 
 .cardapio-v2-product-modal {
-  width: min(100%, 980px);
-  max-height: min(92dvh, 760px);
+  width: min(100%, 1040px);
+  height: fit-content;
+  max-height: min(92dvh, 880px);
   border-radius: 24px;
   background: #fff;
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.2);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .cardapio-v2-product-modal-layout {
   display: grid;
-  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
-  min-height: 560px;
-  max-height: min(92dvh, 760px);
+  grid-template-columns: minmax(0, 374px) minmax(0, 1fr);
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: inherit;
+  overflow: hidden;
+  align-items: stretch;
 }
 
 .cardapio-v2-product-modal-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   padding: 24px;
   background: #f7f8fa;
   border-right: 1px solid rgba(0, 0, 0, 0.06);
+  min-height: 0;
+  overflow: auto;
 }
 
 .cardapio-v2-product-modal-hero {
   width: 100%;
   aspect-ratio: 1 / 1;
+  max-height: 280px;
   border-radius: 20px;
   overflow: hidden;
 }
@@ -3035,7 +3123,27 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  overflow: visible;
+  /* Teto próprio: garante scroll no body + footer visível mesmo com height:fit-content no modal */
+  max-height: min(92dvh, 880px);
+  overflow: hidden;
+}
+
+.cardapio-v2-product-modal-gallery-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.cardapio-v2-product-modal-assembly-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-mid, #555);
+}
+
+.cardapio-v2-product-modal-head--compact {
+  padding: 22px 56px 8px 24px;
 }
 
 .cardapio-v2-product-modal-close {
@@ -3058,21 +3166,27 @@
 }
 
 .cardapio-v2-product-modal-title {
-  margin: 0 0 8px;
-  font-size: 28px;
+  margin: 0;
+  font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.03em;
+  line-height: 1.25;
+}
+
+.cardapio-v2-product-modal-gallery-meta .cardapio-v2-product-modal-title {
+  font-size: 22px;
 }
 
 .cardapio-v2-product-modal-desc {
-  margin: 0 0 12px;
-  font-size: 14px;
-  line-height: 1.55;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
   color: var(--text-mid, #555);
 }
 
 .cardapio-v2-product-modal-price {
-  font-size: 24px;
+  margin-top: 8px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--text, #141414);
 }
@@ -3090,7 +3204,8 @@
 }
 
 .cardapio-v2-product-modal-stepper-wrap {
-  padding: 0 24px 14px;
+  flex-shrink: 0;
+  padding: 36px 24px 14px;
 }
 
 .cardapio-v2-product-modal-stepper {
@@ -3292,10 +3407,35 @@
 }
 
 .cardapio-v2-product-modal-body {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 0 24px 16px;
+  overscroll-behavior: contain;
+}
+
+.cardapio-v2-product-modal-wizard-embed {
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.cardapio-v2-product-modal-wizard-embed .pizza-wizard,
+.cardapio-v2-product-modal-wizard-embed .marmita-wizard,
+.cardapio-v2-product-modal-wizard-embed .addon-section {
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Garante padding interno das linhas mesmo com o reset global padding: 0 */
+.cardapio-v2-product-modal-wizard-embed button.addon-item.addon-item--selectable,
+.cardapio-v2-product-modal-wizard-embed .addon-item.addon-item--selectable {
+  padding: 12px 14px;
+  box-sizing: border-box;
 }
 
 .cardapio-v2-product-modal-section-head {
@@ -3319,25 +3459,75 @@
   white-space: nowrap;
 }
 
-.cardapio-v2-product-modal-options {
+.cardapio-v2-product-modal-options-wrap {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
+.cardapio-v2-product-modal-options-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cardapio-v2-product-modal-options-search-input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  background: #fff;
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.cardapio-v2-product-modal-options-search-input:focus {
+  border-color: var(--brand, #4e48dd);
+}
+
+.cardapio-v2-product-modal-options-search-meta {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-light, #666);
+  white-space: nowrap;
+}
+
+.cardapio-v2-product-modal-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (min-width: 768px) {
+  .cardapio-v2-product-modal-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .cardapio-v2-product-modal-option {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) 28px;
+  grid-template-columns: 36px minmax(0, 1fr) 22px;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   width: 100%;
+  min-height: 0;
+  box-sizing: border-box;
   padding: 12px 14px;
   border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 16px;
+  border-radius: 12px;
   background: #fff;
   text-align: left;
   cursor: pointer;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cardapio-v2-product-modal-option.is-text-only {
+  grid-template-columns: minmax(0, 1fr) 22px;
+  align-items: start;
 }
 
 .cardapio-v2-product-modal-option:hover {
@@ -3346,50 +3536,86 @@
 
 .cardapio-v2-product-modal-option.is-selected {
   border-color: var(--brand, #4e48dd);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand) 18%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand) 22%, transparent);
+  background: color-mix(in srgb, var(--brand) 5%, #fff);
 }
 
 .cardapio-v2-product-modal-option-thumb {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .cardapio-v2-product-modal-option-copy {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   min-width: 0;
 }
 
 .cardapio-v2-product-modal-option-copy strong {
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
   color: var(--text, #141414);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.cardapio-v2-product-modal-option-copy span,
 .cardapio-v2-product-modal-option-copy em {
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--text-light, #666);
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--brand, #4e48dd);
   font-style: normal;
+  font-weight: 600;
+}
+
+.cardapio-v2-product-modal-option-copy span {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--text-light, #666);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cardapio-v2-product-modal-option-check {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1.5px solid rgba(0, 0, 0, 0.14);
+  background: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: #fff;
+  flex-shrink: 0;
+}
+
+.cardapio-v2-product-modal-option-check .cardapio-v2-icon {
+  font-size: 14px;
+  line-height: 1;
+  color: inherit;
+  font-weight: 700;
 }
 
 .cardapio-v2-product-modal-option.is-selected .cardapio-v2-product-modal-option-check {
   border-color: transparent;
-  background: var(--brand-gradient, linear-gradient(90deg, var(--brand-vivid) 0%, var(--brand) 100%));
+  background: var(--brand, #4e48dd);
+  color: #fff;
+}
+
+.cardapio-v2-product-modal-footer {
+  flex: 0 0 auto;
+  flex-shrink: 0;
+}
+
+.cardapio-v2-product-modal-body .product-note-field {
+  margin-bottom: 8px;
+  padding-bottom: 4px;
 }
 
 .cardapio-v2-product-modal-empty {
@@ -3444,8 +3670,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  flex: 0 0 auto;
+  flex-shrink: 0;
   padding: 16px 24px 20px;
   border-top: 1px solid rgba(0, 0, 0, 0.06);
+  background: #fff;
+  position: relative;
+  z-index: 2;
 }
 
 .cardapio-v2-product-modal-footer-left,
@@ -3525,9 +3756,74 @@
   border-left: 1px solid rgba(255, 255, 255, 0.28);
 }
 
-/* ——— Links legais (rodapé discreto) ——— */
+@media (max-width: 820px) {
+  .cardapio-v2-product-modal-overlay {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .cardapio-v2-product-modal {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+
+  .cardapio-v2-product-modal-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    max-height: 100%;
+  }
+
+  .cardapio-v2-product-modal-panel {
+    max-height: none;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .cardapio-v2-product-modal-gallery {
+    border-right: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    max-height: 38dvh;
+    padding: 16px;
+  }
+
+  .cardapio-v2-product-modal-hero {
+    max-height: 180px;
+  }
+
+  .cardapio-v2-product-modal-gallery-meta {
+    display: none;
+  }
+
+  .cardapio-v2-product-modal-stepper-wrap {
+    padding: 28px 16px 8px;
+  }
+
+  .cardapio-v2-product-modal-body {
+    padding: 0 16px 12px;
+  }
+
+  .cardapio-v2-product-modal-footer {
+    flex-wrap: wrap;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ——— Crédito Nimbus + links legais (centralizados na tela) ——— */
+.cardapio-v2-site-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 16px 20px;
+  box-sizing: border-box;
+}
+
 .cardapio-v2-root .cardapio-legal-footer {
-  padding: 8px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  padding: 0;
   font-size: 11px;
   color: rgba(0, 0, 0, 0.38);
 }
@@ -3537,7 +3833,12 @@
 }
 
 @media (max-width: 1099px) {
-  .cardapio-v2-root .cardapio-legal-footer {
-    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  .cardapio-v2-site-footer {
+    gap: 4px;
+    padding: 2px 16px calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .cardapio-v2-site-footer .cardapio-v2-info-footer-nimbus {
+    padding: 7px 12px;
   }
 }

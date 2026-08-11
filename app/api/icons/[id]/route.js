@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
-import { sanitizeCategoryIconId } from '@/lib/categoryIconsShared';
+import { resolveCategoryIconId, sanitizeCategoryIconId } from '@/lib/categoryIconsShared';
 import { readNormalizedCategorySvg } from '@/lib/normalizeCategorySvg';
 
 export async function GET(_request, { params }) {
   const { id } = await params;
-  const safeId = sanitizeCategoryIconId(id);
-  if (!safeId) {
+  if (!sanitizeCategoryIconId(id)) {
     return NextResponse.json({ ok: false, error: 'Ícone inválido.' }, { status: 400 });
   }
+
+  const safeId = resolveCategoryIconId(id);
 
   try {
     const svg = await readNormalizedCategorySvg(safeId);
