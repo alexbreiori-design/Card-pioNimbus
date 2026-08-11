@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import LandingReveal from '@/components/landing/LandingReveal';
+import LandingReveal, { LandingRevealGroup } from '@/components/landing/LandingReveal';
 import { NIMBUS_PRICE, whatsappUrl } from '@/lib/landing/constants';
 
 function parsePriceParts(priceLabel) {
@@ -32,7 +32,8 @@ export default function LandingPricingSection() {
 
   return (
     <div className="wrapper">
-      <LandingReveal delay={0} className="landing-pricing-reveal">
+      <LandingRevealGroup step={280}>
+      <LandingReveal className="landing-pricing-reveal">
         <div className="left-card">
         <div className="left-glass-border" aria-hidden="true" />
 
@@ -194,7 +195,7 @@ export default function LandingPricingSection() {
         </div>
       </LandingReveal>
 
-      <LandingReveal delay={140} className="landing-pricing-reveal">
+      <LandingReveal className="landing-pricing-reveal">
         <div className="right-card">
         <div className="sparkle" aria-hidden="true" />
         <div className="sparkle" aria-hidden="true" />
@@ -289,6 +290,7 @@ export default function LandingPricingSection() {
         </a>
         </div>
       </LandingReveal>
+      </LandingRevealGroup>
     </div>
   );
 }

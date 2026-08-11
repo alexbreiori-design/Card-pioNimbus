@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import LandingIcon from '@/components/landing/LandingIcons';
-import LandingReveal from '@/components/landing/LandingReveal';
+import LandingReveal, { LandingRevealGroup } from '@/components/landing/LandingReveal';
 import LandingScene from '@/components/landing/LandingScene';
 import { landingPurpose } from '@/lib/landing/content';
 
@@ -78,53 +78,55 @@ export default function LandingPurposeSection() {
   return (
     <LandingScene id="proposito" className="landing-section-scene landing-purpose-scene">
       <div className="landing-container landing-purpose">
-        <LandingReveal delay={0} className="landing-purpose__head">
-          <p className="landing-purpose__eyebrow">{landingPurpose.eyebrow}</p>
-          <h2 className="landing-purpose__title">
-            {landingPurpose.titleBefore}
-            <br />
-            <span className="landing-purpose__highlight">{landingPurpose.titleHighlight}</span>
-          </h2>
-          <p className="landing-purpose__lead">{landingPurpose.lead}</p>
-        </LandingReveal>
+        <LandingRevealGroup step={200}>
+          <LandingReveal className="landing-purpose__head">
+            <p className="landing-purpose__eyebrow">{landingPurpose.eyebrow}</p>
+            <h2 className="landing-purpose__title">
+              {landingPurpose.titleBefore}
+              <br />
+              <span className="landing-purpose__highlight">{landingPurpose.titleHighlight}</span>
+            </h2>
+            <p className="landing-purpose__lead">{landingPurpose.lead}</p>
+          </LandingReveal>
 
-        <div className="landing-purpose__grid">
-          {landingPurpose.cards.map((card, index) => (
-            <LandingReveal key={card.id} delay={80 + index * 80}>
-              <article className="landing-purpose__card landing-glass-card">
-                <span className="landing-purpose__card-icon landing-glass-card landing-glass-card--edged" aria-hidden="true">
-                  <span className="landing-glass-edge" />
-                  <LandingIcon name={card.icon} />
-                </span>
-                <h3 className="landing-purpose__card-title">{card.title}</h3>
-                <CardDescription card={card} />
-                <CardVisual card={card} />
-              </article>
-            </LandingReveal>
-          ))}
-        </div>
-
-        <LandingReveal delay={320} className="landing-purpose__banner landing-glass-card">
-          <LandingIcon name="sparkle" className="landing-purpose__banner-sparkle" />
-          <div className="landing-purpose__banner-copy">
-            <p className="landing-purpose__banner-line1">
-              {landingPurpose.bannerLine1Before}
-              <strong>{landingPurpose.bannerLine1Bold}</strong>
-            </p>
-            <p className="landing-purpose__banner-line2">
-              {landingPurpose.bannerLine2Parts.map((part, index) => (
-                <span key={part} className="landing-purpose__banner-part">
-                  {index > 0 ? (
-                    <span className="landing-purpose__banner-dot" aria-hidden="true">
-                      •
-                    </span>
-                  ) : null}
-                  {part}
-                </span>
-              ))}
-            </p>
+          <div className="landing-purpose__grid">
+            {landingPurpose.cards.map((card) => (
+              <LandingReveal key={card.id}>
+                <article className="landing-purpose__card landing-glass-card">
+                  <span className="landing-purpose__card-icon landing-glass-card landing-glass-card--edged" aria-hidden="true">
+                    <span className="landing-glass-edge" />
+                    <LandingIcon name={card.icon} />
+                  </span>
+                  <h3 className="landing-purpose__card-title">{card.title}</h3>
+                  <CardDescription card={card} />
+                  <CardVisual card={card} />
+                </article>
+              </LandingReveal>
+            ))}
           </div>
-        </LandingReveal>
+
+          <LandingReveal className="landing-purpose__banner landing-glass-card">
+            <LandingIcon name="sparkle" className="landing-purpose__banner-sparkle" />
+            <div className="landing-purpose__banner-copy">
+              <p className="landing-purpose__banner-line1">
+                {landingPurpose.bannerLine1Before}
+                <strong>{landingPurpose.bannerLine1Bold}</strong>
+              </p>
+              <p className="landing-purpose__banner-line2">
+                {landingPurpose.bannerLine2Parts.map((part, index) => (
+                  <span key={part} className="landing-purpose__banner-part">
+                    {index > 0 ? (
+                      <span className="landing-purpose__banner-dot" aria-hidden="true">
+                        •
+                      </span>
+                    ) : null}
+                    {part}
+                  </span>
+                ))}
+              </p>
+            </div>
+          </LandingReveal>
+        </LandingRevealGroup>
       </div>
     </LandingScene>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import { useId, useState } from 'react';
+import LandingReveal from '@/components/landing/LandingReveal';
 
 function PlusMinusIcon({ open }) {
   return (
@@ -28,32 +29,33 @@ export default function LandingFaq({ items }) {
         const buttonId = `${baseId}-button-${index}`;
 
         return (
-          <div
-            key={item.q}
-            className={`landing-glass-card landing-faq-item-card landing-interactive${open ? ' landing-faq-item-card--open' : ''}`}
-          >
-            <button
-              id={buttonId}
-              type="button"
-              className="landing-faq-item__trigger"
-              aria-expanded={open}
-              aria-controls={panelId}
-              onClick={() => setOpenIndex(open ? -1 : index)}
-            >
-              <span className="landing-faq-item__question">{item.q}</span>
-              <PlusMinusIcon open={open} />
-            </button>
+          <LandingReveal key={item.q}>
             <div
-              id={panelId}
-              role="region"
-              aria-labelledby={buttonId}
-              className={`landing-faq-item__panel${open ? ' landing-faq-item__panel--open' : ''}`}
+              className={`landing-glass-card landing-faq-item-card landing-interactive${open ? ' landing-faq-item-card--open' : ''}`}
             >
-              <div className="landing-faq-item__panel-inner">
-                <p>{item.a}</p>
+              <button
+                id={buttonId}
+                type="button"
+                className="landing-faq-item__trigger"
+                aria-expanded={open}
+                aria-controls={panelId}
+                onClick={() => setOpenIndex(open ? -1 : index)}
+              >
+                <span className="landing-faq-item__question">{item.q}</span>
+                <PlusMinusIcon open={open} />
+              </button>
+              <div
+                id={panelId}
+                role="region"
+                aria-labelledby={buttonId}
+                className={`landing-faq-item__panel${open ? ' landing-faq-item__panel--open' : ''}`}
+              >
+                <div className="landing-faq-item__panel-inner">
+                  <p>{item.a}</p>
+                </div>
               </div>
             </div>
-          </div>
+          </LandingReveal>
         );
       })}
     </div>
