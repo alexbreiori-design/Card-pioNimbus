@@ -1,17 +1,17 @@
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Source+Sans+3:wght@400;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
 
 :root {
-  --bg0: #1a1510;
-  --bg1: #2a2118;
-  --ink: #f6efe4;
-  --muted: #c4b5a0;
-  --accent: #e8a54b;
-  --accent-ink: #1a1510;
-  --danger: #f0a0a0;
-  --line: rgba(246, 239, 228, 0.14);
-  --panel: rgba(42, 33, 24, 0.92);
-  --font-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", Palatino, serif;
-  --font-body: "Source Sans 3", "Segoe UI", "Helvetica Neue", sans-serif;
+  --bg: #f6f8ff;
+  --ink: #243041;
+  --muted: #5f6b80;
+  --primary: #6d28d9;
+  --primary-dark: #5b21b6;
+  --danger: #be123c;
+  --line: rgba(36, 48, 65, 0.12);
+  --panel: rgba(255, 255, 255, 0.86);
+  --shadow: 0 20px 50px rgba(76, 29, 149, 0.1);
+  --radius: 18px;
+  --font: "Poppins", system-ui, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -20,11 +20,12 @@ body {
   margin: 0;
   min-height: 100vh;
   color: var(--ink);
-  font-family: var(--font-body);
+  font-family: var(--font);
   background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(232, 165, 75, 0.18), transparent 55%),
-    radial-gradient(900px 500px at 100% 0%, rgba(120, 80, 40, 0.35), transparent 50%),
-    linear-gradient(160deg, var(--bg0), var(--bg1) 55%, #17130f);
+    radial-gradient(ellipse 50% 40% at 15% 0%, rgba(125, 211, 252, 0.35), transparent 60%),
+    radial-gradient(ellipse 45% 35% at 90% 8%, rgba(167, 139, 250, 0.32), transparent 55%),
+    radial-gradient(ellipse 40% 30% at 50% 100%, rgba(244, 114, 182, 0.12), transparent 50%),
+    var(--bg);
 }
 
 .wrap {
@@ -37,58 +38,65 @@ body {
 
 .brand {
   margin: 0 0 0.35rem;
-  font-family: var(--font-display);
-  font-size: 1.35rem;
-  letter-spacing: 0.02em;
-  color: var(--accent);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--primary);
 }
 
 h1 {
   margin: 0 0 0.5rem;
-  font-family: var(--font-display);
-  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  font-size: clamp(1.7rem, 3.5vw, 2.2rem);
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.2;
 }
 
 .lede {
   margin: 0;
-  max-width: 38rem;
+  max-width: 40rem;
   color: var(--muted);
-  line-height: 1.5;
+  line-height: 1.55;
+  font-size: 0.98rem;
 }
 
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius);
   padding: 1.25rem 1.35rem 1.4rem;
   margin-bottom: 1.25rem;
-  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
 }
 
 .label {
   display: block;
-  margin: 0.75rem 0 0.35rem;
-  font-size: 0.85rem;
+  margin: 0.85rem 0 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 500;
   color: var(--muted);
 }
 
 .label:first-child { margin-top: 0; }
 
-input {
+input, select, textarea {
   width: 100%;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.25);
+  border-radius: 12px;
+  background: #fff;
   color: var(--ink);
   padding: 0.7rem 0.85rem;
   font: inherit;
 }
 
-input:focus {
-  outline: 2px solid rgba(232, 165, 75, 0.55);
+input:focus, select:focus, textarea:focus {
+  outline: 2px solid rgba(109, 40, 217, 0.45);
   outline-offset: 1px;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 8rem;
+  line-height: 1.45;
 }
 
 .actions {
@@ -108,40 +116,28 @@ input:focus {
   background: transparent;
   color: var(--muted);
   border: 1px solid var(--line);
-  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  padding: 0.45rem 0.95rem;
+  font: inherit;
   font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
 }
 
 .tab.active {
-  background: rgba(232, 165, 75, 0.18);
-  color: var(--ink);
-  border-color: rgba(232, 165, 75, 0.45);
-}
-
-select, textarea {
-  width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.25);
-  color: var(--ink);
-  padding: 0.7rem 0.85rem;
-  font: inherit;
-}
-
-textarea {
-  resize: vertical;
-  min-height: 8rem;
-  line-height: 1.4;
+  background: rgba(109, 40, 217, 0.1);
+  color: var(--primary-dark);
+  border-color: rgba(109, 40, 217, 0.35);
 }
 
 button {
   border: 0;
-  border-radius: 10px;
-  background: var(--accent);
-  color: var(--accent-ink);
+  border-radius: 12px;
+  background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 58%, #8b5cf6 100%);
+  color: #fff;
   font: inherit;
   font-weight: 600;
-  padding: 0.65rem 1.1rem;
+  padding: 0.7rem 1.15rem;
   cursor: pointer;
 }
 
@@ -151,8 +147,8 @@ button:disabled {
 }
 
 button.secondary {
-  background: transparent;
-  color: var(--ink);
+  background: #fff;
+  color: var(--primary-dark);
   border: 1px solid var(--line);
 }
 
@@ -160,15 +156,15 @@ button.secondary {
   min-height: 1.4rem;
   margin: 0.85rem 0 0;
   color: var(--muted);
-  font-size: 0.95rem;
+  font-size: 0.92rem;
 }
 
 .status.error { color: var(--danger); }
 
 .result h2 {
   margin: 0 0 0.5rem;
-  font-family: var(--font-display);
-  font-size: 1.35rem;
+  font-size: 1.25rem;
+  font-weight: 700;
 }
 
 .meta {
@@ -176,15 +172,13 @@ button.secondary {
   color: var(--muted);
 }
 
-.warnings {
-  margin-bottom: 0.75rem;
-}
+.warnings { margin-bottom: 0.75rem; }
 
 .warnings ul {
   margin: 0.35rem 0 0;
   padding-left: 1.1rem;
-  color: #f0d0a0;
-  font-size: 0.92rem;
+  color: #9a3412;
+  font-size: 0.9rem;
 }
 
 .hidden { display: none; }
@@ -199,6 +193,7 @@ summary {
   cursor: pointer;
   color: var(--muted);
   margin-bottom: 0.5rem;
+  font-weight: 500;
 }
 
 pre {
@@ -206,8 +201,9 @@ pre {
   max-height: 360px;
   overflow: auto;
   padding: 0.85rem;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.35);
+  border-radius: 12px;
+  background: #0f172a;
+  color: #e2e8f0;
   font-size: 0.78rem;
   line-height: 1.4;
   white-space: pre-wrap;

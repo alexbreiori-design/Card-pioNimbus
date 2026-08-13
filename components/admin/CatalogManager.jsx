@@ -19,6 +19,8 @@ import CategoryIconPicker from '@/components/admin/CategoryIconPicker';
 import CategoryLayoutPicker from '@/components/admin/CategoryLayoutPicker';
 import ProductAddonPassoModal from '@/components/admin/ProductAddonPassoModal';
 import AdminComboProductPickerModal from '@/components/admin/AdminComboProductPickerModal';
+import PizzaPecaTambemPickerModal from '@/components/admin/pizza/PizzaPecaTambemPickerModal';
+import ProductPromoChip from '@/components/cardapio/ProductPromoChip';
 import { DraggableReorderList } from '@/components/lightswind/draggable-reorder-list';
 import { CATEGORY_LAYOUT_DEFAULT } from '@/lib/cardapio/categoryLayouts';
 import {
@@ -59,18 +61,22 @@ const EMPTY_ADDON_RULES = {
   grupos: {},
 };
 
+const DESTAQUE_MAX_LENGTH = 15;
+
 const EMPTY_FORM = {
   tipo: 'comum',
   nome: '',
   codigoPdv: '',
   categoriaId: '',
   preco: '',
+  precoApartirDe: false,
   pecaTambemIds: [],
   medidaQtd: '',
   medidaUn: 'un',
   servePessoas: '',
   estoque: '',
   descricao: '',
+  destaque: '',
   disponivel: true,
   entregaRetirada: true,
   mesaBalcao: true,
@@ -163,12 +169,14 @@ function itemToForm(item, fallbackCategoryId) {
     codigoPdv: item.codigoPdv || '',
     categoriaId: item.categoriaId || fallbackCategoryId || '',
     preco: moneyInput(item.preco),
+    precoApartirDe: item.precoApartirDe === true,
     pecaTambemIds: normalizePecaTambemIds(item.pecaTambemIds),
     medidaQtd: measure.medidaQtd,
     medidaUn: measure.medidaUn,
     servePessoas: item.servePessoas || '',
     estoque: item.estoque || '',
     descricao: item.descricao || '',
+    destaque: String(item.destaque || '').slice(0, DESTAQUE_MAX_LENGTH),
     disponivel: item.ativo !== false,
     entregaRetirada: item.entregaRetirada !== false,
     mesaBalcao: item.mesaBalcao !== false,
@@ -300,12 +308,13 @@ export default function CatalogManager({ mode = 'produtos' }) {
   const [comboPickerOpen, setComboPickerOpen] = useState(false);
   const [comboPriceManual, setComboPriceManual] = useState(false);
   const [pecaTambemPickerOpen, setPecaTambemPickerOpen] = useState(false);
-  const [pecaTambemSearch, setPecaTambemSearch] = useState('');
   const [addonPassoModalOpen, setAddonPassoModalOpen] = useState(false);
   const [editingAddonPassoId, setEditingAddonPassoId] = useState('');
   const [removingAddonPassoId, setRemovingAddonPassoId] = useState('');
   const [descricaoEditing, setDescricaoEditing] = useState(false);
   const [descricaoDraft, setDescricaoDraft] = useState('');
+  const [destaqueEditing, setDestaqueEditing] = useState(false);
+  const [destaqueDraft, setDestaqueDraft] = useState('');
   const [faixaModal, setFaixaModal] = useState(null);
 
   const categories = useMemo(() => data[catKey] || [], [data, catKey]);
@@ -356,18 +365,26 @@ export default function CatalogManager({ mode = 'produtos' }) {
     () => addonPassos.find((passo) => passo.id === editingAddonPassoId) || null,
     [addonPassos, editingAddonPassoId]
   );
-  const productPickerCandidates = useMemo(
-    () =>
-      (data.produtos || []).filter(
-        (p) =>
-          p.ativo !== false &&
-          p.tipo !== 'combo' &&
-          p.id !== editingItemId
-      ),
-    [data.produtos, editingItemId]
-  );
+  const productPickerCandidates = useMemo(() => {
+    const catOrdem = new Map((data.categorias || []).map((cat) => [cat.id, Number(cat.ordem) || 0]));
+    return (data.produtos || [])
+      .filter((p) => p.ativo !== false && p.tipo !== 'combo' && p.id !== editingItemId)
+      .slice()
+      .sort((a, b) => {
+        const catDiff = (catOrdem.get(a.categoriaId) ?? 9999) - (catOrdem.get(b.categoriaId) ?? 9999);
+        if (catDiff !== 0) return catDiff;
+        return (Number(a.ordem) || 0) - (Number(b.ordem) || 0);
+      });
+  }, [data.produtos, data.categorias, editingItemId]);
   const comboCandidates = productPickerCandidates;
   const pecaTambemCandidates = productPickerCandidates;
+  const pecaTambemCategories = useMemo(
+    () =>
+      [...(data.categorias || [])]
+        .filter((cat) => cat.ativo !== false)
+        .sort((a, b) => (Number(a.ordem) || 0) - (Number(b.ordem) || 0)),
+    [data.categorias]
+  );
   const pecaTambemSelected = useMemo(
     () =>
       normalizePecaTambemIds(form.pecaTambemIds)
@@ -626,13 +643,14 @@ export default function CatalogManager({ mode = 'produtos' }) {
     setSaveError('');
     setComboPickerOpen(false);
     setComboPriceManual(false);
-    setPecaTambemSearch('');
     setPecaTambemPickerOpen(false);
     setAddonPassoModalOpen(false);
     setEditingAddonPassoId('');
     setRemovingAddonPassoId('');
     setDescricaoEditing(false);
     setDescricaoDraft('');
+    setDestaqueEditing(false);
+    setDestaqueDraft('');
     setModalOpen(true);
   }
 
@@ -653,13 +671,14 @@ export default function CatalogManager({ mode = 'produtos' }) {
     setSaveError('');
     setComboPickerOpen(false);
     setComboPriceManual(true);
-    setPecaTambemSearch('');
     setPecaTambemPickerOpen(false);
     setAddonPassoModalOpen(false);
     setEditingAddonPassoId('');
     setRemovingAddonPassoId('');
     setDescricaoEditing(false);
     setDescricaoDraft('');
+    setDestaqueEditing(false);
+    setDestaqueDraft('');
     setModalOpen(true);
   }
 
@@ -672,12 +691,13 @@ export default function CatalogManager({ mode = 'produtos' }) {
     setComboPickerOpen(false);
     setComboPriceManual(false);
     setPecaTambemPickerOpen(false);
-    setPecaTambemSearch('');
     setAddonPassoModalOpen(false);
     setEditingAddonPassoId('');
     setRemovingAddonPassoId('');
     setDescricaoEditing(false);
     setDescricaoDraft('');
+    setDestaqueEditing(false);
+    setDestaqueDraft('');
   }
 
   const isItemFormDirty = useMemo(() => {
@@ -731,9 +751,14 @@ export default function CatalogManager({ mode = 'produtos' }) {
           setSaveError(`No passo "${passo.titulo || catName}", o mínimo não pode ser maior que o máximo.`);
           return;
         }
-        if (Number(passo.min || 0) > passo.itemIds.length) {
+        const unitCap = passo.permitirRepetir
+          ? passo.itemIds.length * Math.max(2, Number(passo.maxRepeticoes || 2))
+          : passo.itemIds.length;
+        if (Number(passo.min || 0) > unitCap) {
           setSaveError(
-            `No passo "${passo.titulo || catName}", o mínimo não pode ser maior que a quantidade de itens selecionados.`
+            passo.permitirRepetir
+              ? `No passo "${passo.titulo || catName}", o mínimo não pode ser maior que itens × máx. repetições.`
+              : `No passo "${passo.titulo || catName}", o mínimo não pode ser maior que a quantidade de itens selecionados.`
           );
           return;
         }
@@ -745,7 +770,9 @@ export default function CatalogManager({ mode = 'produtos' }) {
       categoriaId: form.categoriaId,
       nome,
       descricao: form.descricao.trim(),
+      destaque: isProdutos ? String(form.destaque || '').trim().slice(0, DESTAQUE_MAX_LENGTH) : '',
       preco,
+      precoApartirDe: isProdutos ? form.precoApartirDe === true : false,
       imagemUrl,
       ativo: form.disponivel,
       tags: form.tipo === 'combo' ? ['combo'] : [],
@@ -957,21 +984,6 @@ export default function CatalogManager({ mode = 'produtos' }) {
         : COMBO_SUGGESTED_DISCOUNT_PERCENT;
     return { totalItens, sugestao, economia, precoCombo, descontoPercent };
   })();
-
-  function togglePecaTambem(produtoId) {
-    setForm((prev) => {
-      const current = normalizePecaTambemIds(prev.pecaTambemIds);
-      if (current.includes(produtoId)) {
-        return { ...prev, pecaTambemIds: current.filter((id) => id !== produtoId) };
-      }
-      if (current.length >= MAX_PECA_TAMBEM) {
-        setSaveError(`Selecione no máximo ${MAX_PECA_TAMBEM} produtos em Peça também.`);
-        return prev;
-      }
-      setSaveError('');
-      return { ...prev, pecaTambemIds: [...current, produtoId] };
-    });
-  }
 
   function removePecaTambem(produtoId) {
     setForm((prev) => ({
@@ -1263,7 +1275,11 @@ export default function CatalogManager({ mode = 'produtos' }) {
                 {item.servePessoas ? <span>Serve {item.servePessoas}</span> : null}
                 {item.tipo ? <span>{item.tipo}</span> : null}
               </div>
-              <div className="admin-order-price">R$ {Number(item.preco || 0).toFixed(2).replace('.', ',')}</div>
+              <div className="admin-order-price">
+                {item.precoApartirDe
+                  ? `À partir de R$ ${Number(item.preco || 0).toFixed(2).replace('.', ',')}`
+                  : `R$ ${Number(item.preco || 0).toFixed(2).replace('.', ',')}`}
+              </div>
             </div>
             <div className="admin-item-actions-col">
               <div className="admin-availability-cell">
@@ -1347,15 +1363,39 @@ export default function CatalogManager({ mode = 'produtos' }) {
                   </div>
                   <div className="admin-form-group">
                     <label className="admin-label">Preço</label>
-                    <input
-                      className="admin-input"
-                      inputMode="numeric"
-                      value={form.preco}
-                      onChange={(e) =>
-                        setForm((p) => ({ ...p, preco: formatMoneyBrInput(e.target.value) }))
-                      }
-                      placeholder="R$ 0,00"
-                    />
+                    {isProdutos ? (
+                      <div className="admin-product-price-apartir-row">
+                        <input
+                          className="admin-input"
+                          inputMode="numeric"
+                          value={form.preco}
+                          onChange={(e) =>
+                            setForm((p) => ({ ...p, preco: formatMoneyBrInput(e.target.value) }))
+                          }
+                          placeholder="R$ 0,00"
+                        />
+                        <button
+                          type="button"
+                          className={`admin-product-apartir-toggle${form.precoApartirDe ? ' is-on' : ''}`}
+                          onClick={() =>
+                            setForm((p) => ({ ...p, precoApartirDe: !p.precoApartirDe }))
+                          }
+                          aria-pressed={form.precoApartirDe === true}
+                        >
+                          à partir de
+                        </button>
+                      </div>
+                    ) : (
+                      <input
+                        className="admin-input"
+                        inputMode="numeric"
+                        value={form.preco}
+                        onChange={(e) =>
+                          setForm((p) => ({ ...p, preco: formatMoneyBrInput(e.target.value) }))
+                        }
+                        placeholder="R$ 0,00"
+                      />
+                    )}
                   </div>
                   <div className="admin-form-group">
                     <label className="admin-label">Categoria</label>
@@ -1491,6 +1531,98 @@ export default function CatalogManager({ mode = 'produtos' }) {
                       </p>
                     )}
                   </div>
+
+                  {isProdutos ? (
+                    <div className="admin-form-group admin-form-full admin-product-destaque-block">
+                      <div className="admin-order-collapsed-head">
+                        <label className="admin-label">Destaque</label>
+                      </div>
+                      {destaqueEditing ? (
+                        <div className="admin-product-destaque-editor">
+                          <input
+                            id="admin-product-destaque"
+                            className="admin-input"
+                            maxLength={DESTAQUE_MAX_LENGTH}
+                            value={destaqueDraft}
+                            onChange={(e) =>
+                              setDestaqueDraft(e.target.value.slice(0, DESTAQUE_MAX_LENGTH))
+                            }
+                            placeholder="Ex: Novo, Chef, Hit"
+                            autoFocus
+                          />
+                          <div className="admin-product-destaque-editor-actions">
+                            <span className="admin-help-text">
+                              {destaqueDraft.length}/{DESTAQUE_MAX_LENGTH}
+                            </span>
+                            <div className="admin-product-destaque-editor-btns">
+                              <button
+                                type="button"
+                                className="admin-btn admin-btn-ghost admin-btn-sm"
+                                onClick={() => {
+                                  setDestaqueEditing(false);
+                                  setDestaqueDraft('');
+                                }}
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                type="button"
+                                className="admin-btn admin-btn-primary admin-btn-sm"
+                                onClick={() => {
+                                  setForm((p) => ({
+                                    ...p,
+                                    destaque: destaqueDraft.trim().slice(0, DESTAQUE_MAX_LENGTH),
+                                  }));
+                                  setDestaqueEditing(false);
+                                  setDestaqueDraft('');
+                                }}
+                              >
+                                Salvar
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : form.destaque?.trim() ? (
+                        <div className="admin-product-destaque-preview-row">
+                          <div className="admin-product-destaque-preview">
+                            <ProductPromoChip label={form.destaque.trim()} />
+                          </div>
+                          <div className="admin-product-destaque-actions">
+                            <button
+                              type="button"
+                              className="admin-product-destaque-icon-btn"
+                              aria-label="Editar destaque"
+                              onClick={() => {
+                                setDestaqueDraft(form.destaque || '');
+                                setDestaqueEditing(true);
+                              }}
+                            >
+                              <i className="ph ph-pencil-simple" aria-hidden="true" />
+                            </button>
+                            <button
+                              type="button"
+                              className="admin-product-destaque-icon-btn is-danger"
+                              aria-label="Remover destaque"
+                              onClick={() => setForm((p) => ({ ...p, destaque: '' }))}
+                            >
+                              <i className="ph ph-x" aria-hidden="true" />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="admin-link-btn admin-product-destaque-add"
+                          onClick={() => {
+                            setDestaqueDraft('');
+                            setDestaqueEditing(true);
+                          }}
+                        >
+                          + Adicionar
+                        </button>
+                      )}
+                    </div>
+                  ) : null}
 
                   <div className="admin-form-group admin-form-full admin-product-disponibilidade-block">
                     <label className="admin-label">Disponibilidade</label>
@@ -1643,42 +1775,6 @@ export default function CatalogManager({ mode = 'produtos' }) {
 
                 {isProdutos && form.tipo !== 'combo' ? (
                   <div className="admin-product-side-section admin-product-links">
-                    <div className="admin-product-config-row">
-                      <div className="admin-product-config-copy">
-                        <strong>Peça também</strong>
-                        <p>Sugestões na sacola (máx. {MAX_PECA_TAMBEM}).</p>
-                      </div>
-                      <button
-                        type="button"
-                        className="admin-select-link"
-                        onClick={() => {
-                          setSaveError('');
-                          setPecaTambemPickerOpen(true);
-                        }}
-                      >
-                        Selecionar ({pecaTambemSelected.length}/{MAX_PECA_TAMBEM})
-                      </button>
-                    </div>
-                    {pecaTambemSelected.length ? (
-                      <div className="admin-peca-tambem-list">
-                        {pecaTambemSelected.map((product) => (
-                          <div key={product.id} className="admin-combo-row admin-peca-tambem-row">
-                            <div>
-                              <strong>{product.nome}</strong>
-                              <p>R$ {Number(product.preco || 0).toFixed(2).replace('.', ',')}</p>
-                            </div>
-                            <button
-                              type="button"
-                              className="admin-btn admin-btn-danger"
-                              onClick={() => removePecaTambem(product.id)}
-                            >
-                              Remover
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-
                     <div className="admin-product-addon-steps">
                       <div className="admin-product-config-copy">
                         <strong>Adicionais e complementos</strong>
@@ -1746,6 +1842,52 @@ export default function CatalogManager({ mode = 'produtos' }) {
                         Adicionar passo
                       </button>
                     </div>
+
+                    <div className="admin-product-config-row">
+                      <div className="admin-product-config-copy">
+                        <strong>Peça também</strong>
+                        <p>Sugestões na sacola (máx. {MAX_PECA_TAMBEM}).</p>
+                      </div>
+                      <button
+                        type="button"
+                        className="admin-select-link"
+                        onClick={() => {
+                          setSaveError('');
+                          setPecaTambemPickerOpen(true);
+                        }}
+                      >
+                        Selecionar ({pecaTambemSelected.length}/{MAX_PECA_TAMBEM})
+                      </button>
+                    </div>
+                    <DraggableReorderList
+                      className="admin-peca-tambem-draggable"
+                      items={pecaTambemSelected}
+                      emptyLabel="Nenhuma sugestão selecionada."
+                      onReorder={(next) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          pecaTambemIds: next.map((product) => product.id),
+                        }))
+                      }
+                      renderItem={(product) => (
+                        <div className="admin-addon-passo-summary admin-peca-tambem-summary">
+                          <div className="admin-peca-tambem-summary-main">
+                            <strong>{product.nome}</strong>
+                            <span>
+                              R$ {Number(product.preco || 0).toFixed(2).replace('.', ',')}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            className="admin-addon-passo-summary-remove"
+                            aria-label={`Remover ${product.nome}`}
+                            onClick={() => removePecaTambem(product.id)}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )}
+                    />
                   </div>
                 ) : null}
               </div>
@@ -1762,66 +1904,16 @@ export default function CatalogManager({ mode = 'produtos' }) {
           </div>
 
           {pecaTambemPickerOpen ? (
-            <div className="admin-picker-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="admin-picker-header">
-                <div>
-                  <h3>Peça também</h3>
-                  <p>
-                    Escolha até {MAX_PECA_TAMBEM} produtos sugeridos na sacola do cardápio (
-                    {pecaTambemSelected.length}/{MAX_PECA_TAMBEM} selecionados).
-                  </p>
-                </div>
-                <button type="button" className="admin-picker-close" onClick={() => setPecaTambemPickerOpen(false)}>
-                  x
-                </button>
-              </div>
-              <div className="admin-picker-search-row">
-                <input
-                  className="admin-input"
-                  placeholder="Pesquisar produto..."
-                  value={pecaTambemSearch}
-                  onChange={(e) => setPecaTambemSearch(e.target.value)}
-                />
-              </div>
-              <div className="admin-picker-content">
-                {pecaTambemCandidates
-                  .filter(
-                    (item) =>
-                      !pecaTambemSearch.trim() || item.nome.toLowerCase().includes(pecaTambemSearch.toLowerCase())
-                  )
-                  .map((item) => {
-                    const selected = normalizePecaTambemIds(form.pecaTambemIds).includes(item.id);
-                    return (
-                      <div key={item.id} className="admin-picker-item">
-                        {item.imagemUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={item.imagemUrl} alt="" loading="lazy" decoding="async" />
-                              ) : (
-                                <ImagePlaceholder size={48} />
-                              )}
-                        <div>
-                          <strong>{item.nome}</strong>
-                          <p>{item.descricao || 'Sem descricao'}</p>
-                        </div>
-                        <span>R$ {Number(item.preco || 0).toFixed(2).replace('.', ',')}</span>
-                        <button
-                          type="button"
-                          className={`admin-square-check ${selected ? 'checked' : ''}`}
-                          aria-label={selected ? `Remover ${item.nome}` : `Selecionar ${item.nome}`}
-                          onClick={() => togglePecaTambem(item.id)}
-                        >
-                          {selected ? '✓' : ''}
-                        </button>
-                      </div>
-                    );
-                  })}
-              </div>
-              <div className="admin-picker-footer">
-                <button type="button" className="admin-btn admin-btn-primary" onClick={() => setPecaTambemPickerOpen(false)}>
-                  Concluir
-                </button>
-              </div>
-            </div>
+            <PizzaPecaTambemPickerModal
+              products={pecaTambemCandidates}
+              categories={pecaTambemCategories}
+              selectedIds={normalizePecaTambemIds(form.pecaTambemIds)}
+              onChange={(next) => {
+                setSaveError('');
+                setForm((prev) => ({ ...prev, pecaTambemIds: normalizePecaTambemIds(next) }));
+              }}
+              onClose={() => setPecaTambemPickerOpen(false)}
+            />
           ) : null}
         </div>
         {pickerType ? (

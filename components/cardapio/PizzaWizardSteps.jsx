@@ -1,6 +1,7 @@
 'use client';
 
 import { getFlavorPriceForSize } from '@/lib/pizza/pizzaWizard';
+import { getAddonStepBadge, getAddonStepHint, sectionHasItem } from '@/lib/cardapio/addonSelection';
 import AddonThumb from '@/components/cardapio/AddonThumb';
 import { IconCheck } from './icons';
 
@@ -19,6 +20,48 @@ function OptionCheck({ active }) {
   );
 }
 
+function getPizzaStepBadge(step, pizzaState, selectedAddons) {
+  if (!step) return null;
+  if (step.type === 'size') {
+    const done = Boolean(pizzaState?.sizeId);
+    return done
+      ? { text: '✓ 1/1', tone: 'done' }
+      : { text: 'Falta 1', tone: 'missing' };
+  }
+  if (step.type === 'flavor') {
+    const done = Boolean(pizzaState?.flavorSlots?.[step.slotIndex]);
+    if (step.required) {
+      return done
+        ? { text: '✓ 1/1', tone: 'done' }
+        : { text: 'Falta 1', tone: 'missing' };
+    }
+    return done
+      ? { text: '✓ 1/1', tone: 'done' }
+      : { text: '✓ 0/1', tone: 'done' };
+  }
+  if (step.type === 'addons' && step.section) {
+    return getAddonStepBadge(step.section, selectedAddons?.[step.sectionIndex]);
+  }
+  return null;
+}
+
+function getPizzaStepHint(step) {
+  if (!step) return '';
+  if (step.type === 'size') {
+    return 'Escolha 1 tamanho';
+  }
+  if (step.type === 'flavor') {
+    return step.required ? 'Escolha 1 sabor' : 'Opcional — escolha 1 sabor ou avance';
+  }
+  if (step.type === 'addons' && step.section) {
+    return getAddonStepHint(step.section);
+  }
+  if (step.type === 'suggestions') {
+    return step.hint || 'Sugestões para acompanhar.';
+  }
+  return step.hint || '';
+}
+
 export default function PizzaWizardSteps({
   steps,
   stepIndex,
@@ -35,6 +78,8 @@ export default function PizzaWizardSteps({
   if (!step) return null;
 
   const showPhotos = stepShowsPhotos(step);
+  const badge = getPizzaStepBadge(step, pizzaState, selectedAddons);
+  const hint = getPizzaStepHint(step);
 
   return (
     <div className="pizza-wizard">
@@ -44,12 +89,15 @@ export default function PizzaWizardSteps({
             {stepIndex + 1}. {step.title}
           </div>
         </div>
-        {step.hint ? (
-          <div className="addon-section-meta">
-            <span className="pizza-wizard-hint">{step.hint}</span>
-            {step.required ? <span className="obrigatorio-badge">OBRIGATÓRIO</span> : null}
-          </div>
-        ) : null}
+        <div className="addon-section-meta">
+          {badge ? (
+            <span className={`marmita-wizard-badge marmita-wizard-badge-${badge.tone}`}>
+              {badge.text}
+            </span>
+          ) : null}
+          {step.required ? <span className="obrigatorio-badge">OBRIGATÓRIO</span> : null}
+          {hint ? <span className="marmita-wizard-hint">{hint}</span> : null}
+        </div>
 
         {step.type === 'size' ? (
           <div className="addon-items-grid is-text-only">
@@ -107,8 +155,7 @@ export default function PizzaWizardSteps({
         {step.type === 'addons' ? (
           <div className={`addon-items-grid${showPhotos ? '' : ' is-text-only'}`}>
             {step.section.items.map((item) => {
-              const selected = selectedAddons[step.sectionIndex] || [];
-              const isActive = selected.includes(item.id);
+              const isActive = sectionHasItem(selectedAddons[step.sectionIndex], item.id);
               return (
                 <button
                   type="button"

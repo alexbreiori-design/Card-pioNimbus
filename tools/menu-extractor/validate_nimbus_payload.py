@@ -76,6 +76,39 @@ def validate_payload(payload: dict[str, Any]) -> list[str]:
             if preco != preco:  # NaN
                 errors.append(f'Produtos: preço inválido em "{item_nome}" ({nome}).')
 
+    adicionais = modules.get("adicionais")
+    if adicionais is not None:
+        if not isinstance(adicionais, dict):
+            errors.append("modules.adicionais inválido.")
+        else:
+            add_cats = adicionais.get("categorias")
+            if not isinstance(add_cats, list):
+                errors.append("modules.adicionais.categorias deve ser lista.")
+            else:
+                for cat_index, raw_cat in enumerate(add_cats):
+                    if not isinstance(raw_cat, dict):
+                        errors.append(f"Adicionais: categoria #{cat_index + 1} inválida.")
+                        continue
+                    nome = str(raw_cat.get("nome") or "").strip()
+                    if not nome:
+                        errors.append(f"Adicionais: categoria #{cat_index + 1} sem nome.")
+                        continue
+                    itens = raw_cat.get("itens")
+                    if not isinstance(itens, list):
+                        errors.append(f'Adicionais: categoria "{nome}" sem lista de itens.')
+                        continue
+                    for raw_item in itens:
+                        if not isinstance(raw_item, dict):
+                            errors.append(f'Adicionais: item inválido em "{nome}".')
+                            continue
+                        item_nome = str(raw_item.get("nome") or "").strip()
+                        if not item_nome:
+                            errors.append(f'Adicionais: item sem nome na categoria "{nome}".')
+                            continue
+                        preco = parse_import_price(raw_item.get("preco"))
+                        if preco != preco:
+                            errors.append(f'Adicionais: preço inválido em "{item_nome}" ({nome}).')
+
     return errors
 
 
@@ -93,7 +126,10 @@ def main(argv: list[str]) -> int:
         return 1
     cats = payload["modules"]["produtos"]["categorias"]
     products = sum(len(c.get("itens") or []) for c in cats)
-    print(f"OK — {len(cats)} categorias, {products} produtos")
+    add = payload.get("modules", {}).get("adicionais", {}).get("categorias") or []
+    add_items = sum(len(c.get("itens") or []) for c in add)
+    extra = f", {len(add)} cat. adicionais, {add_items} itens" if add else ""
+    print(f"OK - {len(cats)} categorias, {products} produtos{extra}")
     return 0
 
 

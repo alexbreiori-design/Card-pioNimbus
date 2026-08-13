@@ -48,6 +48,7 @@ export default function AdminGridPickerModal({
   exibirFotos,
   onExibirFotosChange,
   showExibirFotos = false,
+  keepImageColor = false,
 }) {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('todos');
@@ -62,22 +63,34 @@ export default function AdminGridPickerModal({
 
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return items.filter((item) => {
-      const categoryId = getItemCategoryId(item);
-      const matchesCategory =
-        !showCategoryChips ||
-        categoryFilter === 'todos' ||
-        categoryId === categoryFilter ||
-        (!categoryId && categoryFilter === 'sem-categoria');
-      if (!matchesCategory) return false;
-      if (!q) return true;
-      return (
-        String(getItemName(item)).toLowerCase().includes(q) ||
-        String(getItemDesc(item)).toLowerCase().includes(q)
-      );
-    });
+    const catOrdem = new Map(
+      (categories || []).map((cat, index) => [cat.id, Number(cat.ordem) ?? index])
+    );
+    return items
+      .filter((item) => {
+        const categoryId = getItemCategoryId(item);
+        const matchesCategory =
+          !showCategoryChips ||
+          categoryFilter === 'todos' ||
+          categoryId === categoryFilter ||
+          (!categoryId && categoryFilter === 'sem-categoria');
+        if (!matchesCategory) return false;
+        if (!q) return true;
+        return (
+          String(getItemName(item)).toLowerCase().includes(q) ||
+          String(getItemDesc(item)).toLowerCase().includes(q)
+        );
+      })
+      .slice()
+      .sort((a, b) => {
+        const catDiff =
+          (catOrdem.get(getItemCategoryId(a)) ?? 9999) - (catOrdem.get(getItemCategoryId(b)) ?? 9999);
+        if (catDiff !== 0) return catDiff;
+        return (Number(a.ordem) || 0) - (Number(b.ordem) || 0);
+      });
   }, [
     items,
+    categories,
     search,
     categoryFilter,
     showCategoryChips,
@@ -85,6 +98,37 @@ export default function AdminGridPickerModal({
     getItemName,
     getItemDesc,
   ]);
+
+  const itemSections = useMemo(() => {
+    if (!showCategoryChips || categoryFilter !== 'todos' || !categories.length) {
+      return [{ id: '_all', title: null, items: filteredItems }];
+    }
+    const byCategory = new Map();
+    filteredItems.forEach((item) => {
+      const categoryId = getItemCategoryId(item) || 'sem-categoria';
+      if (!byCategory.has(categoryId)) byCategory.set(categoryId, []);
+      byCategory.get(categoryId).push(item);
+    });
+    const sections = [];
+    categories.forEach((cat) => {
+      const catItems = byCategory.get(cat.id);
+      if (!catItems?.length) return;
+      sections.push({ id: cat.id, title: cat.nome, items: catItems });
+    });
+    const uncategorized = byCategory.get('sem-categoria');
+    if (uncategorized?.length) {
+      sections.push({ id: 'sem-categoria', title: 'Sem categoria', items: uncategorized });
+    }
+    return sections.length ? sections : [{ id: '_all', title: null, items: filteredItems }];
+  }, [filteredItems, categories, categoryFilter, showCategoryChips, getItemCategoryId]);
+
+  const sortedCategories = useMemo(
+    () =>
+      [...(categories || [])].sort(
+        (a, b) => (Number(a.ordem) || 0) - (Number(b.ordem) || 0)
+      ),
+    [categories]
+  );
 
   const visibleIds = useMemo(
     () => filteredItems.map((item) => getItemId(item)),
@@ -134,7 +178,9 @@ export default function AdminGridPickerModal({
   return (
     <div className="admin-picker-overlay" onClick={onClose} role="presentation">
       <div
-        className="admin-picker-modal admin-combo-picker-modal"
+        className={`admin-picker-modal admin-combo-picker-modal${
+          keepImageColor ? ' is-colorful-media' : ''
+        }`}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="admin-picker-header">
@@ -167,7 +213,7 @@ export default function AdminGridPickerModal({
                 >
                   Todos
                 </button>
-                {categories.map((cat) => (
+                {sortedCategories.map((cat) => (
                   <button
                     key={cat.id}
                     type="button"
@@ -214,102 +260,118 @@ export default function AdminGridPickerModal({
           {filteredItems.length ? (
             isList ? (
               <div className="admin-combo-picker-list">
-                {filteredItems.map((item) => {
-                  const id = getItemId(item);
-                  const selected = selectedSet.has(id);
-                  const disabled = !selected && atMax;
-                  const name = getItemName(item);
-                  const desc = getItemDesc(item);
-                  const imageUrl = getItemImage(item);
-                  const price = getItemPrice(item);
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      className={`admin-combo-picker-list-row${selected ? ' is-selected' : ''}${
-                        disabled ? ' is-disabled' : ''
-                      }`}
-                      onClick={() => {
-                        if (disabled) return;
-                        onToggle?.(item);
-                      }}
-                      aria-pressed={selected}
-                      disabled={disabled}
-                    >
-                      <span className={`admin-picker-check${selected ? ' checked' : ''}`}>
-                        {selected ? '✓' : ''}
-                      </span>
-                      <div className="admin-combo-picker-list-media">
-                        {imageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={imageUrl} alt="" loading="lazy" decoding="async" />
-                        ) : (
-                          <ImagePlaceholder size={28} />
-                        )}
-                      </div>
-                      <div className="admin-combo-picker-list-main">
-                        <strong>{name}</strong>
-                        {desc ? <p>{desc}</p> : null}
-                      </div>
-                      {showPrice ? (
-                        <span className="admin-combo-picker-list-price">
-                          R$ {formatPriceBr(price)}
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div
-                className={`admin-addon-passo-item-grid admin-combo-picker-grid${
-                  hideMeta ? ' is-compact' : ''
-                }`}
-                style={{ '--addon-passo-tile': `${tileSize}px` }}
-              >
-                {filteredItems.map((item) => {
-                  const id = getItemId(item);
-                  const selected = selectedSet.has(id);
-                  const disabled = !selected && atMax;
-                  const name = getItemName(item);
-                  const imageUrl = getItemImage(item);
-                  const price = getItemPrice(item);
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      className={`admin-addon-passo-card${selected ? ' is-selected' : ''}${
-                        disabled ? ' is-disabled' : ''
-                      }`}
-                      onClick={() => {
-                        if (disabled) return;
-                        onToggle?.(item);
-                      }}
-                      aria-pressed={selected}
-                      disabled={disabled}
-                      title={name}
-                    >
-                      <div className="admin-addon-passo-card-media">
-                        {imageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={imageUrl} alt="" loading="lazy" decoding="async" />
-                        ) : (
-                          <ImagePlaceholder size={Math.max(28, Math.round(tileSize * 0.55))} />
-                        )}
-                      </div>
-                      {!hideMeta ? (
-                        <div className="admin-addon-passo-card-body">
-                          <span className="admin-addon-passo-card-name">{name}</span>
+                {itemSections.map((section) => (
+                  <div key={section.id} className="admin-combo-picker-group">
+                    {section.title ? (
+                      <p className="admin-combo-picker-group-title">{section.title}</p>
+                    ) : null}
+                    {section.items.map((item) => {
+                      const id = getItemId(item);
+                      const selected = selectedSet.has(id);
+                      const disabled = !selected && atMax;
+                      const name = getItemName(item);
+                      const desc = getItemDesc(item);
+                      const imageUrl = getItemImage(item);
+                      const price = getItemPrice(item);
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          className={`admin-combo-picker-list-row${selected ? ' is-selected' : ''}${
+                            disabled ? ' is-disabled' : ''
+                          }`}
+                          onClick={() => {
+                            if (disabled) return;
+                            onToggle?.(item);
+                          }}
+                          aria-pressed={selected}
+                          disabled={disabled}
+                        >
+                          <span className={`admin-picker-check${selected ? ' checked' : ''}`}>
+                            {selected ? '✓' : ''}
+                          </span>
+                          <div className="admin-combo-picker-list-media">
+                            {imageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={imageUrl} alt="" loading="lazy" decoding="async" />
+                            ) : (
+                              <ImagePlaceholder size={28} />
+                            )}
+                          </div>
+                          <div className="admin-combo-picker-list-main">
+                            <strong>{name}</strong>
+                            {desc ? <p>{desc}</p> : null}
+                          </div>
                           {showPrice ? (
-                            <span className="admin-combo-picker-card-price">
+                            <span className="admin-combo-picker-list-price">
                               R$ {formatPriceBr(price)}
                             </span>
                           ) : null}
-                        </div>
-                      ) : null}
-                    </button>
-                  );
-                })}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="admin-combo-picker-groups">
+                {itemSections.map((section) => (
+                  <div key={section.id} className="admin-combo-picker-group">
+                    {section.title ? (
+                      <p className="admin-combo-picker-group-title">{section.title}</p>
+                    ) : null}
+                    <div
+                      className={`admin-addon-passo-item-grid admin-combo-picker-grid${
+                        hideMeta ? ' is-compact' : ''
+                      }`}
+                      style={{ '--addon-passo-tile': `${tileSize}px` }}
+                    >
+                      {section.items.map((item) => {
+                        const id = getItemId(item);
+                        const selected = selectedSet.has(id);
+                        const disabled = !selected && atMax;
+                        const name = getItemName(item);
+                        const imageUrl = getItemImage(item);
+                        const price = getItemPrice(item);
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            className={`admin-addon-passo-card${selected ? ' is-selected' : ''}${
+                              disabled ? ' is-disabled' : ''
+                            }`}
+                            onClick={() => {
+                              if (disabled) return;
+                              onToggle?.(item);
+                            }}
+                            aria-pressed={selected}
+                            disabled={disabled}
+                            title={name}
+                          >
+                            <div className="admin-addon-passo-card-media">
+                              {imageUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={imageUrl} alt="" loading="lazy" decoding="async" />
+                              ) : (
+                                <ImagePlaceholder size={Math.max(28, Math.round(tileSize * 0.55))} />
+                              )}
+                            </div>
+                            {!hideMeta ? (
+                              <div className="admin-addon-passo-card-body">
+                                <span className="admin-addon-passo-card-name">{name}</span>
+                                {showPrice ? (
+                                  <span className="admin-combo-picker-card-price">
+                                    R$ {formatPriceBr(price)}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             )
           ) : (

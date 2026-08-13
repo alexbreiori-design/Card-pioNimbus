@@ -1341,7 +1341,23 @@
 .cardapio-v2-product-card-price .product-price-from {
   font-size: 11px;
   font-weight: 500;
+  line-height: 1.2;
   color: var(--text-mid, #6b7280);
+}
+
+.cardapio-v2-product-card-price.is-from-price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  line-height: 1.15;
+}
+
+.cardapio-v2-product-card-price .product-price-value {
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  line-height: 1.2;
 }
 
 .cardapio-v2-product-card-add {
@@ -1489,7 +1505,23 @@
 .cardapio-v2-product-card-list-price .product-price-from {
   font-size: 11px;
   font-weight: 500;
+  line-height: 1.2;
   color: var(--text-mid, #6b7280);
+}
+
+.cardapio-v2-product-card-list-price.is-from-price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  line-height: 1.15;
+}
+
+.cardapio-v2-product-card-list-price .product-price-value {
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  line-height: 1.2;
 }
 
 .cardapio-v2-product-card-list-add {
@@ -1742,7 +1774,7 @@
   }
 
   .cardapio-v2-rail-section.is-layout-grid-5 .cardapio-v2-product-card-price .product-price-from {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 500;
   }
 
@@ -3191,6 +3223,20 @@
   color: var(--text, #141414);
 }
 
+.cardapio-v2-product-modal-price.is-from-price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  line-height: 1.15;
+}
+
+.cardapio-v2-product-modal-price.is-from-price .product-price-from {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-mid, #6b7280);
+}
+
 .cardapio-v2-product-modal-price.has-promo .product-price-original {
   margin-right: 8px;
   font-size: 16px;
@@ -3443,7 +3489,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .cardapio-v2-product-modal-section-head h3 {
@@ -3453,10 +3499,8 @@
   line-height: 1.35;
 }
 
-.cardapio-v2-product-modal-section-head span {
-  font-size: 12px;
-  color: var(--text-light, #666);
-  white-space: nowrap;
+.cardapio-v2-product-modal-section-meta {
+  margin-bottom: 12px;
 }
 
 .cardapio-v2-product-modal-options-wrap {
@@ -3606,6 +3650,24 @@
   border-color: transparent;
   background: var(--brand, #4e48dd);
   color: #fff;
+}
+
+.cardapio-v2-product-modal-option.has-qty-stepper {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.cardapio-v2-product-modal-option.is-text-only.has-qty-stepper {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.cardapio-v2-product-modal-option.has-qty-stepper .addon-qty-stepper {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.cardapio-v2-product-modal-option.has-qty-stepper .cardapio-v2-product-modal-option-copy {
+  min-width: 0;
 }
 
 .cardapio-v2-product-modal-footer {

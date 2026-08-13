@@ -7,6 +7,8 @@ import ProductPromoChip from '@/components/cardapio/ProductPromoChip';
 export default function CardapioProductCardV2({ product, layout = 'rail' }) {
   const { addProductFromCard, formatPrice } = useCardapio();
   const isPromo = product.isPromocao && product.promoOriginalPrice > product.price;
+  const highlightLabel = !isPromo ? String(product.highlightLabel || '').trim() : '';
+  const showFromPrice = Boolean(product.priceLabel) && !isPromo;
 
   function handleOpen() {
     addProductFromCard(product.id);
@@ -41,6 +43,8 @@ export default function CardapioProductCardV2({ product, layout = 'rail' }) {
         />
         {isPromo ? (
           <ProductPromoChip originalPrice={product.promoOriginalPrice} promoPrice={product.price} />
+        ) : highlightLabel ? (
+          <ProductPromoChip label={highlightLabel} />
         ) : null}
       </div>
       <div className="cardapio-v2-product-card-body">
@@ -49,7 +53,11 @@ export default function CardapioProductCardV2({ product, layout = 'rail' }) {
           {product.desc || ''}
         </p>
         <div className="cardapio-v2-product-card-footer">
-          <div className={`cardapio-v2-product-card-price${isPromo ? ' has-promo' : ''}`}>
+          <div
+            className={`cardapio-v2-product-card-price${isPromo ? ' has-promo' : ''}${
+              showFromPrice ? ' is-from-price' : ''
+            }`}
+          >
             {isPromo ? (
               <>
                 <span className="product-price-original">{formatPrice(product.promoOriginalPrice)}</span>
@@ -57,10 +65,8 @@ export default function CardapioProductCardV2({ product, layout = 'rail' }) {
               </>
             ) : (
               <>
-                {product.priceLabel ? (
-                  <span className="product-price-from">{product.priceLabel} </span>
-                ) : null}
-                {formatPrice(product.price)}
+                {showFromPrice ? <span className="product-price-from">{product.priceLabel}</span> : null}
+                <span className="product-price-value">{formatPrice(product.price)}</span>
               </>
             )}
           </div>

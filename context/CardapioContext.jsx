@@ -10,6 +10,12 @@ import {
   useState,
 } from 'react';
 import { formatMarmitaCartObs } from '@/lib/marmita/marmitaWizard';
+import {
+  collectAddonOptLabels,
+  getSectionMaxRepeticoes,
+  sectionToQtyMap,
+  sectionTotalQty,
+} from '@/lib/cardapio/addonSelection';
 import { formatPrice } from '@/lib/utils/format';
 import { formatDeliveryAddressLine } from '@/lib/formatDeliveryAddress';
 import { digitsOnly } from '@/lib/cpfCnpj';
@@ -884,10 +890,10 @@ export function CardapioProvider({
     let extras = 0;
     if (!product) return 0;
     product.addons.forEach((sec, si) => {
-      const sel = addons[si] || [];
-      sel.forEach((id) => {
+      const map = sectionToQtyMap(addons[si]);
+      Object.entries(map).forEach(([id, qty]) => {
         const item = sec.items.find((i) => i.id === id);
-        if (item) extras += item.extra;
+        if (item) extras += Number(item.extra || 0) * qty;
       });
     });
     return extras;
@@ -1488,21 +1494,56 @@ export function CardapioProvider({
   }, []);
 
   const toggleAddon = useCallback(
-    (sectionIdx, itemId, extra) => {
+    (sectionIdx, itemId) => {
       if (!currentProduct) return;
       setSelectedAddons((prev) => {
         const next = { ...prev };
-        if (!next[sectionIdx]) next[sectionIdx] = [];
-        const arr = [...next[sectionIdx]];
         const sec = currentProduct.addons[sectionIdx];
-        const idx = arr.indexOf(itemId);
-        if (idx > -1) {
-          arr.splice(idx, 1);
+        if (!sec) return prev;
+        const map = sectionToQtyMap(next[sectionIdx]);
+        const maxUnits = Math.max(1, Number(sec.max || 1));
+        const currentQtyForItem = Number(map[itemId] || 0);
+
+        if (currentQtyForItem > 0) {
+          delete map[itemId];
         } else {
-          if (arr.length >= sec.max) arr.shift();
-          arr.push(itemId);
+          const total = sectionTotalQty(map);
+          if (total >= maxUnits) {
+            const firstKey = Object.keys(map)[0];
+            if (firstKey) delete map[firstKey];
+          }
+          map[itemId] = 1;
         }
-        next[sectionIdx] = arr;
+        next[sectionIdx] = map;
+        setAddonExtras(recalcExtras(currentProduct, next));
+        return next;
+      });
+    },
+    [currentProduct, recalcExtras]
+  );
+
+  const changeAddonQty = useCallback(
+    (sectionIdx, itemId, delta) => {
+      if (!currentProduct || !delta) return;
+      setSelectedAddons((prev) => {
+        const next = { ...prev };
+        const sec = currentProduct.addons[sectionIdx];
+        if (!sec) return prev;
+        const map = sectionToQtyMap(next[sectionIdx]);
+        const maxUnits = Math.max(1, Number(sec.max || 1));
+        const maxRep = getSectionMaxRepeticoes(sec);
+        const current = Number(map[itemId] || 0);
+        const total = sectionTotalQty(map);
+        let desired = current + delta;
+        if (desired < 0) desired = 0;
+        if (desired > maxRep) desired = maxRep;
+        if (delta > 0) {
+          const room = Math.max(0, maxUnits - (total - current));
+          desired = Math.min(desired, current + room);
+        }
+        if (desired <= 0) delete map[itemId];
+        else map[itemId] = desired;
+        next[sectionIdx] = map;
         setAddonExtras(recalcExtras(currentProduct, next));
         return next;
       });
@@ -1518,9 +1559,9 @@ export function CardapioProvider({
     if (!currentProduct) return;
     for (let si = 0; si < currentProduct.addons.length; si += 1) {
       const sec = currentProduct.addons[si];
-      const sel = selectedAddons[si] || [];
+      const total = sectionTotalQty(selectedAddons[si]);
       const minRequired = sec.required ? Math.max(1, Number(sec.min || 1)) : Number(sec.min || 0);
-      if (sel.length < minRequired) {
+      if (total < minRequired) {
         void showAlert(
           minRequired > 1
             ? `Selecione pelo menos ${minRequired} opções em "${sec.section}".`
@@ -1529,14 +1570,7 @@ export function CardapioProvider({
         return;
       }
     }
-    const optLabels = [];
-    currentProduct.addons.forEach((sec, si) => {
-      const sel = selectedAddons[si] || [];
-      sel.forEach((id) => {
-        const item = sec.items.find((i) => i.id === id);
-        if (item) optLabels.push(item.name);
-      });
-    });
+    const optLabels = collectAddonOptLabels(currentProduct, selectedAddons);
     const unitPrice = currentProduct.price + addonExtras;
     const note = String(productNote || '').trim();
     commitCartAdd({
@@ -2691,6 +2725,7 @@ export function CardapioProvider({
       setPopupHeaderCompact,
       popupDetailsRef,
       toggleAddon,
+      changeAddonQty,
       changeQty,
       addToCart,
       addToCartCustom,
@@ -2723,6 +2758,7 @@ export function CardapioProvider({
       productNote,
       popupHeaderCompact,
       toggleAddon,
+      changeAddonQty,
       changeQty,
       addToCart,
       addToCartCustom,
