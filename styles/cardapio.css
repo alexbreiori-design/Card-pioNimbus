@@ -805,10 +805,26 @@ body {
   color: var(--text-dark);
 }
 
+.product-card-price.is-from-price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  line-height: 1.15;
+}
+
 .product-price-from {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
+  line-height: 1.2;
   color: var(--text-mid, #6b7280);
+}
+
+.product-price-value {
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  line-height: 1.2;
 }
 
 .product-card-price.has-promo,
@@ -816,6 +832,20 @@ body {
   display: flex;
   align-items: baseline;
   gap: 8px;
+}
+
+.popup-header-price.is-from-price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  line-height: 1.15;
+}
+
+.popup-header-price.is-from-price .product-price-from {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-mid, #6b7280);
 }
 
 .product-price-original {
@@ -2085,6 +2115,68 @@ button.addon-item.addon-item--selectable,
 .addon-add-btn:hover { transform: scale(1.15); color: var(--brand-hover); }
 .addon-add-btn.active { color: var(--brand); }
 .addon-add-btn.active svg .check-icon { display: block; }
+
+.addon-item.addon-item--grid.has-qty-stepper {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.addon-item.addon-item--grid.is-text-only.has-qty-stepper {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.addon-qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  flex: 0 0 auto;
+  max-width: 72px;
+  margin-left: auto;
+}
+
+.addon-qty-icon-btn {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--brand, #4e48dd);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.addon-qty-icon-btn:disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+}
+
+.addon-qty-icon-btn:not(:disabled):hover {
+  color: var(--brand-hover, #3b36b0);
+  transform: scale(1.08);
+}
+
+.addon-qty-value {
+  min-width: 1rem;
+  max-width: 1.5rem;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text-dark, #141414);
+  font-variant-numeric: tabular-nums;
+}
+
+.addon-item.addon-item--grid .addon-qty-stepper {
+  align-self: center;
+}
 
 /* Popup footer qty controls */
 .popup-footer {

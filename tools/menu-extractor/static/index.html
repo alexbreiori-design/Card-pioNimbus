@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Nimbus — Extrator de cardápio</title>
+  <title>Cardápio Nimbus — Extrator</title>
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
@@ -12,9 +12,8 @@
       <p class="brand">Cardápio Nimbus</p>
       <h1>Extrator de cardápio</h1>
       <p class="lede">
-        Cole o link público do iFood ou Anota AI. A ferramenta gera um JSON
-        compatível com o import do super-admin. Se o anti-bot bloquear, use a
-        aba de JSON bruto.
+        Cole o link do cardápio antigo. iFood e Anota AI usam extração dedicada;
+        qualquer outro site usa o modo genérico (melhor em cardápios simples).
       </p>
     </header>
 
@@ -26,25 +25,33 @@
       </div>
 
       <div id="tab-url" class="tab-panel">
+        <label class="label" for="mode">Modo de extração</label>
+        <select id="mode">
+          <option value="auto" selected>Automático (iFood / Anota / genérico)</option>
+          <option value="generic">Genérico (qualquer site)</option>
+          <option value="ifood">Só iFood</option>
+          <option value="anota_ai">Só Anota AI</option>
+        </select>
         <label class="label" for="url">URL do cardápio</label>
         <input
           id="url"
           type="url"
-          placeholder="https://www.ifood.com.br/delivery/.../<uuid> ou https://pedido.anota.ai/loja/..."
+          placeholder="https://… (qualquer cardápio público)"
           autocomplete="off"
         />
       </div>
 
       <div id="tab-raw" class="tab-panel hidden">
-        <label class="label" for="platform">Plataforma</label>
+        <label class="label" for="platform">Formato do JSON</label>
         <select id="platform">
+          <option value="generic">Genérico</option>
           <option value="ifood">iFood</option>
           <option value="anota_ai">Anota AI</option>
         </select>
         <label class="label" for="merchantId">Merchant UUID (iFood, opcional)</label>
         <input id="merchantId" type="text" placeholder="para montar URLs de imagem" autocomplete="off" />
         <label class="label" for="rawJson">JSON capturado no DevTools</label>
-        <textarea id="rawJson" rows="8" placeholder='Cole aqui o JSON de /catalog (iFood) ou da API de cardápio (Anota AI)'></textarea>
+        <textarea id="rawJson" rows="8" placeholder="Cole aqui o JSON da Network (Response)"></textarea>
       </div>
 
       <label class="label" for="slug">Slug Nimbus (opcional)</label>
@@ -61,8 +68,10 @@
       <div id="warnings" class="warnings"></div>
       <div class="actions">
         <button id="downloadBtn" type="button">Baixar JSON</button>
+        <button id="downloadImagesBtn" type="button" class="secondary">Baixar fotos (ZIP)</button>
         <button id="copyBtn" type="button" class="secondary">Copiar JSON</button>
       </div>
+      <p id="imagesStatus" class="status" aria-live="polite"></p>
       <details open>
         <summary>Preview do JSON Nimbus</summary>
         <pre id="jsonPreview"></pre>

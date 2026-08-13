@@ -1,4 +1,5 @@
 const urlInput = document.getElementById("url");
+const modeSelect = document.getElementById("mode");
 const slugInput = document.getElementById("slug");
 const extractBtn = document.getElementById("extractBtn");
 const statusEl = document.getElementById("status");
@@ -8,7 +9,9 @@ const warningsEl = document.getElementById("warnings");
 const jsonPreview = document.getElementById("jsonPreview");
 const tableWrap = document.getElementById("tableWrap");
 const downloadBtn = document.getElementById("downloadBtn");
+const downloadImagesBtn = document.getElementById("downloadImagesBtn");
 const copyBtn = document.getElementById("copyBtn");
+const imagesStatusEl = document.getElementById("imagesStatus");
 const platformSelect = document.getElementById("platform");
 const merchantIdInput = document.getElementById("merchantId");
 const rawJsonInput = document.getElementById("rawJson");
@@ -16,6 +19,7 @@ const tabUrl = document.getElementById("tab-url");
 const tabRaw = document.getElementById("tab-raw");
 
 let lastPayload = null;
+let lastImageCount = 0;
 let activeTab = "url";
 
 document.querySelectorAll(".tab").forEach((btn) => {
@@ -39,6 +43,7 @@ function setStatus(text, isError = false) {
 function platformLabel(platform) {
   if (platform === "ifood") return "iFood";
   if (platform === "anota_ai") return "Anota AI";
+  if (platform === "generic") return "Genérico";
   return platform || "—";
 }
 
@@ -85,12 +90,17 @@ function escapeHtml(value) {
 
 function showResult(data) {
   lastPayload = data.payload;
+  lastImageCount = Number(data.imageCount || 0);
   resultEl.classList.remove("hidden");
   const counts = data.counts || {};
   metaEl.textContent = [
-    `Plataforma: ${platformLabel(data.platform)}`,
+    `Modo: ${platformLabel(data.platform)}`,
     data.store_name ? `Loja: ${data.store_name}` : null,
-    `${counts.categorias || 0} categorias · ${counts.produtos || 0} produtos`,
+    `${counts.categorias || 0} cat. produtos · ${counts.produtos || 0} produtos`,
+    counts.adicionaisCategorias
+      ? `${counts.adicionaisCategorias} cat. adicionais · ${counts.adicionaisItens || 0} itens`
+      : null,
+    lastImageCount ? `${lastImageCount} fotos` : "sem fotos",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -106,6 +116,10 @@ function showResult(data) {
 
   jsonPreview.textContent = JSON.stringify(data.payload, null, 2);
   renderTable(data.payload);
+  downloadImagesBtn.disabled = lastImageCount === 0;
+  imagesStatusEl.textContent = lastImageCount
+    ? `${lastImageCount} fotos disponíveis para download em ZIP.`
+    : "Nenhuma foto encontrada nesta extração.";
 }
 
 extractBtn.addEventListener("click", async () => {
@@ -128,7 +142,11 @@ extractBtn.addEventListener("click", async () => {
       res = await fetch("/api/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, slug: slugInput.value.trim() }),
+        body: JSON.stringify({
+          url,
+          slug: slugInput.value.trim(),
+          mode: modeSelect.value || "auto",
+        }),
       });
     } else {
       let payload;
@@ -175,6 +193,56 @@ downloadBtn.addEventListener("click", () => {
   a.download = `nimbus-catalog-${Date.now()}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
+});
+
+downloadImagesBtn.addEventListener("click", async () => {
+  if (!lastPayload) return;
+  downloadImagesBtn.disabled = true;
+  imagesStatusEl.textContent = "Baixando fotos e montando ZIP… isso pode levar um minuto.";
+  try {
+    const res = await fetch("/api/images-zip", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        payload: lastPayload,
+        slug: slugInput.value.trim() || lastPayload.slug || "cardapio",
+      }),
+    });
+    const contentType = res.headers.get("content-type") || "";
+    if (!res.ok || !contentType.includes("zip")) {
+      let msg = "Falha ao gerar ZIP de fotos.";
+      try {
+        const data = await res.json();
+        msg = data.error || msg;
+        if (data.meta?.failures?.length) {
+          msg += ` (${data.meta.failures.length} falhas)`;
+        }
+      } catch {
+        /* ignore */
+      }
+      imagesStatusEl.textContent = msg;
+      imagesStatusEl.classList.add("error");
+      return;
+    }
+    imagesStatusEl.classList.remove("error");
+    const blob = await res.blob();
+    const downloaded = res.headers.get("X-Images-Downloaded") || "?";
+    const failed = res.headers.get("X-Images-Failed") || "0";
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `nimbus-fotos-${Date.now()}.zip`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    imagesStatusEl.textContent =
+      Number(failed) > 0
+        ? `ZIP pronto: ${downloaded} fotos baixadas, ${failed} falharam.`
+        : `ZIP pronto: ${downloaded} fotos.`;
+  } catch (err) {
+    imagesStatusEl.textContent = err?.message || "Erro ao baixar fotos.";
+    imagesStatusEl.classList.add("error");
+  } finally {
+    downloadImagesBtn.disabled = lastImageCount === 0;
+  }
 });
 
 copyBtn.addEventListener("click", async () => {

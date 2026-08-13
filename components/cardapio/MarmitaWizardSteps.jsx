@@ -1,6 +1,7 @@
 'use client';
 
 import { getMarmitaStepBadge } from '@/lib/marmita/marmitaWizard';
+import { sectionHasItem } from '@/lib/cardapio/addonSelection';
 import AddonThumb from '@/components/cardapio/AddonThumb';
 import { IconCheck } from './icons';
 
@@ -14,7 +15,7 @@ export default function MarmitaWizardSteps({
   const section = steps[stepIndex];
   if (!section) return null;
 
-  const selected = selectedAddons[stepIndex] || [];
+  const selected = selectedAddons[stepIndex] || {};
   const badge = getMarmitaStepBadge(section, selected);
   const stepTitle = section.stepTitle || section.section;
   const showPhotos = section.exibirFotos !== false;
@@ -39,7 +40,7 @@ export default function MarmitaWizardSteps({
 
         <div className={`addon-items-grid${showPhotos ? '' : ' is-text-only'}`}>
           {section.items.map((item) => {
-            const isActive = selected.includes(item.id);
+            const isActive = sectionHasItem(selected, item.id);
             return (
               <button
                 type="button"

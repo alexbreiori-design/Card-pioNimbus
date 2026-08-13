@@ -1,100 +1,33 @@
-# Extrator de cardápio (iFood + Anota AI)
+# Extrator de cardápio (iFood + Anota AI + genérico)
 
-Ferramenta **interna** para onboarding: cola a URL pública do cardápio antigo,
-extrai categorias/produtos e gera JSON no formato do import do super-admin Nimbus.
+Ferramenta **interna** para onboarding: cola a URL do cardápio antigo e gera JSON
+compatível com o import do super-admin Nimbus.
 
-## Escopo MVP
+## Modos
 
-- Plataformas: **iFood** e **Anota AI**
-- Campos: categoria, nome, descrição, preço, `imagemUrl` (quando houver)
-- Não cobre adicionais, pizza modular nem marmitas
+- **Automático**: iFood / Anota AI se detectar o domínio; senão genérico
+- **Genérico**: qualquer site (JSON-LD, APIs de rede, DOM). Inclui suporte a
+  `pedir.delivery` / Multipedidos (`cardapio.json`)
+- Adapters dedicados: iFood e Anota AI
 
-## Requisitos
+## Fotos em ZIP
 
-- **Python 3.10+ instalado de verdade** (não o atalho da Microsoft Store)
-- Playwright (Chromium)
+Depois de extrair, use **Baixar fotos (ZIP)**. O arquivo vem com:
 
-### Windows — se aparecer “Python não foi encontrado”
+- `produtos/<categoria>/001-nome.jpg`
+- `adicionais/<categoria>/...` (quando houver)
+- `manifest.json` (mapa arquivo → nome/URL)
 
-Isso significa que o Windows tentou o alias da Store, sem Python instalado (ou fora do PATH).
+## Windows
 
-1. Baixe em https://www.python.org/downloads/
-2. No instalador, marque **Add python.exe to PATH**
-3. Marque **Install pip**
-4. Feche e abra o terminal de novo
-5. (Opcional) desative aliases da Store:  
-   **Configurações → Aplicativos → Configurações avançadas → Aliases de execução**  
-   desligue `python.exe` e `python3.exe`
+1. `setup.bat` (primeira vez)
+2. `run.bat`
+3. Abra http://127.0.0.1:8765 (Ctrl+F5 se a tela antiga ainda aparecer)
 
-## Instalação rápida (Windows)
+## Fluxo
 
-Na pasta `tools/menu-extractor`:
+1. Cole a URL (ex.: `https://pedir.delivery/app/loja/menu`)
+2. Modo **Automático** ou **Genérico**
+3. Extrair → revisar → baixar JSON → importar no super-admin (dry run)
 
-1. Dê dois cliques em **`setup.bat`** (só na primeira vez)
-2. Dê dois cliques em **`run.bat`**
-3. Abra http://127.0.0.1:8765 (o script já tenta abrir)
-
-## Instalação (macOS / Linux / terminal)
-
-```bash
-cd tools/menu-extractor
-python3 -m venv .venv
-source .venv/bin/activate   # Windows PowerShell: .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-playwright install chromium
-python app.py
-```
-
-No Windows, se `python` falhar, tente o launcher:
-
-```bat
-py -3 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-py -3 -m pip install -r requirements.txt
-py -3 -m playwright install chromium
-py -3 app.py
-```
-
-## Uso (CLI)
-
-```bash
-# Por URL
-python extract_cli.py --url "https://www.ifood.com.br/delivery/.../<uuid>" -o loja.json
-
-# Por JSON bruto
-python extract_cli.py --raw examples/ifood_site_api_catalog.json --platform ifood --merchant-id abc -o loja.json
-```
-
-## Uso (UI)
-
-Abra http://127.0.0.1:8765
-
-1. Cole a URL pública (iFood com UUID, ou `https://pedido.anota.ai/loja/...`)
-2. (Opcional) informe o slug da loja Nimbus
-3. Clique em **Extrair**
-4. Revise avisos / preview
-5. **Baixar JSON** ou copiar
-6. No super-admin Nimbus → import de cardápio → cole o JSON → **dry run** → import
-
-### Fallback: JSON bruto
-
-Se PerimeterX (iFood) ou Cloudflare (Anota AI) bloquear:
-
-1. Abra a URL no Chrome normal
-2. DevTools → Network → filtre por `catalog` (iFood) ou a API de cardápio (Anota)
-3. Copie o Response JSON
-4. Na UI, aba **Colar JSON bruto** → cole → Extrair
-
-## Validar formato do JSON (sem rede)
-
-```bash
-python validate_nimbus_payload.py examples/sample_nimbus_payload.json
-python test_parsers.py
-```
-
-## Observações
-
-- Use só com autorização do lojista (migração do próprio cardápio).
-- Anti-bot das plataformas é comum em datacenters; preferir rodar na máquina local.
-- Layouts/APIs mudam; se a extração falhar, ajuste os adapters ou use JSON bruto.
-- Sempre revise preços e descrições antes do import.
+Sempre revise preços e descrições antes do import.

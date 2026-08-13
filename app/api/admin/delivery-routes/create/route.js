@@ -15,6 +15,9 @@ export async function POST(request) {
     const slug = normalizeSlug(body.slug || '');
     const pedidoDbIds = Array.isArray(body.pedidoDbIds) ? body.pedidoDbIds : [];
     const entregadorId = body.entregadorId || '';
+    const pedidoOrder = Array.isArray(body.pedidoOrder)
+      ? body.pedidoOrder.filter(Boolean)
+      : undefined;
 
     if (!slug) {
       return NextResponse.json({ ok: false, error: 'Slug obrigatório.' }, { status: 400 });
@@ -26,7 +29,9 @@ export async function POST(request) {
       return NextResponse.json({ ok: false, error: 'Loja não encontrada.' }, { status: 404 });
     }
 
-    const result = await createDeliveryRoute(supabase, empresa, pedidoDbIds, entregadorId);
+    const result = await createDeliveryRoute(supabase, empresa, pedidoDbIds, entregadorId, {
+      pedidoOrder,
+    });
 
     return NextResponse.json({
       ok: true,

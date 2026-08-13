@@ -3,6 +3,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useCardapioCart, useCardapioCatalog } from '@/context/CardapioContext';
 import {
+  getAddonStepBadge,
+  getAddonStepHint,
+  getSectionMaxRepeticoes,
+  isAddonSectionComplete,
+  sectionItemQty,
+  sectionTotalQty,
+} from '@/lib/cardapio/addonSelection';
+import {
   buildMarmitaCartOpts,
   findFirstIncompleteMarmitaStep,
   isMarmitaStepComplete,
@@ -23,25 +31,27 @@ import { IconClose } from './icons';
 const GENERIC_SEARCH_MIN_ITEMS = 8;
 const DESC_COLLAPSE_CHARS = 110;
 
-function isGenericStepComplete(section, selectedIds = []) {
-  const minRequired = section?.required
-    ? Math.max(1, Number(section.min || 1))
-    : Number(section?.min || 0);
-  return selectedIds.length >= minRequired;
+function isGenericStepComplete(section, selection) {
+  return isAddonSectionComplete(section, selection);
 }
 
 function findFirstIncompleteGenericStep(sections, selectedAddons) {
   for (let index = 0; index < sections.length; index += 1) {
-    const selected = selectedAddons[index] || [];
-    if (!isGenericStepComplete(sections[index], selected)) return index;
+    if (!isGenericStepComplete(sections[index], selectedAddons[index])) return index;
   }
   return -1;
 }
 
-function MobileAddonSection({ sec, si, selected, formatPrice, onToggle }) {
+function MobileAddonSection({ sec, si, selected, formatPrice, onToggle, onChangeQty }) {
   const [query, setQuery] = useState('');
   const items = sec.items || [];
   const showSearch = items.length >= GENERIC_SEARCH_MIN_ITEMS;
+  const totalSelected = sectionTotalQty(selected);
+  const allowRepeat = sec.permitirRepetir === true;
+  const maxRep = getSectionMaxRepeticoes(sec);
+  const maxUnits = Math.max(1, Number(sec.max || 1));
+  const badge = getAddonStepBadge(sec, selected);
+  const stepHint = getAddonStepHint(sec, { allowRepeat, maxRepeticoes: maxRep });
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return items;
@@ -55,16 +65,16 @@ function MobileAddonSection({ sec, si, selected, formatPrice, onToggle }) {
   return (
     <div className="addon-section">
       <div className="addon-section-header">
-        <div className="addon-section-title">{sec.stepTitle || sec.section}</div>
+        <div className="addon-section-title">
+          {si + 1}. {sec.stepTitle || sec.section}
+        </div>
       </div>
       <div className="addon-section-meta">
-        <span className="addon-count-badge">
-          {selected.length} / {sec.max}
+        <span className={`marmita-wizard-badge marmita-wizard-badge-${badge.tone}`}>
+          {badge.text}
         </span>
         {sec.required ? <span className="obrigatorio-badge">OBRIGATÓRIO</span> : null}
-        <span className="addon-section-hint">
-          Escolha até {sec.max} {sec.max > 1 ? 'opções' : 'opção'}
-        </span>
+        <span className="marmita-wizard-hint">{stepHint}</span>
       </div>
       {showSearch ? (
         <div className="addon-section-search">
@@ -84,27 +94,94 @@ function MobileAddonSection({ sec, si, selected, formatPrice, onToggle }) {
       {filteredItems.length ? (
         <div className={`addon-items-grid${sec.exibirFotos === false ? ' is-text-only' : ''}`}>
           {filteredItems.map((item) => {
-            const isActive = selected.includes(item.id);
+            const qty = sectionItemQty(selected, item.id);
+            const isActive = qty > 0;
+            const canIncrease = qty < maxRep && totalSelected < maxUnits;
+            const showQty = allowRepeat && isActive;
+            const className = `addon-item addon-item--grid${isActive ? ' is-selected' : ''}${
+              sec.exibirFotos === false ? ' is-text-only' : ''
+            }${showQty ? ' has-qty-stepper' : ''}`;
+
+            const media = sec.exibirFotos !== false ? <AddonThumb imageUrl={item.imageUrl} /> : null;
+            const info = (
+              <div className="addon-info">
+                <div className="addon-name">{item.name}</div>
+                {item.desc ? <div className="addon-desc">{item.desc}</div> : null}
+                {item.extra > 0 ? (
+                  <div className="addon-price">+ {formatPrice(item.extra)}</div>
+                ) : null}
+              </div>
+            );
+            const qtyControls = showQty ? (
+              <span
+                className="addon-qty-stepper"
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => event.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  className="addon-qty-icon-btn"
+                  aria-label={`Diminuir ${item.name}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onChangeQty?.(si, item.id, -1);
+                  }}
+                >
+                  −
+                </button>
+                <span className="addon-qty-value">{qty}</span>
+                <button
+                  type="button"
+                  className="addon-qty-icon-btn"
+                  aria-label={`Aumentar ${item.name}`}
+                  disabled={!canIncrease}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onChangeQty?.(si, item.id, 1);
+                  }}
+                >
+                  +
+                </button>
+              </span>
+            ) : (
+              <span className={`addon-add-btn${isActive ? ' active' : ''}`} aria-hidden="true">
+                {isActive ? '✓' : null}
+              </span>
+            );
+
+            if (showQty) {
+              return (
+                <div
+                  key={item.id}
+                  className={className}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={isActive}
+                  onClick={() => onToggle(si, item.id, item.extra)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onToggle(si, item.id, item.extra);
+                    }
+                  }}
+                >
+                  {media}
+                  {info}
+                  {qtyControls}
+                </div>
+              );
+            }
+
             return (
               <button
                 type="button"
-                className={`addon-item addon-item--grid${isActive ? ' is-selected' : ''}${
-                  sec.exibirFotos === false ? ' is-text-only' : ''
-                }`}
+                className={className}
                 key={item.id}
                 onClick={() => onToggle(si, item.id, item.extra)}
               >
-                {sec.exibirFotos !== false ? <AddonThumb imageUrl={item.imageUrl} /> : null}
-                <div className="addon-info">
-                  <div className="addon-name">{item.name}</div>
-                  {item.desc ? <div className="addon-desc">{item.desc}</div> : null}
-                  {item.extra > 0 ? (
-                    <div className="addon-price">+ {formatPrice(item.extra)}</div>
-                  ) : null}
-                </div>
-                <span className={`addon-add-btn${isActive ? ' active' : ''}`} aria-hidden="true">
-                  {isActive ? '✓' : null}
-                </span>
+                {media}
+                {info}
+                {qtyControls}
               </button>
             );
           })}
@@ -131,6 +208,7 @@ export default function ProductModal() {
     setPopupHeaderCompact,
     popupDetailsRef,
     toggleAddon,
+    changeAddonQty,
     changeQty,
     addToCart,
     addToCartCustom,
@@ -425,7 +503,7 @@ export default function ProductModal() {
             <div
               className={`popup-header-price ${
                 product.isPromocao && product.promoOriginalPrice > product.price ? 'has-promo' : ''
-              }`}
+              }${product.priceLabel && !(product.isPromocao && product.promoOriginalPrice > product.price) ? ' is-from-price' : ''}`}
             >
               {product.isPromocao && product.promoOriginalPrice > product.price ? (
                 <>
@@ -435,9 +513,16 @@ export default function ProductModal() {
                   </span>
                 </>
               ) : (
-                formatPrice(
-                  hasPizzaWizard ? pizzaUnitPrice : product.price + (hasMarmitaWizard ? addonExtras : 0)
-                )
+                <>
+                  {product.priceLabel ? (
+                    <span className="product-price-from">{product.priceLabel}</span>
+                  ) : null}
+                  <span className="product-price-value">
+                    {formatPrice(
+                      hasPizzaWizard ? pizzaUnitPrice : product.price + (hasMarmitaWizard ? addonExtras : 0)
+                    )}
+                  </span>
+                </>
               )}
             </div>
           </div>
@@ -492,6 +577,7 @@ export default function ProductModal() {
                 selected={currentGenericSelected}
                 formatPrice={formatPrice}
                 onToggle={toggleAddon}
+                onChangeQty={changeAddonQty}
               />
             ) : null}
 
