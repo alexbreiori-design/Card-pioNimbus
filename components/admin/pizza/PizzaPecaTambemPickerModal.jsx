@@ -9,6 +9,7 @@ export default function PizzaPecaTambemPickerModal({
   selectedIds = [],
   onChange,
   onClose,
+  subtitle = `Selecione até ${MAX_PECA_TAMBEM} produtos sugeridos na sacola do cardápio.`,
 }) {
   function handleToggle(product) {
     const has = selectedIds.includes(product.id);
@@ -24,7 +25,7 @@ export default function PizzaPecaTambemPickerModal({
     <AdminGridPickerModal
       open
       title="Peça também"
-      subtitle={`Selecione até ${MAX_PECA_TAMBEM} produtos sugeridos após a montagem da pizza.`}
+      subtitle={subtitle}
       items={products}
       categories={categories}
       selectedIds={selectedIds}
@@ -37,6 +38,7 @@ export default function PizzaPecaTambemPickerModal({
       concludeLabel="Salvar seleção"
       showPrice
       showCategoryChips
+      keepImageColor
     />
   );
 }

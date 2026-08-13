@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 from urllib.parse import urlparse
 
-DetectedPlatform = Literal["ifood", "anota_ai"]
+DetectedPlatform = Literal["ifood", "anota_ai", "generic"]
 
 
 @dataclass
@@ -14,6 +14,7 @@ class MenuItem:
     descricao: str = ""
     imagem_url: str = ""
     avisos: list[str] = field(default_factory=list)
+    adicional_categorias: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -23,11 +24,22 @@ class MenuCategory:
 
 
 @dataclass
+class AddonCategory:
+    nome: str
+    itens: list[MenuItem] = field(default_factory=list)
+    obrigatorio: bool = False
+    min: int = 0
+    max: int = 99
+    tipo_selecao: str = "multipla"  # simples | multipla
+
+
+@dataclass
 class ExtractResult:
     platform: DetectedPlatform
     source_url: str
     store_name: str = ""
     categories: list[MenuCategory] = field(default_factory=list)
+    addon_categories: list[AddonCategory] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     raw_hints: list[str] = field(default_factory=list)
 
@@ -39,6 +51,14 @@ class ExtractResult:
     def category_count(self) -> int:
         return len(self.categories)
 
+    @property
+    def addon_category_count(self) -> int:
+        return len(self.addon_categories)
+
+    @property
+    def addon_item_count(self) -> int:
+        return sum(len(cat.itens) for cat in self.addon_categories)
+
 
 def detect_platform(url: str) -> DetectedPlatform:
     host = (urlparse(url).hostname or "").lower()
@@ -46,10 +66,7 @@ def detect_platform(url: str) -> DetectedPlatform:
         return "ifood"
     if "anota.ai" in host or "anotaai" in host:
         return "anota_ai"
-    raise ValueError(
-        "URL não suportada. Use um link público do iFood (ifood.com.br) "
-        "ou da Anota AI (pedido.anota.ai / anota.ai)."
-    )
+    return "generic"
 
 
 def normalize_price(value: Any) -> float | None:
@@ -353,15 +370,19 @@ def merge_category_lists(*lists: list[MenuCategory]) -> list[MenuCategory]:
     return [by_name[k] for k in order if by_name[k].itens]
 
 
-async def extract_menu(url: str) -> ExtractResult:
-    platform = detect_platform(url)
+async def extract_menu(url: str, mode: DetectedPlatform | None = None) -> ExtractResult:
+    platform = mode or detect_platform(url)
     if platform == "ifood":
         from .ifood import extract_ifood
 
         return await extract_ifood(url)
-    from .anota_ai import extract_anota_ai
+    if platform == "anota_ai":
+        from .anota_ai import extract_anota_ai
 
-    return await extract_anota_ai(url)
+        return await extract_anota_ai(url)
+    from .generic import extract_generic
+
+    return await extract_generic(url)
 
 
 def extract_from_raw_payload(
@@ -373,14 +394,36 @@ def extract_from_raw_payload(
 ) -> ExtractResult:
     """Converte JSON bruto (DevTools / interceptação) no modelo intermediário."""
     warnings: list[str] = []
+    addon_categories: list = []
     if platform == "ifood":
         from .ifood_parser import parse_ifood_catalog_payload
 
         categories = parse_ifood_catalog_payload(payload, merchant_id)
-    else:
+    elif platform == "anota_ai":
         from .anota_parser import parse_anota_payload
 
         categories = parse_anota_payload(payload)
+    else:
+        from .generic import parse_json_ld_menu, parse_multipedidos_full
+
+        products, addons = parse_multipedidos_full(payload)
+        if products:
+            categories = products
+            addon_categories = addons
+        else:
+            ld_cats = parse_json_ld_menu(
+                payload if isinstance(payload, list) else [payload],
+                source_url,
+            )
+            heuristic_cats = extract_categories_from_payload(payload)
+
+            def _priced_count(cats):
+                return sum(1 for c in cats for i in c.itens if (i.preco or 0) > 0)
+
+            if _priced_count(ld_cats) >= _priced_count(heuristic_cats) and ld_cats:
+                categories = ld_cats
+            else:
+                categories = heuristic_cats or ld_cats
 
     if not categories:
         raise ValueError(
@@ -396,6 +439,7 @@ def extract_from_raw_payload(
         source_url=source_url or f"raw://{platform}",
         store_name="",
         categories=categories,
+        addon_categories=addon_categories,
         warnings=warnings,
         raw_hints=["raw-json"],
     )

@@ -3702,6 +3702,46 @@
   margin-top: 0;
 }
 
+.admin-peca-tambem-draggable {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+.admin-peca-tambem-summary {
+  align-items: center;
+}
+
+.admin-peca-tambem-summary-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.admin-peca-tambem-summary-main strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--admin-text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-peca-tambem-summary-main span {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--admin-text-light);
+}
+
+.admin-product-addon-steps + .admin-product-config-row {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #e1e4ea;
+}
+
 .admin-new-category-card {
   display: flex;
   gap: 8px;
@@ -3796,6 +3836,179 @@
 .admin-product-form-grid.admin-catalog-form-grid {
   align-items: start;
   gap: 14px 12px;
+}
+
+.admin-product-price-apartir-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: stretch;
+}
+
+.admin-product-apartir-toggle {
+  min-height: 40px;
+  border: 1px solid #d5dae2;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--admin-text-mid);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.admin-product-apartir-toggle.is-on {
+  border-color: color-mix(in srgb, var(--admin-brand) 40%, #d5dae2);
+  background: color-mix(in srgb, var(--admin-brand) 8%, #fff);
+  color: var(--admin-brand);
+}
+
+.admin-product-destaque-block {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-product-destaque-block .admin-order-collapsed-head {
+  margin-bottom: 0;
+}
+
+.admin-product-destaque-block .admin-label {
+  margin: 0;
+}
+
+.admin-product-destaque-preview-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-product-destaque-preview {
+  min-width: 0;
+}
+
+.admin-product-destaque-preview .cardapio-product-promo-chip {
+  position: relative;
+  top: auto;
+  left: auto;
+  display: inline-flex;
+  max-width: 100%;
+  border-radius: 9px;
+  isolation: isolate;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.admin-product-destaque-preview .cardapio-promo-fire-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--promo-fire-size, 18px);
+  height: var(--promo-fire-size, 18px);
+  line-height: 1;
+}
+
+.admin-product-destaque-preview .cardapio-promo-fire-icon i {
+  font-size: var(--promo-fire-size, 18px);
+  background: linear-gradient(to top, #dc2626 0%, #fbbf24 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.admin-product-destaque-preview .cardapio-product-promo-chip-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(rgba(10, 10, 10, 0.55), rgba(10, 10, 10, 0.55)) padding-box,
+    linear-gradient(135deg, #dc2626 0%, #fbbf24 100%) border-box;
+  backdrop-filter: blur(16px) saturate(1.15);
+  -webkit-backdrop-filter: blur(16px) saturate(1.15);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.admin-product-destaque-preview .cardapio-product-promo-chip-inner {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px 5px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.admin-product-destaque-preview .cardapio-product-promo-chip-text {
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.admin-product-destaque-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.admin-product-destaque-icon-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #d5dae2;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--admin-text-mid, #64748b);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.admin-product-destaque-icon-btn:hover {
+  border-color: #c7d2fe;
+  color: var(--admin-brand, #4e48dd);
+}
+
+.admin-product-destaque-icon-btn.is-danger:hover {
+  border-color: #fecaca;
+  color: var(--admin-danger, #dc2626);
+}
+
+.admin-product-destaque-icon-btn i {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.admin-product-destaque-add {
+  justify-self: start;
+  padding: 0;
+  font-size: 14px;
+}
+
+.admin-product-destaque-editor {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-product-destaque-editor-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-product-destaque-editor-btns {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .admin-product-form-measure-row {
@@ -4007,6 +4220,15 @@
   z-index: 370;
 }
 
+.admin-combo-picker-modal.is-colorful-media .admin-addon-passo-card:not(.is-selected) {
+  opacity: 1;
+}
+
+.admin-combo-picker-modal.is-colorful-media .admin-addon-passo-card:not(.is-selected) .admin-addon-passo-card-media img,
+.admin-combo-picker-modal.is-colorful-media .admin-addon-passo-card:not(.is-selected) .admin-addon-passo-card-media .admin-img-placeholder {
+  filter: none;
+}
+
 .admin-combo-picker-toolbar {
   padding: 10px 20px 8px;
   background: #f8fafc;
@@ -4191,6 +4413,38 @@
   min-height: 0;
   overflow: auto;
   padding: 8px 20px 12px;
+}
+
+.admin-combo-picker-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-combo-picker-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-combo-picker-group-title {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.admin-combo-picker-list .admin-combo-picker-group {
+  gap: 6px;
+}
+
+.admin-combo-picker-list .admin-combo-picker-group + .admin-combo-picker-group {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eef2f7;
 }
 
 .admin-combo-picker-grid.admin-addon-passo-item-grid {
@@ -6059,13 +6313,46 @@
   min-height: 0;
 }
 
+.admin-addon-passo-config {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
 .admin-addon-passo-top-row {
   display: flex;
   flex-wrap: nowrap;
   align-items: end;
-  gap: 12px;
+  gap: 24px;
   width: 100%;
   min-width: 0;
+}
+
+.admin-addon-passo-field-cluster {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: end;
+  gap: 4px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.admin-addon-passo-field-cluster > .admin-form-group {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.admin-addon-passo-row-divider {
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 1px;
+  margin: 6px 0 0;
+  background: #e5e7eb;
+}
+
+.admin-addon-passo-repeat-help {
+  margin: 0;
 }
 
 .admin-addon-passo-top-row > .admin-form-group {
@@ -6073,41 +6360,67 @@
   min-width: 0;
 }
 
+.admin-addon-passo-top-row .admin-label {
+  font-size: 12px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
+.admin-addon-passo-top-row .admin-input {
+  height: 36px;
+  min-height: 36px;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
 .admin-addon-passo-field-title {
-  flex: 1.6 1 180px;
+  flex: 0.45 1 56px;
+  min-width: 52px;
 }
 
 .admin-addon-passo-field-cat {
-  flex: 1.1 1 150px;
+  flex: 0.56 1 63px;
+  min-width: 57px;
 }
 
 .admin-addon-passo-field-tipo {
-  flex: 0.9 1 130px;
+  flex: 0 0 124px;
+  min-width: 112px;
 }
 
 .admin-addon-passo-field-limit {
-  flex: 0 0 84px;
+  flex: 0 0 54px;
+}
+
+.admin-addon-passo-field-repeat {
+  flex: 0 0 92px;
+}
+
+.admin-addon-passo-field-repeat-max {
+  flex: 0 0 60px;
 }
 
 .admin-addon-passo-field-required {
-  flex: 0 0 96px;
+  flex: 0 0 84px;
 }
 
-.admin-addon-passo-field-required .admin-label {
-  margin-bottom: 6px;
+.admin-addon-passo-field-required .admin-label,
+.admin-addon-passo-field-repeat .admin-label {
+  margin-bottom: 4px;
 }
 
 .admin-addon-passo-required-toggle {
   width: 100%;
-  min-height: 40px;
+  min-height: 36px;
   border: 1px solid #d5dae2;
   border-radius: 10px;
   background: #fff;
   color: var(--admin-text-mid);
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  padding: 0 8px;
 }
 
 .admin-addon-passo-required-toggle.is-on {
@@ -6421,18 +6734,29 @@
     flex: 1 1 calc(50% - 8px);
   }
 
+  .admin-addon-passo-field-cluster {
+    flex: 1 1 auto;
+  }
+
   .admin-addon-passo-field-tipo {
-    flex: 1 1 140px;
+    flex: 1 1 120px;
   }
 }
 
 @media (max-width: 640px) {
   .admin-addon-passo-field-title,
   .admin-addon-passo-field-cat,
+  .admin-addon-passo-field-cluster,
   .admin-addon-passo-field-tipo,
   .admin-addon-passo-field-limit,
+  .admin-addon-passo-field-repeat,
   .admin-addon-passo-field-required {
     flex: 1 1 100%;
+  }
+
+  .admin-addon-passo-field-cluster {
+    flex-wrap: wrap;
+    gap: 8px;
   }
 }
 
@@ -15414,7 +15738,7 @@ textarea.admin-input::placeholder {
 
 .admin-delivery-routes-body {
   display: grid;
-  grid-template-columns: minmax(320px, 400px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 480px);
   min-height: 0;
   flex: 1;
 }
@@ -15424,9 +15748,35 @@ textarea.admin-input::placeholder {
   flex-direction: column;
   gap: 12px;
   padding: 14px 14px 12px;
-  border-right: 1px solid var(--admin-border, #e8e8ef);
+  border-left: 1px solid var(--admin-border, #e8e8ef);
   background: #f4f5f9;
   min-height: 0;
+  position: relative;
+}
+
+.admin-delivery-routes-panel-main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.admin-delivery-routes-panel-main .admin-delivery-routes-list {
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-delivery-routes-panel-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: 10px;
+  background: rgba(244, 245, 249, 0.72);
+  backdrop-filter: blur(1.5px);
+  pointer-events: auto;
 }
 
 .admin-delivery-routes-filters {
@@ -15752,14 +16102,62 @@ textarea.admin-input::placeholder {
 }
 
 .admin-delivery-routes-footer {
+  display: none;
+}
+
+.admin-delivery-routes-column-actions {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 18px 16px;
-  border-top: 1px solid var(--admin-border, #e8e8ef);
-  background: #fff;
+  flex-direction: column;
+  gap: 8px;
   flex-shrink: 0;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.admin-delivery-routes-column-sheet {
+  position: relative;
+  z-index: 3;
+  max-height: min(46vh, 360px);
+  overflow-y: auto;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.1);
+}
+
+.admin-delivery-routes-column-sheet .admin-delivery-routes-review-panel,
+.admin-delivery-routes-column-sheet .admin-delivery-routes-driver-picker {
+  border: 0;
+  border-radius: 0;
+  max-height: none;
+  box-shadow: none;
+}
+
+.admin-delivery-routes-column-meta {
+  font-size: 13px;
+  color: var(--admin-text-light, #6b6b7b);
+}
+
+.admin-delivery-routes-column-meta strong {
+  color: var(--admin-primary, #4e48dd);
+  font-size: 16px;
+}
+
+.admin-delivery-routes-column-buttons {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: stretch;
+  gap: 6px;
+}
+
+.admin-delivery-routes-column-buttons .admin-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-left: 8px;
+  padding-right: 8px;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .admin-delivery-routes-footer-meta {
@@ -15844,6 +16242,176 @@ textarea.admin-input::placeholder {
   box-shadow: inset 0 0 0 1px rgba(78, 72, 221, 0.12);
 }
 
+.admin-delivery-routes-review-panel {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.admin-delivery-routes-review-section-title {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.admin-delivery-routes-review-segmented {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #eef2f6;
+}
+
+.admin-delivery-routes-review-segmented button {
+  flex: 1;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: #64748b;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.admin-delivery-routes-review-segmented button.is-active {
+  background: #fff;
+  color: #1e293b;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.admin-delivery-routes-review-segmented button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.admin-delivery-routes-review-summary {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #64748b;
+}
+
+.admin-delivery-routes-review-static-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-delivery-routes-review-static-item {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #d8dee7;
+  background: #fff;
+}
+
+.admin-delivery-routes-review-draggable .admin-draggable-reorder-row {
+  grid-template-columns: 36px minmax(0, 1fr);
+  padding: 10px 12px;
+}
+
+.admin-delivery-routes-review-draggable .admin-draggable-reorder-handle {
+  min-height: 44px;
+  min-width: 36px;
+}
+
+.admin-delivery-routes-review-stop-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.admin-delivery-routes-review-stop-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.admin-delivery-routes-review-stop-main {
+  min-width: 0;
+}
+
+.admin-delivery-routes-review-stop-main strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.admin-delivery-routes-review-stop-main span {
+  display: block;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #64748b;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-delivery-routes-review-stop-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.admin-delivery-routes-review-badge {
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.admin-delivery-routes-review-badge.is-overdue {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.admin-delivery-routes-review-badge.is-warning {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.admin-delivery-routes-review-restore {
+  margin-top: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.admin-delivery-routes-review-restore:hover {
+  color: #1e293b;
+}
+
 .delivery-route-pin,
 .delivery-route-store-pin {
   background: transparent !important;
@@ -15869,6 +16437,26 @@ img.delivery-route-store-icon {
     drop-shadow(0 2px 6px rgba(15, 23, 42, 0.28));
 }
 
+.delivery-route-pin.is-dimmed .delivery-route-pin-icon {
+  opacity: 0.42;
+}
+
+.delivery-route-pin-numbered .delivery-route-pin-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #5b21b6;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.25);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .admin-delivery-routes-map .leaflet-control-attribution {
   font-size: 10px;
 }
@@ -15888,31 +16476,26 @@ img.delivery-route-store-icon {
     grid-template-rows: minmax(240px, 38vh) minmax(260px, 1fr);
   }
 
-  .admin-delivery-routes-panel {
-    border-right: 0;
-    border-bottom: 1px solid var(--admin-border, #e8e8ef);
-    order: 2;
-  }
-
   .admin-delivery-routes-map-wrap {
     order: 1;
   }
 
-  .admin-delivery-routes-footer {
-    flex-direction: column;
-    align-items: stretch;
+  .admin-delivery-routes-panel {
+    border-left: 0;
+    border-top: 1px solid var(--admin-border, #e8e8ef);
+    order: 2;
   }
 
-  .admin-delivery-routes-footer-stack {
-    min-width: 0;
+  .admin-delivery-routes-column-sheet {
+    max-height: min(42vh, 320px);
   }
 
-  .admin-delivery-routes-footer-actions {
-    justify-content: stretch;
+  .admin-delivery-routes-column-buttons {
+    flex-wrap: wrap;
   }
 
-  .admin-delivery-routes-footer-actions .admin-btn {
-    flex: 1;
+  .admin-delivery-routes-column-buttons .admin-btn {
+    flex: 1 1 calc(50% - 4px);
   }
 }
 

@@ -18,15 +18,20 @@ import {
 import MarmitaWizardSteps from '@/components/cardapio/MarmitaWizardSteps';
 import PizzaWizardSteps from '@/components/cardapio/PizzaWizardSteps';
 import MenuImageArea from '@/components/cardapio/MenuImageArea';
+import {
+  getAddonStepBadge,
+  getAddonStepHint,
+  getSectionMaxRepeticoes,
+  isAddonSectionComplete,
+  sectionItemQty,
+  sectionTotalQty,
+} from '@/lib/cardapio/addonSelection';
 import { V2Icon } from './CardapioV2Icons';
 
 const STEP_PREVIEW_MAX = 6;
 
-function isGenericStepComplete(section, selectedIds = []) {
-  const minRequired = section?.required
-    ? Math.max(1, Number(section.min || 1))
-    : Number(section?.min || 0);
-  return selectedIds.length >= minRequired;
+function isGenericStepComplete(section, selection) {
+  return isAddonSectionComplete(section, selection);
 }
 
 function toPreviewItem(item = {}, fallbackId = '') {
@@ -143,7 +148,7 @@ function StepPreviewPopover({ preview, formatPrice, visible }) {
 
 const GENERIC_SEARCH_MIN_ITEMS = 8;
 
-function GenericStepOptions({ section, sectionIndex, selectedIds, onToggle, formatPrice }) {
+function GenericStepOptions({ section, sectionIndex, selected, onToggle, onChangeQty, formatPrice }) {
   const [query, setQuery] = useState('');
   const filteredItems = useMemo(() => {
     const items = section?.items || [];
@@ -157,6 +162,10 @@ function GenericStepOptions({ section, sectionIndex, selectedIds, onToggle, form
   }, [section?.items, query]);
   const totalItems = section?.items?.length || 0;
   const showSearch = totalItems >= GENERIC_SEARCH_MIN_ITEMS;
+  const allowRepeat = section?.permitirRepetir === true;
+  const maxRep = getSectionMaxRepeticoes(section);
+  const maxUnits = Math.max(1, Number(section?.max || 1));
+  const totalSelected = sectionTotalQty(selected);
 
   return (
     <div className="cardapio-v2-product-modal-options-wrap">
@@ -182,32 +191,100 @@ function GenericStepOptions({ section, sectionIndex, selectedIds, onToggle, form
           }`}
         >
           {filteredItems.map((item) => {
-            const isActive = selectedIds.includes(item.id);
+            const qty = sectionItemQty(selected, item.id);
+            const isActive = qty > 0;
+            const canIncrease = qty < maxRep && totalSelected < maxUnits;
+            const showQty = allowRepeat && isActive;
+            const className = `cardapio-v2-product-modal-option${isActive ? ' is-selected' : ''}${
+              section.exibirFotos === false ? ' is-text-only' : ''
+            }${showQty ? ' has-qty-stepper' : ''}`;
+
+            const media =
+              section.exibirFotos !== false ? (
+                <MenuImageArea
+                  imageUrl={item.imageUrl}
+                  className="cardapio-v2-product-modal-option-thumb"
+                  alt=""
+                  sizes="40px"
+                />
+              ) : null;
+            const copy = (
+              <span className="cardapio-v2-product-modal-option-copy">
+                <strong>{item.name}</strong>
+                {item.extra > 0 ? <em>+ {formatPrice(item.extra)}</em> : null}
+                {item.desc ? <span>{item.desc}</span> : null}
+              </span>
+            );
+            const trailing = showQty ? (
+              <span
+                className="addon-qty-stepper"
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => event.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  className="addon-qty-icon-btn"
+                  aria-label={`Diminuir ${item.name}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onChangeQty?.(sectionIndex, item.id, -1);
+                  }}
+                >
+                  −
+                </button>
+                <span className="addon-qty-value">{qty}</span>
+                <button
+                  type="button"
+                  className="addon-qty-icon-btn"
+                  aria-label={`Aumentar ${item.name}`}
+                  disabled={!canIncrease}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onChangeQty?.(sectionIndex, item.id, 1);
+                  }}
+                >
+                  +
+                </button>
+              </span>
+            ) : (
+              <span className="cardapio-v2-product-modal-option-check" aria-hidden="true">
+                {isActive ? <V2Icon name="check" bold /> : null}
+              </span>
+            );
+
+            if (showQty) {
+              return (
+                <div
+                  key={item.id}
+                  className={className}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={isActive}
+                  onClick={() => onToggle(sectionIndex, item.id, item.extra)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onToggle(sectionIndex, item.id, item.extra);
+                    }
+                  }}
+                >
+                  {media}
+                  {copy}
+                  {trailing}
+                </div>
+              );
+            }
+
             return (
               <button
                 key={item.id}
                 type="button"
-                className={`cardapio-v2-product-modal-option${isActive ? ' is-selected' : ''}${
-                  section.exibirFotos === false ? ' is-text-only' : ''
-                }`}
+                className={className}
                 onClick={() => onToggle(sectionIndex, item.id, item.extra)}
               >
-                {section.exibirFotos !== false ? (
-                  <MenuImageArea
-                    imageUrl={item.imageUrl}
-                    className="cardapio-v2-product-modal-option-thumb"
-                    alt=""
-                    sizes="40px"
-                  />
-                ) : null}
-                <span className="cardapio-v2-product-modal-option-copy">
-                  <strong>{item.name}</strong>
-                  {item.extra > 0 ? <em>+ {formatPrice(item.extra)}</em> : null}
-                  {item.desc ? <span>{item.desc}</span> : null}
-                </span>
-                <span className="cardapio-v2-product-modal-option-check" aria-hidden="true">
-                  {isActive ? <V2Icon name="check" bold /> : null}
-                </span>
+                {media}
+                {copy}
+                {trailing}
               </button>
             );
           })}
@@ -232,6 +309,7 @@ export default function ProductModalV2() {
     productNote,
     setProductNote,
     toggleAddon,
+    changeAddonQty,
     changeQty,
     addToCart,
     addToCartCustom,
@@ -623,10 +701,14 @@ export default function ProductModalV2() {
   const showProductNote =
     onNoteStep || (!showGenericAddons && !hasPizzaWizard && !hasMarmitaWizard);
 
-  const genericRequirementLabel = currentGenericSection
-    ? `${currentGenericSelected.length}/${Math.max(1, Number(currentGenericSection.max || 1))}${
-        currentGenericSection.required ? ' obrigatório' : ''
-      }`
+  const genericStepBadge = currentGenericSection
+    ? getAddonStepBadge(currentGenericSection, currentGenericSelected)
+    : null;
+  const genericStepHint = currentGenericSection
+    ? getAddonStepHint(currentGenericSection, {
+        allowRepeat: currentGenericSection.permitirRepetir === true,
+        maxRepeticoes: getSectionMaxRepeticoes(currentGenericSection),
+      })
     : '';
 
   return (
@@ -681,6 +763,11 @@ export default function ProductModalV2() {
               <div
                 className={`cardapio-v2-product-modal-price${
                   product.isPromocao && product.promoOriginalPrice > product.price ? ' has-promo' : ''
+                }${
+                  product.priceLabel &&
+                  !(product.isPromocao && product.promoOriginalPrice > product.price)
+                    ? ' is-from-price'
+                    : ''
                 }`}
               >
                 {product.isPromocao && product.promoOriginalPrice > product.price ? (
@@ -689,7 +776,12 @@ export default function ProductModalV2() {
                     <span className="product-price-promo">{formatPrice(displayUnitPrice)}</span>
                   </>
                 ) : (
-                  formatPrice(displayUnitPrice)
+                  <>
+                    {product.priceLabel ? (
+                      <span className="product-price-from">{product.priceLabel}</span>
+                    ) : null}
+                    <span className="product-price-value">{formatPrice(displayUnitPrice)}</span>
+                  </>
                 )}
               </div>
             </div>
@@ -741,15 +833,33 @@ export default function ProductModalV2() {
               {!onNoteStep && showGenericAddons && currentGenericSection ? (
                 <>
                   <div className="cardapio-v2-product-modal-section-head">
-                    <h3>{currentGenericSection.stepTitle || currentGenericSection.section}</h3>
-                    <span>{genericRequirementLabel}</span>
+                    <h3>
+                      {genericStep + 1}.{' '}
+                      {currentGenericSection.stepTitle || currentGenericSection.section}
+                    </h3>
+                  </div>
+                  <div className="addon-section-meta cardapio-v2-product-modal-section-meta">
+                    {genericStepBadge ? (
+                      <span
+                        className={`marmita-wizard-badge marmita-wizard-badge-${genericStepBadge.tone}`}
+                      >
+                        {genericStepBadge.text}
+                      </span>
+                    ) : null}
+                    {currentGenericSection.required ? (
+                      <span className="obrigatorio-badge">OBRIGATÓRIO</span>
+                    ) : null}
+                    {genericStepHint ? (
+                      <span className="marmita-wizard-hint">{genericStepHint}</span>
+                    ) : null}
                   </div>
                   <GenericStepOptions
                     key={`generic-step-${genericStep}`}
                     section={currentGenericSection}
                     sectionIndex={genericStep}
-                    selectedIds={currentGenericSelected}
+                    selected={currentGenericSelected}
                     onToggle={toggleAddon}
+                    onChangeQty={changeAddonQty}
                     formatPrice={formatPrice}
                   />
                 </>

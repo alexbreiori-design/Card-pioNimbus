@@ -32,7 +32,7 @@ import {
   resolveProductAddonPassos,
   syncAddonPassosToSelection,
 } from '@/lib/productAddonPassos';
-import { normalizePecaTambemIds } from '@/lib/productSuggestions';
+import { MAX_PECA_TAMBEM, normalizePecaTambemIds } from '@/lib/productSuggestions';
 import CategoryLayoutPicker from '@/components/admin/CategoryLayoutPicker';
 import { CATEGORY_LAYOUT_DEFAULT } from '@/lib/cardapio/categoryLayouts';
 import { uploadMenuAssetIfNeeded } from '@/lib/upload/menuAsset';
@@ -828,6 +828,7 @@ export default function PizzaCategoriasPanel() {
           selectedIds={normalizePecaTambemIds(draft.pecaTambemIds)}
           onChange={(next) => setDraft((prev) => ({ ...prev, pecaTambemIds: next }))}
           onClose={() => setPecaPickerOpen(false)}
+          subtitle={`Selecione até ${MAX_PECA_TAMBEM} produtos sugeridos após a montagem da pizza.`}
         />
       ) : null}
       <ProductAddonPassoModal

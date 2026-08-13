@@ -105,7 +105,7 @@ function PassoForm({ initialPasso, categories, items, onClose, onSave, showExibi
     let max =
       draft.tipoSelecao === 'simples'
         ? 1
-        : Math.max(1, Math.min(selectedCount, Number(draft.max || selectedCount)));
+        : Math.max(1, Number(draft.max || selectedCount || 1));
     let min =
       draft.tipoSelecao === 'simples'
         ? draft.obrigatorio
@@ -113,17 +113,34 @@ function PassoForm({ initialPasso, categories, items, onClose, onSave, showExibi
           : 0
         : Math.max(0, Number(draft.min || 0));
 
+    const permitirRepetir = draft.tipoSelecao === 'multipla' && draft.permitirRepetir === true;
+    let maxRepeticoes = Math.max(2, Math.floor(Number(draft.maxRepeticoes) || 2));
+
     if (draft.tipoSelecao === 'multipla') {
+      const unitCap = permitirRepetir
+        ? Math.max(selectedCount, selectedCount * maxRepeticoes)
+        : selectedCount;
       if (min > max) {
         setError('O mínimo não pode ser maior que o máximo.');
         return;
       }
-      if (min > selectedCount) {
-        setError('O mínimo não pode ser maior que a quantidade de itens selecionados.');
+      if (min > unitCap) {
+        setError(
+          permitirRepetir
+            ? 'O mínimo não pode ser maior que itens × máx. repetições.'
+            : 'O mínimo não pode ser maior que a quantidade de itens selecionados.'
+        );
         return;
       }
-      if (max > selectedCount) max = selectedCount;
+      if (max > unitCap) max = unitCap;
       if (draft.obrigatorio && min < 1) min = 1;
+      if (permitirRepetir) {
+        maxRepeticoes = Math.min(maxRepeticoes, Math.max(2, max));
+        if (maxRepeticoes < 2) {
+          setError('Máx. repetições precisa ser pelo menos 2.');
+          return;
+        }
+      }
     }
 
     onSave?.(
@@ -132,6 +149,8 @@ function PassoForm({ initialPasso, categories, items, onClose, onSave, showExibi
         titulo,
         min,
         max,
+        permitirRepetir,
+        maxRepeticoes,
         itemIds: draft.itemIds.filter((id) => categoryItems.some((item) => item.id === id)),
       })
     );
@@ -142,103 +161,157 @@ function PassoForm({ initialPasso, categories, items, onClose, onSave, showExibi
       <div className="admin-order-aux-modal-body">
         {error ? <div className="admin-error">{error}</div> : null}
 
-        <div className="admin-addon-passo-top-row">
-          <div className="admin-form-group admin-addon-passo-field-title">
-            <label className="admin-label">Pergunta no cardápio</label>
-            <input
-              className="admin-input"
-              value={draft.titulo}
-              onChange={(event) => setField({ titulo: event.target.value })}
-              placeholder="Ex: Escolha as proteínas"
-            />
-          </div>
-          <div className="admin-form-group admin-addon-passo-field-cat">
-            <label className="admin-label">Categoria</label>
-            <select
-              className="admin-input"
-              value={draft.categoriaAdicionalId}
-              onChange={(event) => handleCategoryChange(event.target.value)}
-            >
-              <option value="">Selecione</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.nome}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="admin-form-group admin-addon-passo-field-tipo">
-            <label className="admin-label">Seleção</label>
-            <select
-              className="admin-input"
-              value={draft.tipoSelecao}
-              onChange={(event) => {
-                const tipoSelecao = event.target.value === 'simples' ? 'simples' : 'multipla';
-                setField({
-                  tipoSelecao,
-                  max: tipoSelecao === 'simples' ? 1 : Math.max(2, selectedCount || 2),
-                  min: tipoSelecao === 'simples' ? (draft.obrigatorio ? 1 : 0) : Math.max(0, Number(draft.min || 0)),
-                });
-              }}
-            >
-              <option value="simples">Uma opção</option>
-              <option value="multipla">Várias opções</option>
-            </select>
-          </div>
-          {draft.tipoSelecao === 'multipla' ? (
-            <>
-              <div className="admin-form-group admin-addon-passo-field-limit">
-                <label className="admin-label">Mínimo</label>
-                <input
-                  type="number"
+        <div className="admin-addon-passo-config">
+          <div className="admin-addon-passo-top-row">
+            <div className="admin-form-group admin-addon-passo-field-title">
+              <label className="admin-label">Pergunta no cardápio</label>
+              <input
+                className="admin-input"
+                value={draft.titulo}
+                onChange={(event) => setField({ titulo: event.target.value })}
+                placeholder="Ex: Escolha as proteínas"
+              />
+            </div>
+            <div className="admin-form-group admin-addon-passo-field-cat">
+              <label className="admin-label">Categoria</label>
+              <select
+                className="admin-input"
+                value={draft.categoriaAdicionalId}
+                onChange={(event) => handleCategoryChange(event.target.value)}
+              >
+                <option value="">Selecione</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="admin-addon-passo-field-cluster admin-addon-passo-field-cluster-selecao">
+              <div className="admin-form-group admin-addon-passo-field-tipo">
+                <label className="admin-label">Seleção</label>
+                <select
                   className="admin-input"
-                  min={draft.obrigatorio ? 1 : 0}
-                  max={Math.max(1, selectedCount || 1)}
-                  value={Number(draft.min || 0)}
-                  onChange={(event) =>
+                  value={draft.tipoSelecao}
+                  onChange={(event) => {
+                    const tipoSelecao = event.target.value === 'simples' ? 'simples' : 'multipla';
                     setField({
-                      min: Math.max(draft.obrigatorio ? 1 : 0, Number(event.target.value || 0)),
-                    })
-                  }
-                />
+                      tipoSelecao,
+                      max: tipoSelecao === 'simples' ? 1 : Math.max(2, selectedCount || 2),
+                      min:
+                        tipoSelecao === 'simples'
+                          ? draft.obrigatorio
+                            ? 1
+                            : 0
+                          : Math.max(0, Number(draft.min || 0)),
+                      permitirRepetir: tipoSelecao === 'simples' ? false : draft.permitirRepetir,
+                    });
+                  }}
+                >
+                  <option value="simples">Uma opção</option>
+                  <option value="multipla">Várias opções</option>
+                </select>
               </div>
-              <div className="admin-form-group admin-addon-passo-field-limit">
-                <label className="admin-label">Máximo</label>
-                <input
-                  type="number"
-                  className="admin-input"
-                  min={Math.max(1, Number(draft.min || 0) || 1)}
-                  max={Math.max(1, selectedCount || 99)}
-                  value={Number(draft.max || 1)}
-                  onChange={(event) =>
-                    setField({
-                      max: Math.max(1, Number(event.target.value || 1)),
-                    })
-                  }
-                />
+              {draft.tipoSelecao === 'multipla' ? (
+                <>
+                  <div className="admin-form-group admin-addon-passo-field-limit">
+                    <label className="admin-label">Mín.</label>
+                    <input
+                      type="number"
+                      className="admin-input"
+                      min={draft.obrigatorio ? 1 : 0}
+                      max={Math.max(1, draft.permitirRepetir ? 99 : selectedCount || 1)}
+                      value={Number(draft.min || 0)}
+                      onChange={(event) =>
+                        setField({
+                          min: Math.max(draft.obrigatorio ? 1 : 0, Number(event.target.value || 0)),
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="admin-form-group admin-addon-passo-field-limit">
+                    <label className="admin-label">Máx.</label>
+                    <input
+                      type="number"
+                      className="admin-input"
+                      min={Math.max(1, Number(draft.min || 0) || 1)}
+                      max={Math.max(1, draft.permitirRepetir ? 99 : selectedCount || 99)}
+                      value={Number(draft.max || 1)}
+                      onChange={(event) =>
+                        setField({
+                          max: Math.max(1, Number(event.target.value || 1)),
+                        })
+                      }
+                    />
+                  </div>
+                </>
+              ) : null}
+            </div>
+            {draft.tipoSelecao === 'multipla' ? (
+              <div className="admin-addon-passo-field-cluster admin-addon-passo-field-cluster-repeat">
+                <div className="admin-form-group admin-addon-passo-field-repeat">
+                  <label className="admin-label">Repetir item</label>
+                  <button
+                    type="button"
+                    className={`admin-addon-passo-required-toggle${draft.permitirRepetir ? ' is-on' : ''}`}
+                    onClick={() =>
+                      setField({
+                        permitirRepetir: !draft.permitirRepetir,
+                        maxRepeticoes: draft.maxRepeticoes || 2,
+                      })
+                    }
+                    aria-pressed={draft.permitirRepetir === true}
+                  >
+                    {draft.permitirRepetir ? 'Sim' : 'Não'}
+                  </button>
+                </div>
+                {draft.permitirRepetir ? (
+                  <div className="admin-form-group admin-addon-passo-field-limit admin-addon-passo-field-repeat-max">
+                    <label className="admin-label">Máximo</label>
+                    <input
+                      type="number"
+                      className="admin-input"
+                      min={2}
+                      max={Math.max(2, Number(draft.max || 2))}
+                      value={Number(draft.maxRepeticoes || 2)}
+                      onChange={(event) =>
+                        setField({
+                          maxRepeticoes: Math.max(2, Number(event.target.value || 2)),
+                        })
+                      }
+                    />
+                  </div>
+                ) : null}
               </div>
-            </>
+            ) : null}
+            <div className="admin-addon-passo-row-divider" aria-hidden="true" />
+            <div className="admin-form-group admin-addon-passo-field-required">
+              <label className="admin-label">Obrigatório</label>
+              <button
+                type="button"
+                className={`admin-addon-passo-required-toggle${draft.obrigatorio ? ' is-on' : ''}`}
+                onClick={() =>
+                  setField({
+                    obrigatorio: !draft.obrigatorio,
+                    min: !draft.obrigatorio
+                      ? Math.max(1, Number(draft.min || 1))
+                      : draft.tipoSelecao === 'simples'
+                        ? 0
+                        : Math.max(0, Number(draft.min || 0)),
+                  })
+                }
+                aria-pressed={draft.obrigatorio === true}
+              >
+                {draft.obrigatorio ? 'Sim' : 'Não'}
+              </button>
+            </div>
+          </div>
+          {draft.tipoSelecao === 'multipla' && draft.permitirRepetir ? (
+            <p className="admin-help-text admin-addon-passo-repeat-help">
+              Permite o cliente escolher o mesmo adicional mais de uma vez. Mín. e máx. do passo
+              contam unidades totais; máximo limita cada item.
+            </p>
           ) : null}
-          <div className="admin-form-group admin-addon-passo-field-required">
-            <label className="admin-label">Obrigatório</label>
-            <button
-              type="button"
-              className={`admin-addon-passo-required-toggle${draft.obrigatorio ? ' is-on' : ''}`}
-              onClick={() =>
-                setField({
-                  obrigatorio: !draft.obrigatorio,
-                  min: !draft.obrigatorio
-                    ? Math.max(1, Number(draft.min || 1))
-                    : draft.tipoSelecao === 'simples'
-                      ? 0
-                      : Math.max(0, Number(draft.min || 0)),
-                })
-              }
-              aria-pressed={draft.obrigatorio === true}
-            >
-              {draft.obrigatorio ? 'Sim' : 'Não'}
-            </button>
-          </div>
         </div>
 
         {draft.categoriaAdicionalId ? (

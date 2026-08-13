@@ -8,6 +8,8 @@ export default function CardapioProductCardV2List({ product, layout = 'rail', va
   const { addProductFromCard, formatPrice } = useCardapio();
   const isPromo = product.isPromocao && product.promoOriginalPrice > product.price;
   const isListaLarga = variant === 'lista-larga';
+  const highlightLabel = !isPromo ? String(product.highlightLabel || '').trim() : '';
+  const showFromPrice = Boolean(product.priceLabel) && !isPromo;
 
   function handleOpen() {
     addProductFromCard(product.id);
@@ -42,6 +44,8 @@ export default function CardapioProductCardV2List({ product, layout = 'rail', va
         />
         {isPromo ? (
           <ProductPromoChip originalPrice={product.promoOriginalPrice} promoPrice={product.price} />
+        ) : highlightLabel ? (
+          <ProductPromoChip label={highlightLabel} />
         ) : null}
       </div>
       <div className="cardapio-v2-product-card-list-body">
@@ -50,7 +54,11 @@ export default function CardapioProductCardV2List({ product, layout = 'rail', va
           <p className="cardapio-v2-product-card-list-desc">{product.desc}</p>
         ) : null}
         <div className="cardapio-v2-product-card-list-footer">
-          <div className={`cardapio-v2-product-card-list-price${isPromo ? ' has-promo' : ''}`}>
+          <div
+            className={`cardapio-v2-product-card-list-price${isPromo ? ' has-promo' : ''}${
+              showFromPrice ? ' is-from-price' : ''
+            }`}
+          >
             {isPromo ? (
               <>
                 <span className="product-price-original">{formatPrice(product.promoOriginalPrice)}</span>
@@ -58,10 +66,8 @@ export default function CardapioProductCardV2List({ product, layout = 'rail', va
               </>
             ) : (
               <>
-                {product.priceLabel ? (
-                  <span className="product-price-from">{product.priceLabel} </span>
-                ) : null}
-                {formatPrice(product.price)}
+                {showFromPrice ? <span className="product-price-from">{product.priceLabel}</span> : null}
+                <span className="product-price-value">{formatPrice(product.price)}</span>
               </>
             )}
           </div>
