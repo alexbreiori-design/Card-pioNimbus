@@ -21,6 +21,9 @@ Sentry.init({
     'ResizeObserver loop completed with undelivered notifications',
     /^Network Error$/i,
     /Loading chunk [\d]+ failed/,
+    // Ruído de WebView (Instagram/Facebook in-app browser no Android)
+    /Java object is gone/i,
+    /Error invoking postMessage/i,
   ],
 });
 
