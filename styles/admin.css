@@ -2627,6 +2627,39 @@
   color: var(--admin-muted, #6b6b7b);
 }
 
+.admin-clientes-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #eef0f5;
+}
+
+.admin-clientes-pagination-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--admin-muted, #6b6b7b);
+}
+
+.admin-clientes-pagination-controls {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-clientes-pagination-page {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  padding: 0 4px;
+  min-width: 110px;
+  text-align: center;
+}
+
 @media (max-width: 768px) {
   .admin-clientes-table-wrap {
     display: none;
@@ -18608,9 +18641,14 @@ img.delivery-route-store-icon {
   overflow: hidden;
   font-size: 18px;
   font-weight: 600;
-  line-height: 1.15;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .admin-sidebar:not(.collapsed) .admin-store-cardapio-hint {

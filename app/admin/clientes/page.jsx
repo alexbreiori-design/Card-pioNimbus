@@ -26,8 +26,6 @@ import {
   deleteCliente,
   deleteClienteEndereco,
   listClienteEnderecos,
-  listClientes,
-  listClientesWithDetails,
   listPedidosByCliente,
   updateCliente,
   upsertClienteEndereco,
@@ -88,6 +86,8 @@ const STATUS_FILTERS = [
   { key: 'recorrente', label: 'Recorrentes' },
   { key: 'novo', label: 'Novos' },
 ];
+
+const CLIENTES_PAGE_SIZE = 25;
 
 function mapLocalPedido(pedido) {
   return {
@@ -243,12 +243,15 @@ function CustomerRowActions({ customer, waUrl, onOpen, onNewOrder, onDelete }) {
 export default function ClientesPage() {
   const router = useRouter();
   const { empresaId, loading: empresaLoading, error: empresaError } = useEmpresa();
-  const { data: adminData, saveData } = useAdminData();
+  const { data: adminData, saveData, activeSlug, ready: adminReady } = useAdminData();
   const { orders: adminOrders } = useAdminOrders();
   const { printOrder } = useOrderPrint();
   const { lookup: lookupCep, loading: cepLoading, error: cepError, clearError: clearCepError } = useCepLookup();
+  const storeSlug = String(activeSlug || adminData?.loja?.slug || '').trim().toLowerCase();
 
   const [customers, setCustomers] = useState([]);
+  const [customersTotal, setCustomersTotal] = useState(0);
+  const [listPage, setListPage] = useState(0);
   const [ordersByCustomer, setOrdersByCustomer] = useState({});
   const [addressesByCustomer, setAddressesByCustomer] = useState({});
   const [loading, setLoading] = useState(true);
@@ -260,6 +263,7 @@ export default function ClientesPage() {
   const [addressesBaseline, setAddressesBaseline] = useState('');
   const toast = useAdminToast();
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState('todos');
   const [selectedOrderId, setSelectedOrderId] = useState('');
 
@@ -286,11 +290,32 @@ export default function ClientesPage() {
     setNewDraft(EMPTY_NEW);
   }
 
-  function openCustomerDetail(customer) {
+  async function openCustomerDetail(customer) {
     setDetail({ ...customer });
     setDetailBaseline({ name: customer.name || '', phone: customer.phone || '' });
-    setAddressesBaseline(JSON.stringify(addressesByCustomer[customer.id] || []));
     setTab('dados');
+
+    if (!empresaId) {
+      setAddressesBaseline(JSON.stringify(addressesByCustomer[customer.id] || []));
+      return;
+    }
+
+    try {
+      const [addresses, pedidos] = await Promise.all([
+        listClienteEnderecos(customer.id, empresaId),
+        listPedidosByCliente(customer.id, empresaId),
+      ]);
+      const local = dedupeOrders(localOrdersForCustomer(customer, adminData.pedidos || []));
+      const mergedOrders = dedupeOrders([...(pedidos || []), ...local]).sort(
+        (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      );
+      setAddressesByCustomer((prev) => ({ ...prev, [customer.id]: addresses || [] }));
+      setOrdersByCustomer((prev) => ({ ...prev, [customer.id]: mergedOrders }));
+      setAddressesBaseline(JSON.stringify(addresses || []));
+    } catch (e) {
+      setAddressesBaseline(JSON.stringify(addressesByCustomer[customer.id] || []));
+      toast.error(e?.message || 'Erro ao carregar detalhes do cliente.');
+    }
   }
 
   function closeCustomerDetail() {
@@ -327,109 +352,66 @@ export default function ClientesPage() {
     if (cepError) toast.error(cepError);
   }, [cepError, toast]);
 
-  const filteredCustomers = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    return customers.filter((c) => {
-      if (statusFilter === 'com_saldo') {
-        if (!(Number(c.saldo_fiado) > 0)) return false;
-      } else if (statusFilter !== 'todos') {
-        const status = getCustomerStatus(c);
-        if (status.key !== statusFilter) return false;
-      }
-      if (!q) return true;
-      return (
-        String(c.name || '').toLowerCase().includes(q) ||
-        fmtPhone(c.phone).includes(q) ||
-        String(c.phone || '').replace(/\D/g, '').includes(q.replace(/\D/g, ''))
-      );
-    });
-  }, [customers, searchQuery, statusFilter]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSearchQuery(searchInput);
+      setListPage(0);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  const totalPages = Math.max(1, Math.ceil(customersTotal / CLIENTES_PAGE_SIZE));
+  const pageStart = customersTotal === 0 ? 0 : listPage * CLIENTES_PAGE_SIZE + 1;
+  const pageEnd = Math.min(customersTotal, (listPage + 1) * CLIENTES_PAGE_SIZE);
 
   const selectedOrder = useMemo(
     () => adminOrders.find((p) => String(p.id) === String(selectedOrderId)),
     [adminOrders, selectedOrderId]
   );
 
-  const loadAll = useCallback(async () => {
-    if (!empresaId && !(adminData.clientes || []).length) return;
+  const loadPage = useCallback(async () => {
+    if (!adminReady || !storeSlug) return;
     setLoading(true);
     try {
-      let clientes = [];
-      const oMap = {};
-      const aMap = {};
+      const params = new URLSearchParams({
+        slug: storeSlug,
+        page: String(listPage),
+        pageSize: String(CLIENTES_PAGE_SIZE),
+        status: statusFilter,
+      });
+      if (searchQuery.trim()) params.set('search', searchQuery.trim());
 
-      if (empresaId) {
-        const batch = await listClientesWithDetails(empresaId);
-        clientes = batch.clientes;
-        Object.assign(aMap, batch.enderecosByCliente);
-        Object.assign(oMap, batch.pedidosByCliente);
+      const response = await fetch(`/api/admin/clientes?${params.toString()}`, {
+        headers: { Accept: 'application/json' },
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || `Erro ao carregar clientes (${response.status}).`);
       }
 
-      const byPhone = new Map(clientes.map((cliente) => [fmtPhone(cliente.phone), cliente]));
-      (adminData.clientes || []).forEach((local) => {
-        const phoneKey = fmtPhone(local.phone);
-        const existing = byPhone.get(phoneKey);
-        // Com empresaId, o Supabase é a fonte da lista — não ressuscitar clientes
-        // apagados (ou só legados no blob da loja).
-        if (empresaId && !existing) return;
-
-        const merged = {
-          ...(existing || {}),
-          id: existing?.id || local.id,
-          name: existing?.name || local.name,
-          phone: existing?.phone || local.phone,
-          total_orders: Math.max(Number(existing?.total_orders || 0), Number(local.total_orders || 0)),
-          total_spent: Math.max(Number(existing?.total_spent || 0), Number(local.total_spent || 0)),
-          last_order_at: existing?.last_order_at || local.last_order_at,
-          saldo_fiado:
-            existing?.saldo_fiado != null
-              ? existing.saldo_fiado
-              : Number(local.saldo_fiado || 0),
-        };
-        byPhone.set(phoneKey, merged);
-        aMap[merged.id] = dedupeAddresses([
-          ...(aMap[merged.id] || []),
-          ...(local.addresses || []).map((address) => ({
-            id: address.id,
-            cliente_id: merged.id,
-            cep: address.cep || '',
-            street: address.street || address.rua || '',
-            number: address.number || address.num || '',
-            district: address.district || address.bairro || '',
-            city: address.city || address.cidade || '',
-            state: address.state || address.estado || '',
-            complement: address.complement || address.comp || '',
-            referencia: address.referencia || address.ref || '',
-            principal: address.principal !== false,
-          })),
-        ]);
-      });
-
-      clientes = [...byPhone.values()].sort(
-        (a, b) => new Date(b.last_order_at || 0).getTime() - new Date(a.last_order_at || 0).getTime()
-      );
-
-      clientes.forEach((customer) => {
-        const remote = dedupeOrders([...(oMap[customer.id] || [])]);
-        const local = dedupeOrders(localOrdersForCustomer(customer, adminData.pedidos || []));
-        oMap[customer.id] = dedupeOrders([...remote, ...local]).sort(
-          (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
-        );
-      });
-
-      setCustomers(clientes);
-      setOrdersByCustomer(oMap);
-      setAddressesByCustomer(aMap);
+      setCustomers(payload.clientes || []);
+      setCustomersTotal(Number(payload.total) || 0);
+      const maxPage = Math.max(0, Math.ceil((Number(payload.total) || 0) / CLIENTES_PAGE_SIZE) - 1);
+      if (listPage > maxPage) setListPage(maxPage);
     } catch (e) {
       toast.error(e?.message || 'Erro ao carregar clientes.');
+      setCustomers([]);
+      setCustomersTotal(0);
     } finally {
       setLoading(false);
     }
-  }, [empresaId, adminData.clientes, adminData.pedidos]);
+  }, [adminReady, listPage, searchQuery, statusFilter, storeSlug, toast]);
 
   useEffect(() => {
-    loadAll();
-  }, [loadAll]);
+    void loadPage();
+  }, [loadPage]);
+
+  function changeStatusFilter(next) {
+    setStatusFilter(next);
+    setListPage(0);
+  }
 
   async function handleNewCepLookup() {
     clearCepError();
@@ -469,7 +451,7 @@ export default function ClientesPage() {
       });
       toast.success('Cliente criado com sucesso.');
       closeNewModal();
-      loadAll();
+      void loadPage();
     } catch (e) {
       toast.error(`Erro ao criar cliente: ${e.message}`);
     }
@@ -497,7 +479,7 @@ export default function ClientesPage() {
       );
       toast.success('Cliente atualizado.');
       closeCustomerDetail();
-      loadAll();
+      void loadPage();
     } catch (e) {
       toast.error(`Erro ao salvar: ${e.message}`);
     }
@@ -536,7 +518,7 @@ export default function ClientesPage() {
       }
 
       toast.success('Cliente excluído.');
-      loadAll();
+      void loadPage();
     } catch (e) {
       toast.error(`Erro ao excluir: ${e.message}`);
     }
@@ -666,8 +648,8 @@ export default function ClientesPage() {
             <input
               className="admin-input admin-pedidos-search"
               placeholder="Buscar por nome ou telefone"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
             />
           </div>
         </div>
@@ -679,7 +661,7 @@ export default function ClientesPage() {
               role="tab"
               aria-selected={statusFilter === opt.key}
               className={`admin-clientes-filter-chip${statusFilter === opt.key ? ' is-active' : ''}`}
-              onClick={() => setStatusFilter(opt.key)}
+              onClick={() => changeStatusFilter(opt.key)}
             >
               {opt.label}
             </button>
@@ -690,7 +672,7 @@ export default function ClientesPage() {
       <div className="admin-card admin-clientes-list-card">
         {loading ? (
           <div className="admin-order-meta">Carregando clientes...</div>
-        ) : filteredCustomers.length === 0 ? (
+        ) : customers.length === 0 ? (
           <div className="admin-order-meta">Nenhum cliente encontrado.</div>
         ) : (
           <>
@@ -709,7 +691,7 @@ export default function ClientesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredCustomers.map((c) => {
+                  {customers.map((c) => {
                     const status = getCustomerStatus(c);
                     const waUrl = customerWhatsAppUrl(c.phone);
                     return (
@@ -752,7 +734,7 @@ export default function ClientesPage() {
             </div>
 
             <ul className="admin-clientes-mobile-list">
-              {filteredCustomers.map((c) => {
+              {customers.map((c) => {
                 const status = getCustomerStatus(c);
                 const waUrl = customerWhatsAppUrl(c.phone);
                 return (
@@ -786,6 +768,49 @@ export default function ClientesPage() {
                 );
               })}
             </ul>
+
+            <div className="admin-clientes-pagination">
+              <p className="admin-clientes-pagination-meta">
+                {pageStart}–{pageEnd} de {customersTotal} cliente{customersTotal === 1 ? '' : 's'}
+              </p>
+              <div className="admin-clientes-pagination-controls">
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost admin-btn-sm"
+                  disabled={listPage <= 0 || loading}
+                  onClick={() => setListPage(0)}
+                >
+                  Primeira
+                </button>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost admin-btn-sm"
+                  disabled={listPage <= 0 || loading}
+                  onClick={() => setListPage((p) => Math.max(0, p - 1))}
+                >
+                  Anterior
+                </button>
+                <span className="admin-clientes-pagination-page">
+                  Página {listPage + 1} de {totalPages}
+                </span>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost admin-btn-sm"
+                  disabled={listPage >= totalPages - 1 || loading}
+                  onClick={() => setListPage((p) => Math.min(totalPages - 1, p + 1))}
+                >
+                  Próxima
+                </button>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost admin-btn-sm"
+                  disabled={listPage >= totalPages - 1 || loading}
+                  onClick={() => setListPage(totalPages - 1)}
+                >
+                  Última
+                </button>
+              </div>
+            </div>
           </>
         )}
       </div>
