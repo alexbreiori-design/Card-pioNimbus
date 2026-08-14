@@ -106,6 +106,7 @@ Sem um desses (ou pedido explícito equivalente), **não** fazer deploy completo
 | [`docs/OPS.md`](./docs/OPS.md) | Health / incidentes |
 | [`docs/GO_LIVE.md`](./docs/GO_LIVE.md) | Go-live de loja |
 | [`STAGING.md`](./STAGING.md) / [`docs/STAGING.md`](./docs/STAGING.md) | Ambientes |
+| [`docs/CHECKLIST_IMPLEMENTAÇÕES_FUTURAS.md`](./docs/CHECKLIST_IMPLEMENTAÇÕES_FUTURAS.md) | Backlog vivo (WhatsApp API, segurança, etc.) |
 | [`supabase/README.md`](./supabase/README.md) | Schema e migrations |
 
 ## TODOs de contexto faltante

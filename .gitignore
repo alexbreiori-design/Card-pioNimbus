@@ -41,7 +41,8 @@ yarn-error.log*
 next-env.d.ts
 
 # documentação e notas locais (não versionar)
-/docs/
+/docs/*
+!/docs/CHECKLIST_IMPLEMENTAÇÕES_FUTURAS.md
 
 # arquivos locais
 supabase/ONBOARDING.md
