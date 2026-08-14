@@ -26,6 +26,7 @@ import {
   sectionItemQty,
   sectionTotalQty,
 } from '@/lib/cardapio/addonSelection';
+import { getObservationPlaceholder, getObservationStepHint } from '@/lib/empresaSegmentos';
 import { V2Icon } from './CardapioV2Icons';
 
 const STEP_PREVIEW_MAX = 6;
@@ -297,7 +298,9 @@ function GenericStepOptions({ section, sectionIndex, selected, onToggle, onChang
 }
 
 export default function ProductModalV2() {
-  const { formatPrice, filteredProducts } = useCardapioCatalog();
+  const { formatPrice, filteredProducts, storeConfig } = useCardapioCatalog();
+  const observationPlaceholder = getObservationPlaceholder(storeConfig?.segmento);
+  const observationStepHint = getObservationStepHint(storeConfig?.segmento);
   const { showAlert } = useCardapio();
   const {
     productOpen,
@@ -435,7 +438,7 @@ export default function ProductModalV2() {
         return {
           title: 'Observação',
           items: [],
-          hint: 'Campo opcional para detalhes do pedido (ex.: sem cebola).',
+          hint: observationStepHint,
         };
       }
       if (showGenericAddons) {
@@ -462,6 +465,7 @@ export default function ProductModalV2() {
     pizzaSteps,
     product,
     pizzaState,
+    observationStepHint,
   ]);
 
   function clearHoverLeaveTimer() {
@@ -910,7 +914,7 @@ export default function ProductModalV2() {
                     className="product-note-input"
                     rows={3}
                     maxLength={200}
-                    placeholder="Ex.: sem cebola, ponto da carne, etc. (opcional)"
+                    placeholder={observationPlaceholder}
                     value={productNote}
                     onChange={(event) => setProductNote(event.target.value)}
                   />

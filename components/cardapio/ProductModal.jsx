@@ -26,6 +26,7 @@ import MarmitaWizardSteps from './MarmitaWizardSteps';
 import PizzaWizardSteps from './PizzaWizardSteps';
 import AddonThumb from '@/components/cardapio/AddonThumb';
 import MenuImageArea from '@/components/cardapio/MenuImageArea';
+import { getObservationPlaceholder } from '@/lib/empresaSegmentos';
 import { IconClose } from './icons';
 
 const GENERIC_SEARCH_MIN_ITEMS = 8;
@@ -194,7 +195,8 @@ function MobileAddonSection({ sec, si, selected, formatPrice, onToggle, onChange
 }
 
 export default function ProductModal() {
-  const { formatPrice, filteredProducts } = useCardapioCatalog();
+  const { formatPrice, filteredProducts, storeConfig } = useCardapioCatalog();
+  const observationPlaceholder = getObservationPlaceholder(storeConfig?.segmento);
   const {
     productOpen,
     closeProductPopup,
@@ -591,7 +593,7 @@ export default function ProductModal() {
                   className="product-note-input"
                   rows={3}
                   maxLength={200}
-                  placeholder="Ex.: sem cebola, ponto da carne, etc. (opcional)"
+                  placeholder={observationPlaceholder}
                   value={productNote}
                   onChange={(event) => setProductNote(event.target.value)}
                 />

@@ -177,18 +177,27 @@ export function AdminReportsBodySkeleton() {
   return (
     <div aria-busy="true" aria-label="Carregando relatório">
       <section className="admin-reports-kpi-grid admin-reports-kpi-grid-skeleton">
-        {Array.from({ length: 6 }, (_, index) => (
+        {Array.from({ length: 3 }, (_, index) => (
           <article key={index} className="admin-reports-kpi is-skeleton">
-            <AdminSkeletonBlock style={{ width: 36, height: 36, borderRadius: 10 }} />
-            <AdminSkeletonBlock style={{ width: '55%', height: 12, marginTop: 14 }} />
-            <AdminSkeletonBlock style={{ width: '70%', height: 22, marginTop: 10 }} />
-            <AdminSkeletonBlock style={{ width: '45%', height: 10, marginTop: 10 }} />
+            <AdminSkeletonBlock style={{ width: '45%', height: 12 }} />
+            <AdminSkeletonBlock style={{ width: '70%', height: 24, marginTop: 10 }} />
+            <AdminSkeletonBlock style={{ width: '35%', height: 18, marginTop: 10, borderRadius: 999 }} />
           </article>
         ))}
       </section>
-      <section className="admin-reports-card" style={{ marginTop: 16 }}>
-        <AdminSkeletonBlock style={{ width: 180, height: 18, marginBottom: 16 }} />
-        <AdminSkeletonLines count={5} />
+      <section className="admin-reports-card" style={{ marginTop: 16, minHeight: 280 }}>
+        <AdminSkeletonBlock style={{ width: 200, height: 18, marginBottom: 16 }} />
+        <AdminSkeletonLines count={6} />
+      </section>
+      <section className="admin-reports-grid-2" style={{ marginTop: 16 }}>
+        <div className="admin-reports-card">
+          <AdminSkeletonBlock style={{ width: 160, height: 16, marginBottom: 14 }} />
+          <AdminSkeletonLines count={4} />
+        </div>
+        <div className="admin-reports-card">
+          <AdminSkeletonBlock style={{ width: 140, height: 16, marginBottom: 14 }} />
+          <AdminSkeletonLines count={4} />
+        </div>
       </section>
     </div>
   );

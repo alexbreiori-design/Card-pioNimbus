@@ -1,18 +1,36 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { buildReportCsv } from '@/lib/admin/reports/reportCsv';
-import { formatCurrency, formatNumber, formatPct } from '@/lib/admin/reports/reportFormatters';
+import {
+  REPORT_FILTER_LABELS,
+  formatCurrency,
+  formatNumber,
+} from '@/lib/admin/reports/reportFormatters';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import ReportPrintDocument from '@/components/admin/reports/ReportPrintDocument';
+import ReportsKpiRow from '@/components/admin/reports/ReportsKpiRow';
+import ReportsPerformanceChart from '@/components/admin/reports/ReportsPerformanceChart';
+import ReportsSectionTitle from '@/components/admin/reports/ReportsSectionTitle';
 import CaixaHistoricoPanel from '@/components/admin/caixa/CaixaHistoricoPanel';
-import { CaixaStatusChip } from '@/components/admin/caixa/CaixaPanels';
 import {
   AdminContentReveal,
   AdminReportsBodySkeleton,
 } from '@/components/admin/AdminSkeleton';
+import { formatDateKeyLabel } from '@/lib/admin/reports/reportPeriod';
+
+const TIPO_ROWS = [
+  { key: 'delivery', label: 'Delivery' },
+  { key: 'retirada', label: 'Retirada' },
+  { key: 'balcao', label: 'Balcão' },
+];
+
+const ORIGEM_ROWS = [
+  { key: 'cardapio_online', label: 'Cardápio online' },
+  { key: 'admin_manual', label: 'Balcão/Admin' },
+];
 
 function formatDeliveryWhen(value) {
   if (!value) return '—';
@@ -28,6 +46,90 @@ function formatDeliveryWhen(value) {
   }
 }
 
+function downloadCsv(filename, content) {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function todayKey() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function daysAgoKey(days) {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function productInitials(name) {
+  const parts = String(name || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!parts.length) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] || ''}${parts[1][0] || ''}`.toUpperCase();
+}
+
+function HorizontalBars({ rows, maxValue, valueKey = 'faturamento', showPct = true }) {
+  const max = maxValue > 0 ? maxValue : 1;
+  return (
+    <ul className="admin-reports-hbar-list">
+      {rows.map((row) => {
+        const value = Number(row[valueKey]) || 0;
+        const pct = Math.min(100, (value / max) * 100);
+        return (
+          <li key={row.key || row.label}>
+            <div className="admin-reports-hbar-top">
+              <span className="admin-reports-hbar-label">{row.label}</span>
+              <span className="admin-reports-hbar-value">
+                {valueKey === 'pedidos' ? formatNumber(value) : formatCurrency(value)}
+                {showPct && row.sharePct != null ? (
+                  <em>{formatNumber(row.sharePct, 1)}%</em>
+                ) : null}
+              </span>
+            </div>
+            <div className="admin-reports-hbar-track-wrap">
+              <div className="admin-reports-hbar-track">
+                <span style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+            {row.meta ? <p className="admin-reports-hbar-meta">{row.meta}</p> : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function ProductThumb({ nome, imagemUrl }) {
+  if (imagemUrl) {
+    return (
+      <span className="admin-reports-bestsellers-thumb has-image">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={imagemUrl} alt="" loading="lazy" decoding="async" />
+      </span>
+    );
+  }
+  return (
+    <span className="admin-reports-bestsellers-thumb" aria-hidden="true">
+      {productInitials(nome)}
+    </span>
+  );
+}
+
 function EntregadorDeliveriesModal({ row, periodLabel, onClose }) {
   const { overlayPointerDown, overlayClick } = useAdminOverlayClose({
     onClose,
@@ -35,7 +137,6 @@ function EntregadorDeliveriesModal({ row, periodLabel, onClose }) {
   });
 
   if (!row) return null;
-
   const entregas = Array.isArray(row.entregas) ? row.entregas : [];
 
   return (
@@ -67,20 +168,7 @@ function EntregadorDeliveriesModal({ row, periodLabel, onClose }) {
             ×
           </button>
         </div>
-
         <div className="admin-delivery-history-modal-body">
-          <div className="admin-reports-entregador-modal-totals" aria-hidden="true">
-            <span>
-              Entregas: <strong>{formatNumber(row.pedidos)}</strong>
-            </span>
-            <span>
-              Taxa total: <strong>{formatCurrency(row.taxaEntrega)}</strong>
-            </span>
-            <span>
-              Taxa média: <strong>{formatCurrency(row.taxaMedia ?? 0)}</strong>
-            </span>
-          </div>
-
           {entregas.length === 0 ? (
             <p className="admin-help-text">Nenhuma entrega detalhada neste período.</p>
           ) : (
@@ -108,123 +196,170 @@ function EntregadorDeliveriesModal({ row, periodLabel, onClose }) {
   );
 }
 
-function downloadCsv(filename, content) {
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
-function TrendBadge({ kpi }) {
-  if (!kpi) return null;
-  return (
-    <span className={`admin-reports-kpi-trend ${kpi.positive ? 'positive' : 'negative'}`}>
-      {kpi.positive ? (
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-          <polyline points="16 7 22 7 22 13" />
-        </svg>
-      ) : (
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <polyline points="22 17 13.5 8.5 8.5 13.5 2 7" />
-          <polyline points="16 17 22 17 22 11" />
-        </svg>
-      )}
-      {formatPct(kpi.changePct)}
-    </span>
-  );
-}
-
-function KpiCard({ label, value, kpi, format = 'currency', iconTone = 'brand' }) {
-  const display =
-    format === 'currency'
-      ? formatCurrency(value)
-      : format === 'decimal'
-        ? formatNumber(value, 2)
-        : formatNumber(value, 0);
+function ProductsDetailModal({ products, periodLabel, resolveImage, onClose }) {
+  const { overlayPointerDown, overlayClick } = useAdminOverlayClose({
+    onClose,
+    isDirty: false,
+  });
+  const rows = Array.isArray(products) ? products : [];
 
   return (
-    <article className="admin-reports-kpi">
-      <div className="admin-reports-kpi-top">
-        <div className={`admin-reports-kpi-icon ${iconTone === 'green' ? 'is-green' : iconTone === 'red' ? 'is-red' : 'is-brand'}`}>
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-          </svg>
+    <div
+      className="admin-confirm-overlay"
+      role="presentation"
+      onPointerDown={overlayPointerDown}
+      onClick={overlayClick}
+    >
+      <div
+        className="admin-order-detail-modal admin-reports-products-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reports-products-modal-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="admin-order-detail-head">
+          <div>
+            <span className="admin-order-detail-kicker">
+              Relatório · {periodLabel || 'Período'}
+            </span>
+            <h2 id="reports-products-modal-title">Detalhamento de produtos</h2>
+            <p className="admin-help-text" style={{ margin: '6px 0 0' }}>
+              {formatNumber(rows.length)} produto{rows.length === 1 ? '' : 's'} vendido
+              {rows.length === 1 ? '' : 's'} no período
+            </p>
+          </div>
+          <button type="button" className="admin-order-detail-close" onClick={onClose} aria-label="Fechar">
+            ×
+          </button>
         </div>
-        <TrendBadge kpi={kpi} />
+
+        <div className="admin-reports-products-modal-body">
+          {!rows.length ? (
+            <p className="admin-help-text">Nenhum produto vendido no período com os filtros selecionados.</p>
+          ) : (
+            <div className="admin-reports-table-wrap">
+              <table className="admin-reports-table admin-reports-products-modal-table">
+                <thead>
+                  <tr>
+                    <th>Produto</th>
+                    <th>Qtd vendida</th>
+                    <th>Faturamento</th>
+                    <th>% do faturamento</th>
+                    <th>Pedidos</th>
+                    <th>Ticket médio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, index) => (
+                    <tr key={row.nome}>
+                      <td>
+                        <div className="admin-reports-products-modal-product">
+                          <span className="admin-reports-products-modal-rank">{index + 1}</span>
+                          <ProductThumb nome={row.nome} imagemUrl={resolveImage?.(row)} />
+                          <strong>{row.nome}</strong>
+                        </div>
+                      </td>
+                      <td>{formatNumber(row.quantidade)}</td>
+                      <td>
+                        <strong>{formatCurrency(row.faturamento)}</strong>
+                      </td>
+                      <td>
+                        <span className="admin-reports-badge brand">
+                          {formatNumber(row.sharePct, 1)}%
+                        </span>
+                      </td>
+                      <td>{formatNumber(row.pedidosComProduto)}</td>
+                      <td>{formatCurrency(row.ticketMedioNoPedido)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
-      <p className="admin-reports-kpi-label">{label}</p>
-      <p className="admin-reports-kpi-value">{display}</p>
-      <p className="admin-reports-kpi-meta">Período anterior: {format === 'currency' ? formatCurrency(kpi?.previous) : format === 'decimal' ? formatNumber(kpi?.previous, 2) : formatNumber(kpi?.previous, 0)}</p>
-      <div className="admin-reports-kpi-bar">
-        <span className={kpi?.positive ? '' : 'negative'} style={{ width: `${Math.max(0, Math.min(100, kpi?.progressPct || 0))}%` }} />
-      </div>
-    </article>
+    </div>
   );
 }
-
-const KPI_CONFIG = [
-  { key: 'faturamento', label: 'Faturamento', format: 'currency', iconTone: 'brand' },
-  { key: 'pedidos', label: 'Pedidos', format: 'number', iconTone: 'brand' },
-  { key: 'ticketMedio', label: 'Ticket médio', format: 'currency', iconTone: 'green' },
-  { key: 'itensVendidos', label: 'Itens vendidos', format: 'number', iconTone: 'brand' },
-  { key: 'itensPorPedido', label: 'Itens por pedido', format: 'decimal', iconTone: 'green' },
-  { key: 'taxaEntrega', label: 'Taxa de entrega', format: 'currency', iconTone: 'red' },
-];
 
 export default function ReportsDashboard() {
   const { activeSlug, data } = useAdminData();
-  const [period, setPeriod] = useState(0);
+  const [period, setPeriod] = useState(30);
+  const [customFrom, setCustomFrom] = useState(daysAgoKey(29));
+  const [customTo, setCustomTo] = useState(todayKey());
+  const [customOpen, setCustomOpen] = useState(false);
   const [origem, setOrigem] = useState('all');
   const [tipo, setTipo] = useState('all');
   const [pagamento, setPagamento] = useState('all');
+  const [exportOpen, setExportOpen] = useState(false);
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [printJob, setPrintJob] = useState(null);
-  const [portalReady, setPortalReady] = useState(false);
   const [entregadorDetail, setEntregadorDetail] = useState(null);
+  const [productsOpen, setProductsOpen] = useState(false);
+  const [showAllCouriers, setShowAllCouriers] = useState(false);
+  const exportRef = useRef(null);
+  const customRef = useRef(null);
+  const canPortal = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   useEffect(() => {
-    setPortalReady(typeof document !== 'undefined');
-  }, []);
-
-  const loadReport = useCallback(async ({ silent = false } = {}) => {
-    if (!activeSlug) return;
-    if (!silent) setLoading(true);
-    setError('');
-    try {
-      const params = new URLSearchParams({
-        slug: activeSlug,
-        period: String(period),
-        origem,
-        tipo,
-        pagamento,
-      });
-      const response = await fetch(`/api/admin/reports?${params.toString()}`);
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.error || 'Não foi possível carregar o relatório.');
+    if (!exportOpen && !customOpen) return undefined;
+    function onDocClick(event) {
+      if (exportOpen && exportRef.current && !exportRef.current.contains(event.target)) {
+        setExportOpen(false);
       }
-      setReport(payload.report);
-    } catch (loadError) {
-      setError(loadError?.message || 'Erro ao carregar relatório.');
-      setReport(null);
-    } finally {
-      if (!silent) setLoading(false);
+      if (customOpen && customRef.current && !customRef.current.contains(event.target)) {
+        setCustomOpen(false);
+      }
     }
-  }, [activeSlug, origem, pagamento, period, tipo]);
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [customOpen, exportOpen]);
+
+  const loadReport = useCallback(
+    async ({ silent = false } = {}) => {
+      if (!activeSlug) return;
+      if (!silent) setLoading(true);
+      setError('');
+      try {
+        const params = new URLSearchParams({
+          slug: activeSlug,
+          period: String(period),
+          origem,
+          tipo,
+          pagamento,
+        });
+        if (period === 'custom') {
+          params.set('from', customFrom);
+          params.set('to', customTo);
+        }
+        const response = await fetch(`/api/admin/reports?${params.toString()}`);
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.error || 'Não foi possível carregar o relatório.');
+        }
+        setReport(payload.report);
+      } catch (loadError) {
+        setError(loadError?.message || 'Erro ao carregar relatório.');
+        setReport(null);
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [activeSlug, customFrom, customTo, origem, pagamento, period, tipo]
+  );
 
   useEffect(() => {
-    loadReport();
+    const timer = window.setTimeout(() => {
+      void loadReport();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [loadReport]);
-
-  useEffect(() => {
-    setEntregadorDetail(null);
-  }, [period, origem, tipo, pagamento]);
 
   useEffect(() => {
     if (period !== 0) return undefined;
@@ -234,20 +369,121 @@ export default function ReportsDashboard() {
     return () => window.clearInterval(interval);
   }, [loadReport, period]);
 
-  const updatedLabel = useMemo(() => {
-    if (!report?.generatedAt) return '—';
-    return new Date(report.generatedAt).toLocaleString('pt-BR');
-  }, [report?.generatedAt]);
-
-  const topProducts = report?.topProducts || [];
   const hasData = (report?.summary?.pedidos || 0) > 0;
   const storeName = data?.loja?.nome || activeSlug || 'Loja';
+  const topProducts = report?.topProducts || [];
+  const podium = report?.podium || [];
+  const payments = useMemo(() => report?.payments || [], [report?.payments]);
+  const entregadores = report?.entregadores || [];
+  const visibleCouriers = showAllCouriers ? entregadores : entregadores.slice(0, 5);
+
+  const catalogImageByName = useMemo(() => {
+    const map = new Map();
+    const remember = (nome, image) => {
+      const name = String(nome || '')
+        .trim()
+        .toLowerCase();
+      const url = String(image || '').trim();
+      if (name && url && !map.has(name)) map.set(name, url);
+    };
+
+    (data?.produtos || []).forEach((product) => {
+      remember(product?.nome, product?.imagemUrl || product?.imagem_url);
+    });
+
+    (data?.marmitas || []).forEach((item) => {
+      remember(item?.nomePublico || item?.nome, item?.imagemUrl || item?.imagem_url);
+    });
+
+    const pizzaSabores =
+      data?.pizzaCardapio?.sabores ||
+      data?.pizzaCardapio?.pizzaSabores ||
+      [];
+    if (Array.isArray(pizzaSabores)) {
+      pizzaSabores.forEach((sabor) => {
+        remember(sabor?.nome, sabor?.imagemUrl || sabor?.imagem_url);
+      });
+    }
+
+    const pizzaCats = data?.pizzaCardapio?.categorias || [];
+    if (Array.isArray(pizzaCats)) {
+      pizzaCats.forEach((cat) => {
+        (cat?.sabores || []).forEach((sabor) => {
+          remember(sabor?.nome, sabor?.imagemUrl || sabor?.imagem_url);
+        });
+      });
+    }
+
+    return map;
+  }, [data?.marmitas, data?.pizzaCardapio, data?.produtos]);
+
+  function resolveProductImage(item) {
+    if (item?.imagemUrl) return item.imagemUrl;
+    const key = String(item?.nome || '')
+      .trim()
+      .toLowerCase();
+    return catalogImageByName.get(key) || null;
+  }
+
+  const customPeriodLabel =
+    period === 'custom'
+      ? customFrom === customTo
+        ? formatDateKeyLabel(customFrom)
+        : `${formatDateKeyLabel(customFrom)} – ${formatDateKeyLabel(customTo)}`
+      : 'Personalizado';
+
+  const tipoBars = useMemo(() => {
+    const byTipo = report?.summary?.byTipo || {};
+    const total = report?.summary?.faturamento || 0;
+    return TIPO_ROWS.map((row) => {
+      const faturamento = Number(byTipo[row.key]?.faturamento) || 0;
+      return {
+        ...row,
+        faturamento,
+        sharePct: total > 0 ? (faturamento / total) * 100 : 0,
+      };
+    }).filter((row) => row.faturamento > 0 || hasData);
+  }, [hasData, report]);
+
+  const origemBars = useMemo(() => {
+    const byOrigem = report?.summary?.byOrigem || {};
+    const total = report?.summary?.faturamento || 0;
+    return ORIGEM_ROWS.map((row) => {
+      const faturamento = Number(byOrigem[row.key]?.faturamento) || 0;
+      return {
+        ...row,
+        faturamento,
+        sharePct: total > 0 ? (faturamento / total) * 100 : 0,
+      };
+    }).filter((row) => row.faturamento > 0 || hasData);
+  }, [hasData, report]);
+
+  const paymentBars = useMemo(() => {
+    const total = report?.summary?.faturamento || 0;
+    return payments.map((row) => ({
+      key: row.code,
+      label: row.label,
+      faturamento: row.faturamento,
+      sharePct: total > 0 ? (row.faturamento / total) * 100 : 0,
+    }));
+  }, [payments, report]);
+
+  const courierBars = useMemo(
+    () =>
+      visibleCouriers.map((row) => ({
+        key: row.id || row.nome,
+        label: row.nome,
+        pedidos: row.pedidos,
+        meta: `Taxa média ${formatCurrency(row.taxaMedia ?? 0)}`,
+        raw: row,
+      })),
+    [visibleCouriers]
+  );
 
   useEffect(() => {
     if (!printJob) return;
 
     document.body.classList.add('report-printing');
-
     let cancelled = false;
     let fallbackTimer = null;
 
@@ -264,7 +500,6 @@ export default function ReportsDashboard() {
     };
 
     window.addEventListener('afterprint', onAfterPrint);
-
     const timer = window.setTimeout(() => {
       if (cancelled) return;
       window.print();
@@ -282,8 +517,64 @@ export default function ReportsDashboard() {
 
   const exportPdf = useCallback(() => {
     if (!report || !hasData) return;
+    setExportOpen(false);
     setPrintJob({ report, storeName });
   }, [hasData, report, storeName]);
+
+  const exportCsv = useCallback(() => {
+    if (!report || !hasData) return;
+    setExportOpen(false);
+    const suffix =
+      period === 'custom'
+        ? `${customFrom}_${customTo}`
+        : period === 0
+          ? 'hoje'
+          : `${period}d`;
+    downloadCsv(`relatorio-${activeSlug}-${suffix}.csv`, buildReportCsv(report));
+  }, [activeSlug, customFrom, customTo, hasData, period, report]);
+
+  function selectPeriod(next) {
+    setCustomOpen(false);
+    setEntregadorDetail(null);
+    setProductsOpen(false);
+    setShowAllCouriers(false);
+    setPeriod(next);
+  }
+
+  function applyCustomRange() {
+    if (!customFrom || !customTo) return;
+    setEntregadorDetail(null);
+    setProductsOpen(false);
+    setShowAllCouriers(false);
+    setPeriod('custom');
+    setCustomOpen(false);
+  }
+
+  function updateOrigem(value) {
+    setEntregadorDetail(null);
+    setProductsOpen(false);
+    setShowAllCouriers(false);
+    setOrigem(value);
+  }
+
+  function updateTipo(value) {
+    setEntregadorDetail(null);
+    setProductsOpen(false);
+    setShowAllCouriers(false);
+    setTipo(value);
+  }
+
+  function updatePagamento(value) {
+    setEntregadorDetail(null);
+    setProductsOpen(false);
+    setShowAllCouriers(false);
+    setPagamento(value);
+  }
+
+  const maxTipo = Math.max(0, ...tipoBars.map((row) => row.faturamento));
+  const maxOrigem = Math.max(0, ...origemBars.map((row) => row.faturamento));
+  const maxPayment = Math.max(0, ...paymentBars.map((row) => row.faturamento));
+  const maxCourier = Math.max(0, ...courierBars.map((row) => row.pedidos));
 
   return (
     <div className="admin-reports-page">
@@ -298,407 +589,355 @@ export default function ReportsDashboard() {
             </div>
             <div>
               <h1 className="admin-reports-title">Relatórios de vendas</h1>
-              <p className="admin-reports-subtitle">
-                {report?.periodLabel || 'Hoje'} · {report?.compareLabel || 'Comparado com ontem'}
-              </p>
-              <CaixaStatusChip />
+              <p className="admin-reports-subtitle">Acompanhe o desempenho da sua loja.</p>
             </div>
           </div>
 
-          <div className="admin-reports-header-actions">
-            <div className="admin-reports-period-tabs" role="tablist" aria-label="Período">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={period === 0}
-                className={`admin-reports-period-tab ${period === 0 ? 'active' : ''}`}
-                onClick={() => setPeriod(0)}
-              >
-                Hoje
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={period === 7}
-                className={`admin-reports-period-tab ${period === 7 ? 'active' : ''}`}
-                onClick={() => setPeriod(7)}
-              >
-                7 dias
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={period === 30}
-                className={`admin-reports-period-tab ${period === 30 ? 'active' : ''}`}
-                onClick={() => setPeriod(30)}
-              >
-                30 dias
-              </button>
-            </div>
-            <div className="admin-reports-updated">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M8 2v4" />
-                <path d="M16 2v4" />
-                <rect x="3" y="4" width="18" height="18" rx="2" />
-                <path d="M3 10h18" />
-              </svg>
-              <span>{updatedLabel}</span>
-            </div>
+          <div className="admin-reports-export-wrap" ref={exportRef}>
             <button
               type="button"
               className="admin-reports-export-btn is-primary"
               disabled={!report || !hasData}
-              onClick={exportPdf}
+              aria-expanded={exportOpen}
+              onClick={() => setExportOpen((value) => !value)}
             >
-              Exportar PDF
+              Exportar
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
             </button>
-            <button
-              type="button"
-              className="admin-reports-export-btn is-secondary"
-              disabled={!report || !hasData}
-              onClick={() =>
-                downloadCsv(
-                  `relatorio-${activeSlug}-${period === 0 ? 'hoje' : `${period}d`}.csv`,
-                  buildReportCsv(report)
-                )
-              }
-            >
-              Exportar CSV
-            </button>
+            {exportOpen ? (
+              <div className="admin-reports-export-menu" role="menu">
+                <button type="button" role="menuitem" onClick={exportPdf}>
+                  Exportar PDF
+                </button>
+                <button type="button" role="menuitem" onClick={exportCsv}>
+                  Exportar CSV
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
       </header>
 
       <div className="admin-reports-body">
-        <section className="admin-reports-card">
-          <h2 className="admin-reports-card-title">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z" />
-            </svg>
-            Filtros
-          </h2>
-          <div className="admin-reports-filters">
-            <div>
-              <span className="admin-reports-filter-label">Origem</span>
-              <div className="admin-reports-segmented">
-                {[
-                  { id: 'all', label: 'Todos' },
-                  { id: 'cardapio_online', label: 'Cardápio online' },
-                  { id: 'admin_manual', label: 'Balcão/Admin' },
-                ].map((option) => (
+        <section className="admin-reports-period-bar">
+          <div className="admin-reports-period-tabs" role="tablist" aria-label="Período">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={period === 0}
+              className={`admin-reports-period-tab ${period === 0 ? 'active' : ''}`}
+              onClick={() => selectPeriod(0)}
+            >
+              Hoje
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={period === 7}
+              className={`admin-reports-period-tab ${period === 7 ? 'active' : ''}`}
+              onClick={() => selectPeriod(7)}
+            >
+              7 dias
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={period === 30}
+              className={`admin-reports-period-tab ${period === 30 ? 'active' : ''}`}
+              onClick={() => selectPeriod(30)}
+            >
+              30 dias
+            </button>
+            <div className="admin-reports-period-custom-wrap" ref={customRef}>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={period === 'custom'}
+                aria-expanded={customOpen}
+                className={`admin-reports-period-tab ${period === 'custom' || customOpen ? 'active' : ''}`}
+                onClick={() => setCustomOpen((value) => !value)}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M8 2v4" />
+                  <path d="M16 2v4" />
+                  <rect x="3" y="4" width="18" height="18" rx="2" />
+                  <path d="M3 10h18" />
+                </svg>
+                <span className="admin-reports-period-custom-label">{customPeriodLabel}</span>
+              </button>
+              {customOpen ? (
+                <div className="admin-reports-period-popover" role="dialog" aria-label="Período personalizado">
+                  <p className="admin-reports-period-popover-title">Escolha o intervalo</p>
+                  <label>
+                    Início
+                    <input
+                      type="date"
+                      className="admin-input"
+                      value={customFrom}
+                      max={customTo || todayKey()}
+                      onChange={(event) => setCustomFrom(event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Fim
+                    <input
+                      type="date"
+                      className="admin-input"
+                      value={customTo}
+                      min={customFrom}
+                      max={todayKey()}
+                      onChange={(event) => setCustomTo(event.target.value)}
+                    />
+                  </label>
                   <button
-                    key={option.id}
                     type="button"
-                    className={origem === option.id ? 'active' : ''}
-                    onClick={() => setOrigem(option.id)}
+                    className="admin-btn admin-btn-primary admin-reports-period-popover-apply"
+                    onClick={applyCustomRange}
                   >
-                    {option.label}
+                    Aplicar período
                   </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <span className="admin-reports-filter-label">Tipo de pedido</span>
-              <select className="admin-reports-select" value={tipo} onChange={(e) => setTipo(e.target.value)}>
-                <option value="all">Todos</option>
-                <option value="delivery">Delivery</option>
-                <option value="retirada">Retirada</option>
-                <option value="balcao">Balcão</option>
-              </select>
-            </div>
-            <div>
-              <span className="admin-reports-filter-label">Pagamento</span>
-              <select className="admin-reports-select" value={pagamento} onChange={(e) => setPagamento(e.target.value)}>
-                <option value="all">Todas</option>
-                <option value="pix">Pix</option>
-                <option value="dinheiro">Dinheiro</option>
-                <option value="credito">Crédito</option>
-                <option value="debito">Débito</option>
-              </select>
+                </div>
+              ) : null}
             </div>
           </div>
+          <p className="admin-reports-compare-hint">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4" />
+              <path d="M12 8h.01" />
+            </svg>
+            {report?.compareLabel || 'Comparado com o período anterior'}
+          </p>
         </section>
 
-        {loading ? <AdminReportsBodySkeleton /> : null}
-        {error ? <div className="admin-reports-error">{error}</div> : null}
-
-        {!loading && !error && report ? (
-          <AdminContentReveal ready>
-            <section className="admin-reports-kpi-grid" aria-label="Indicadores">
-              {KPI_CONFIG.map((item) => (
-                <KpiCard
-                  key={item.key}
-                  label={item.label}
-                  value={report.kpis[item.key]?.value}
-                  kpi={report.kpis[item.key]}
-                  format={item.format}
-                  iconTone={item.iconTone}
-                />
+        <section className="admin-reports-filter-bar">
+          <label className="admin-reports-filter-field">
+            <span>Origem</span>
+            <select
+              className="admin-input"
+              value={origem}
+              onChange={(event) => updateOrigem(event.target.value)}
+            >
+              {Object.entries(REPORT_FILTER_LABELS.origem).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
               ))}
-            </section>
+            </select>
+          </label>
+          <label className="admin-reports-filter-field">
+            <span>Tipo de pedido</span>
+            <select
+              className="admin-input"
+              value={tipo}
+              onChange={(event) => updateTipo(event.target.value)}
+            >
+              {Object.entries(REPORT_FILTER_LABELS.tipo).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="admin-reports-filter-field">
+            <span>Pagamento</span>
+            <select
+              className="admin-input"
+              value={pagamento}
+              onChange={(event) => updatePagamento(event.target.value)}
+            >
+              {Object.entries(REPORT_FILTER_LABELS.pagamento).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="button" className="admin-reports-filters-btn" title="Use os filtros ao lado">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+            </svg>
+            Filtros
+          </button>
+        </section>
 
-            <section className="admin-reports-card admin-reports-table-card">
-              <div className="admin-reports-table-head">
-                <h2 className="admin-reports-card-title" style={{ margin: 0 }}>
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                  </svg>
-                  Top por faturamento
-                </h2>
-              </div>
+        {error ? (
+          <div className="admin-reports-error" role="alert">
+            {error}
+          </div>
+        ) : null}
 
-              {!topProducts.length ? (
-                <div className="admin-reports-empty">Nenhum produto vendido no período com os filtros selecionados.</div>
-              ) : (
-                <>
-                  <div className="admin-reports-table-wrap">
-                    <table className="admin-reports-table">
-                      <thead>
-                        <tr>
-                          <th>Produto</th>
-                          <th>Qtd vendida</th>
-                          <th>Faturamento</th>
-                          <th>% do fat.</th>
-                          <th>Pedidos</th>
-                          <th>Ticket médio</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {topProducts.map((row) => (
-                          <tr key={row.nome}>
-                            <td>{row.nome}</td>
-                            <td>{formatNumber(row.quantidade)}</td>
-                            <td>
-                              <strong>{formatCurrency(row.faturamento)}</strong>
-                            </td>
-                            <td>
-                              <span className="admin-reports-badge brand">{formatNumber(row.sharePct, 1)}%</span>
-                            </td>
-                            <td>{formatNumber(row.pedidosComProduto)}</td>
-                            <td>{formatCurrency(row.ticketMedioNoPedido)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+        {loading && !report ? (
+          <AdminReportsBodySkeleton />
+        ) : (
+          <AdminContentReveal ready className="admin-reports-content-reveal">
+            <ReportsKpiRow kpis={report?.kpis} sparklines={report?.kpiSparklines} />
 
-                  <div className="admin-reports-mobile-list">
-                    {topProducts.map((row) => (
-                      <article key={row.nome} className="admin-reports-mobile-item">
-                        <h4>{row.nome}</h4>
-                        <div className="admin-reports-mobile-grid">
-                          <div>
-                            <span>Qtd vendida</span>
-                            <strong>{formatNumber(row.quantidade)}</strong>
-                          </div>
-                          <div>
-                            <span>Faturamento</span>
-                            <strong>{formatCurrency(row.faturamento)}</strong>
-                          </div>
-                          <div>
-                            <span>% do faturamento</span>
-                            <strong>{formatNumber(row.sharePct, 1)}%</strong>
-                          </div>
-                          <div>
-                            <span>Pedidos</span>
-                            <strong>{formatNumber(row.pedidosComProduto)}</strong>
-                          </div>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                </>
-              )}
-            </section>
+            <ReportsPerformanceChart series={report?.series || []} />
 
-            <section className="admin-reports-bottom-grid">
+            <section className="admin-reports-grid-2">
               <article className="admin-reports-card">
-                <h3 className="admin-reports-widget-title is-brand">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M3 3v16a2 2 0 0 0 2 2h16" />
-                    <path d="M18 17V9" />
-                    <path d="M13 17V5" />
-                    <path d="M8 17v-3" />
-                  </svg>
-                  Resumo do período
-                </h3>
-                <div className="admin-reports-summary-list">
-                  <div className="admin-reports-summary-row">
-                    <div>
-                      <span>Delivery</span>
-                      <strong>{formatCurrency(report.summary.byTipo.delivery.faturamento)}</strong>
-                    </div>
-                    <span>{formatNumber(report.summary.byTipo.delivery.pedidos)} pedidos</span>
-                  </div>
-                  <div className="admin-reports-summary-row">
-                    <div>
-                      <span>Retirada</span>
-                      <strong>{formatCurrency(report.summary.byTipo.retirada.faturamento)}</strong>
-                    </div>
-                    <span>{formatNumber(report.summary.byTipo.retirada.pedidos)} pedidos</span>
-                  </div>
-                  <div className="admin-reports-summary-row">
-                    <div>
-                      <span>Balcão</span>
-                      <strong>{formatCurrency(report.summary.byTipo.balcao.faturamento)}</strong>
-                    </div>
-                    <span>{formatNumber(report.summary.byTipo.balcao.pedidos)} pedidos</span>
-                  </div>
-                  <div className="admin-reports-summary-highlight">
-                    <p>Faturamento total</p>
-                    <strong>{formatCurrency(report.summary.faturamento)}</strong>
-                  </div>
-                  <div className="admin-reports-summary-row">
-                    <div>
-                      <span>Cardápio online</span>
-                      <strong>{formatCurrency(report.summary.byOrigem.cardapio_online.faturamento)}</strong>
-                    </div>
-                    <span>{formatNumber(report.summary.byOrigem.cardapio_online.pedidos)} pedidos</span>
-                  </div>
-                  <div className="admin-reports-summary-row">
-                    <div>
-                      <span>Balcão/Admin</span>
-                      <strong>{formatCurrency(report.summary.byOrigem.admin_manual.faturamento)}</strong>
-                    </div>
-                    <span>{formatNumber(report.summary.byOrigem.admin_manual.pedidos)} pedidos</span>
-                  </div>
+                <div className="admin-reports-card-head">
+                  <ReportsSectionTitle icon="star">Produtos mais vendidos</ReportsSectionTitle>
                 </div>
-              </article>
-
-              <article className="admin-reports-card">
-                <h3 className="admin-reports-widget-title is-amber">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-                    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-                    <path d="M4 22h16" />
-                    <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-                  </svg>
-                  Mais vendidos
-                </h3>
-                <p className="admin-reports-widget-subtitle">Ranking por quantidade vendida no período</p>
-                <div className="admin-reports-podium">
-                  {(report.podium || []).map((row, index) => (
-                    <div key={row.nome} className="admin-reports-podium-item">
-                      <div className={`admin-reports-podium-rank rank-${index + 1}`}>{index + 1}</div>
-                      <div className="admin-reports-podium-copy">
-                        <strong>{row.nome}</strong>
-                        <span>
-                          {formatNumber(row.quantidade)} un. · {formatNumber(row.sharePct, 1)}% das
-                          vendas
-                        </span>
-                      </div>
-                      <span className="admin-reports-badge brand">{formatCurrency(row.faturamento)}</span>
-                    </div>
-                  ))}
-                  {!report.podium?.length ? <div className="admin-reports-empty">Sem vendas no período.</div> : null}
-                </div>
-              </article>
-
-              <article className="admin-reports-card">
-                <h3 className="admin-reports-widget-title is-purple">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
-                    <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
-                    <path d="M12 17.5v-11" />
-                  </svg>
-                  Pagamentos e cupons
-                </h3>
-                <div className="admin-reports-payments-highlight">
-                  <p>Pedidos concluídos</p>
-                  <strong>{formatNumber(report.cupons.pedidos)}</strong>
-                </div>
-                <div className="admin-reports-mini-grid">
-                  <div className="admin-reports-mini-stat">
-                    <span>Com cupom</span>
-                    <strong>{formatNumber(report.cupons.pedidosComCupom)}</strong>
-                  </div>
-                  <div className="admin-reports-mini-stat">
-                    <span>Descontos</span>
-                    <strong>{formatCurrency(report.cupons.totalDesconto)}</strong>
-                  </div>
-                </div>
-                <div className="admin-reports-progress-block">
-                  <div className="admin-reports-progress-head">
-                    <span>Pedidos com cupom</span>
-                    <span>{formatNumber(report.cupons.sharePct, 1)}%</span>
-                  </div>
-                  <div className="admin-reports-progress-bar">
-                    <span style={{ width: `${Math.min(100, report.cupons.sharePct || 0)}%` }} />
-                  </div>
-                </div>
-                <div className="admin-reports-summary-list" style={{ marginTop: 12 }}>
-                  {(report.payments || []).slice(0, 4).map((row) => (
-                    <div key={row.code} className="admin-reports-summary-row">
-                      <div>
-                        <span>{row.label}</span>
-                        <strong>{formatCurrency(row.faturamento)}</strong>
-                      </div>
-                      <span>{formatNumber(row.pedidos)} pedidos</span>
-                    </div>
-                  ))}
-                </div>
-              </article>
-            </section>
-
-            <section className="admin-reports-bottom-grid" style={{ marginTop: 16 }}>
-              <article className="admin-reports-card" style={{ gridColumn: '1 / -1' }}>
-                <h3 className="admin-reports-widget-title is-brand">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                  </svg>
-                  Entregas por entregador
-                </h3>
-                {(report.entregadores || []).length ? (
-                  <div className="admin-reports-summary-list">
-                    {report.entregadores.map((row) => (
-                      <button
-                        key={row.id || row.nome}
-                        type="button"
-                        className="admin-reports-summary-row is-clickable"
-                        onClick={() => setEntregadorDetail(row)}
-                      >
-                        <div>
-                          <span>{row.nome}</span>
-                          <strong>{formatCurrency(row.taxaEntrega)}</strong>
-                        </div>
-                        <span>
-                          {formatNumber(row.pedidos)} ped. · taxa média{' '}
-                          {formatCurrency(row.taxaMedia ?? 0)}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
+                {!podium.length ? (
+                  <div className="admin-reports-empty">Nenhum produto no período.</div>
                 ) : (
-                  <div className="admin-reports-empty">
-                    Nenhum delivery concluído com entregador no período.
-                  </div>
+                  <ol className="admin-reports-bestsellers">
+                    {podium.map((item, index) => (
+                      <li key={item.nome}>
+                        <span className="admin-reports-bestsellers-rank">{index + 1}</span>
+                        <ProductThumb nome={item.nome} imagemUrl={resolveProductImage(item)} />
+                        <div className="admin-reports-bestsellers-copy">
+                          <strong>{item.nome}</strong>
+                          <span>
+                            {formatNumber(item.quantidade)} vendas · {formatNumber(item.sharePct, 1)}%
+                          </span>
+                        </div>
+                        <em className="admin-reports-bestsellers-rev">
+                          {formatCurrency(item.faturamento)}
+                        </em>
+                      </li>
+                    ))}
+                  </ol>
                 )}
+                <button
+                  type="button"
+                  className="admin-reports-link-btn"
+                  onClick={() => setProductsOpen(true)}
+                >
+                  Ver todos os produtos
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 12h14" />
+                    <path d="m12 5 7 7-7 7" />
+                  </svg>
+                </button>
+              </article>
+
+              <article className="admin-reports-card admin-reports-channels-card">
+                <ReportsSectionTitle icon="bag">Por tipo de pedido</ReportsSectionTitle>
+                <HorizontalBars rows={tipoBars} maxValue={maxTipo} />
+                <div className="admin-reports-channels-split">
+                  <ReportsSectionTitle icon="store">Por origem</ReportsSectionTitle>
+                </div>
+                <HorizontalBars rows={origemBars} maxValue={maxOrigem} />
+              </article>
+            </section>
+
+            <section className="admin-reports-grid-3">
+              <article className="admin-reports-card">
+                <ReportsSectionTitle icon="card">Formas de pagamento</ReportsSectionTitle>
+                {!paymentBars.length ? (
+                  <div className="admin-reports-empty">Sem pagamentos no período.</div>
+                ) : (
+                  <HorizontalBars rows={paymentBars} maxValue={maxPayment} />
+                )}
+              </article>
+
+              <article className="admin-reports-card admin-reports-coupons-card">
+                <ReportsSectionTitle icon="ticket">Cupons</ReportsSectionTitle>
+                <div className="admin-reports-coupons-stats">
+                  <div>
+                    <span>Pedidos com cupom</span>
+                    <strong>{formatNumber(report?.cupons?.pedidosComCupom || 0)}</strong>
+                  </div>
+                  <div>
+                    <span>Descontos concedidos</span>
+                    <strong>{formatCurrency(report?.cupons?.totalDesconto || 0)}</strong>
+                  </div>
+                </div>
+                <p className="admin-reports-coupons-foot">
+                  {formatNumber(report?.cupons?.sharePct || 0, 1)}% dos pedidos
+                </p>
+              </article>
+
+              <article className="admin-reports-card">
+                <ReportsSectionTitle icon="users">Entregas por entregador</ReportsSectionTitle>
+                {!courierBars.length ? (
+                  <div className="admin-reports-empty">Nenhuma entrega no período.</div>
+                ) : (
+                  <ul className="admin-reports-hbar-list">
+                    {courierBars.map((row) => {
+                      const pct = maxCourier > 0 ? (row.pedidos / maxCourier) * 100 : 0;
+                      return (
+                        <li key={row.key}>
+                          <button
+                            type="button"
+                            className="admin-reports-courier-row"
+                            onClick={() => setEntregadorDetail(row.raw)}
+                          >
+                            <div className="admin-reports-hbar-top">
+                              <span className="admin-reports-hbar-label">{row.label}</span>
+                              <span className="admin-reports-hbar-value">
+                                {formatNumber(row.pedidos)}
+                              </span>
+                            </div>
+                            <div className="admin-reports-hbar-track-wrap">
+                              <div className="admin-reports-hbar-track">
+                                <span style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+                            <p className="admin-reports-hbar-meta">{row.meta}</p>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {entregadores.length > 5 ? (
+                  <button
+                    type="button"
+                    className="admin-reports-link-btn"
+                    onClick={() => setShowAllCouriers((value) => !value)}
+                  >
+                    {showAllCouriers ? 'Mostrar menos' : 'Ver todos os entregadores'}
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M5 12h14" />
+                      <path d="m12 5 7 7-7 7" />
+                    </svg>
+                  </button>
+                ) : null}
+              </article>
+            </section>
+
+            <section className="admin-reports-grid-bottom">
+              <article className="admin-reports-card admin-reports-cash-card">
+                <div className="admin-reports-card-head">
+                  <ReportsSectionTitle icon="cash">Histórico de caixa</ReportsSectionTitle>
+                </div>
+                <CaixaHistoricoPanel compact />
               </article>
             </section>
           </AdminContentReveal>
-        ) : null}
-
-        <CaixaHistoricoPanel />
+        )}
       </div>
 
-      {portalReady && entregadorDetail
+      {canPortal && productsOpen
+        ? createPortal(
+            <ProductsDetailModal
+              products={topProducts}
+              periodLabel={report?.periodLabel}
+              resolveImage={resolveProductImage}
+              onClose={() => setProductsOpen(false)}
+            />,
+            document.body
+          )
+        : null}
+
+      {canPortal && entregadorDetail
         ? createPortal(
             <EntregadorDeliveriesModal
               row={entregadorDetail}
-              periodLabel={report?.periodLabel || 'Hoje'}
+              periodLabel={report?.periodLabel}
               onClose={() => setEntregadorDetail(null)}
             />,
             document.body
           )
         : null}
 
-      {portalReady && printJob
+      {canPortal && printJob
         ? createPortal(
             <ReportPrintDocument report={printJob.report} storeName={printJob.storeName} />,
             document.body
