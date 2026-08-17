@@ -27,6 +27,7 @@ import {
   sectionTotalQty,
 } from '@/lib/cardapio/addonSelection';
 import { getObservationPlaceholder, getObservationStepHint } from '@/lib/empresaSegmentos';
+import { getProductChargeBase } from '@/lib/cardapio/productChargeBase';
 import { V2Icon } from './CardapioV2Icons';
 
 const STEP_PREVIEW_MAX = 6;
@@ -151,6 +152,7 @@ const GENERIC_SEARCH_MIN_ITEMS = 8;
 
 function GenericStepOptions({ section, sectionIndex, selected, onToggle, onChangeQty, formatPrice }) {
   const [query, setQuery] = useState('');
+  const [limitFlash, setLimitFlash] = useState(false);
   const filteredItems = useMemo(() => {
     const items = section?.items || [];
     const q = query.trim().toLowerCase();
@@ -168,8 +170,24 @@ function GenericStepOptions({ section, sectionIndex, selected, onToggle, onChang
   const maxUnits = Math.max(1, Number(section?.max || 1));
   const totalSelected = sectionTotalQty(selected);
 
+  useEffect(() => {
+    if (!limitFlash) return undefined;
+    const timer = window.setTimeout(() => setLimitFlash(false), 2200);
+    return () => window.clearTimeout(timer);
+  }, [limitFlash]);
+
+  const handleToggle = (itemId, extra) => {
+    const ok = onToggle?.(sectionIndex, itemId, extra);
+    if (ok === false) setLimitFlash(true);
+  };
+
   return (
     <div className="cardapio-v2-product-modal-options-wrap">
+      {limitFlash ? (
+        <p className="marmita-wizard-hint is-limit-flash" role="status">
+          Desmarque uma opção para escolher outra
+        </p>
+      ) : null}
       {showSearch ? (
         <div className="cardapio-v2-product-modal-options-search">
           <input
@@ -189,7 +207,7 @@ function GenericStepOptions({ section, sectionIndex, selected, onToggle, onChang
         <div
           className={`cardapio-v2-product-modal-options${
             section.exibirFotos === false ? ' is-text-only' : ''
-          }`}
+          }${totalSelected >= maxUnits ? ' is-at-max' : ''}`}
         >
           {filteredItems.map((item) => {
             const qty = sectionItemQty(selected, item.id);
@@ -261,11 +279,11 @@ function GenericStepOptions({ section, sectionIndex, selected, onToggle, onChang
                   role="button"
                   tabIndex={0}
                   aria-pressed={isActive}
-                  onClick={() => onToggle(sectionIndex, item.id, item.extra)}
+                  onClick={() => handleToggle(item.id, item.extra)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault();
-                      onToggle(sectionIndex, item.id, item.extra);
+                      handleToggle(item.id, item.extra);
                     }
                   }}
                 >
@@ -281,7 +299,7 @@ function GenericStepOptions({ section, sectionIndex, selected, onToggle, onChang
                 key={item.id}
                 type="button"
                 className={className}
-                onClick={() => onToggle(sectionIndex, item.id, item.extra)}
+                onClick={() => handleToggle(item.id, item.extra)}
               >
                 {media}
                 {copy}
@@ -374,7 +392,7 @@ export default function ProductModalV2() {
     : false;
   const isLastPizzaStep = hasPizzaWizard && pizzaStep >= pizzaSteps.length - 1;
 
-  const marmitaUnitTotal = product ? (product.price + addonExtras) * currentQty : 0;
+  const marmitaUnitTotal = product ? (getProductChargeBase(product) + addonExtras) * currentQty : 0;
   const currentMarmitaSection = hasMarmitaWizard ? marmitaSteps[marmitaStep] : null;
   const currentMarmitaSelected = selectedAddons[marmitaStep] || [];
   const canMarmitaAdvance = currentMarmitaSection
@@ -555,7 +573,11 @@ export default function ProductModalV2() {
 
   const displayUnitPrice = hasPizzaWizard
     ? pizzaUnitPrice
-    : product.price + addonExtras;
+    : (() => {
+        const charged = getProductChargeBase(product) + addonExtras;
+        if (product.priceDisplayOnly && charged === 0) return Number(product.price || 0);
+        return charged;
+      })();
 
   const footerPrice = hasPizzaWizard
     ? pizzaUnitPrice * currentQty
@@ -605,7 +627,7 @@ export default function ProductModalV2() {
     addToCartCustom({
       product,
       qty: currentQty,
-      unitPrice: product.price + addonExtras,
+      unitPrice: getProductChargeBase(product) + addonExtras,
       opts: buildMarmitaCartOpts(product, selectedAddons),
     });
   }

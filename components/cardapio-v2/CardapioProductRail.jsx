@@ -74,7 +74,20 @@ export default function CardapioProductRail({
   if (!items.length) return null;
 
   const collapsedItems = isListLayout ? items.slice(0, visibleCount) : items;
+  const peekItem = isListLayout && hasOverflow && !expanded ? items[visibleCount] : null;
   const gridClassName = `cardapio-v2-rail-grid is-cols-${layoutConfig.gridColumns}${isListLayout ? ' is-list' : ''}`;
+
+  const seeAllButton = hasOverflow ? (
+    <button
+      type="button"
+      className="cardapio-v2-rail-see-all"
+      onClick={() => setExpanded((value) => !value)}
+      aria-expanded={expanded}
+    >
+      {expanded ? 'Ver menos' : 'Ver todos'}
+      <V2Icon name={expanded ? 'caret-up' : 'caret-down'} />
+    </button>
+  ) : null;
 
   return (
     <section
@@ -89,17 +102,6 @@ export default function CardapioProductRail({
           ) : null}
           <h2 className="cardapio-v2-rail-title">{label}</h2>
         </div>
-        {hasOverflow ? (
-          <button
-            type="button"
-            className="cardapio-v2-rail-see-all"
-            onClick={() => setExpanded((value) => !value)}
-            aria-expanded={expanded}
-          >
-            {expanded ? 'Ver menos' : 'Ver todos'}
-            <V2Icon name={expanded ? 'caret-up' : 'caret-down'} />
-          </button>
-        ) : null}
       </div>
       {vitrineNotice ? <p className="cardapio-v2-rail-notice">{vitrineNotice}</p> : null}
 
@@ -115,7 +117,7 @@ export default function CardapioProductRail({
           ))}
         </div>
       ) : isListLayout ? (
-        <div className={gridClassName}>
+        <div className={`${gridClassName}${peekItem ? ' has-list-peek' : ''}`}>
           {collapsedItems.map((product) => (
             <CardComponent
               key={product.id}
@@ -123,6 +125,14 @@ export default function CardapioProductRail({
               variant={isListaLarga ? 'lista-larga' : undefined}
             />
           ))}
+          {peekItem ? (
+            <div className="cardapio-v2-rail-list-peek" aria-hidden="true">
+              <CardComponent
+                product={peekItem}
+                variant={isListaLarga ? 'lista-larga' : undefined}
+              />
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="cardapio-v2-rail-wrap">
@@ -153,6 +163,8 @@ export default function CardapioProductRail({
           ) : null}
         </div>
       )}
+
+      {seeAllButton ? <div className="cardapio-v2-rail-see-all-wrap">{seeAllButton}</div> : null}
     </section>
   );
 }

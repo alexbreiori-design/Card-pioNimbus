@@ -70,6 +70,7 @@ const EMPTY_FORM = {
   categoriaId: '',
   preco: '',
   precoApartirDe: false,
+  precoSoExibicao: false,
   pecaTambemIds: [],
   medidaQtd: '',
   medidaUn: 'un',
@@ -170,6 +171,7 @@ function itemToForm(item, fallbackCategoryId) {
     categoriaId: item.categoriaId || fallbackCategoryId || '',
     preco: moneyInput(item.preco),
     precoApartirDe: item.precoApartirDe === true,
+    precoSoExibicao: item.precoApartirDe === true && item.precoSoExibicao === true,
     pecaTambemIds: normalizePecaTambemIds(item.pecaTambemIds),
     medidaQtd: measure.medidaQtd,
     medidaUn: measure.medidaUn,
@@ -773,6 +775,8 @@ export default function CatalogManager({ mode = 'produtos' }) {
       destaque: isProdutos ? String(form.destaque || '').trim().slice(0, DESTAQUE_MAX_LENGTH) : '',
       preco,
       precoApartirDe: isProdutos ? form.precoApartirDe === true : false,
+      precoSoExibicao:
+        isProdutos && form.precoApartirDe === true && form.precoSoExibicao === true,
       imagemUrl,
       ativo: form.disponivel,
       tags: form.tipo === 'combo' ? ['combo'] : [],
@@ -1321,6 +1325,13 @@ export default function CatalogManager({ mode = 'produtos' }) {
           onClick={overlayClick}
         >
           <div className="product-popup admin-product-popup" onClick={(e) => e.stopPropagation()}>
+            <form
+              className="admin-product-popup-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void saveItem();
+              }}
+            >
             <div className="admin-product-popup-main">
             <div className="popup-details-col admin-item-form-col">
               <div className="popup-header admin-item-popup-header">
@@ -1361,7 +1372,24 @@ export default function CatalogManager({ mode = 'produtos' }) {
                       placeholder={isProdutos ? 'Ex: Burger artesanal da casa' : 'Ex: Bacon crocante'}
                     />
                   </div>
-                  <div className="admin-form-group">
+                  {isProdutos ? (
+                    <div className="admin-form-group">
+                      <label className="admin-label">Categoria</label>
+                      <select
+                        className="admin-input"
+                        value={form.categoriaId}
+                        onChange={(e) => setForm((p) => ({ ...p, categoriaId: e.target.value }))}
+                      >
+                        <option value="">Selecione</option>
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : null}
+                  <div className={`admin-form-group${isProdutos ? ' admin-product-price-row-full' : ''}`}>
                     <label className="admin-label">Preço</label>
                     {isProdutos ? (
                       <div className="admin-product-price-apartir-row">
@@ -1378,12 +1406,31 @@ export default function CatalogManager({ mode = 'produtos' }) {
                           type="button"
                           className={`admin-product-apartir-toggle${form.precoApartirDe ? ' is-on' : ''}`}
                           onClick={() =>
-                            setForm((p) => ({ ...p, precoApartirDe: !p.precoApartirDe }))
+                            setForm((p) => {
+                              const nextApartir = !p.precoApartirDe;
+                              return {
+                                ...p,
+                                precoApartirDe: nextApartir,
+                                precoSoExibicao: nextApartir ? p.precoSoExibicao : false,
+                              };
+                            })
                           }
                           aria-pressed={form.precoApartirDe === true}
                         >
                           à partir de
                         </button>
+                        {form.precoApartirDe ? (
+                          <button
+                            type="button"
+                            className={`admin-product-apartir-toggle${form.precoSoExibicao ? ' is-on' : ''}`}
+                            onClick={() =>
+                              setForm((p) => ({ ...p, precoSoExibicao: !p.precoSoExibicao }))
+                            }
+                            aria-pressed={form.precoSoExibicao === true}
+                          >
+                            Só exibição
+                          </button>
+                        ) : null}
                       </div>
                     ) : (
                       <input
@@ -1397,21 +1444,23 @@ export default function CatalogManager({ mode = 'produtos' }) {
                       />
                     )}
                   </div>
-                  <div className="admin-form-group">
-                    <label className="admin-label">Categoria</label>
-                    <select
-                      className="admin-input"
-                      value={form.categoriaId}
-                      onChange={(e) => setForm((p) => ({ ...p, categoriaId: e.target.value }))}
-                    >
-                      <option value="">Selecione</option>
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.nome}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {!isProdutos ? (
+                    <div className="admin-form-group">
+                      <label className="admin-label">Categoria</label>
+                      <select
+                        className="admin-input"
+                        value={form.categoriaId}
+                        onChange={(e) => setForm((p) => ({ ...p, categoriaId: e.target.value }))}
+                      >
+                        <option value="">Selecione</option>
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : null}
                   <div className="admin-form-group">
                     <label className="admin-label">Estoque</label>
                     <input
@@ -1897,10 +1946,11 @@ export default function CatalogManager({ mode = 'produtos' }) {
               <button type="button" className="admin-btn admin-btn-ghost" onClick={requestCloseItemModal}>
                 Cancelar
               </button>
-              <button type="button" className="admin-btn admin-btn-primary" onClick={saveItem}>
+              <button type="submit" className="admin-btn admin-btn-primary">
                 Salvar
               </button>
             </div>
+            </form>
           </div>
 
           {pecaTambemPickerOpen ? (

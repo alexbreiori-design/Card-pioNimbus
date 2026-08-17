@@ -881,19 +881,27 @@
 /* ——— Chips de categorias ——— */
 .cardapio-v2-category-chips {
   width: 100%;
+  max-width: 100%;
   min-width: 0;
-  overflow: visible;
+  overflow: hidden;
   padding-bottom: 4px;
 }
 
 .cardapio-v2-category-chips-track {
   display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
   gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: hidden;
   padding: 4px 2px 10px;
   scroll-snap-type: x proximity;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pinch-zoom;
   scrollbar-width: none;
 }
 
@@ -1059,6 +1067,14 @@
   transition: opacity 0.15s ease;
 }
 
+.cardapio-v2-rail-see-all-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 4px;
+  padding: 2px 0 4px;
+}
+
 .cardapio-v2-rail-see-all .cardapio-v2-icon {
   font-size: 14px;
 }
@@ -1071,6 +1087,33 @@
   outline: 2px solid var(--brand, #4e48dd);
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+.cardapio-v2-rail-list-peek {
+  position: relative;
+  max-height: 3.5rem;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+.cardapio-v2-rail-section.is-layout-lista-1 .cardapio-v2-rail-list-peek {
+  max-height: 4.25rem;
+}
+
+.cardapio-v2-rail-list-peek::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 70%;
+  background: linear-gradient(to bottom, transparent, var(--bg, #f5f5f7));
+  pointer-events: none;
+}
+
+.cardapio-v2-rail-grid.has-list-peek {
+  padding-bottom: 4px;
 }
 
 .cardapio-v2-rail-wrap {
@@ -3582,6 +3625,17 @@
   border-color: var(--brand, #4e48dd);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand) 22%, transparent);
   background: color-mix(in srgb, var(--brand) 5%, #fff);
+}
+
+.cardapio-v2-product-modal-options.is-at-max .cardapio-v2-product-modal-option:not(.is-selected) {
+  filter: grayscale(1);
+  opacity: 0.55;
+  transition: filter 0.2s ease, opacity 0.2s ease;
+}
+
+.cardapio-v2-product-modal-options.is-at-max .cardapio-v2-product-modal-option:not(.is-selected):hover {
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: none;
 }
 
 .cardapio-v2-product-modal-option-thumb {
