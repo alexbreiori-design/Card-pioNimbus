@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { getMarmitaStepBadge } from '@/lib/marmita/marmitaWizard';
-import { sectionHasItem } from '@/lib/cardapio/addonSelection';
+import { sectionHasItem, sectionTotalQty } from '@/lib/cardapio/addonSelection';
 import AddonThumb from '@/components/cardapio/AddonThumb';
 import { IconCheck } from './icons';
 
@@ -11,7 +12,9 @@ export default function MarmitaWizardSteps({
   selectedAddons,
   toggleAddon,
   formatPrice,
+  hideMeta = false,
 }) {
+  const [limitHint, setLimitHint] = useState(false);
   const section = steps[stepIndex];
   if (!section) return null;
 
@@ -19,6 +22,19 @@ export default function MarmitaWizardSteps({
   const badge = getMarmitaStepBadge(section, selected);
   const stepTitle = section.stepTitle || section.section;
   const showPhotos = section.exibirFotos !== false;
+  const maxUnits = Math.max(1, Number(section.max || 1));
+  const totalSelected = sectionTotalQty(selected);
+  const atMax = totalSelected >= maxUnits;
+
+  function flashLimitHint() {
+    setLimitHint(true);
+    window.setTimeout(() => setLimitHint(false), 2200);
+  }
+
+  function handleToggle(itemId) {
+    const ok = toggleAddon(stepIndex, itemId, undefined);
+    if (ok === false && !hideMeta) flashLimitHint();
+  }
 
   return (
     <div className="marmita-wizard">
@@ -28,17 +44,21 @@ export default function MarmitaWizardSteps({
             {stepIndex + 1}. {stepTitle}
           </div>
         </div>
-        <div className="addon-section-meta">
-          <span className={`marmita-wizard-badge marmita-wizard-badge-${badge.tone}`}>
-            {badge.text}
-          </span>
-          {section.required ? <span className="obrigatorio-badge">OBRIGATÓRIO</span> : null}
-          <span className="marmita-wizard-hint">
-            Escolha até {section.max} {section.max > 1 ? 'opções' : 'opção'}
-          </span>
-        </div>
+        {!hideMeta ? (
+          <div className="addon-section-meta">
+            <span className={`marmita-wizard-badge marmita-wizard-badge-${badge.tone}`}>
+              {badge.text}
+            </span>
+            {section.required ? <span className="obrigatorio-badge">OBRIGATÓRIO</span> : null}
+            <span className={`marmita-wizard-hint${limitHint ? ' is-limit-flash' : ''}`}>
+              {limitHint
+                ? 'Desmarque uma opção para escolher outra'
+                : `Escolha até ${section.max} ${section.max > 1 ? 'opções' : 'opção'}`}
+            </span>
+          </div>
+        ) : null}
 
-        <div className={`addon-items-grid${showPhotos ? '' : ' is-text-only'}`}>
+        <div className={`addon-items-grid${showPhotos ? '' : ' is-text-only'}${atMax ? ' is-at-max' : ''}`}>
           {section.items.map((item) => {
             const isActive = sectionHasItem(selected, item.id);
             return (
@@ -48,7 +68,7 @@ export default function MarmitaWizardSteps({
                   isActive ? ' is-selected' : ''
                 }`}
                 key={item.id}
-                onClick={() => toggleAddon(stepIndex, item.id, item.extra)}
+                onClick={() => handleToggle(item.id)}
                 aria-pressed={isActive}
               >
                 {showPhotos ? <AddonThumb imageUrl={item.imageUrl} /> : null}

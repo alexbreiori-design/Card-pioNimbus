@@ -23,10 +23,12 @@ import {
   isPizzaStepComplete,
 } from '@/lib/pizza/pizzaWizard';
 import MarmitaWizardSteps from './MarmitaWizardSteps';
-import PizzaWizardSteps from './PizzaWizardSteps';
+import PizzaWizardSteps, { getPizzaStepBadge, getPizzaStepHint } from './PizzaWizardSteps';
 import AddonThumb from '@/components/cardapio/AddonThumb';
 import MenuImageArea from '@/components/cardapio/MenuImageArea';
 import { getObservationPlaceholder } from '@/lib/empresaSegmentos';
+import { getMarmitaStepBadge } from '@/lib/marmita/marmitaWizard';
+import { getProductChargeBase } from '@/lib/cardapio/productChargeBase';
 import { IconClose } from './icons';
 
 const GENERIC_SEARCH_MIN_ITEMS = 8;
@@ -43,8 +45,17 @@ function findFirstIncompleteGenericStep(sections, selectedAddons) {
   return -1;
 }
 
-function MobileAddonSection({ sec, si, selected, formatPrice, onToggle, onChangeQty }) {
+function MobileAddonSection({
+  sec,
+  si,
+  selected,
+  formatPrice,
+  onToggle,
+  onChangeQty,
+  hideMeta = false,
+}) {
   const [query, setQuery] = useState('');
+  const [limitHint, setLimitHint] = useState(false);
   const items = sec.items || [];
   const showSearch = items.length >= GENERIC_SEARCH_MIN_ITEMS;
   const totalSelected = sectionTotalQty(selected);
@@ -63,6 +74,16 @@ function MobileAddonSection({ sec, si, selected, formatPrice, onToggle, onChange
     });
   }, [items, query]);
 
+  function flashLimitHint() {
+    setLimitHint(true);
+    window.setTimeout(() => setLimitHint(false), 2200);
+  }
+
+  function handleToggle(itemId) {
+    const ok = onToggle(si, itemId);
+    if (ok === false && !hideMeta) flashLimitHint();
+  }
+
   return (
     <div className="addon-section">
       <div className="addon-section-header">
@@ -70,13 +91,17 @@ function MobileAddonSection({ sec, si, selected, formatPrice, onToggle, onChange
           {si + 1}. {sec.stepTitle || sec.section}
         </div>
       </div>
-      <div className="addon-section-meta">
-        <span className={`marmita-wizard-badge marmita-wizard-badge-${badge.tone}`}>
-          {badge.text}
-        </span>
-        {sec.required ? <span className="obrigatorio-badge">OBRIGATÓRIO</span> : null}
-        <span className="marmita-wizard-hint">{stepHint}</span>
-      </div>
+      {!hideMeta ? (
+        <div className="addon-section-meta">
+          <span className={`marmita-wizard-badge marmita-wizard-badge-${badge.tone}`}>
+            {badge.text}
+          </span>
+          {sec.required ? <span className="obrigatorio-badge">OBRIGATÓRIO</span> : null}
+          <span className={`marmita-wizard-hint${limitHint ? ' is-limit-flash' : ''}`}>
+            {limitHint ? 'Desmarque uma opção para escolher outra' : stepHint}
+          </span>
+        </div>
+      ) : null}
       {showSearch ? (
         <div className="addon-section-search">
           <input
@@ -93,7 +118,11 @@ function MobileAddonSection({ sec, si, selected, formatPrice, onToggle, onChange
         </div>
       ) : null}
       {filteredItems.length ? (
-        <div className={`addon-items-grid${sec.exibirFotos === false ? ' is-text-only' : ''}`}>
+        <div
+          className={`addon-items-grid${sec.exibirFotos === false ? ' is-text-only' : ''}${
+            totalSelected >= maxUnits ? ' is-at-max' : ''
+          }`}
+        >
           {filteredItems.map((item) => {
             const qty = sectionItemQty(selected, item.id);
             const isActive = qty > 0;
@@ -158,11 +187,11 @@ function MobileAddonSection({ sec, si, selected, formatPrice, onToggle, onChange
                   role="button"
                   tabIndex={0}
                   aria-pressed={isActive}
-                  onClick={() => onToggle(si, item.id, item.extra)}
+                  onClick={() => handleToggle(item.id)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault();
-                      onToggle(si, item.id, item.extra);
+                      handleToggle(item.id);
                     }
                   }}
                 >
@@ -178,7 +207,7 @@ function MobileAddonSection({ sec, si, selected, formatPrice, onToggle, onChange
                 type="button"
                 className={className}
                 key={item.id}
-                onClick={() => onToggle(si, item.id, item.extra)}
+                onClick={() => handleToggle(item.id)}
               >
                 {media}
                 {info}
@@ -232,6 +261,18 @@ export default function ProductModal() {
   const [genericStep, setGenericStep] = useState(0);
   const [onNoteStep, setOnNoteStep] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
+  const [limitFlash, setLimitFlash] = useState(false);
+
+  const flashLimitHint = () => {
+    setLimitFlash(true);
+    window.setTimeout(() => setLimitFlash(false), 2200);
+  };
+
+  const handleToggleAddon = (sectionIdx, itemId, extra) => {
+    const ok = toggleAddon(sectionIdx, itemId, extra);
+    if (ok === false) flashLimitHint();
+    return ok;
+  };
 
   const pizzaSteps = useMemo(
     () =>
@@ -266,7 +307,7 @@ export default function ProductModal() {
     : false;
   const isLastPizzaStep = hasPizzaWizard && pizzaStep >= pizzaSteps.length - 1;
 
-  const marmitaUnitTotal = product ? (product.price + addonExtras) * currentQty : 0;
+  const marmitaUnitTotal = product ? (getProductChargeBase(product) + addonExtras) * currentQty : 0;
   const currentMarmitaSection = hasMarmitaWizard ? marmitaSteps[marmitaStep] : null;
   const currentMarmitaSelected = selectedAddons[marmitaStep] || [];
   const canMarmitaAdvance = currentMarmitaSection
@@ -289,11 +330,79 @@ export default function ProductModal() {
   const productDesc = String(product?.desc || '').trim();
   const canToggleDesc = productDesc.length > DESC_COLLAPSE_CHARS;
 
+  const stickyStepMeta = useMemo(() => {
+    if (!product || onNoteStep) return null;
+
+    if (showGenericWizard && currentGenericSection) {
+      const badge = getAddonStepBadge(currentGenericSection, currentGenericSelected);
+      const allowRepeat = currentGenericSection.permitirRepetir === true;
+      const maxRep = getSectionMaxRepeticoes(currentGenericSection);
+      const hint = getAddonStepHint(currentGenericSection, {
+        allowRepeat,
+        maxRepeticoes: maxRep,
+      });
+      return {
+        badge,
+        required: Boolean(currentGenericSection.required),
+        hint,
+      };
+    }
+
+    if (hasMarmitaWizard && currentMarmitaSection) {
+      const badge = getMarmitaStepBadge(currentMarmitaSection, currentMarmitaSelected);
+      return {
+        badge,
+        required: Boolean(currentMarmitaSection.required),
+        hint: `Escolha até ${currentMarmitaSection.max} ${
+          currentMarmitaSection.max > 1 ? 'opções' : 'opção'
+        }`,
+      };
+    }
+
+    if (hasPizzaWizard) {
+      const activePizzaStep = pizzaPromoShortcut
+        ? promoWizardSteps[promoWizardStepIndex]
+        : pizzaSteps[pizzaStep];
+      if (!activePizzaStep) return null;
+      const badge = getPizzaStepBadge(activePizzaStep, pizzaState, selectedAddons);
+      const hint = getPizzaStepHint(activePizzaStep);
+      return {
+        badge,
+        required: Boolean(activePizzaStep.required),
+        hint,
+      };
+    }
+
+    return null;
+  }, [
+    product,
+    onNoteStep,
+    showGenericWizard,
+    currentGenericSection,
+    currentGenericSelected,
+    hasMarmitaWizard,
+    currentMarmitaSection,
+    currentMarmitaSelected,
+    hasPizzaWizard,
+    pizzaPromoShortcut,
+    promoWizardSteps,
+    promoWizardStepIndex,
+    pizzaSteps,
+    pizzaStep,
+    pizzaState,
+    selectedAddons,
+  ]);
+
+  useEffect(() => {
+    setLimitFlash(false);
+  }, [genericStep, marmitaStep, pizzaStep, onNoteStep, product?.id]);
+
   useEffect(() => {
     setMarmitaStep(0);
     setGenericStep(0);
     setOnNoteStep(false);
     setDescExpanded(false);
+    setLimitFlash(false);
     if (product?.pizzaPromoShortcut) {
       const { saborId, tamanhoId } = product.pizzaPromoShortcut;
       setPizzaState({ sizeId: tamanhoId, flavorSlots: [saborId] });
@@ -325,7 +434,7 @@ export default function ProductModal() {
   };
 
   const handleScroll = (e) => {
-    setPopupHeaderCompact(e.currentTarget.scrollTop > 30);
+    setPopupHeaderCompact(e.currentTarget.scrollTop > 56);
   };
 
   function handleSelectPizzaSize(sizeId) {
@@ -381,7 +490,7 @@ export default function ProductModal() {
     addToCartCustom({
       product,
       qty: currentQty,
-      unitPrice: product.price + addonExtras,
+      unitPrice: getProductChargeBase(product) + addonExtras,
       opts: buildMarmitaCartOpts(product, selectedAddons),
     });
   }
@@ -448,7 +557,7 @@ export default function ProductModal() {
 
   if (!productOpen || !product) return null;
 
-  const genericUnitTotal = (product.price + addonExtras) * currentQty;
+  const genericUnitTotal = (getProductChargeBase(product) + addonExtras) * currentQty;
 
   return (
     <div
@@ -462,7 +571,7 @@ export default function ProductModal() {
         } ${hasPizzaWizard ? 'product-popup-pizza-wizard' : ''}`}
         id="productPopup"
       >
-        <div className="popup-img-col">
+        <div className="popup-img-col popup-img-col--desktop">
           <MenuImageArea
             imageUrl={product.imageUrl}
             className="popup-img-frame"
@@ -479,6 +588,40 @@ export default function ProductModal() {
           </button>
           <div className={`popup-header ${popupHeaderCompact ? 'compact' : ''}`} id="popupHeader">
             <div className="popup-header-title">{product.name}</div>
+            {stickyStepMeta ? (
+              <div className="addon-section-meta popup-header-step-meta">
+                {stickyStepMeta.badge ? (
+                  <span
+                    className={`marmita-wizard-badge marmita-wizard-badge-${stickyStepMeta.badge.tone}`}
+                  >
+                    {stickyStepMeta.badge.text}
+                  </span>
+                ) : null}
+                {stickyStepMeta.required ? (
+                  <span className="obrigatorio-badge">OBRIGATÓRIO</span>
+                ) : null}
+                {limitFlash || stickyStepMeta.hint ? (
+                  <span className={`marmita-wizard-hint${limitFlash ? ' is-limit-flash' : ''}`}>
+                    {limitFlash ? 'Desmarque uma opção para escolher outra' : stickyStepMeta.hint}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+          <div
+            className="popup-scroll"
+            ref={popupDetailsRef}
+            onScroll={handleScroll}
+          >
+          <div className="popup-scroll-hero">
+            <MenuImageArea
+              imageUrl={product.imageUrl}
+              className="popup-img-frame"
+              alt={product.name}
+              sizes="100vw"
+            />
+          </div>
+          <div className="popup-header-scroll-meta">
             {isMarmita && product.tamanhoSelecionado ? (
               <div className="popup-marmita-size-pill">
                 Tamanho: {product.tamanhoSelecionado.nome}
@@ -528,11 +671,6 @@ export default function ProductModal() {
               )}
             </div>
           </div>
-          <div
-            className="popup-scroll"
-            ref={popupDetailsRef}
-            onScroll={handleScroll}
-          >
           <div className="popup-body" id="popupBody">
             {pizzaPromoShortcut ? (
               <div className="pizza-promo-preset-summary">
@@ -550,10 +688,11 @@ export default function ProductModal() {
                 selectedAddons={selectedAddons}
                 onSelectSize={handleSelectPizzaSize}
                 onSelectFlavor={handleSelectPizzaFlavor}
-                onToggleAddon={toggleAddon}
+                onToggleAddon={handleToggleAddon}
                 onAddSuggestion={handleAddSuggestion}
                 formatPrice={formatPrice}
                 pizzaConfig={product.pizzaConfig}
+                hideMeta
               />
             ) : null}
 
@@ -562,8 +701,9 @@ export default function ProductModal() {
                 steps={marmitaSteps}
                 stepIndex={marmitaStep}
                 selectedAddons={selectedAddons}
-                toggleAddon={toggleAddon}
+                toggleAddon={handleToggleAddon}
                 formatPrice={formatPrice}
+                hideMeta
               />
             ) : null}
 
@@ -578,8 +718,9 @@ export default function ProductModal() {
                 si={genericStep}
                 selected={currentGenericSelected}
                 formatPrice={formatPrice}
-                onToggle={toggleAddon}
+                onToggle={handleToggleAddon}
                 onChangeQty={changeAddonQty}
+                hideMeta
               />
             ) : null}
 

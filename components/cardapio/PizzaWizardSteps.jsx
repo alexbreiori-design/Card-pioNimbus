@@ -1,7 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { getFlavorPriceForSize } from '@/lib/pizza/pizzaWizard';
-import { getAddonStepBadge, getAddonStepHint, sectionHasItem } from '@/lib/cardapio/addonSelection';
+import {
+  getAddonStepBadge,
+  getAddonStepHint,
+  sectionHasItem,
+  sectionTotalQty,
+} from '@/lib/cardapio/addonSelection';
 import AddonThumb from '@/components/cardapio/AddonThumb';
 import { IconCheck } from './icons';
 
@@ -20,7 +26,7 @@ function OptionCheck({ active }) {
   );
 }
 
-function getPizzaStepBadge(step, pizzaState, selectedAddons) {
+export function getPizzaStepBadge(step, pizzaState, selectedAddons) {
   if (!step) return null;
   if (step.type === 'size') {
     const done = Boolean(pizzaState?.sizeId);
@@ -45,7 +51,7 @@ function getPizzaStepBadge(step, pizzaState, selectedAddons) {
   return null;
 }
 
-function getPizzaStepHint(step) {
+export function getPizzaStepHint(step) {
   if (!step) return '';
   if (step.type === 'size') {
     return 'Escolha 1 tamanho';
@@ -73,13 +79,34 @@ export default function PizzaWizardSteps({
   onAddSuggestion,
   formatPrice,
   pizzaConfig,
+  hideMeta = false,
 }) {
+  const [limitHint, setLimitHint] = useState(false);
   const step = steps[stepIndex];
   if (!step) return null;
 
   const showPhotos = stepShowsPhotos(step);
   const badge = getPizzaStepBadge(step, pizzaState, selectedAddons);
   const hint = getPizzaStepHint(step);
+
+  function flashLimitHint() {
+    setLimitHint(true);
+    window.setTimeout(() => setLimitHint(false), 2200);
+  }
+
+  function handleToggleAddon(itemId) {
+    const ok = onToggleAddon(step.sectionIndex, itemId);
+    if (ok === false && !hideMeta) flashLimitHint();
+  }
+
+  const addonSelected = step.type === 'addons' ? selectedAddons[step.sectionIndex] || {} : {};
+  const addonMaxUnits =
+    step.type === 'addons' ? Math.max(1, Number(step.section?.max || 1)) : 1;
+  const addonAtMax =
+    step.type === 'addons' && sectionTotalQty(addonSelected) >= addonMaxUnits;
+  const sizeAtMax = step.type === 'size' && Boolean(pizzaState?.sizeId);
+  const flavorAtMax =
+    step.type === 'flavor' && Boolean(pizzaState?.flavorSlots?.[step.slotIndex]);
 
   return (
     <div className="pizza-wizard">
@@ -89,18 +116,24 @@ export default function PizzaWizardSteps({
             {stepIndex + 1}. {step.title}
           </div>
         </div>
-        <div className="addon-section-meta">
-          {badge ? (
-            <span className={`marmita-wizard-badge marmita-wizard-badge-${badge.tone}`}>
-              {badge.text}
-            </span>
-          ) : null}
-          {step.required ? <span className="obrigatorio-badge">OBRIGATÓRIO</span> : null}
-          {hint ? <span className="marmita-wizard-hint">{hint}</span> : null}
-        </div>
+        {!hideMeta ? (
+          <div className="addon-section-meta">
+            {badge ? (
+              <span className={`marmita-wizard-badge marmita-wizard-badge-${badge.tone}`}>
+                {badge.text}
+              </span>
+            ) : null}
+            {step.required ? <span className="obrigatorio-badge">OBRIGATÓRIO</span> : null}
+            {limitHint || hint ? (
+              <span className={`marmita-wizard-hint${limitHint ? ' is-limit-flash' : ''}`}>
+                {limitHint ? 'Desmarque uma opção para escolher outra' : hint}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
 
         {step.type === 'size' ? (
-          <div className="addon-items-grid is-text-only">
+          <div className={`addon-items-grid is-text-only${sizeAtMax ? ' is-at-max' : ''}`}>
             {step.sizes.map((size) => {
               const active = pizzaState.sizeId === size.tamanhoId;
               return (
@@ -125,7 +158,11 @@ export default function PizzaWizardSteps({
         ) : null}
 
         {step.type === 'flavor' ? (
-          <div className={`addon-items-grid${showPhotos ? '' : ' is-text-only'}`}>
+          <div
+            className={`addon-items-grid${showPhotos ? '' : ' is-text-only'}${
+              flavorAtMax ? ' is-at-max' : ''
+            }`}
+          >
             {step.items.map((item) => {
               const active = pizzaState.flavorSlots?.[step.slotIndex] === item.id;
               const price = getFlavorPriceForSize(pizzaConfig, item.id, pizzaState.sizeId);
@@ -153,7 +190,11 @@ export default function PizzaWizardSteps({
         ) : null}
 
         {step.type === 'addons' ? (
-          <div className={`addon-items-grid${showPhotos ? '' : ' is-text-only'}`}>
+          <div
+            className={`addon-items-grid${showPhotos ? '' : ' is-text-only'}${
+              addonAtMax ? ' is-at-max' : ''
+            }`}
+          >
             {step.section.items.map((item) => {
               const isActive = sectionHasItem(selectedAddons[step.sectionIndex], item.id);
               return (
@@ -163,7 +204,7 @@ export default function PizzaWizardSteps({
                   className={`addon-item addon-item--grid${showPhotos ? '' : ' is-text-only'}${
                     isActive ? ' is-selected' : ''
                   }`}
-                  onClick={() => onToggleAddon(step.sectionIndex, item.id, item.extra)}
+                  onClick={() => handleToggleAddon(item.id)}
                   aria-pressed={isActive}
                 >
                   {showPhotos ? <AddonThumb imageUrl={item.imageUrl} /> : null}

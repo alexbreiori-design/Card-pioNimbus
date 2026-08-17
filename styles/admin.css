@@ -3817,6 +3817,15 @@
   z-index: 6;
 }
 
+.admin-product-popup-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .admin-preview-col {
   flex: 1.05;
   background: #fbfcfd;
@@ -3845,14 +3854,24 @@
   gap: 14px 12px;
 }
 
+.admin-product-price-row-full {
+  grid-column: 1 / -1;
+}
+
 .admin-product-price-apartir-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 8px;
+  display: flex;
   align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+
+.admin-product-price-apartir-row > .admin-input {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .admin-product-apartir-toggle {
+  flex: 0 0 auto;
   min-height: 40px;
   border: 1px solid #d5dae2;
   border-radius: 10px;
@@ -3862,7 +3881,7 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  padding: 0 10px;
+  padding: 0 6px;
   white-space: nowrap;
 }
 

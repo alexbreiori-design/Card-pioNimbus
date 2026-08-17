@@ -18,6 +18,7 @@ import {
 } from '@/lib/cardapio/addonSelection';
 import { formatPrice } from '@/lib/utils/format';
 import { formatDeliveryAddressLine } from '@/lib/formatDeliveryAddress';
+import { getProductChargeBase } from '@/lib/cardapio/productChargeBase';
 import { digitsOnly } from '@/lib/cpfCnpj';
 import { fetchViaCep } from '@/lib/cep/viacep';
 import { calculateCupomDiscount, findCupomByCode } from '@/lib/cupons';
@@ -1495,7 +1496,8 @@ export function CardapioProvider({
 
   const toggleAddon = useCallback(
     (sectionIdx, itemId) => {
-      if (!currentProduct) return;
+      if (!currentProduct) return false;
+      let blocked = false;
       setSelectedAddons((prev) => {
         const next = { ...prev };
         const sec = currentProduct.addons[sectionIdx];
@@ -1509,8 +1511,8 @@ export function CardapioProvider({
         } else {
           const total = sectionTotalQty(map);
           if (total >= maxUnits) {
-            const firstKey = Object.keys(map)[0];
-            if (firstKey) delete map[firstKey];
+            blocked = true;
+            return prev;
           }
           map[itemId] = 1;
         }
@@ -1518,6 +1520,7 @@ export function CardapioProvider({
         setAddonExtras(recalcExtras(currentProduct, next));
         return next;
       });
+      return !blocked;
     },
     [currentProduct, recalcExtras]
   );
@@ -1571,7 +1574,7 @@ export function CardapioProvider({
       }
     }
     const optLabels = collectAddonOptLabels(currentProduct, selectedAddons);
-    const unitPrice = currentProduct.price + addonExtras;
+    const unitPrice = getProductChargeBase(currentProduct) + addonExtras;
     const note = String(productNote || '').trim();
     commitCartAdd({
       id: Date.now(),
@@ -2658,7 +2661,7 @@ export function CardapioProvider({
   }, [deliveryAvailability]);
 
   const adicionarTotal = currentProduct
-    ? (currentProduct.price + addonExtras) * currentQty
+    ? (getProductChargeBase(currentProduct) + addonExtras) * currentQty
     : 0;
 
   const catalogValue = useMemo(
