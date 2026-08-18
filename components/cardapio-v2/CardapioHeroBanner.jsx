@@ -5,6 +5,7 @@ import { useCardapio } from '@/context/CardapioContext';
 import { HeroGlassChip, V2Icon } from './CardapioV2Icons';
 import HeroRotatingChip from './HeroRotatingChip';
 import CardapioShareModal from './CardapioShareModal';
+import { useCardapioV2Mobile } from './useCardapioV2Mobile';
 
 const WEEKDAY_KEYS = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
 
@@ -18,6 +19,7 @@ export default function CardapioHeroBanner() {
   } = useCardapio();
   const [shareOpen, setShareOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
+  const isMobile = useCardapioV2Mobile();
 
   useEffect(() => {
     if (!shareOpen || typeof window === 'undefined') return;
@@ -33,7 +35,9 @@ export default function CardapioHeroBanner() {
 
   const minOrder = Number(storeConfig?.pedidoMinimo || 0);
   const isOpen = Boolean(storeConfig?.aberta);
-  const hasCover = Boolean(storeConfig?.capaUrl);
+  const coverUrl =
+    isMobile && storeConfig?.capaMobileUrl ? storeConfig.capaMobileUrl : storeConfig?.capaUrl;
+  const hasCover = Boolean(coverUrl);
   const descricao = String(storeConfig?.descricao || '').trim();
 
   const heroAddress = useMemo(() => {
@@ -69,7 +73,7 @@ export default function CardapioHeroBanner() {
       <section className="cardapio-v2-hero" aria-label="Apresentação da loja">
         <div
           className={`cardapio-v2-hero-media${hasCover ? ' has-cover' : ''}`}
-          style={hasCover ? { backgroundImage: `url(${storeConfig.capaUrl})` } : undefined}
+          style={hasCover ? { backgroundImage: `url(${coverUrl})` } : undefined}
         />
         <div className="cardapio-v2-hero-gradient" aria-hidden="true" />
 

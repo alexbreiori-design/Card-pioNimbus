@@ -46,6 +46,8 @@ import { useAdminToast } from '@/context/AdminToastContext';
 
 const DESCRICAO_MAX = 120;
 const MENSAGEM_FECHADA_MAX = 280;
+const SAVE_SKELETON_MIN_MS = 480;
+const SAVE_TOAST_PROGRESS_MS = 5000;
 
 const DAYS = [
   ['segunda', 'Segunda'],
@@ -178,6 +180,7 @@ export default function MinhaLojaPage() {
             logoComandaUrl: data.loja.logoComandaUrl,
             capaUrl: data.loja.capaUrl,
             capaOriginalUrl: data.loja.capaOriginalUrl,
+            capaMobileUrl: data.loja.capaMobileUrl,
             corMarca: data.loja.corMarca,
             paletteColors: data.loja.paletteColors,
             paletteLogoUrl: data.loja.paletteLogoUrl,
@@ -246,7 +249,7 @@ export default function MinhaLojaPage() {
     };
   }, [draft?.capaUrl]);
 
-  if (!ready || !draft) {
+  if (!ready || !draft || saving) {
     return (
       <div className="admin-content admin-content-pedidos admin-store-page admin-store-page-v2">
         <AdminLojaSkeleton />
@@ -347,12 +350,13 @@ export default function MinhaLojaPage() {
     };
   }
 
-  function applyCoverImage(dataUrl) {
+  function applyCoverImage({ desktop, mobile }) {
     const isNew = coverAdjustIsNew;
     const originalSrc = coverAdjustSrc;
     setDraft((prev) => ({
       ...prev,
-      capaUrl: dataUrl,
+      capaUrl: desktop,
+      capaMobileUrl: mobile,
       ...(isNew ? { capaOriginalUrl: originalSrc } : {}),
     }));
     setCoverAdjustSrc('');
@@ -389,13 +393,19 @@ export default function MinhaLojaPage() {
   }
 
   async function save() {
-    setSaving(true);
     const durations = resolveLojaDurations(draft);
     if (!parseHHMMToMinutes(durations.tempoEntregaDelivery) || !parseHHMMToMinutes(durations.tempoEntregaRetirada)) {
       toast.error('Informe tempos válidos no formato HH:MM (ex: 00:45 para 45 minutos).');
-      setSaving(false);
       return;
     }
+    setSaving(true);
+    const savingToastId = toast.toast({
+      title: 'Salvando…',
+      description: 'Aguarde a conclusão do salvamento.',
+      variant: 'info',
+      duration: SAVE_TOAST_PROGRESS_MS,
+    });
+    const startedAt = Date.now();
     const nextLoja = applyScheduleOpenStatus({
       ...draft,
       ...durations,
@@ -456,11 +466,19 @@ export default function MinhaLojaPage() {
           /* geocoding opcional */
         }
       }
+      toast.dismiss(savingToastId);
       toast.success('Alterações salvas com sucesso.');
       setPedidoMinimo(moneyToDisplay(nextLoja.pedidoMinimo));
     } catch (e) {
+      toast.dismiss(savingToastId);
       toast.error(e?.message || 'Erro ao salvar. Tente novamente.');
     } finally {
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < SAVE_SKELETON_MIN_MS) {
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, SAVE_SKELETON_MIN_MS - elapsed);
+        });
+      }
       setSaving(false);
     }
   }
@@ -555,7 +573,10 @@ export default function MinhaLojaPage() {
                 />
               </div>
             </div>
-            <p className="admin-store-cover-hint">Tamanho ideal: 1145 × 366 px (proporção 5:1,6)</p>
+            <p className="admin-store-cover-hint">
+              Desktop: 1145 × 366 px (5:1,6). Celular: 390 × 300 px. Ajuste os dois recortes no
+              lápis.
+            </p>
           </div>
         </div>
       </div>
