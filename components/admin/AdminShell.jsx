@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import AdminSidebar from './AdminSidebar';
 import AdminMobileDrawer from './AdminMobileDrawer';
 import AdminMobileGate from './AdminMobileGate';
@@ -12,6 +13,8 @@ import { persistStoreManualClose } from '@/lib/storeManualClose';
 import { resolveStoreOpenStatus } from '@/lib/storeHours';
 
 export default function AdminShell({ children }) {
+  const pathname = usePathname();
+  const isLojaPage = pathname === '/admin/loja';
   const [collapsed, setCollapsed] = useState(false);
   const [compactViewport, setCompactViewport] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -152,7 +155,7 @@ export default function AdminShell({ children }) {
             </button>
           </div>
         ) : null}
-        {saving ? (
+        {saving && !isLojaPage ? (
           <div className="admin-sync-banner admin-sync-banner-saving">Salvando alterações…</div>
         ) : null}
         <AdminMobileGate>{children}</AdminMobileGate>
