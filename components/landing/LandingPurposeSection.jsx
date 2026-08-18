@@ -31,22 +31,20 @@ function CardVisual({ card }) {
           width={640}
           height={400}
           sizes="(max-width: 720px) 90vw, 360px"
+          unoptimized
           aria-hidden="true"
         />
         <div className="landing-purpose__honesto-content">
-          <div className="landing-purpose__bullets-card landing-glass-card landing-glass-card--edged">
-            <span className="landing-glass-edge" aria-hidden="true" />
-            <ul className="landing-purpose__bullets">
-              {card.bullets.map((item) => (
-                <li key={item}>
-                  <span className="landing-purpose__bullet-check" aria-hidden="true">
-                    <LandingIcon name="check" />
-                  </span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <ul className="landing-purpose__bullets">
+            {card.bullets.map((item) => (
+              <li key={item}>
+                <span className="landing-purpose__bullet-check" aria-hidden="true">
+                  <LandingIcon name="check" />
+                </span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
           <Image
             className="landing-purpose__mascot"
             src={card.mascotImage}
@@ -106,7 +104,7 @@ export default function LandingPurposeSection() {
           </div>
 
           <LandingReveal className="landing-purpose__banner landing-glass-card">
-            <LandingIcon name="sparkle" className="landing-purpose__banner-sparkle" />
+            <i className="ph-fill ph-sparkle landing-purpose__banner-sparkle" aria-hidden="true" />
             <div className="landing-purpose__banner-copy">
               <p className="landing-purpose__banner-line1">
                 {landingPurpose.bannerLine1Before}

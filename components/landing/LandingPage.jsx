@@ -13,6 +13,7 @@ import LandingHeroTitle from '@/components/landing/LandingHeroTitle';
 import LandingPainsSection from '@/components/landing/LandingPainsSection';
 import LandingPurposeSection from '@/components/landing/LandingPurposeSection';
 import LandingPricingSection from '@/components/landing/LandingPricingSection';
+import LandingCtaSection from '@/components/landing/LandingCtaSection';
 import { whatsappUrl } from '@/lib/landing/constants';
 import {
   landingFaq,
@@ -75,6 +76,8 @@ export default function LandingPage() {
             <LandingPricingSection />
           </div>
         </LandingScene>
+
+        <LandingCtaSection />
 
         <LandingScene id="faq" className="landing-section-scene">
           <div className="landing-container landing-faq-wrap">
