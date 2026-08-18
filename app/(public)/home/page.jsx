@@ -4,6 +4,7 @@ import { getAuthenticatedUser } from '@/lib/supabase/membership';
 import { isSuperAdminEmail } from '@/lib/superAdmin';
 import { getSiteOrigin } from '@/lib/siteUrl';
 import '@/styles/landing.css';
+import '@phosphor-icons/web/fill/style.css';
 
 export const metadata = {
   title: 'Nimbus | Cardápio digital',

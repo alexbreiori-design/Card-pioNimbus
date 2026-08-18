@@ -15,8 +15,8 @@ export default function LandingPainsSection() {
         <div className="landing-truth__intro">
           <LandingRevealGroup step={220}>
             <LandingReveal className="landing-truth__copy">
-              <p className="landing-truth__eyebrow">{landingPains.eyebrow}</p>
-              <h2 className="landing-truth__title">
+              <h2 className="landing-truth__kicker">{landingPains.eyebrow}</h2>
+              <h3 className="landing-truth__title">
                 {landingPains.titleLine1}
                 <br />
                 {landingPains.titleLine2Before}
@@ -24,9 +24,8 @@ export default function LandingPainsSection() {
                 {landingPains.titleLine2After}
                 <br />
                 {landingPains.titleLine3}
-              </h2>
+              </h3>
               <p className="landing-truth__body">{landingPains.body}</p>
-              <p className="landing-truth__emphasis">{landingPains.emphasis}</p>
             </LandingReveal>
 
             <LandingReveal className="landing-truth__visual">

@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import LandingIcon from '@/components/landing/LandingIcons';
+import LandingNavIcon from '@/components/landing/LandingNavIcon';
 import { whatsappUrl } from '@/lib/landing/constants';
 import { landingNav } from '@/lib/landing/content';
 
@@ -147,29 +148,31 @@ export default function LandingHeader() {
                 key={item.id}
                 href={`#${item.id}`}
                 className="landing-nav__link landing-dock-magnet"
-                title={item.label}
                 aria-label={item.label}
               >
                 <span className="landing-nav__text">{item.label}</span>
-                <LandingIcon name={item.icon} className="landing-nav__icon" />
+                <LandingNavIcon name={item.navIcon} className="landing-nav__icon" />
+                <span className="landing-dock-tooltip">{item.label}</span>
               </a>
             ))}
           </nav>
 
           <div className="landing-header__group landing-header__group--actions landing-header__actions">
-            <Link href="/login" className="landing-btn landing-btn--ghost landing-header__login landing-dock-magnet" title="Login">
+            <Link href="/login" className="landing-btn landing-btn--ghost landing-header__login landing-dock-magnet" aria-label="Login">
               <LandingIcon name="login" className="landing-header__btn-icon" />
               <span className="landing-header__btn-text">Login</span>
+              <span className="landing-dock-tooltip">Login</span>
             </Link>
             <a
               className="landing-btn landing-btn--primary landing-header__cta landing-dock-magnet"
               href={whatsappUrl()}
               target="_blank"
               rel="noopener noreferrer"
-              title="Quero começar"
+              aria-label="Quero começar"
             >
               <LandingIcon name="whatsapp" className="landing-header__btn-icon" />
               <span className="landing-header__btn-text">Quero começar</span>
+              <span className="landing-dock-tooltip">Quero começar</span>
             </a>
           </div>
         </div>

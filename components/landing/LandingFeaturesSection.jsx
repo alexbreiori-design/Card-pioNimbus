@@ -1,10 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import LandingIcon from '@/components/landing/LandingIcons';
 import LandingReveal, { LandingRevealGroup } from '@/components/landing/LandingReveal';
 import LandingScene from '@/components/landing/LandingScene';
 import { landingFeaturesShowcase } from '@/lib/landing/content';
+
+const MEDIA_SLIDE = 52;
+const STRIP_STAGGER = 0.075;
+const EASE_OUT = [0.22, 1, 0.36, 1];
+
+function stripItemMotion(index, reducedMotion) {
+  if (reducedMotion) {
+    return {
+      initial: false,
+      animate: { opacity: 1, y: 0, filter: 'blur(0px)' },
+    };
+  }
+
+  const enterDelay = 0.02 + index * STRIP_STAGGER;
+
+  return {
+    initial: { opacity: 0, y: 14, filter: 'blur(4px)' },
+    animate: {
+      opacity: 1,
+      y: 0,
+      filter: 'blur(0px)',
+      transition: { duration: 0.42, delay: enterDelay, ease: EASE_OUT },
+    },
+  };
+}
 
 function FeatureMedia({ category }) {
   const [failed, setFailed] = useState(false);
@@ -31,12 +57,98 @@ function FeatureMedia({ category }) {
   );
 }
 
+function FeatureMediaPanel({ category, direction, reducedMotion }) {
+  const offset = reducedMotion ? 0 : MEDIA_SLIDE * direction;
+
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={category.id}
+        className="landing-features-showcase__media-slide"
+        initial={{ opacity: 0, y: offset }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -offset }}
+        transition={{ duration: reducedMotion ? 0.01 : 0.48, ease: EASE_OUT }}
+      >
+        <FeatureMedia category={category} />
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+function FeatureStrip({ category, reducedMotion }) {
+  const shellTransition = reducedMotion
+    ? { duration: 0.01 }
+    : { duration: 0.28, ease: [0.4, 0, 0.2, 1] };
+
+  return (
+    <div className={`landing-features-showcase__strip landing-glass-card landing-features-showcase__strip--${category.tone}`}>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={category.id}
+          className="landing-features-showcase__strip-content"
+          initial={reducedMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={reducedMotion ? undefined : { opacity: 0 }}
+          transition={shellTransition}
+        >
+          <motion.div
+            {...stripItemMotion(0, reducedMotion)}
+            className={`landing-features-showcase__strip-icon landing-features-showcase__strip-icon--${category.tone}`}
+            aria-hidden="true"
+          >
+            <LandingIcon name={category.icon} />
+          </motion.div>
+
+          <motion.h3 {...stripItemMotion(1, reducedMotion)} className="landing-features-showcase__strip-title">
+            {category.title}
+          </motion.h3>
+
+          <motion.p {...stripItemMotion(2, reducedMotion)} className="landing-features-showcase__strip-desc">
+            {category.description}
+          </motion.p>
+
+          <ul className="landing-features-showcase__chips">
+            {category.chips.map((chip, chipIndex) => (
+              <motion.li
+                key={`${category.id}-${chip.label}`}
+                {...stripItemMotion(3 + chipIndex, reducedMotion)}
+                className="landing-features-showcase__chip"
+              >
+                <span
+                  className={`landing-features-showcase__chip-icon landing-features-showcase__chip-icon--${category.tone}`}
+                  aria-hidden="true"
+                >
+                  <LandingIcon name={chip.icon} />
+                </span>
+                <span>{chip.label}</span>
+              </motion.li>
+            ))}
+          </ul>
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function LandingFeaturesSection() {
   const { categories } = landingFeaturesShowcase;
+  const reducedMotion = useReducedMotion();
   const [activeId, setActiveId] = useState(categories[0]?.id || 'venda-online');
+  const [slideDirection, setSlideDirection] = useState(1);
+  const activeIndexRef = useRef(0);
+
   const active = categories.find((item) => item.id === activeId) || categories[0];
 
   if (!active) return null;
+
+  const handleSelect = (id) => {
+    const nextIndex = categories.findIndex((item) => item.id === id);
+    if (nextIndex < 0 || nextIndex === activeIndexRef.current) return;
+    setSlideDirection(nextIndex > activeIndexRef.current ? 1 : -1);
+    activeIndexRef.current = nextIndex;
+    setActiveId(id);
+  };
 
   return (
     <LandingScene id="recursos" className="landing-section-scene landing-features-scene">
@@ -67,7 +179,7 @@ export default function LandingFeaturesSection() {
                       aria-selected={isActive}
                       aria-controls="landing-feature-panel"
                       className={`landing-features-showcase__item landing-glass-card landing-glass-card--edged${isActive ? ` is-active is-active--${category.tone}` : ''}`}
-                      onClick={() => setActiveId(category.id)}
+                      onClick={() => handleSelect(category.id)}
                     >
                       <span className="landing-glass-edge" aria-hidden="true" />
                       <span
@@ -87,40 +199,17 @@ export default function LandingFeaturesSection() {
               })}
             </div>
 
-            <LandingReveal
+            <div
               id="landing-feature-panel"
               role="tabpanel"
               aria-labelledby={`landing-feature-tab-${active.id}`}
               className="landing-features-showcase__media"
             >
-              <FeatureMedia key={active.id} category={active} />
-            </LandingReveal>
+              <FeatureMediaPanel category={active} direction={slideDirection} reducedMotion={reducedMotion} />
+            </div>
           </div>
 
-          <LandingReveal>
-            <div className="landing-features-showcase__strip landing-glass-card">
-              <div
-                className={`landing-features-showcase__strip-icon landing-features-showcase__strip-icon--${active.tone}`}
-                aria-hidden="true"
-              >
-                <LandingIcon name={active.icon} />
-              </div>
-              <div className="landing-features-showcase__strip-copy">
-                <h3 className="landing-features-showcase__strip-title">{active.title}</h3>
-                <p className="landing-features-showcase__strip-desc">{active.description}</p>
-              </div>
-              <ul className="landing-features-showcase__chips">
-                {active.chips.map((chip) => (
-                  <li key={chip.label} className="landing-features-showcase__chip">
-                    <span className="landing-features-showcase__chip-icon" aria-hidden="true">
-                      <LandingIcon name={chip.icon} />
-                    </span>
-                    <span>{chip.label}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </LandingReveal>
+          <FeatureStrip category={active} reducedMotion={reducedMotion} />
 
           <LandingReveal className="landing-features__footer">
             <p className="landing-features__footer-note">{landingFeaturesShowcase.footerNote}</p>
