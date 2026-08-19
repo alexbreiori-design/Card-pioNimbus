@@ -57,6 +57,7 @@ export default function LandingPage() {
                   <LandingHeroDemo
                     calloutTitle={landingHero.calloutTitle}
                     calloutSub={landingHero.calloutSub}
+                    calloutSubMobile={landingHero.calloutSubMobile}
                     closeLabel={landingHero.demoClose}
                   />
                 </LandingReveal>

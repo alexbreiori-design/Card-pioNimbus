@@ -8,6 +8,8 @@ import {
   HERO_IDLE_HOTSPOTS,
   HERO_IDLE_NATIVE,
   HERO_IFRAME_DESIGN,
+  HERO_MOBILE_HOTSPOT,
+  HERO_MOBILE_SCREEN_RECT,
   HERO_PHONE_DEMO_OFFSET_Y,
   HERO_SCREEN_RECTS,
   HERO_TRANSITION_MS,
@@ -165,6 +167,7 @@ function DeviceGlow({ deviceKey, hitSrc, active, variant = 'idle' }) {
 export default function LandingHeroDemo({
   calloutTitle = 'Comprove a melhor\nexperiência de compra!',
   calloutSub = 'Clique em um dos dispositivos e teste.',
+  calloutSubMobile = 'Toque no celular para testar.',
   closeLabel = 'Fechar',
 }) {
   const [phase, setPhase] = useState('idle');
@@ -172,6 +175,7 @@ export default function LandingHeroDemo({
   const [embedReady, setEmbedReady] = useState(false);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [hoverDevice, setHoverDevice] = useState(null);
+  const [isMobileHero, setIsMobileHero] = useState(false);
   const timerRef = useRef(null);
   const stageRef = useRef(null);
   const hitMapsRef = useRef({ phone: null, laptop: null, phoneView2: null, laptopView2: null });
@@ -266,6 +270,18 @@ export default function LandingHeroDemo({
     setHoverDevice(null);
   }, [clearTimer]);
 
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 720px)');
+    const update = () => setIsMobileHero(mq.matches);
+    update();
+    const onChange = () => {
+      setIsMobileHero(mq.matches);
+      closeDemo();
+    };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, [closeDemo]);
+
   const startDevice = useCallback(
     (nextDevice) => {
       if (!nextDevice) return;
@@ -276,7 +292,7 @@ export default function LandingHeroDemo({
       setIframeLoaded(false);
       scrollStageIntoView();
 
-      if (prefersReducedMotion()) {
+      if (prefersReducedMotion() || isMobileHero) {
         setPhase('active');
         setEmbedReady(true);
         return;
@@ -288,7 +304,7 @@ export default function LandingHeroDemo({
         timerRef.current = null;
       }, HERO_TRANSITION_MS);
     },
-    [clearTimer, scrollStageIntoView]
+    [clearTimer, isMobileHero, scrollStageIntoView]
   );
 
   const openDevice = useCallback(
@@ -317,11 +333,16 @@ export default function LandingHeroDemo({
     return () => window.removeEventListener('keydown', onKey);
   }, [phase, closeDemo]);
 
-  const showPhoneLayers = device === 'phone';
-  const showLaptopLayers = device === 'laptop';
+  const showPhoneLayers = !isMobileHero && device === 'phone';
+  const showLaptopLayers = !isMobileHero && device === 'laptop';
   const showEmbed = phase === 'active' && embedReady && device;
-  const screenRect = device ? HERO_SCREEN_RECTS[device] : null;
-  const iframeDesign = device ? HERO_IFRAME_DESIGN[device] : null;
+  const screenRect =
+    isMobileHero && device === 'phone'
+      ? HERO_MOBILE_SCREEN_RECT
+      : device
+        ? HERO_SCREEN_RECTS[device]
+        : null;
+  const iframeDesign = device ? HERO_IFRAME_DESIGN[isMobileHero ? 'phone' : device] : null;
   const alternateDevice = device === 'phone' ? 'laptop' : device === 'laptop' ? 'phone' : null;
   const alternateHitSrc =
     device === 'phone'
@@ -329,28 +350,52 @@ export default function LandingHeroDemo({
       : device === 'laptop'
         ? HERO_DEMO_IMAGES.idleHitPhoneView2
         : null;
-  const showDemoSwitch = phase === 'active' && alternateDevice && alternateHitSrc;
+  const showDemoSwitch = !isMobileHero && phase === 'active' && alternateDevice && alternateHitSrc;
+  const calloutSubText = isMobileHero ? calloutSubMobile : calloutSub;
+  const screenMaskSrc = isMobileHero
+    ? HERO_DEMO_IMAGES.mobilePhoneScreenMask
+    : device === 'phone'
+      ? HERO_DEMO_IMAGES.phoneScreenMask
+      : null;
 
   return (
     <div
       className={`landing-hero-demo landing-hero-demo--${phase}${device ? ` landing-hero-demo--${device}` : ''}${
         iframeLoaded ? ' is-embed-ready' : ''
-      }`}
+      }${isMobileHero ? ' landing-hero-demo--mobile' : ''}`}
     >
-      <div
-        ref={stageRef}
-        className={`landing-hero-demo__stage${hoverDevice ? ` is-hover-${hoverDevice}` : ''}`}
-      >
+      {phase === 'idle' ? (
+        <div className="landing-hero-demo__callout landing-hero-demo__callout--mobile" aria-hidden="true">
+          <p className="landing-hero-demo__callout-sub">{calloutSubMobile}</p>
+        </div>
+      ) : null}
+
+      <div className="landing-hero-demo__stage-shell">
+        <div
+          ref={stageRef}
+          className={`landing-hero-demo__stage${hoverDevice ? ` is-hover-${hoverDevice}` : ''}`}
+        >
         <img
           className={`landing-hero-demo__img landing-hero-demo__img--idle${
-            phase === 'idle' || phase === 'transitioning' ? ' is-visible' : ''
+            !isMobileHero && (phase === 'idle' || phase === 'transitioning') ? ' is-visible' : ''
           }`}
           src={HERO_DEMO_IMAGES.idle}
           alt="Cardápio Nimbus no celular e no notebook"
           width={2528}
           height={1684}
           decoding="async"
-          fetchPriority="high"
+          fetchPriority={isMobileHero ? 'low' : 'high'}
+        />
+        <img
+          className={`landing-hero-demo__img landing-hero-demo__img--mobile-phone${
+            isMobileHero ? ' is-visible' : ''
+          }`}
+          src={HERO_DEMO_IMAGES.mobilePhone}
+          alt="Cardápio Nimbus no celular"
+          width={723}
+          height={1346}
+          decoding="async"
+          fetchPriority={isMobileHero ? 'high' : 'low'}
         />
 
         <img
@@ -399,7 +444,7 @@ export default function LandingHeroDemo({
           aria-hidden="true"
         />
 
-        {phase === 'idle' ? (
+        {phase === 'idle' && !isMobileHero ? (
           <>
             <DeviceGlow
               deviceKey="phone"
@@ -430,7 +475,7 @@ export default function LandingHeroDemo({
         ) : null}
 
         {phase === 'idle' ? (
-          <div className="landing-hero-demo__callout" aria-hidden="true">
+          <div className="landing-hero-demo__callout landing-hero-demo__callout--desktop" aria-hidden="true">
             <div className="landing-hero-demo__callout-text">
               <p className="landing-hero-demo__callout-title">
                 {calloutTitle.split('\n').map((line, index) => (
@@ -457,13 +502,23 @@ export default function LandingHeroDemo({
           <button
             type="button"
             className="landing-hero-demo__hitlayer"
-            aria-label={`${calloutTitle.replace(/\n/g, ' ')} ${calloutSub}`}
-            onMouseMove={(event) => {
-              const next = resolveDeviceAtPoint(event.clientX, event.clientY);
-              setHoverDevice((prev) => (prev === next ? prev : next));
-            }}
-            onMouseLeave={() => setHoverDevice(null)}
+            aria-label={`${calloutTitle.replace(/\n/g, ' ')} ${calloutSubText}`}
+            onMouseMove={
+              isMobileHero
+                ? undefined
+                : (event) => {
+                    const next = resolveDeviceAtPoint(event.clientX, event.clientY);
+                    setHoverDevice((prev) => (prev === next ? prev : next));
+                  }
+            }
+            onMouseLeave={isMobileHero ? undefined : () => setHoverDevice(null)}
             onClick={(event) => {
+              if (isMobileHero) {
+                if (rectHitTest(HERO_MOBILE_HOTSPOT, event.clientX, event.clientY, stageRef.current)) {
+                  openDevice('phone');
+                }
+                return;
+              }
               const next = resolveDeviceAtPoint(event.clientX, event.clientY);
               if (next) openDevice(next);
             }}
@@ -493,12 +548,16 @@ export default function LandingHeroDemo({
 
         {showEmbed && screenRect && iframeDesign ? (
           <div
-            className={`landing-hero-demo__screen-layer landing-hero-demo__screen-layer--${device} is-visible`}
+            className={`landing-hero-demo__screen-layer landing-hero-demo__screen-layer--${
+              isMobileHero ? 'phone' : device
+            }${isMobileHero ? ' landing-hero-demo__screen-layer--mobile' : ''} is-visible`}
             style={
-              device === 'phone'
+              screenMaskSrc
                 ? {
-                    WebkitMaskImage: `url(${HERO_DEMO_IMAGES.phoneScreenMask})`,
-                    maskImage: `url(${HERO_DEMO_IMAGES.phoneScreenMask})`,
+                    WebkitMaskImage: `url(${screenMaskSrc})`,
+                    maskImage: `url(${screenMaskSrc})`,
+                    WebkitMaskSize: isMobileHero ? '100% 100%' : undefined,
+                    maskSize: isMobileHero ? '100% 100%' : undefined,
                   }
                 : undefined
             }
@@ -513,7 +572,7 @@ export default function LandingHeroDemo({
                 borderRadius: screenRect.radius ? `${screenRect.radius}px` : undefined,
               }}
             >
-              {device === 'phone' ? (
+              {device === 'phone' || isMobileHero ? (
                 <div className="landing-hero-demo__phone-safe-top" aria-hidden="true" />
               ) : null}
               <div className="landing-hero-demo__screen-body">
@@ -535,11 +594,11 @@ export default function LandingHeroDemo({
                   src={embedSrc}
                   designWidth={iframeDesign.width}
                   designHeight={iframeDesign.height}
-                  fit={device === 'phone' ? 'cover' : 'contain'}
-                  align={device === 'phone' ? 'top' : 'center'}
+                  fit={device === 'phone' || isMobileHero ? 'cover' : 'contain'}
+                  align={device === 'phone' || isMobileHero ? 'top' : 'center'}
                   onLoad={() => setIframeLoaded(true)}
                   title={
-                    device === 'phone'
+                    device === 'phone' || isMobileHero
                       ? 'Demonstração do cardápio no celular'
                       : 'Demonstração do cardápio no computador'
                   }
@@ -549,24 +608,24 @@ export default function LandingHeroDemo({
           </div>
         ) : null}
       </div>
-
-      {phase !== 'idle' ? (
-        <div className="landing-hero-demo__close-wrap">
-          <button
-            type="button"
-            className="landing-hero-demo__close landing-glass-card"
-            aria-label={closeLabel}
-            onClick={closeDemo}
-          >
-            <span className="landing-hero-demo__close-icon" aria-hidden="true">
-              ×
+        {phase !== 'idle' ? (
+          <div className="landing-hero-demo__close-wrap">
+            <button
+              type="button"
+              className="landing-hero-demo__close landing-glass-card"
+              aria-label={closeLabel}
+              onClick={closeDemo}
+            >
+              <span className="landing-hero-demo__close-icon" aria-hidden="true">
+                ×
+              </span>
+            </button>
+            <span className="landing-hero-demo__close-tip" role="tooltip">
+              {closeLabel}
             </span>
-          </button>
-          <span className="landing-hero-demo__close-tip" role="tooltip">
-            {closeLabel}
-          </span>
-        </div>
-      ) : null}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
