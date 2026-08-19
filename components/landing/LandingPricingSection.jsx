@@ -75,7 +75,11 @@ export default function LandingPricingSection() {
                 <ul className="feature-list">
                   <li>
                     <CheckIcon />
-                    Cardápio público ilimitado
+                    Cardápio digital ilimitado
+                  </li>
+                  <li>
+                    <CheckIcon />
+                    Pagamento online (pix e cartão)
                   </li>
                   <li>
                     <CheckIcon />
@@ -83,11 +87,7 @@ export default function LandingPricingSection() {
                   </li>
                   <li>
                     <CheckIcon />
-                    Taxa de entrega por zona e distância
-                  </li>
-                  <li>
-                    <CheckIcon />
-                    WhatsApp no fluxo de pedidos
+                    Taxa de entrega por distância
                   </li>
                   <li>
                     <CheckIcon />
@@ -118,23 +118,23 @@ export default function LandingPricingSection() {
                 <ul className="feature-list">
                   <li>
                     <CheckIcon />
-                    Painel de pedidos em kanban
+                    Pedidos organizados
                   </li>
                   <li>
                     <CheckIcon />
-                    Impressão de ticket térmico
+                    Rotas de entregas inteligentes
                   </li>
                   <li>
                     <CheckIcon />
-                    Múltiplos endereços por cliente
+                    Sistema de conta por cliente (fiado)
                   </li>
                   <li>
                     <CheckIcon />
-                    Troca automática de cardápio por dia
+                    Cadastros simplificados
                   </li>
                   <li>
                     <CheckIcon />
-                    CRM de clientes
+                    Loja personalizada
                   </li>
                 </ul>
               </div>
@@ -164,15 +164,19 @@ export default function LandingPricingSection() {
                   </li>
                   <li>
                     <CheckIcon />
-                    Treinamento incluso
+                    Treinamento personalizado
                   </li>
                   <li>
                     <CheckIcon />
-                    Ativação em até 48h
+                    Ativação rápida
                   </li>
                   <li>
                     <CheckIcon />
-                    Segmentos adaptados (marmita, pizza e mais)
+                    Cardápio adaptado por segmento
+                  </li>
+                  <li>
+                    <CheckIcon />
+                    Desconto para multi lojas
                   </li>
                 </ul>
               </div>

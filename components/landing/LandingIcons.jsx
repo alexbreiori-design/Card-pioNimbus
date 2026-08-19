@@ -185,6 +185,16 @@ const icons = {
       <rect x="4" y="16" width="10" height="4" rx="1.5" stroke="currentColor" strokeWidth="2" fill="none" />
     </svg>
   ),
+  bars: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
+  close: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
   config: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" fill="none" />
