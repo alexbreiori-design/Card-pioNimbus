@@ -1,0 +1,29 @@
+# Cardápio Nimbus
+
+> Cardápio digital completo para restaurantes e delivery: pedidos online, gestão, entregas, personalização e suporte humano. Tudo incluso em um único plano.
+
+Site: https://cardapionimbus.com.br
+Preço: R$ 149,90/mês (sem fidelidade)
+Ativação: até 48 horas a partir da contratação
+Contato (WhatsApp): https://wa.me/5543991223322
+
+## Para quem é
+
+Lojas de delivery gastronômico (lanchonete, pizzaria, marmitaria e afins) que querem cardápio online, painel de pedidos e operação no mesmo sistema.
+
+## O que inclui
+
+- Cardápio público personalizado
+- Pedidos online e no balcão
+- Rotas e taxas de entrega
+- Relatórios e gestão
+- Pagamentos (Pix/cartão online e na entrega, conforme configuração da loja)
+- Treinamento e suporte humano
+
+## Links
+
+- Home: https://cardapionimbus.com.br/
+- Login do lojista: https://cardapionimbus.com.br/login
+- Termos: https://cardapionimbus.com.br/termos
+- Privacidade: https://cardapionimbus.com.br/privacidade
+- Sitemap: https://cardapionimbus.com.br/sitemap.xml

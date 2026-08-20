@@ -9,9 +9,10 @@ import SuperAdminNavIcon from './SuperAdminNavIcon';
 import { SaSistemaSkeleton } from './SuperAdminSkeletons';
 
 const DOMAIN_ROUTES = [
+  { path: '/', label: 'Landing comercial (pública)' },
   { path: '/login', label: 'Login dos lojistas' },
   { path: '/{slug}', label: 'Cardápio público de cada loja' },
-  { path: '/lp/{LANDING_SHARE_KEY}', label: 'Landing comercial (chave na env)' },
+  { path: '/lp/{LANDING_SHARE_KEY}', label: 'Atalho da landing (noindex)', muted: true },
   { path: '/home', label: 'Redirect legado → /', muted: true },
 ];
 

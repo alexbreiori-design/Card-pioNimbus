@@ -1,20 +1,22 @@
-import UnderConstructionPage from '@/components/landing/UnderConstructionPage';
-import { getSiteOrigin } from '@/lib/siteUrl';
+import LandingJsonLd from '@/components/landing/LandingJsonLd';
+import LandingPage from '@/components/landing/LandingPage';
+import { getLandingJsonLd, getLandingMetadata } from '@/lib/landing/seo';
+import '@/styles/landing.css';
+import '@phosphor-icons/web/fill/style.css';
 
 export const metadata = {
-  title: 'Nimbus | Em breve',
-  description:
-    'Cardápio digital para delivery. Estamos preparando nossa nova página — lojistas já podem acessar o painel.',
-  robots: { index: false, follow: false },
-  openGraph: {
-    title: 'Nimbus — Em breve',
-    description: 'Cardápio digital para delivery.',
-    url: getSiteOrigin(),
-    type: 'website',
-    locale: 'pt_BR',
+  ...getLandingMetadata({ canonicalPath: '/' }),
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 
 export default function RootPage() {
-  return <UnderConstructionPage />;
-};
+  return (
+    <>
+      <LandingJsonLd data={getLandingJsonLd()} />
+      <LandingPage />
+    </>
+  );
+}
