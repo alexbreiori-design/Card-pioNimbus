@@ -217,7 +217,7 @@ export default function LandingPricingSection() {
             <div className="sparkle" aria-hidden="true" />
 
             <div className="app-icon">
-              <Image src="/images/icon-wt.png" alt="" width={80} height={80} className="app-icon__image" priority />
+              <Image src="/images/icon-wt.png" alt="" width={80} height={80} className="app-icon__image" />
             </div>
 
             <div className="billing-switch" role="tablist" aria-label="Tipo de cobrança">
