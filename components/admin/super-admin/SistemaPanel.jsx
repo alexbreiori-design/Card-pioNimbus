@@ -278,12 +278,21 @@ export default function SistemaPanel() {
         <section className="admin-card admin-sistema-panel-card">
           <h2 className="admin-sistema-section-title">Planos</h2>
           <p className="admin-sistema-muted admin-sistema-config-hint">
-            Três Prices ativos na Stripe Billing. O Checkout do HQ deixa escolher o plano por loja.
+            Prices ativos na Stripe Billing. O Checkout do HQ deixa escolher o plano por loja.
+            O R$ 149,90 mensal permanece disponível para ofertas já passadas a clientes.
           </p>
           <ul className="admin-sistema-env-checklist">
             <li>
               <code>STRIPE_PRICE_LOJA_NOVA</code>
-              <span>Loja Nova — R$ 149,90/mês (default do checkout).</span>
+              <span>Loja Nova — R$ 199,90/mês (default do checkout).</span>
+            </li>
+            <li>
+              <code>STRIPE_PRICE_LOJA_NOVA_149</code>
+              <span>Loja Nova — R$ 149,90/mês (oferta / clientes cotados).</span>
+            </li>
+            <li>
+              <code>STRIPE_PRICE_LOJA_NOVA_ANUAL</code>
+              <span>Loja Nova anual — R$ 1.798,80/ano (equiv. R$ 149,90/mês).</span>
             </li>
             <li>
               <code>STRIPE_PRICE_SEGUNDA_LOJA</code>
@@ -331,7 +340,15 @@ export default function SistemaPanel() {
             </li>
             <li>
               <code>STRIPE_PRICE_LOJA_NOVA</code>
-              <span>Price ID Loja Nova (R$ 149,90).</span>
+              <span>Price ID Loja Nova mensal (R$ 199,90).</span>
+            </li>
+            <li>
+              <code>STRIPE_PRICE_LOJA_NOVA_149</code>
+              <span>Price ID Loja Nova oferta (R$ 149,90).</span>
+            </li>
+            <li>
+              <code>STRIPE_PRICE_LOJA_NOVA_ANUAL</code>
+              <span>Price ID Loja Nova anual (R$ 1.798,80/ano).</span>
             </li>
             <li>
               <code>STRIPE_PRICE_SEGUNDA_LOJA</code>

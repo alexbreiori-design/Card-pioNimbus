@@ -8,7 +8,7 @@ import { whatsappUrl } from '@/lib/landing/constants';
 
 function parsePriceParts(priceLabel) {
   const match = String(priceLabel || '').match(/R\$\s*(\d+)[,.](\d{2})/);
-  if (!match) return { integer: '149', cents: ',90' };
+  if (!match) return { integer: '199', cents: ',90' };
   return { integer: match[1], cents: `,${match[2]}` };
 }
 

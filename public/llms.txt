@@ -2,23 +2,34 @@
 
 > Cardápio digital completo para restaurantes e delivery: pedidos online, gestão, entregas, personalização e suporte humano. Tudo incluso em um único plano.
 
-Site: https://cardapionimbus.com.br
-Preço: R$ 149,90/mês (sem fidelidade)
-Ativação: até 48 horas a partir da contratação
-Contato (WhatsApp): https://wa.me/5543991223322
+- Site: https://cardapionimbus.com.br
+- Preço mensal: R$ 199,90/mês
+- Plano anual: equivalente a R$ 149,90/mês (cobrança anual)
+- Sem fidelidade; cancele quando quiser
+- Sem taxa por pedido
+- Ativação: até 48 horas a partir da contratação
+- Contato (WhatsApp): https://wa.me/5543991223322
 
 ## Para quem é
 
 Lojas de delivery gastronômico (lanchonete, pizzaria, marmitaria e afins) que querem cardápio online, painel de pedidos e operação no mesmo sistema.
 
-## O que inclui
+## O que o sistema faz
 
-- Cardápio público personalizado
-- Pedidos online e no balcão
-- Rotas e taxas de entrega
-- Relatórios e gestão
-- Pagamentos (Pix/cartão online e na entrega, conforme configuração da loja)
-- Treinamento e suporte humano
+### Venda online
+Cardápio público personalizado, pagamentos online, cupons, WhatsApp no pedido e identidade visual da loja.
+
+### Pedidos
+Kanban de pedidos, vendas no balcão, ticket térmico e informações claras para a cozinha.
+
+### Entregas
+Taxa por zona/distância real de rota, agrupamento por proximidade e confirmação do entregador.
+
+### Gestão
+Relatórios, métricas, CRM/histórico de clientes e produtos mais vendidos.
+
+### Personalização
+Cores da marca, horários automáticos e cardápio por dia da semana.
 
 ## Links
 
@@ -27,3 +38,4 @@ Lojas de delivery gastronômico (lanchonete, pizzaria, marmitaria e afins) que q
 - Termos: https://cardapionimbus.com.br/termos
 - Privacidade: https://cardapionimbus.com.br/privacidade
 - Sitemap: https://cardapionimbus.com.br/sitemap.xml
+- Robots: https://cardapionimbus.com.br/robots.txt

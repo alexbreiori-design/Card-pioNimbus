@@ -1532,24 +1532,50 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed, initia
                         {
                           codigo: 'loja_nova',
                           label: 'Loja Nova',
-                          valorCentavos: 14990,
+                          valorCentavos: 19990,
+                          intervalo: 'month',
                           descricao: 'Primeira loja',
+                        },
+                        {
+                          codigo: 'loja_nova_149',
+                          label: 'Loja Nova (R$ 149,90)',
+                          valorCentavos: 14990,
+                          intervalo: 'month',
+                          descricao: 'Oferta já passada a clientes',
+                        },
+                        {
+                          codigo: 'loja_nova_anual',
+                          label: 'Loja Nova (Anual)',
+                          valorCentavos: 179880,
+                          valorMensalEquivCentavos: 14990,
+                          intervalo: 'year',
+                          descricao: 'Cobrança anual',
                         },
                         {
                           codigo: 'segunda_loja',
                           label: 'Segunda Loja',
                           valorCentavos: 11990,
+                          intervalo: 'month',
                           descricao: 'Segunda unidade',
                         },
                         {
                           codigo: 'loja_complementar',
                           label: 'Loja Complementar',
                           valorCentavos: 9990,
+                          intervalo: 'month',
                           descricao: 'Unidades adicionais',
                         },
                       ]
                   ).map((plan) => {
                     const active = checkoutPlan === plan.codigo;
+                    const isAnnual = plan.intervalo === 'year';
+                    const priceLabel = isAnnual
+                      ? `${formatCurrencyCents(plan.valorCentavos)}/ano`
+                      : `${formatCurrencyCents(plan.valorCentavos)}/mês`;
+                    const equivLabel =
+                      isAnnual && plan.valorMensalEquivCentavos
+                        ? `equiv. ${formatCurrencyCents(plan.valorMensalEquivCentavos)}/mês`
+                        : null;
                     return (
                       <button
                         key={plan.codigo}
@@ -1561,8 +1587,9 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed, initia
                         disabled={saving}
                       >
                         <strong>{plan.label}</strong>
-                        <span>{formatCurrencyCents(plan.valorCentavos)}/mês</span>
-                        {plan.descricao ? <em>{plan.descricao}</em> : null}
+                        <span>{priceLabel}</span>
+                        {equivLabel ? <em>{equivLabel}</em> : null}
+                        {plan.descricao && !equivLabel ? <em>{plan.descricao}</em> : null}
                       </button>
                     );
                   })}
