@@ -48,9 +48,6 @@ export default function UnderConstructionPage() {
       </main>
       <footer className="landing-under-construction__footer">
         <span>© {new Date().getFullYear()} Nimbus</span>
-        <Link href="/login?next=/home" className="landing-under-construction__preview-link">
-          ·
-        </Link>
       </footer>
     </div>
   );

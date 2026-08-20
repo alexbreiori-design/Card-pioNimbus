@@ -10,10 +10,6 @@ import styles from './login.module.css';
 function getSafeRedirect(searchParams) {
   const next = searchParams.get('next') || searchParams.get('redirect');
 
-  if (next === '/home') {
-    return '/home';
-  }
-
   if (next && isCardapioV2Path(next)) {
     return next;
   }

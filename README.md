@@ -38,7 +38,8 @@ NEXT_PUBLIC_DEFAULT_STORE_SLUG=nome-loja
 
 | URL | Uso |
 |-----|-----|
-| `/home` | Landing comercial (placeholder) |
+| `/lp/{LANDING_SHARE_KEY}` | Landing comercial (link secreto, sem login) |
+| `/home` | Redirect legado → `/` |
 | `/login` | Login lojistas |
 | `/{slug}` | Cardápio público da loja |
 | `/admin/pedidos` | Painel da loja |

@@ -11,7 +11,8 @@ import { SaSistemaSkeleton } from './SuperAdminSkeletons';
 const DOMAIN_ROUTES = [
   { path: '/login', label: 'Login dos lojistas' },
   { path: '/{slug}', label: 'Cardápio público de cada loja' },
-  { path: '/home', label: 'Landing comercial' },
+  { path: '/lp/{LANDING_SHARE_KEY}', label: 'Landing comercial (chave na env)' },
+  { path: '/home', label: 'Redirect legado → /', muted: true },
 ];
 
 const FEATURE_FLAGS = [
