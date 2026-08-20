@@ -1,26 +1,32 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
-import LandingAmbient from '@/components/landing/LandingAmbient';
 import LandingFaq from '@/components/landing/LandingFaq';
-import LandingFeaturesSection from '@/components/landing/LandingFeaturesSection';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingIcon from '@/components/landing/LandingIcons';
 import LandingReveal, { LandingRevealGroup } from '@/components/landing/LandingReveal';
 import LandingScene from '@/components/landing/LandingScene';
 import LandingHeroDemo from '@/components/landing/LandingHeroDemo';
 import LandingHeroTitle from '@/components/landing/LandingHeroTitle';
-import LandingPainsSection from '@/components/landing/LandingPainsSection';
-import LandingPurposeSection from '@/components/landing/LandingPurposeSection';
-import LandingPricingSection from '@/components/landing/LandingPricingSection';
-import LandingCtaSection from '@/components/landing/LandingCtaSection';
 import { whatsappUrl } from '@/lib/landing/constants';
 import {
   landingFaq,
   landingFooter,
   landingHero,
 } from '@/lib/landing/content';
+import { landingFontVariables } from '@/lib/landing/fonts';
+
+const LandingAmbient = dynamic(() => import('@/components/landing/LandingAmbient'), {
+  ssr: false,
+  loading: () => null,
+});
+const LandingPainsSection = dynamic(() => import('@/components/landing/LandingPainsSection'));
+const LandingPurposeSection = dynamic(() => import('@/components/landing/LandingPurposeSection'));
+const LandingFeaturesSection = dynamic(() => import('@/components/landing/LandingFeaturesSection'));
+const LandingPricingSection = dynamic(() => import('@/components/landing/LandingPricingSection'));
+const LandingCtaSection = dynamic(() => import('@/components/landing/LandingCtaSection'));
 
 function WhatsAppButton({ className = '', children, message }) {
   return (
@@ -32,7 +38,7 @@ function WhatsAppButton({ className = '', children, message }) {
 
 export default function LandingPage() {
   return (
-    <div className="landing-page">
+    <div className={`landing-page ${landingFontVariables}`}>
       <LandingAmbient />
       <LandingHeader />
 

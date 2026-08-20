@@ -31,7 +31,6 @@ function CardVisual({ card }) {
           width={640}
           height={400}
           sizes="(max-width: 720px) 90vw, 360px"
-          unoptimized
           aria-hidden="true"
         />
         <div className="landing-purpose__honesto-content">
@@ -54,6 +53,7 @@ function CardVisual({ card }) {
           width={840}
           height={581}
           decoding="async"
+          loading="lazy"
         />
       </div>
     );
@@ -108,7 +108,7 @@ export default function LandingPurposeSection() {
           </div>
 
           <LandingReveal className="landing-purpose__banner landing-glass-card">
-            <i className="ph-fill ph-sparkle landing-purpose__banner-sparkle" aria-hidden="true" />
+            <LandingIcon name="sparkle" className="landing-purpose__banner-sparkle" />
             <div className="landing-purpose__banner-copy">
               <p className="landing-purpose__banner-line1">
                 {landingPurpose.bannerLine1}{' '}
