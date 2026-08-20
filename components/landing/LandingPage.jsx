@@ -6,6 +6,7 @@ import LandingAmbient from '@/components/landing/LandingAmbient';
 import LandingFaq from '@/components/landing/LandingFaq';
 import LandingFeaturesSection from '@/components/landing/LandingFeaturesSection';
 import LandingHeader from '@/components/landing/LandingHeader';
+import LandingIcon from '@/components/landing/LandingIcons';
 import LandingReveal, { LandingRevealGroup } from '@/components/landing/LandingReveal';
 import LandingScene from '@/components/landing/LandingScene';
 import LandingHeroDemo from '@/components/landing/LandingHeroDemo';
@@ -49,7 +50,13 @@ export default function LandingPage() {
                     />
                   </LandingReveal>
                   <LandingReveal>
-                    <p className="landing-lead landing-lead--showcase">{landingHero.lead}</p>
+                    <p className="landing-lead landing-lead--showcase">
+                      {landingHero.lead.split('\n').map((line) => (
+                        <span key={line} className="landing-lead__line">
+                          {line}
+                        </span>
+                      ))}
+                    </p>
                   </LandingReveal>
                 </div>
 
@@ -60,6 +67,18 @@ export default function LandingPage() {
                     calloutSubMobile={landingHero.calloutSubMobile}
                     closeLabel={landingHero.demoClose}
                   />
+                </LandingReveal>
+
+                <LandingReveal className="landing-hero__demo-cta">
+                  <a
+                    className="landing-btn landing-btn--primary landing-hero__demo-cta-btn"
+                    href={whatsappUrl(landingHero.demoCtaMessage)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <LandingIcon name="whatsapp" className="landing-hero__demo-cta-icon" />
+                    <span>{landingHero.demoCta}</span>
+                  </a>
                 </LandingReveal>
               </LandingRevealGroup>
             </div>

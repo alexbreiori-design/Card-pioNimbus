@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Lottie } from 'lottie-react';
 import { NIMBUS_DEMO_SLUG } from '@/lib/landing/constants';
 import { buildLandingDemoEmbedUrl } from '@/lib/landing/demoMode';
 import {
@@ -14,6 +15,7 @@ import {
   HERO_SCREEN_RECTS,
   HERO_TRANSITION_MS,
 } from '@/lib/landing/heroDemo';
+import tapAnimation from '@/public/animated/tap.json';
 
 function prefersReducedMotion() {
   if (typeof window === 'undefined' || !window.matchMedia) return false;
@@ -97,7 +99,13 @@ function ScaledEmbed({
   onLoad,
 }) {
   const shellRef = useRef(null);
-  const [layout, setLayout] = useState({ scale: 1, x: 0, y: 0 });
+  const [layout, setLayout] = useState({
+    scale: 1,
+    x: 0,
+    y: 0,
+    width: designWidth,
+    height: designHeight,
+  });
 
   useEffect(() => {
     const el = shellRef.current;
@@ -105,6 +113,19 @@ function ScaledEmbed({
     const update = () => {
       const { clientWidth, clientHeight } = el;
       if (!clientWidth || !clientHeight) return;
+
+      /*
+        fill-width: ocupa 100% da largura da tela do device e define a altura
+        do iframe pela área visível — evita letterbox e também o crop do cover
+        que escondia o rodapé do modal de produto.
+      */
+      if (fit === 'fill-width') {
+        const scale = clientWidth / designWidth;
+        const height = Math.max(1, Math.round(clientHeight / scale));
+        setLayout({ scale, x: 0, y: 0, width: designWidth, height });
+        return;
+      }
+
       const scale =
         fit === 'cover'
           ? Math.max(clientWidth / designWidth, clientHeight / designHeight)
@@ -113,7 +134,7 @@ function ScaledEmbed({
       let y = (clientHeight - designHeight * scale) / 2;
       if (align === 'top') y = 0;
       if (align === 'bottom') y = clientHeight - designHeight * scale;
-      setLayout({ scale, x, y });
+      setLayout({ scale, x, y, width: designWidth, height: designHeight });
     };
     update();
     const ro = new ResizeObserver(update);
@@ -130,8 +151,8 @@ function ScaledEmbed({
         allow="payment *"
         onLoad={onLoad}
         style={{
-          width: designWidth,
-          height: designHeight,
+          width: layout.width,
+          height: layout.height,
           transform: `translate(${layout.x}px, ${layout.y}px) scale(${layout.scale})`,
         }}
       />
@@ -252,14 +273,31 @@ export default function LandingHeroDemo({
     const stage = stageRef.current;
     if (!stage) return;
     const reduceMotion = prefersReducedMotion();
-    requestAnimationFrame(() => {
+
+    const run = () => {
+      if (isMobileHero) {
+        const header = document.querySelector('.landing-header');
+        const headerBottom = header ? header.getBoundingClientRect().bottom : 64;
+        const gap = 10;
+        const demo = stage.closest('.landing-hero-demo') || stage;
+        const anchorTop = demo.getBoundingClientRect().top + window.scrollY;
+        const target = Math.max(0, anchorTop - headerBottom - gap);
+        window.scrollTo({
+          top: target,
+          behavior: reduceMotion ? 'auto' : 'smooth',
+        });
+        return;
+      }
+
       stage.scrollIntoView({
         behavior: reduceMotion ? 'auto' : 'smooth',
         block: 'center',
         inline: 'nearest',
       });
-    });
-  }, []);
+    };
+
+    requestAnimationFrame(run);
+  }, [isMobileHero]);
 
   const closeDemo = useCallback(() => {
     clearTimer();
@@ -282,6 +320,15 @@ export default function LandingHeroDemo({
     return () => mq.removeEventListener('change', onChange);
   }, [closeDemo]);
 
+  useEffect(() => {
+    if (!isMobileHero) return undefined;
+    if (phase !== 'active' && phase !== 'transitioning') return undefined;
+    const id = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => scrollStageIntoView());
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [phase, isMobileHero, scrollStageIntoView]);
+
   const startDevice = useCallback(
     (nextDevice) => {
       if (!nextDevice) return;
@@ -290,7 +337,9 @@ export default function LandingHeroDemo({
       setDevice(nextDevice);
       setEmbedReady(false);
       setIframeLoaded(false);
-      scrollStageIntoView();
+      if (!isMobileHero) {
+        scrollStageIntoView();
+      }
 
       if (prefersReducedMotion() || isMobileHero) {
         setPhase('active');
@@ -364,13 +413,19 @@ export default function LandingHeroDemo({
         iframeLoaded ? ' is-embed-ready' : ''
       }${isMobileHero ? ' landing-hero-demo--mobile' : ''}`}
     >
-      {phase === 'idle' ? (
-        <div className="landing-hero-demo__callout landing-hero-demo__callout--mobile" aria-hidden="true">
-          <p className="landing-hero-demo__callout-sub">{calloutSubMobile}</p>
-        </div>
-      ) : null}
-
       <div className="landing-hero-demo__stage-shell">
+        {phase === 'idle' && isMobileHero ? (
+          <div className="landing-hero-demo__callout landing-hero-demo__callout--mobile" aria-hidden="true">
+            <p className="landing-hero-demo__callout-sub">{calloutSubMobile}</p>
+            <Lottie
+              className="landing-hero-demo__tap-lottie"
+              src={tapAnimation}
+              loop
+              autoplay
+            />
+          </div>
+        ) : null}
+
         <div
           ref={stageRef}
           className={`landing-hero-demo__stage${hoverDevice ? ` is-hover-${hoverDevice}` : ''}`}
@@ -594,7 +649,7 @@ export default function LandingHeroDemo({
                   src={embedSrc}
                   designWidth={iframeDesign.width}
                   designHeight={iframeDesign.height}
-                  fit={device === 'phone' || isMobileHero ? 'cover' : 'contain'}
+                  fit={device === 'phone' || isMobileHero ? 'fill-width' : 'contain'}
                   align={device === 'phone' || isMobileHero ? 'top' : 'center'}
                   onLoad={() => setIframeLoaded(true)}
                   title={

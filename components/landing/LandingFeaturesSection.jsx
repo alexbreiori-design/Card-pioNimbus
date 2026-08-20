@@ -2,6 +2,8 @@
 
 import { useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import LandingFeaturesCatalogModal from '@/components/landing/LandingFeaturesCatalogModal';
+import LandingFeaturesMobile from '@/components/landing/LandingFeaturesMobile';
 import LandingIcon from '@/components/landing/LandingIcons';
 import LandingReveal, { LandingRevealGroup } from '@/components/landing/LandingReveal';
 import LandingScene from '@/components/landing/LandingScene';
@@ -136,6 +138,7 @@ export default function LandingFeaturesSection() {
   const reducedMotion = useReducedMotion();
   const [activeId, setActiveId] = useState(categories[0]?.id || 'venda-online');
   const [slideDirection, setSlideDirection] = useState(1);
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const activeIndexRef = useRef(0);
 
   const active = categories.find((item) => item.id === activeId) || categories[0];
@@ -154,7 +157,7 @@ export default function LandingFeaturesSection() {
     <LandingScene id="recursos" className="landing-section-scene landing-features-scene">
       <div className="landing-container landing-features">
         <LandingRevealGroup step={150}>
-          <LandingReveal className="landing-features__head">
+          <LandingReveal className="landing-features__head landing-features__head--desktop">
             <p className="landing-features__eyebrow">{landingFeaturesShowcase.eyebrow}</p>
             <h2 className="landing-features__title">
               <span className="landing-features__title-line">
@@ -166,60 +169,70 @@ export default function LandingFeaturesSection() {
             </h2>
           </LandingReveal>
 
-          <div className="landing-features-showcase">
-            <div className="landing-features-showcase__nav" role="tablist" aria-label="Áreas do sistema">
-              {categories.map((category) => {
-                const isActive = category.id === active.id;
-                return (
-                  <LandingReveal key={category.id}>
-                    <button
-                      type="button"
-                      role="tab"
-                      id={`landing-feature-tab-${category.id}`}
-                      aria-selected={isActive}
-                      aria-controls="landing-feature-panel"
-                      className={`landing-features-showcase__item landing-glass-card landing-glass-card--edged${isActive ? ` is-active is-active--${category.tone}` : ''}`}
-                      onClick={() => handleSelect(category.id)}
-                    >
-                      <span className="landing-glass-edge" aria-hidden="true" />
-                      <span
-                        className={`landing-features-showcase__item-icon landing-features-showcase__item-icon--${category.tone}`}
-                        aria-hidden="true"
+          <div className="landing-features-desktop">
+            <div className="landing-features-showcase">
+              <div className="landing-features-showcase__nav" role="tablist" aria-label="Áreas do sistema">
+                {categories.map((category) => {
+                  const isActive = category.id === active.id;
+                  return (
+                    <LandingReveal key={category.id}>
+                      <button
+                        type="button"
+                        role="tab"
+                        id={`landing-feature-tab-${category.id}`}
+                        aria-selected={isActive}
+                        aria-controls="landing-feature-panel"
+                        className={`landing-features-showcase__item landing-glass-card landing-glass-card--edged${isActive ? ` is-active is-active--${category.tone}` : ''}`}
+                        onClick={() => handleSelect(category.id)}
                       >
-                        <LandingIcon name={category.icon} />
-                      </span>
-                      <span className="landing-features-showcase__item-copy">
-                        <span className="landing-features-showcase__item-title">{category.title}</span>
-                        <span className="landing-features-showcase__item-desc">{category.summary}</span>
-                      </span>
-                      <LandingIcon name="chevronRight" className="landing-features-showcase__item-chevron" />
-                    </button>
-                  </LandingReveal>
-                );
-              })}
+                        <span className="landing-glass-edge" aria-hidden="true" />
+                        <span
+                          className={`landing-features-showcase__item-icon landing-features-showcase__item-icon--${category.tone}`}
+                          aria-hidden="true"
+                        >
+                          <LandingIcon name={category.icon} />
+                        </span>
+                        <span className="landing-features-showcase__item-copy">
+                          <span className="landing-features-showcase__item-title">{category.title}</span>
+                          <span className="landing-features-showcase__item-desc">{category.summary}</span>
+                        </span>
+                        <LandingIcon name="chevronRight" className="landing-features-showcase__item-chevron" />
+                      </button>
+                    </LandingReveal>
+                  );
+                })}
+              </div>
+
+              <div
+                id="landing-feature-panel"
+                role="tabpanel"
+                aria-labelledby={`landing-feature-tab-${active.id}`}
+                className="landing-features-showcase__media"
+              >
+                <FeatureMediaPanel category={active} direction={slideDirection} reducedMotion={reducedMotion} />
+              </div>
             </div>
 
-            <div
-              id="landing-feature-panel"
-              role="tabpanel"
-              aria-labelledby={`landing-feature-tab-${active.id}`}
-              className="landing-features-showcase__media"
-            >
-              <FeatureMediaPanel category={active} direction={slideDirection} reducedMotion={reducedMotion} />
-            </div>
+            <FeatureStrip category={active} reducedMotion={reducedMotion} />
           </div>
 
-          <FeatureStrip category={active} reducedMotion={reducedMotion} />
+          <LandingFeaturesMobile />
 
           <LandingReveal className="landing-features__footer">
             <p className="landing-features__footer-note">{landingFeaturesShowcase.footerNote}</p>
-            <button type="button" className="landing-features__footer-cta landing-glass-card landing-interactive">
+            <button
+              type="button"
+              className="landing-features__footer-cta landing-glass-card landing-interactive"
+              onClick={() => setCatalogOpen(true)}
+            >
               <span>{landingFeaturesShowcase.footerCta}</span>
               <LandingIcon name="chevronRight" />
             </button>
           </LandingReveal>
         </LandingRevealGroup>
       </div>
+
+      <LandingFeaturesCatalogModal open={catalogOpen} onClose={() => setCatalogOpen(false)} />
     </LandingScene>
   );
 }
