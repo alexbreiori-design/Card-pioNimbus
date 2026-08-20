@@ -22,6 +22,16 @@ function isPhoneNav() {
   return typeof window !== 'undefined' && window.matchMedia(PHONE_NAV_QUERY).matches;
 }
 
+function LandingBurger({ open = false }) {
+  return (
+    <span className={`landing-burger${open ? ' is-open' : ''}`} aria-hidden="true">
+      <span className="landing-burger__line" />
+      <span className="landing-burger__line" />
+      <span className="landing-burger__line" />
+    </span>
+  );
+}
+
 export default function LandingHeader() {
   const [compact, setCompact] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
@@ -77,18 +87,49 @@ export default function LandingHeader() {
     };
   }, []);
 
-  const closeMenu = useCallback(() => setMenuOpen(false), []);
+  const closeMenu = useCallback(() => {
+    setMenuOpen(false);
+  }, []);
+
+  const toggleMenu = useCallback(() => {
+    setMenuOpen((open) => !open);
+  }, []);
+
+  const handleBrandClick = useCallback(
+    (event) => {
+      event.preventDefault();
+      closeMenu();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (window.location.hash) {
+        window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+      }
+    },
+    [closeMenu],
+  );
+
+  const handleNavClick = useCallback(
+    (event, id) => {
+      if (!isPhoneNav()) return;
+      event.preventDefault();
+      closeMenu();
+      window.requestAnimationFrame(() => {
+        const target = document.getElementById(id);
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#${id}`);
+      });
+    },
+    [closeMenu],
+  );
 
   useEffect(() => {
     if (!menuOpen) return undefined;
     const onKey = (event) => {
       if (event.key === 'Escape') closeMenu();
     };
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', onKey);
     return () => {
-      document.body.style.overflow = prevOverflow;
       window.removeEventListener('keydown', onKey);
     };
   }, [menuOpen, closeMenu]);
@@ -102,7 +143,7 @@ export default function LandingHeader() {
   }, []);
 
   const handleDockMouseMove = useCallback((event) => {
-    if (!compactRef.current || isPhoneNav()) return;
+    if (!compactRef.current || isPhoneNav() || menuOpen) return;
     const dock = dockRef.current;
     if (!dock) return;
 
@@ -116,22 +157,30 @@ export default function LandingHeader() {
       const shiftY = (scale - 1) * 10;
       item.style.transform = `scale(${scale.toFixed(3)}) translateY(${shiftY.toFixed(2)}px)`;
     });
-  }, []);
+  }, [menuOpen]);
 
   const handleDockMouseLeave = useCallback(() => {
     resetDockScales();
   }, [resetDockScales]);
 
   useEffect(() => {
-    if (!compact) {
+    if (!compact || menuOpen) {
       resetDockScales();
     }
-  }, [compact, resetDockScales]);
+  }, [compact, menuOpen, resetDockScales]);
 
   return (
     <header
       className={`landing-header${compact ? ' landing-header--compact' : ''}${transitioning ? ' landing-header--transitioning' : ''}${menuOpen ? ' is-menu-open' : ''}`}
     >
+      <button
+        type="button"
+        className={`landing-header__sheet-backdrop${menuOpen ? ' is-open' : ''}`}
+        aria-label="Fechar menu"
+        tabIndex={menuOpen ? 0 : -1}
+        onClick={closeMenu}
+      />
+
       <div
         ref={dockRef}
         className="landing-header__dock landing-glass-card"
@@ -144,7 +193,7 @@ export default function LandingHeader() {
               href="#topo"
               className="landing-brand landing-dock-magnet"
               aria-label="Cardápio Nimbus, início"
-              onClick={closeMenu}
+              onClick={handleBrandClick}
             >
               <Image
                 src="/images/logo-horizontal.png"
@@ -204,52 +253,52 @@ export default function LandingHeader() {
               aria-label={menuOpen ? 'Fechar menu' : 'Abrir menu'}
               aria-expanded={menuOpen}
               aria-controls="landing-header-sheet"
-              onClick={() => setMenuOpen((open) => !open)}
+              onClick={toggleMenu}
             >
-              <LandingIcon name={menuOpen ? 'close' : 'bars'} />
+              <LandingBurger open={menuOpen} />
             </button>
           </div>
         </div>
-      </div>
 
-      <button
-        type="button"
-        className={`landing-header__sheet-backdrop${menuOpen ? ' is-open' : ''}`}
-        aria-label="Fechar menu"
-        tabIndex={menuOpen ? 0 : -1}
-        onClick={closeMenu}
-      />
-      <div
-        id="landing-header-sheet"
-        className={`landing-header__sheet landing-glass-card${menuOpen ? ' is-open' : ''}`}
-        role="dialog"
-        aria-modal={menuOpen}
-        aria-label="Menu"
-        aria-hidden={!menuOpen}
-        inert={!menuOpen || undefined}
-      >
-        <nav className="landing-header__sheet-nav" aria-label="Seções da página">
-          {landingNav.map((item) => (
-            <a key={item.id} href={`#${item.id}`} className="landing-header__sheet-link" onClick={closeMenu}>
-              <LandingNavIcon name={item.navIcon} className="landing-header__sheet-icon" />
-              <span>{item.label}</span>
-            </a>
-          ))}
-        </nav>
-        <Link href="/login" className="landing-header__sheet-link landing-header__sheet-link--login" onClick={closeMenu}>
-          <LandingIcon name="login" className="landing-header__sheet-icon" />
-          <span>Login</span>
-        </Link>
-        <a
-          className="landing-btn landing-btn--primary landing-header__sheet-cta"
-          href={whatsappUrl()}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={closeMenu}
+        <div
+          id="landing-header-sheet"
+          className="landing-header__menu-panel"
+          role="dialog"
+          aria-modal={menuOpen}
+          aria-label="Menu"
+          aria-hidden={!menuOpen}
+          inert={!menuOpen || undefined}
         >
-          <LandingIcon name="whatsapp" className="landing-header__sheet-icon" />
-          <span>Quero começar</span>
-        </a>
+          <div className="landing-header__menu-panel-inner">
+            <nav className="landing-header__sheet-nav" aria-label="Seções da página">
+              {landingNav.map((item) => (
+                <a
+                  key={item.id}
+                  href={`#${item.id}`}
+                  className="landing-header__sheet-link"
+                  onClick={(event) => handleNavClick(event, item.id)}
+                >
+                  <LandingNavIcon name={item.navIcon} className="landing-header__sheet-icon" />
+                  <span>{item.label}</span>
+                </a>
+              ))}
+            </nav>
+            <Link href="/login" className="landing-header__sheet-link landing-header__sheet-link--login" onClick={closeMenu}>
+              <LandingIcon name="login" className="landing-header__sheet-icon" />
+              <span>Login</span>
+            </Link>
+            <a
+              className="landing-btn landing-btn--primary landing-header__sheet-cta"
+              href={whatsappUrl()}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={closeMenu}
+            >
+              <LandingIcon name="whatsapp" className="landing-header__sheet-icon" />
+              <span>Quero começar</span>
+            </a>
+          </div>
+        </div>
       </div>
     </header>
   );

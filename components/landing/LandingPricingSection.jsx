@@ -39,7 +39,13 @@ export default function LandingPricingSection() {
     <LandingRevealGroup step={280}>
       <LandingReveal className="landing-pricing__intro">
         <p className="landing-pricing__eyebrow">{landingPricing.eyebrow}</p>
-        <h2 className="landing-pricing__section-title">{landingPricing.sectionTitle}</h2>
+        <h2 className="landing-pricing__section-title">
+          {landingPricing.sectionTitleBefore}
+          <span className="landing-pricing__section-title-highlight">
+            {landingPricing.sectionTitleHighlight}
+          </span>
+          {landingPricing.sectionTitleAfter}
+        </h2>
       </LandingReveal>
 
       <div className="wrapper">
