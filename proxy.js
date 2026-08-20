@@ -14,6 +14,7 @@ const APEX_RESERVED_SEGMENTS = new Set([
   'admin',
   'login',
   'home',
+  'lp',
   'api',
   'cadastro',
   'termos',
