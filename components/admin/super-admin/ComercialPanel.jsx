@@ -148,8 +148,16 @@ export default function ComercialPanel({ onOpenStore }) {
               {plans.map((plan) => (
                 <article key={plan.codigo} className="admin-sistema-plan-catalog-card">
                   <span className="admin-sistema-kpi-label">{plan.label}</span>
-                  <strong>{formatCurrencyCents(plan.valorCentavos)}/mês</strong>
-                  <p>{plan.descricao}</p>
+                  <strong>
+                    {plan.intervalo === 'year'
+                      ? `${formatCurrencyCents(plan.valorCentavos)}/ano`
+                      : `${formatCurrencyCents(plan.valorCentavos)}/mês`}
+                  </strong>
+                  <p>
+                    {plan.intervalo === 'year' && plan.valorMensalEquivCentavos
+                      ? `equiv. ${formatCurrencyCents(plan.valorMensalEquivCentavos)}/mês · ${plan.descricao}`
+                      : plan.descricao}
+                  </p>
                 </article>
               ))}
             </div>
