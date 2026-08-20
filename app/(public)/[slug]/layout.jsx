@@ -1,6 +1,6 @@
 import { getCardapioCssInline } from '@/lib/cardapioCss';
 
-export default function CardapioLayout({ children }) {
+export default function PublicSlugLayout({ children }) {
   const cardapioCss = getCardapioCssInline();
 
   return (

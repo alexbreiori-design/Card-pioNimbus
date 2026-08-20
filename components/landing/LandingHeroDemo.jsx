@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Lottie } from 'lottie-react';
+import dynamic from 'next/dynamic';
 import { NIMBUS_DEMO_SLUG } from '@/lib/landing/constants';
 import { buildLandingDemoEmbedUrl } from '@/lib/landing/demoMode';
 import {
@@ -15,7 +15,35 @@ import {
   HERO_SCREEN_RECTS,
   HERO_TRANSITION_MS,
 } from '@/lib/landing/heroDemo';
-import tapAnimation from '@/public/animated/tap.json';
+
+const Lottie = dynamic(() => import('lottie-react').then((m) => m.Lottie), {
+  ssr: false,
+  loading: () => null,
+});
+
+function HeroTapLottie() {
+  const [animationData, setAnimationData] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    import('@/public/animated/tap.json').then((mod) => {
+      if (!cancelled) setAnimationData(mod.default || mod);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!animationData) return null;
+  return (
+    <Lottie
+      className="landing-hero-demo__tap-lottie"
+      animationData={animationData}
+      loop
+      autoplay
+    />
+  );
+}
 
 function prefersReducedMotion() {
   if (typeof window === 'undefined' || !window.matchMedia) return false;
@@ -196,7 +224,7 @@ export default function LandingHeroDemo({
   const [embedReady, setEmbedReady] = useState(false);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [hoverDevice, setHoverDevice] = useState(null);
-  const [isMobileHero, setIsMobileHero] = useState(false);
+  const [isMobileHero, setIsMobileHero] = useState(true);
   const timerRef = useRef(null);
   const stageRef = useRef(null);
   const hitMapsRef = useRef({ phone: null, laptop: null, phoneView2: null, laptopView2: null });
@@ -213,15 +241,8 @@ export default function LandingHeroDemo({
   useEffect(() => () => clearTimer(), [clearTimer]);
 
   useEffect(() => {
-    const urls = Object.values(HERO_DEMO_IMAGES);
-    urls.forEach((src) => {
-      const img = new window.Image();
-      img.decoding = 'async';
-      img.src = src;
-    });
-
     let cancelled = false;
-    (async () => {
+    const loadHitmaps = async () => {
       const [phone, laptop, phoneView2, laptopView2] = await Promise.all([
         loadImageData(HERO_DEMO_IMAGES.idleHitPhone),
         loadImageData(HERO_DEMO_IMAGES.idleHitLaptop),
@@ -230,10 +251,24 @@ export default function LandingHeroDemo({
       ]);
       if (cancelled) return;
       hitMapsRef.current = { phone, laptop, phoneView2, laptopView2 };
-    })();
+    };
+
+    const schedule =
+      typeof window !== 'undefined' && 'requestIdleCallback' in window
+        ? (cb) => window.requestIdleCallback(cb, { timeout: 2500 })
+        : (cb) => window.setTimeout(cb, 1200);
+    const cancelSchedule =
+      typeof window !== 'undefined' && 'cancelIdleCallback' in window
+        ? (id) => window.cancelIdleCallback(id)
+        : (id) => window.clearTimeout(id);
+
+    const idleId = schedule(() => {
+      void loadHitmaps();
+    });
 
     return () => {
       cancelled = true;
+      cancelSchedule(idleId);
     };
   }, []);
 
@@ -417,12 +452,7 @@ export default function LandingHeroDemo({
         {phase === 'idle' && isMobileHero ? (
           <div className="landing-hero-demo__callout landing-hero-demo__callout--mobile" aria-hidden="true">
             <p className="landing-hero-demo__callout-sub">{calloutSubMobile}</p>
-            <Lottie
-              className="landing-hero-demo__tap-lottie"
-              src={tapAnimation}
-              loop
-              autoplay
-            />
+            <HeroTapLottie />
           </div>
         ) : null}
 
@@ -430,74 +460,91 @@ export default function LandingHeroDemo({
           ref={stageRef}
           className={`landing-hero-demo__stage${hoverDevice ? ` is-hover-${hoverDevice}` : ''}`}
         >
-        <img
-          className={`landing-hero-demo__img landing-hero-demo__img--idle${
-            !isMobileHero && (phase === 'idle' || phase === 'transitioning') ? ' is-visible' : ''
-          }`}
-          src={HERO_DEMO_IMAGES.idle}
-          alt="Cardápio Nimbus no celular e no notebook"
-          width={2528}
-          height={1684}
-          decoding="async"
-          fetchPriority={isMobileHero ? 'low' : 'high'}
-        />
-        <img
-          className={`landing-hero-demo__img landing-hero-demo__img--mobile-phone${
-            isMobileHero ? ' is-visible' : ''
-          }`}
-          src={HERO_DEMO_IMAGES.mobilePhone}
-          alt="Cardápio Nimbus no celular"
-          width={723}
-          height={1346}
-          decoding="async"
-          fetchPriority={isMobileHero ? 'high' : 'low'}
-        />
+        {!isMobileHero ? (
+          <img
+            className={`landing-hero-demo__img landing-hero-demo__img--idle${
+              phase === 'idle' || phase === 'transitioning' ? ' is-visible' : ''
+            }`}
+            src={HERO_DEMO_IMAGES.idle}
+            alt="Cardápio Nimbus no celular e no notebook"
+            width={1600}
+            height={1065}
+            decoding="async"
+            fetchPriority="high"
+            loading="eager"
+          />
+        ) : (
+          <img
+            className={`landing-hero-demo__img landing-hero-demo__img--mobile-phone${
+              isMobileHero ? ' is-visible' : ''
+            }`}
+            src={HERO_DEMO_IMAGES.mobilePhone}
+            alt="Cardápio Nimbus no celular"
+            width={720}
+            height={1340}
+            decoding="async"
+            fetchPriority="high"
+            loading="eager"
+          />
+        )}
 
-        <img
-          className={`landing-hero-demo__img landing-hero-demo__img--phone${
-            showPhoneLayers && (phase === 'transitioning' || phase === 'active') ? ' is-visible' : ''
-          }`}
-          src={HERO_DEMO_IMAGES.phone}
-          alt=""
-          width={2528}
-          height={1684}
-          decoding="async"
-          aria-hidden="true"
-        />
-        <img
-          className={`landing-hero-demo__img landing-hero-demo__img--phone-blank${
-            showPhoneLayers && phase === 'active' ? ' is-visible' : ''
-          }`}
-          src={HERO_DEMO_IMAGES.phoneBlank}
-          alt=""
-          width={2528}
-          height={1684}
-          decoding="async"
-          aria-hidden="true"
-        />
+        {showPhoneLayers ? (
+          <>
+            <img
+              className={`landing-hero-demo__img landing-hero-demo__img--phone${
+                phase === 'transitioning' || phase === 'active' ? ' is-visible' : ''
+              }`}
+              src={HERO_DEMO_IMAGES.phone}
+              alt=""
+              width={1600}
+              height={1065}
+              decoding="async"
+              loading="lazy"
+              aria-hidden="true"
+            />
+            {phase === 'active' ? (
+              <img
+                className="landing-hero-demo__img landing-hero-demo__img--phone-blank is-visible"
+                src={HERO_DEMO_IMAGES.phoneBlank}
+                alt=""
+                width={1600}
+                height={1065}
+                decoding="async"
+                loading="lazy"
+                aria-hidden="true"
+              />
+            ) : null}
+          </>
+        ) : null}
 
-        <img
-          className={`landing-hero-demo__img landing-hero-demo__img--laptop${
-            showLaptopLayers && (phase === 'transitioning' || phase === 'active') ? ' is-visible' : ''
-          }`}
-          src={HERO_DEMO_IMAGES.laptop}
-          alt=""
-          width={1537}
-          height={1023}
-          decoding="async"
-          aria-hidden="true"
-        />
-        <img
-          className={`landing-hero-demo__img landing-hero-demo__img--laptop-blank${
-            showLaptopLayers && phase === 'active' ? ' is-visible' : ''
-          }`}
-          src={HERO_DEMO_IMAGES.laptopBlank}
-          alt=""
-          width={1537}
-          height={1023}
-          decoding="async"
-          aria-hidden="true"
-        />
+        {showLaptopLayers ? (
+          <>
+            <img
+              className={`landing-hero-demo__img landing-hero-demo__img--laptop${
+                phase === 'transitioning' || phase === 'active' ? ' is-visible' : ''
+              }`}
+              src={HERO_DEMO_IMAGES.laptop}
+              alt=""
+              width={1537}
+              height={1023}
+              decoding="async"
+              loading="lazy"
+              aria-hidden="true"
+            />
+            {phase === 'active' ? (
+              <img
+                className="landing-hero-demo__img landing-hero-demo__img--laptop-blank is-visible"
+                src={HERO_DEMO_IMAGES.laptopBlank}
+                alt=""
+                width={1537}
+                height={1023}
+                decoding="async"
+                loading="lazy"
+                aria-hidden="true"
+              />
+            ) : null}
+          </>
+        ) : null}
 
         {phase === 'idle' && !isMobileHero ? (
           <>
