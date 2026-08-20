@@ -38,9 +38,13 @@ NEXT_PUBLIC_DEFAULT_STORE_SLUG=nome-loja
 
 | URL | Uso |
 |-----|-----|
-| `/lp/{LANDING_SHARE_KEY}` | Landing comercial (link secreto, sem login) |
+| `/` | Landing comercial (pública, indexável) |
+| `/lp/{LANDING_SHARE_KEY}` | Atalho da landing (noindex; canônico é `/`) |
 | `/home` | Redirect legado → `/` |
 | `/login` | Login lojistas |
+| `/robots.txt` | Regras de crawlers |
+| `/sitemap.xml` | Sitemap das páginas institucionais |
+| `/llms.txt` | Resumo do produto para LLMs |
 | `/{slug}` | Cardápio público da loja |
 | `/admin/pedidos` | Painel da loja |
 | `/admin/sistema` | Super-admin Nimbus |
