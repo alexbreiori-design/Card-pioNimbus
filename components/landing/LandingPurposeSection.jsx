@@ -45,15 +45,16 @@ function CardVisual({ card }) {
               </li>
             ))}
           </ul>
-          <Image
-            className="landing-purpose__mascot"
-            src={card.mascotImage}
-            alt={card.mascotAlt}
-            width={280}
-            height={280}
-            sizes="220px"
-          />
         </div>
+        {/* eslint-disable-next-line @next/next/no-img-element -- controle total de size/position */}
+        <img
+          className="landing-purpose-cloud"
+          src={card.mascotImage}
+          alt={card.mascotAlt}
+          width={840}
+          height={581}
+          decoding="async"
+        />
       </div>
     );
   }
@@ -89,9 +90,12 @@ export default function LandingPurposeSection() {
 
           <div className="landing-purpose__grid">
             {landingPurpose.cards.map((card) => (
-              <LandingReveal key={card.id}>
+              <LandingReveal key={card.id} className="landing-purpose__card-wrap">
                 <article className="landing-purpose__card landing-glass-card">
-                  <span className="landing-purpose__card-icon landing-glass-card landing-glass-card--edged" aria-hidden="true">
+                  <span
+                    className="landing-purpose__card-icon landing-glass-card landing-glass-card--edged"
+                    aria-hidden="true"
+                  >
                     <span className="landing-glass-edge" />
                     <LandingIcon name={card.icon} />
                   </span>
@@ -107,20 +111,8 @@ export default function LandingPurposeSection() {
             <i className="ph-fill ph-sparkle landing-purpose__banner-sparkle" aria-hidden="true" />
             <div className="landing-purpose__banner-copy">
               <p className="landing-purpose__banner-line1">
-                {landingPurpose.bannerLine1Before}
-                <strong>{landingPurpose.bannerLine1Bold}</strong>
-              </p>
-              <p className="landing-purpose__banner-line2">
-                {landingPurpose.bannerLine2Parts.map((part, index) => (
-                  <span key={part} className="landing-purpose__banner-part">
-                    {index > 0 ? (
-                      <span className="landing-purpose__banner-dot" aria-hidden="true">
-                        •
-                      </span>
-                    ) : null}
-                    {part}
-                  </span>
-                ))}
+                {landingPurpose.bannerLine1}{' '}
+                <strong className="landing-purpose__banner-l2">{landingPurpose.bannerLine2}</strong>
               </p>
             </div>
           </LandingReveal>

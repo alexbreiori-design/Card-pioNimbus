@@ -18,7 +18,6 @@ export default function LandingCtaSection() {
                 <strong>{landingCta.titleHighlight}</strong>
                 {landingCta.titleAfter}
               </h2>
-              <p className="landing-cta-banner__text">{landingCta.text}</p>
             </div>
 
             <a

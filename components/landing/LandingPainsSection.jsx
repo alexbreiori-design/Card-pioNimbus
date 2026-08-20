@@ -25,32 +25,43 @@ export default function LandingPainsSection() {
                 <br />
                 {landingPains.titleLine3}
               </h3>
-              <p className="landing-truth__body">{landingPains.body}</p>
+              <p className="landing-truth__body">
+                {landingPains.body.split('\n').map((line) => (
+                  <span key={line} className="landing-truth__body-line">
+                    {line}
+                  </span>
+                ))}
+              </p>
             </LandingReveal>
 
             <LandingReveal className="landing-truth__visual">
-              <div className="landing-truth__mascot-wrap">
-                <Image
-                  className="landing-truth__mascot"
-                  src={landingPains.mascotSrc}
-                  alt={landingPains.mascotAlt}
-                  width={520}
-                  height={640}
-                  sizes="(max-width: 720px) 50vw, 385px"
-                  priority={false}
-                />
-                {landingPains.bubbles.map((bubble, index) => (
-                  <div
-                    key={bubble.text}
-                    className={`landing-truth__bubble landing-glass-card landing-glass-card--edged landing-truth__bubble--${index + 1} landing-truth__bubble--${bubble.tone}`}
-                  >
-                    <div className="landing-glass-edge" aria-hidden="true" />
-                    <span className="landing-truth__bubble-icon" aria-hidden="true">
-                      <LandingIcon name={bubble.icon} />
-                    </span>
-                    <p>{bubble.text}</p>
-                  </div>
-                ))}
+              <div className="landing-truth__stage">
+                <div className="landing-truth__cards">
+                  {landingPains.bubbles.map((bubble, index) => (
+                    <div
+                      key={bubble.text}
+                      className={`landing-truth__bubble landing-glass-card landing-glass-card--edged landing-truth__bubble--${index + 1} landing-truth__bubble--${bubble.tone}`}
+                    >
+                      <div className="landing-glass-edge" aria-hidden="true" />
+                      <span className="landing-truth__bubble-icon" aria-hidden="true">
+                        <LandingIcon name={bubble.icon} />
+                      </span>
+                      <p>{bubble.text}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="landing-truth__mascot-wrap">
+                  <Image
+                    className="landing-truth__mascot"
+                    src={landingPains.mascotSrc}
+                    alt={landingPains.mascotAlt}
+                    width={520}
+                    height={640}
+                    sizes="(max-width: 720px) 48vw, 420px"
+                    priority={false}
+                  />
+                </div>
               </div>
             </LandingReveal>
           </LandingRevealGroup>
@@ -79,17 +90,20 @@ export default function LandingPainsSection() {
                   <p className="landing-truth__challenge-text">{item.text}</p>
                 </LandingReveal>
               ))}
-            </div>
 
-            <LandingReveal className="landing-truth__banner">
-              <span className="landing-truth__banner-icon" aria-hidden="true">
-                <LandingIcon name="star" />
-              </span>
-              <p className="landing-truth__banner-text">
-                <strong>{reality.bannerBold}</strong>
-                {reality.bannerRest}
-              </p>
-            </LandingReveal>
+              <LandingReveal
+                as="article"
+                className="landing-truth__challenge landing-truth__challenge--banner landing-truth__banner"
+              >
+                <span className="landing-truth__banner-icon" aria-hidden="true">
+                  <LandingIcon name="star" />
+                </span>
+                <p className="landing-truth__banner-text">
+                  <strong>{reality.bannerBold}</strong>
+                  <span>{reality.bannerRest.trim()}</span>
+                </p>
+              </LandingReveal>
+            </div>
           </LandingRevealGroup>
         </div>
       </div>
