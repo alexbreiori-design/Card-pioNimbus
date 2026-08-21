@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import AdminAvailabilitySwitch from '@/components/admin/AdminAvailabilitySwitch';
 import { AdminListSkeleton } from '@/components/admin/AdminSkeleton';
 import { useAdminToast } from '@/context/AdminToastContext';
+import { isEntregadorWhatsAppValid } from '@/lib/delivery/routeShareMessage';
 import {
   createEntregador,
   deleteEntregador,
@@ -17,12 +18,15 @@ function emptyDraft() {
 
 function formatPhoneInput(value) {
   const digits = String(value || '').replace(/\D/g, '').slice(0, 11);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-  if (digits.length <= 10) {
-    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
-  }
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  const ddd = digits.slice(0, 2);
+  const ninth = digits.slice(2, 3);
+  const part1 = digits.slice(3, 7);
+  const part2 = digits.slice(7, 11);
+  if (!digits) return '';
+  if (digits.length <= 2) return `(${ddd}`;
+  if (digits.length <= 3) return `(${ddd}) ${ninth}`;
+  if (digits.length <= 7) return `(${ddd}) ${ninth} ${digits.slice(3)}`;
+  return `(${ddd}) ${ninth} ${part1}${part2 ? `-${part2}` : ''}`;
 }
 
 export default function EntregadoresCrud({ empresaId }) {
@@ -74,6 +78,10 @@ export default function EntregadoresCrud({ empresaId }) {
       toast.error('Informe o nome do entregador.');
       return;
     }
+    if (!isEntregadorWhatsAppValid(draft.telefone)) {
+      toast.error('Informe o WhatsApp com DDD e 11 dígitos (ex.: 11 9 8765-4321).');
+      return;
+    }
     try {
       if (editingId) {
         const current = items.find((item) => item.id === editingId);
@@ -99,7 +107,7 @@ export default function EntregadoresCrud({ empresaId }) {
 
   async function handleToggle(item) {
     try {
-      await updateEntregador(item.id, { ...item, ativo: !item.ativo });
+      await updateEntregador(item.id, { ativo: !item.ativo });
       await load();
     } catch (e) {
       toast.error(e?.message || 'Erro ao atualizar disponibilidade.');
@@ -124,7 +132,7 @@ export default function EntregadoresCrud({ empresaId }) {
     setEditingId(item.id);
     setDraft({
       nome: item.nome || '',
-      telefone: item.telefone || '',
+      telefone: formatPhoneInput(item.telefone || ''),
     });
     setFormOpen(true);
   }
@@ -166,13 +174,18 @@ export default function EntregadoresCrud({ empresaId }) {
               />
             </div>
             <div className="admin-form-group">
-              <label className="admin-label">WhatsApp (opcional)</label>
+              <label className="admin-label">WhatsApp</label>
               <input
                 className="admin-input"
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel-national"
                 value={draft.telefone}
                 onChange={(e) => setDraft((d) => ({ ...d, telefone: formatPhoneInput(e.target.value) }))}
-                placeholder="(00) 0 0000-0000"
+                placeholder="(11) 9 8765-4321"
+                required
               />
+              <p className="admin-help-text">Obrigatório, com 11 dígitos (DDD + 9 + número).</p>
             </div>
           </div>
           <div className="admin-delivery-area-form-actions">
@@ -197,7 +210,11 @@ export default function EntregadoresCrud({ empresaId }) {
               <div className="admin-sparse-row-main admin-sparse-row-main-stack">
                 <span className="admin-sparse-row-code">{item.nome}</span>
                 <span className="admin-sparse-row-detail">
-                  {item.telefone || 'Sem telefone'}
+                  {isEntregadorWhatsAppValid(item.telefone)
+                    ? item.telefone
+                    : item.telefone
+                      ? 'WhatsApp incompleto — edite para 11 dígitos'
+                      : 'Sem WhatsApp — cadastre para criar rotas'}
                 </span>
               </div>
               <div className="admin-sparse-row-actions admin-item-actions-col">

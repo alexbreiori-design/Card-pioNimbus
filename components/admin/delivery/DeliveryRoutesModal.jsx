@@ -8,13 +8,16 @@ import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { restoreArchivedOrder } from '@/lib/orders/adminOrdersClient';
-import { buildRouteShareMessage } from '@/lib/delivery/routeShareMessage';
+import { buildRouteShareMessage, buildRouteWhatsAppUrl, isEntregadorWhatsAppValid } from '@/lib/delivery/routeShareMessage';
 import { MAX_STOPS_PER_ROUTE } from '@/lib/delivery/routeOptimization';
 import {
   buildStopsFromOrders,
   computeBestRouteStops,
 } from '@/lib/delivery/routePreview';
 import DeliveryRouteReviewPanel from '@/components/admin/delivery/DeliveryRouteReviewPanel';
+
+const NO_WHATSAPP_MSG =
+  'Cadastre o WhatsApp com 11 dígitos deste entregador em Entrega antes de criar a rota.';
 
 const TAB_META = {
   preparo: {
@@ -125,6 +128,7 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged, on
   const [selectedIds, setSelectedIds] = useState([]);
   const [sideTab, setSideTab] = useState('preparo');
   const [expandedRouteId, setExpandedRouteId] = useState('');
+  const [sharePrompt, setSharePrompt] = useState(null);
 
   useAdminOverlayClose(open, onClose);
 
@@ -157,7 +161,10 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged, on
   }, [slug, toast]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setSharePrompt(null);
+      return;
+    }
     setSelectedIds([]);
     setDriverPickerOpen(false);
     setReviewOpen(false);
@@ -405,6 +412,12 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged, on
       setDriverPickerOpen(true);
       return;
     }
+    const driver = entregadores.find((item) => item.id === selectedEntregadorId);
+    if (!isEntregadorWhatsAppValid(driver?.telefone)) {
+      toast.error(NO_WHATSAPP_MSG);
+      setDriverPickerOpen(true);
+      return;
+    }
     if (!store?.lat || !store?.lng) {
       toast.error('Coordenadas da loja não configuradas.');
       return;
@@ -421,7 +434,7 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged, on
     setRouteMode('best');
     setDriverPickerOpen(false);
     setReviewOpen(true);
-  }, [selectedIds, selectedEntregadorId, store, preparoOrders, toast]);
+  }, [selectedIds, selectedEntregadorId, entregadores, store, preparoOrders, toast]);
 
   async function handleCreateRoute({ pedidoOrder } = {}) {
     if (!selectedIds.length) {
@@ -430,6 +443,13 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged, on
     }
     if (!selectedEntregadorId) {
       toast.error('Selecione o entregador responsável pela rota.');
+      setDriverPickerOpen(true);
+      return;
+    }
+    const driver =
+      entregadores.find((item) => item.id === selectedEntregadorId) || null;
+    if (!isEntregadorWhatsAppValid(driver?.telefone)) {
+      toast.error(NO_WHATSAPP_MSG);
       setDriverPickerOpen(true);
       return;
     }
@@ -448,21 +468,30 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged, on
       const json = await res.json();
       if (!res.ok || !json.ok) throw new Error(json.error || 'Erro ao criar rota.');
 
-      await navigator.clipboard.writeText(
-        buildRouteShareMessage(
-          json.titulo,
-          json.mapsUrl,
-          json.entregador?.nome,
-          json.driverUrl || ''
-        )
+      const message = buildRouteShareMessage(
+        json.titulo,
+        json.mapsUrl,
+        json.entregador?.nome,
+        json.driverUrl || ''
       );
-      toast.success(`${json.titulo} · ${json.entregador?.nome || 'rota'} · link copiado.`);
+      const whatsappUrl = buildRouteWhatsAppUrl(
+        json.entregador?.telefone || driver?.telefone,
+        message
+      );
+
       setSelectedIds([]);
       setSelectedEntregadorId('');
       setDriverPickerOpen(false);
       closeReview();
       setSideTab('em_rota');
       setExpandedRouteId(json.rotaId || json.id || '');
+      setSharePrompt({
+        titulo: json.titulo || 'Rota de entrega',
+        entregadorNome: json.entregador?.nome || driver?.nome || '',
+        message,
+        whatsappUrl,
+      });
+      toast.success('Rota criada.');
       await loadMapData();
       onRoutesChanged?.();
     } catch (error) {
@@ -470,6 +499,24 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged, on
     } finally {
       setCreating(false);
     }
+  }
+
+  async function handleCopyShareMessage() {
+    if (!sharePrompt?.message) return;
+    try {
+      await navigator.clipboard.writeText(sharePrompt.message);
+      toast.success('Link copiado.');
+    } catch {
+      toast.error('Não foi possível copiar. Tente de novo.');
+    }
+  }
+
+  function handleOpenShareWhatsApp() {
+    if (!sharePrompt?.whatsappUrl) {
+      toast.error(NO_WHATSAPP_MSG);
+      return;
+    }
+    window.open(sharePrompt.whatsappUrl, '_blank', 'noopener,noreferrer');
   }
 
   async function handleConcludeRoute(rotaId) {
@@ -851,20 +898,39 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged, on
                         </p>
                       ) : (
                         <ul className="admin-delivery-routes-driver-list">
-                          {entregadores.map((item) => (
-                            <li key={item.id}>
-                              <button
-                                type="button"
-                                className={`admin-delivery-routes-driver-option${
-                                  selectedEntregadorId === item.id ? ' is-selected' : ''
-                                }`}
-                                onClick={() => setSelectedEntregadorId(item.id)}
-                              >
-                                <span>{item.nome}</span>
-                                {item.telefone ? <em>{item.telefone}</em> : null}
-                              </button>
-                            </li>
-                          ))}
+                          {entregadores.map((item) => {
+                            const hasWhatsApp = isEntregadorWhatsAppValid(item.telefone);
+                            return (
+                              <li key={item.id}>
+                                <button
+                                  type="button"
+                                  className={`admin-delivery-routes-driver-option${
+                                    selectedEntregadorId === item.id ? ' is-selected' : ''
+                                  }${hasWhatsApp ? '' : ' is-disabled'}`}
+                                  disabled={!hasWhatsApp}
+                                  title={
+                                    hasWhatsApp
+                                      ? undefined
+                                      : 'Cadastre o WhatsApp com 11 dígitos em Entrega'
+                                  }
+                                  onClick={() => {
+                                    if (!hasWhatsApp) {
+                                      toast.error(NO_WHATSAPP_MSG);
+                                      return;
+                                    }
+                                    setSelectedEntregadorId(item.id);
+                                  }}
+                                >
+                                  <span>{item.nome}</span>
+                                  {hasWhatsApp ? (
+                                    <em>{item.telefone}</em>
+                                  ) : (
+                                    <em>Cadastre o WhatsApp</em>
+                                  )}
+                                </button>
+                              </li>
+                            );
+                          })}
                         </ul>
                       )}
                     </div>
@@ -918,7 +984,7 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged, on
                         })
                       }
                     >
-                      {creating ? 'Criando rota…' : 'Criar rota e copiar link'}
+                      {creating ? 'Criando rota…' : 'Criar rota'}
                     </button>
                   </>
                 ) : sideTab === 'preparo' ? (
@@ -960,6 +1026,48 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged, on
             </div>
           </aside>
         </div>
+
+        {sharePrompt ? (
+          <div
+            className="admin-confirm-overlay admin-confirm-overlay-top"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="route-share-title"
+            onClick={(event) => {
+              event.stopPropagation();
+              setSharePrompt(null);
+            }}
+          >
+            <div className="admin-confirm-modal" onClick={(event) => event.stopPropagation()}>
+              <h3 id="route-share-title">Enviar link da rota</h3>
+              <p>
+                {sharePrompt.titulo}
+                {sharePrompt.entregadorNome ? ` · ${sharePrompt.entregadorNome}` : ''}. Escolha como
+                enviar o link ao entregador.
+              </p>
+              <div className="admin-confirm-actions admin-confirm-actions-stack">
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-primary"
+                  disabled={!sharePrompt.whatsappUrl}
+                  onClick={handleOpenShareWhatsApp}
+                >
+                  Abrir WhatsApp
+                </button>
+                <button type="button" className="admin-btn" onClick={() => void handleCopyShareMessage()}>
+                  Copiar link
+                </button>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost"
+                  onClick={() => setSharePrompt(null)}
+                >
+                  Continuar
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
