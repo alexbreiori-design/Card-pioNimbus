@@ -16,41 +16,30 @@ import {
   HERO_TRANSITION_MS,
 } from '@/lib/landing/heroDemo';
 
-const Lottie = dynamic(() => import('lottie-react').then((m) => m.Lottie), {
+/* lottie-react v3: named export + prop `src` (não animationData). LottieSvg = engine menor. */
+const LottieSvg = dynamic(() => import('lottie-react').then((m) => m.LottieSvg), {
   ssr: false,
   loading: () => null,
 });
 
 function HeroTapLottie() {
-  const [animationData, setAnimationData] = useState(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    const load = () => {
-      import('@/public/animated/tap.json')
-        .then((mod) => {
-          if (!cancelled) setAnimationData(mod.default || mod);
-        })
-        .catch(() => undefined);
-    };
-
-    // Fora do caminho crítico: a mão só entra quando a thread está livre.
-    const idle = window.requestIdleCallback
-      ? window.requestIdleCallback(load, { timeout: 2500 })
-      : window.setTimeout(load, 1200);
-
-    return () => {
-      cancelled = true;
-      if (window.cancelIdleCallback) window.cancelIdleCallback(idle);
-      else window.clearTimeout(idle);
-    };
+    // Depois do splash (~0,6s no mobile) — sem idleCallback (no iOS quase nunca dispara).
+    const timer = window.setTimeout(() => setReady(true), 700);
+    return () => window.clearTimeout(timer);
   }, []);
 
-  if (!animationData) return null;
+  if (!ready) return null;
   return (
-    <div className="landing-hero-demo__tap-lottie" aria-hidden="true">
-      <Lottie animationData={animationData} loop autoplay style={{ width: '100%', height: '100%' }} />
-    </div>
+    <LottieSvg
+      className="landing-hero-demo__tap-lottie"
+      src="/animated/tap.json"
+      loop
+      autoplay
+      aria-hidden="true"
+    />
   );
 }
 
