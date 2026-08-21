@@ -3602,7 +3602,7 @@ button.addon-item.addon-item--selectable,
 .modal-close:hover { background: #ddd; }
 .modal-close svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; }
 
-.modal-body { padding: 28px 24px 24px; }
+.modal-body { padding: 28px 24px 24px; min-width: 0; }
 
 /* CEP input large */
 .cep-input-wrap {
@@ -3682,25 +3682,74 @@ button.addon-item.addon-item--selectable,
 
 /* ─── CUPOM POPUP ─── */
 .cupom-input-wrap {
-  display: flex; gap: 10px; margin-bottom: 8px;
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  margin-bottom: 8px;
+  min-width: 0;
+  width: 100%;
 }
 .cupom-code-input {
-  flex: 1; font-family: inherit;
-  font-size: 16px; font-weight: 500;
-  border: 1px solid var(--border); border-radius: 10px;
-  padding: 12px 14px; outline: none;
-  text-transform: uppercase; letter-spacing: 1px;
-  transition: border-color 0.2s; color: var(--text-dark);
+  flex: 1 1 0;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  outline: none;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: border-color 0.2s;
+  color: var(--text-dark);
 }
 .cupom-code-input:focus { border-color: var(--brand-mid); }
 .btn-aplicar-cupom {
-  background: var(--brand); color: white; border: none;
-  border-radius: 10px; padding: 12px 16px;
-  font-size: 14px; font-weight: 600; cursor: pointer;
-  font-family: inherit; transition: background 0.2s;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  background: var(--brand);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s;
 }
 .btn-aplicar-cupom:hover { background: var(--brand-hover); }
 .cupom-hint { font-size: 12px; color: var(--text-light); font-weight: 300; }
+
+@media (max-width: 380px) {
+  .cupom-input-wrap {
+    flex-direction: column;
+  }
+  .btn-aplicar-cupom {
+    width: 100%;
+  }
+}
+
+#cupomOverlay.generic-overlay {
+  align-items: flex-end;
+  padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+}
+
+#cupomOverlay .modal-card {
+  max-height: min(90dvh, 100%);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+@media (min-width: 768px) {
+  #cupomOverlay.generic-overlay {
+    align-items: center;
+    padding: 20px;
+  }
+}
 
 /* ─── PROFILE PAGE ─── */
 .profile-page {
