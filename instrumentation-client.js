@@ -1,5 +1,13 @@
 import * as Sentry from '@sentry/nextjs';
 
+function isPublicMarketingPath() {
+  if (typeof window === 'undefined') return false;
+  const path = window.location.pathname || '/';
+  return path === '/' || path.startsWith('/lp/');
+}
+
+const onLanding = isPublicMarketingPath();
+
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
@@ -8,13 +16,13 @@ Sentry.init({
     process.env.NODE_ENV ||
     'development',
 
-  tracesSampleRate: process.env.NODE_ENV === 'development' ? 1.0 : 0.1,
+  tracesSampleRate: process.env.NODE_ENV === 'development' ? 1.0 : onLanding ? 0.05 : 0.1,
 
-  // Session Replay: 10% das sessões; 100% quando há erro
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1.0,
+  // Replay pesa no TBT da landing — desliga no marketing; admin mantém.
+  replaysSessionSampleRate: onLanding ? 0 : 0.1,
+  replaysOnErrorSampleRate: onLanding ? 0 : 1.0,
 
-  integrations: [Sentry.replayIntegration()],
+  integrations: onLanding ? [] : [Sentry.replayIntegration()],
 
   ignoreErrors: [
     'ResizeObserver loop limit exceeded',

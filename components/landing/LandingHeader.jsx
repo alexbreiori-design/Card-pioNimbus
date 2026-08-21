@@ -201,7 +201,6 @@ export default function LandingHeader() {
                 width={160}
                 height={38}
                 className="landing-brand__logo landing-brand__logo--full"
-                priority
                 quality={65}
               />
               <Image
@@ -210,7 +209,6 @@ export default function LandingHeader() {
                 width={32}
                 height={32}
                 className="landing-brand__logo landing-brand__logo--icon"
-                priority
                 aria-hidden="true"
               />
             </a>

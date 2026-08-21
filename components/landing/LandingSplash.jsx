@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import LandingSplashMascots from '@/components/landing/LandingSplashMascots';
+import { LANDING_LOAD_FRAMES } from '@/lib/landing/loadFrames';
 
-const FADE_MS = 220;
+const FADE_MS = 280;
 
 export default function LandingSplash({ show }) {
   const [mounted, setMounted] = useState(true);
@@ -25,7 +25,22 @@ export default function LandingSplash({ show }) {
 
   return (
     <div className={`landing-splash${visible ? ' is-visible' : ''}`} aria-hidden="true">
-      <LandingSplashMascots />
+      <div className="landing-splash__stage">
+        {LANDING_LOAD_FRAMES.map((src, index) => (
+          // eslint-disable-next-line @next/next/no-img-element -- splash client fallback
+          <img
+            key={src}
+            className="landing-splash__mascot"
+            src={src}
+            alt=""
+            width={360}
+            height={360}
+            decoding="async"
+            fetchPriority={index === 0 ? 'high' : 'low'}
+            style={{ animationDelay: `${index * 0.55}s` }}
+          />
+        ))}
+      </div>
     </div>
   );
 }
