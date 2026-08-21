@@ -77,7 +77,7 @@
   height: 100%;
   object-fit: contain;
   opacity: 0;
-  animation: landing-splash-mascot 3.5s ease-in-out infinite;
+  animation: landing-splash-mascot 2.75s ease-in-out infinite;
   will-change: opacity, transform;
 }
 
@@ -99,15 +99,6 @@
     opacity: 0;
     transform: scale(0.96);
   }
-}
-
-.landing-boot-content {
-  opacity: 0;
-  transition: opacity 320ms ease;
-}
-
-.landing-boot-content.is-visible {
-  opacity: 1;
 }
 
 .landing-container {

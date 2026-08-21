@@ -4,7 +4,6 @@ import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
 import LandingBootGate from '@/components/landing/LandingBootGate';
-import LandingDeferredStyles from '@/components/landing/LandingDeferredStyles';
 import LandingFaq from '@/components/landing/LandingFaq';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingIcon from '@/components/landing/LandingIcons';
@@ -51,7 +50,6 @@ function WhatsAppButton({ className = '', children, message }) {
 export default function LandingPage() {
   return (
     <div className={`landing-page ${landingFontVariables}`}>
-      <LandingDeferredStyles />
       <LandingBootGate>
         <LandingAmbient />
         <LandingHeader />
