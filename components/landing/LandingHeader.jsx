@@ -196,12 +196,13 @@ export default function LandingHeader() {
               onClick={handleBrandClick}
             >
               <Image
-                src="/images/logo-horizontal.png"
+                src="/images/logo-horizontal.webp"
                 alt="Cardápio Nimbus"
                 width={160}
                 height={38}
                 className="landing-brand__logo landing-brand__logo--full"
                 priority
+                quality={65}
               />
               <Image
                 src="/images/icon.png"
