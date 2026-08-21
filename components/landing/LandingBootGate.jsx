@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import LandingSplash from '@/components/landing/LandingSplash';
 
-/** Celular: passagem rápida (Speed Index). Desktop: ciclo dos 5 mascotes. */
+/** Celular: passagem rápida (Speed Index). Desktop: ciclo dos 3 mascotes. */
 const SPLASH_MS_MOBILE = 600;
-const SPLASH_MS_DESKTOP = 1100;
+const SPLASH_MS_DESKTOP = 1200;
 const FADE_MS = 240;
 const SPLASH_SEEN_KEY = 'nimbus-landing-splash-seen';
 
