@@ -1,16 +1,13 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
 export default function AdminLogoutButton({ variant = 'default' }) {
-  const router = useRouter();
-
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.push('/login');
-    router.refresh();
+    // Navegação completa: evita CSS do admin/cardápio vazando na tela de login.
+    window.location.assign('/login');
   }
 
   const className =
