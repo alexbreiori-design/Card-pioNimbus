@@ -38,8 +38,14 @@
   --landing-font-condensed: var(--font-landing-condensed, 'Roboto Condensed'),
     var(--font-landing-roboto, 'Roboto'), system-ui, sans-serif;
   font-family: var(--landing-font);
-  overflow-x: clip;
+  /* NÃO usar overflow-x aqui: clip/auto cria scrollport e quebra position:sticky */
   scroll-behavior: smooth;
+}
+
+/* Clip horizontal no documento — sticky das features continua relativo à viewport */
+html:has(.landing-page),
+body:has(.landing-page) {
+  overflow-x: clip;
 }
 
 /* Boot splash (mesmo espírito do admin) */
@@ -5377,6 +5383,27 @@ img.landing-purpose-cloud,
 }
 
 @media (max-width: 720px) {
+  /* Menos custo de compositing no scroll (Propósito / cards glass) */
+  .landing-aurora {
+    animation: none;
+    will-change: auto;
+    filter: blur(22px) saturate(1.5);
+  }
+
+  .landing-glass-card,
+  .landing-glass-surface,
+  .landing-glass-card::before,
+  .landing-glass-surface::before {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background: rgba(255, 255, 255, 0.92);
+  }
+
+  .landing-purpose__card.landing-glass-card,
+  .landing-purpose__banner.landing-glass-card {
+    background: rgba(255, 255, 255, 0.94);
+  }
+
   .landing-scene {
     padding: 52px 0;
   }
@@ -6226,8 +6253,9 @@ img.landing-purpose-cloud,
     display: block;
     position: relative;
     width: 100%;
-    /* Fallback; JS locks height to count * pinHeight (same unit as pin) */
-    height: calc(var(--features-card-count, 5) * 100svh);
+    height: calc(
+      var(--features-card-count, 5) * (100dvh - var(--features-header-offset, 64px))
+    );
     margin: 0;
   }
 
@@ -6235,9 +6263,13 @@ img.landing-purpose-cloud,
     height: auto !important;
   }
 
+  /*
+    Sticky nativo: o título fica travado no viewport enquanto o track rola.
+    Antes o JS aplicava translateY no pin — no celular real isso atrasa e “pula”.
+  */
   .landing-features-mobile__pin {
-    position: absolute;
-    top: 0;
+    position: sticky;
+    top: var(--features-header-offset, 64px);
     left: 0;
     right: 0;
     display: flex;
@@ -6246,15 +6278,18 @@ img.landing-purpose-cloud,
     width: 100%;
     box-sizing: border-box;
     z-index: 25;
-    /* Fallback; JS locks height once per visit — never on scroll */
-    height: calc(100svh - var(--features-header-offset, 64px));
-    will-change: transform;
+    height: calc(100dvh - var(--features-header-offset, 64px));
+    max-height: calc(100dvh - var(--features-header-offset, 64px));
+    transform: none !important;
+    will-change: auto;
   }
 
   .landing-features-mobile--static .landing-features-mobile__pin {
     position: relative;
+    top: auto;
     transform: none !important;
     height: auto !important;
+    max-height: none;
   }
 
   .landing-features-mobile__head {
