@@ -383,6 +383,13 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed, initia
     papel: 'atendente',
     tempPassword: generateTempPassword(),
   });
+  const [editingMemberId, setEditingMemberId] = useState(null);
+  const [memberEditForm, setMemberEditForm] = useState({
+    email: '',
+    nome: '',
+    papel: 'atendente',
+    password: '',
+  });
   const [ownerContactEditing, setOwnerContactEditing] = useState(false);
   const [ownerEmail, setOwnerEmail] = useState('');
   const [ownerPhone, setOwnerPhone] = useState('');
@@ -436,6 +443,7 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed, initia
       setInfoSlug(payload.store.slug || '');
       syncOwnerContactDraft(payload.store);
       setOwnerContactEditing(false);
+      cancelMemberEdit();
       if (payload.store.assinatura?.planoCodigo) {
         setCheckoutPlan(payload.store.assinatura.planoCodigo);
       }
@@ -527,6 +535,7 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed, initia
     queueMicrotask(() => {
       setTab(nextTab);
       setOwnerContactEditing(false);
+      cancelMemberEdit();
       setFeedbackFilter('aberto');
       loadStore(slug);
       loadFeedback(slug, { silent: true });
@@ -922,8 +931,28 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed, initia
     }
   }
 
-  async function patchMember(usuarioId, patch) {
-    if (!slug) return;
+  function startMemberEdit(member) {
+    setEditingMemberId(member.usuarioId);
+    setMemberEditForm({
+      email: member.email || '',
+      nome: member.nome || '',
+      papel: member.papel || 'atendente',
+      password: '',
+    });
+  }
+
+  function cancelMemberEdit() {
+    setEditingMemberId(null);
+    setMemberEditForm({
+      email: '',
+      nome: '',
+      papel: 'atendente',
+      password: '',
+    });
+  }
+
+  async function patchMember(usuarioId, patch, { successMessage } = {}) {
+    if (!slug) return null;
     setSaving(true);
     setError('');
     try {
@@ -937,8 +966,83 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed, initia
         throw new Error(payload.error || 'Não foi possível atualizar membro.');
       }
       setStore((prev) => (prev ? { ...prev, team: payload.members } : prev));
+      if (payload.tempPassword) {
+        toast.success(`Nova senha temporária: ${payload.tempPassword}`, {
+          duration: TOAST_DURATION_MS.long,
+        });
+      } else if (successMessage) {
+        toast.success(successMessage);
+      }
+      return payload;
     } catch (patchError) {
+      toast.error(patchError?.message || 'Erro ao atualizar membro.');
       setError(patchError?.message || 'Erro ao atualizar membro.');
+      return null;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveMemberEdit(usuarioId) {
+    const password = String(memberEditForm.password || '').trim();
+    const payload = await patchMember(
+      usuarioId,
+      {
+        email: memberEditForm.email,
+        nome: memberEditForm.nome,
+        papel: memberEditForm.papel,
+        ...(password ? { password } : {}),
+      },
+      { successMessage: 'Membro atualizado.' }
+    );
+    if (payload) cancelMemberEdit();
+  }
+
+  async function resetMemberPassword(member) {
+    if (!member?.usuarioId) return;
+    const confirmed = window.confirm(
+      `Gerar nova senha temporária para ${member.email || member.nome || 'este membro'}?`
+    );
+    if (!confirmed) return;
+    const tempPassword = generateTempPassword();
+    await patchMember(member.usuarioId, { password: tempPassword });
+  }
+
+  async function removeMember(member) {
+    if (!slug || !member?.usuarioId) return;
+    const teamSize = store?.team?.length || 0;
+    if (teamSize <= 1) {
+      toast.error('Não é possível remover o único membro da loja.');
+      return;
+    }
+    const label = member.email || member.nome || 'este membro';
+    const confirmed = window.confirm(
+      `Remover ${label} desta loja? Se a pessoa não estiver em outra loja, a conta de login também será apagada.`
+    );
+    if (!confirmed) return;
+
+    setSaving(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/super-admin/stores/${encodeURIComponent(slug)}/members`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuarioId: member.usuarioId }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || 'Não foi possível remover membro.');
+      }
+      setStore((prev) => (prev ? { ...prev, team: payload.members } : prev));
+      if (editingMemberId === member.usuarioId) cancelMemberEdit();
+      toast.success(
+        payload.deletedAuthUser
+          ? 'Membro removido e conta de login apagada.'
+          : 'Membro removido desta loja.'
+      );
+    } catch (removeError) {
+      toast.error(removeError?.message || 'Erro ao remover membro.');
+      setError(removeError?.message || 'Erro ao remover membro.');
     } finally {
       setSaving(false);
     }
@@ -1803,51 +1907,169 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed, initia
                   </button>
                 </div>
                 <p className={styles.muted}>
-                  Membros com acesso ao admin desta loja. Proprietário é definido na criação da loja.
+                  Membros com acesso ao admin desta loja. Dá para editar e-mail, senha e papel, ou
+                  remover alguém — desde que não seja o único membro da loja.
                 </p>
 
                 <ul className={styles.teamList}>
                   {(store.team || []).map((member) => {
                     const displayName = member.nome || member.email || 'Sem nome';
                     const initial = displayName.trim().charAt(0).toUpperCase() || '?';
+                    const isEditing = editingMemberId === member.usuarioId;
+                    const canRemove = (store.team || []).length > 1;
                     return (
                       <li
                         key={member.usuarioId}
-                        className={`${styles.teamCard}${member.ativo ? '' : ` ${styles.teamCardInactive}`}`}
+                        className={`${styles.teamCard}${member.ativo ? '' : ` ${styles.teamCardInactive}`}${isEditing ? ` ${styles.teamCardEditing}` : ''}`}
                       >
-                        <div className={styles.teamIdentity}>
-                          <span className={styles.teamInitial}>{initial}</span>
-                          <div>
-                            <p className={styles.teamName}>{displayName}</p>
-                            <span className={styles.teamEmail}>{member.email || '—'}</span>
-                            <span className={styles.rolePill}>{member.papelLabel}</span>
+                        <div className={styles.teamCardMain}>
+                          <div className={styles.teamIdentity}>
+                            <span className={styles.teamInitial}>{initial}</span>
+                            <div>
+                              <p className={styles.teamName}>{displayName}</p>
+                              <span className={styles.teamEmail}>{member.email || '—'}</span>
+                              <span className={styles.rolePill}>{member.papelLabel}</span>
+                              {!member.ativo ? (
+                                <span className={styles.teamInactiveBadge}>Inativo</span>
+                              ) : null}
+                            </div>
                           </div>
-                        </div>
-                        <div className={styles.teamActions}>
-                          {member.papel !== 'proprietario' ? (
-                            <select
-                              className={styles.teamSelect}
-                              value={member.papel}
-                              disabled={saving || !member.ativo}
-                              onChange={(event) =>
-                                patchMember(member.usuarioId, { papel: event.target.value })
-                              }
-                            >
-                              <option value="gerente">Gerente</option>
-                              <option value="atendente">Atendente</option>
-                            </select>
+                          {!isEditing ? (
+                            <div className={styles.teamActions}>
+                              <button
+                                type="button"
+                                className={styles.btnGhost}
+                                disabled={saving}
+                                onClick={() => startMemberEdit(member)}
+                              >
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.btnGhost}
+                                disabled={saving}
+                                onClick={() => resetMemberPassword(member)}
+                              >
+                                Nova senha
+                              </button>
+                              {member.papel !== 'proprietario' || canRemove ? (
+                                <button
+                                  type="button"
+                                  className={styles.btnGhost}
+                                  disabled={saving}
+                                  onClick={() =>
+                                    patchMember(member.usuarioId, { ativo: !member.ativo })
+                                  }
+                                >
+                                  {member.ativo ? 'Desativar' : 'Reativar'}
+                                </button>
+                              ) : null}
+                              <button
+                                type="button"
+                                className={styles.btnDanger}
+                                disabled={saving || !canRemove}
+                                title={
+                                  canRemove
+                                    ? 'Remover da loja'
+                                    : 'Não é possível remover o único membro'
+                                }
+                                onClick={() => removeMember(member)}
+                              >
+                                Excluir
+                              </button>
+                            </div>
                           ) : null}
-                          {member.papel !== 'proprietario' ? (
-                            <button
-                              type="button"
-                              className={styles.btnGhost}
-                              disabled={saving}
-                              onClick={() => patchMember(member.usuarioId, { ativo: !member.ativo })}
-                            >
-                              {member.ativo ? 'Desativar' : 'Reativar'}
-                            </button>
-                          ) : null}
                         </div>
+
+                        {isEditing ? (
+                          <div className={styles.teamEditPanel}>
+                            <div className={styles.formGrid}>
+                              <label className={styles.formField}>
+                                <span className={styles.formLabel}>Nome</span>
+                                <input
+                                  className={styles.formInput}
+                                  value={memberEditForm.nome}
+                                  onChange={(event) =>
+                                    setMemberEditForm((prev) => ({
+                                      ...prev,
+                                      nome: event.target.value,
+                                    }))
+                                  }
+                                  disabled={saving}
+                                />
+                              </label>
+                              <label className={styles.formField}>
+                                <span className={styles.formLabel}>E-mail de login</span>
+                                <input
+                                  className={styles.formInput}
+                                  type="email"
+                                  value={memberEditForm.email}
+                                  onChange={(event) =>
+                                    setMemberEditForm((prev) => ({
+                                      ...prev,
+                                      email: event.target.value,
+                                    }))
+                                  }
+                                  disabled={saving}
+                                  required
+                                />
+                              </label>
+                              <label className={styles.formField}>
+                                <span className={styles.formLabel}>Papel</span>
+                                <select
+                                  className={styles.formInput}
+                                  value={memberEditForm.papel}
+                                  onChange={(event) =>
+                                    setMemberEditForm((prev) => ({
+                                      ...prev,
+                                      papel: event.target.value,
+                                    }))
+                                  }
+                                  disabled={saving}
+                                >
+                                  <option value="proprietario">Proprietário</option>
+                                  <option value="gerente">Gerente</option>
+                                  <option value="atendente">Atendente</option>
+                                </select>
+                              </label>
+                              <label className={styles.formField}>
+                                <span className={styles.formLabel}>Nova senha (opcional)</span>
+                                <input
+                                  className={styles.formInput}
+                                  type="text"
+                                  value={memberEditForm.password}
+                                  onChange={(event) =>
+                                    setMemberEditForm((prev) => ({
+                                      ...prev,
+                                      password: event.target.value,
+                                    }))
+                                  }
+                                  disabled={saving}
+                                  minLength={8}
+                                  placeholder="Deixe em branco para manter"
+                                />
+                              </label>
+                            </div>
+                            <div className={styles.teamEditActions}>
+                              <button
+                                type="button"
+                                className={styles.btnGhost}
+                                disabled={saving}
+                                onClick={cancelMemberEdit}
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.btnPrimary}
+                                disabled={saving}
+                                onClick={() => saveMemberEdit(member.usuarioId)}
+                              >
+                                {saving ? 'Salvando...' : 'Salvar'}
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
                       </li>
                     );
                   })}
