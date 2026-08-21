@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useEmpresa } from '@/hooks/useEmpresa';
-import AdminSplash from './AdminSplash';
+import AdminSplash, { ADMIN_SPLASH_STAGGER_S } from './AdminSplash';
 
-/** Metade do hold anterior (420ms) — pedidos abre com skeleton na 1ª carga. */
-const MIN_HOLD_AFTER_READY_MS = 210;
+/** Tempo mínimo total para burger → pizza → sorvete aparecerem com calma. */
+const MIN_SPLASH_TOTAL_MS = Math.round(ADMIN_SPLASH_STAGGER_S * 3 * 1000) + 400;
+/** Pequeno hold após o boot ficar pronto. */
+const MIN_HOLD_AFTER_READY_MS = 320;
 const MAX_BOOT_WAIT_MS = 15000;
 
 export default function AdminBootGate({ children }) {
@@ -15,9 +17,14 @@ export default function AdminBootGate({ children }) {
   const [showSplash, setShowSplash] = useState(true);
   const [bootTimedOut, setBootTimedOut] = useState(false);
   const readyAtRef = useRef(null);
+  const startedAtRef = useRef(null);
 
   // Não espera pedidos: a tela de pedidos mostra skeleton só na 1ª abertura.
   const bootReady = adminReady && !empresaLoading;
+
+  useEffect(() => {
+    startedAtRef.current = Date.now();
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setBootTimedOut(true), MAX_BOOT_WAIT_MS);
@@ -34,8 +41,14 @@ export default function AdminBootGate({ children }) {
       readyAtRef.current = Date.now();
     }
 
-    const elapsed = Date.now() - readyAtRef.current;
-    const delay = Math.max(0, MIN_HOLD_AFTER_READY_MS - elapsed);
+    const now = Date.now();
+    const sinceReady = now - readyAtRef.current;
+    const sinceStart = now - (startedAtRef.current || now);
+    const delay = Math.max(
+      0,
+      MIN_HOLD_AFTER_READY_MS - sinceReady,
+      MIN_SPLASH_TOTAL_MS - sinceStart
+    );
     const timer = window.setTimeout(() => setShowSplash(false), delay);
     return () => window.clearTimeout(timer);
   }, [bootReady, bootTimedOut]);
