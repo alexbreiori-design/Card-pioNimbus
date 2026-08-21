@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { LANDING_LOAD_FRAMES } from '@/lib/landing/loadFrames';
 
-const FADE_MS = 280;
+const FADE_MS = 240;
 
 export default function LandingSplash({ show }) {
   const [mounted, setMounted] = useState(true);
@@ -30,13 +30,14 @@ export default function LandingSplash({ show }) {
           // eslint-disable-next-line @next/next/no-img-element -- splash client fallback
           <img
             key={src}
-            className="landing-splash__mascot"
+            className={`landing-splash__mascot${index > 0 ? ' landing-splash__mascot--desk' : ''}`}
             src={src}
             alt=""
             width={360}
             height={360}
             decoding="async"
             fetchPriority={index === 0 ? 'high' : 'low'}
+            loading={index === 0 ? 'eager' : 'lazy'}
             style={{ animationDelay: `${index * 0.22}s` }}
           />
         ))}

@@ -101,6 +101,29 @@
   }
 }
 
+/* Celular: um mascote só e passagem rápida — splash longo derruba o Speed Index */
+@media (max-width: 720px) {
+  .landing-splash__mascot--desk {
+    display: none;
+  }
+
+  .landing-splash__mascot {
+    animation: landing-splash-solo 0.4s ease-out both;
+  }
+}
+
+@keyframes landing-splash-solo {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .landing-container {
   width: min(1140px, calc(100% - 40px));
   margin: 0 auto;
@@ -867,15 +890,48 @@
   opacity: 0;
   transform: translate3d(0, 36px, 0);
   transition:
-    opacity 1.85s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 1.85s cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
   transition-delay: calc(var(--reveal-delay, 0ms));
-  will-change: opacity, transform;
 }
 
 .landing-reveal.is-visible {
   opacity: 1;
   transform: translate3d(0, 0, 0);
+}
+
+/*
+  Primeira dobra: nasce visível no HTML e entra por animação CSS, sem depender
+  da hidratação (era isso que jogava o LCP/Speed Index para ~5s no celular).
+*/
+.landing-reveal--instant {
+  opacity: 1;
+  transform: none;
+  transition: none;
+  animation: landing-reveal-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+@keyframes landing-reveal-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes landing-reveal-fade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 /* Hero: sobe o bloco e evita o translateY cortar os mockups na abertura */
@@ -889,6 +945,26 @@
 
 .landing-hero-scene .landing-reveal.is-visible {
   transform: translate3d(0, 0, 0);
+}
+
+/*
+  Mockups entram sem animação: imagem em fade não é registrada como candidata a
+  LCP pelo Chrome, e é ela o maior elemento da primeira dobra no celular.
+*/
+.landing-hero-scene .landing-hero__demo-wrap.landing-reveal--instant {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-reveal--instant {
+    animation: none;
+  }
+
+  .landing-reveal {
+    transition: none;
+  }
 }
 
 /* Hero */
@@ -3511,7 +3587,19 @@ img.landing-purpose-cloud,
   inset: 0;
   width: 100%;
   height: 100%;
-  will-change: transform, opacity;
+  animation: landing-feature-slide-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes landing-feature-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--feature-slide-from, 52px));
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .landing-features-showcase__image {
@@ -3557,6 +3645,66 @@ img.landing-purpose-cloud,
   gap: 4px 19px;
   align-items: center;
   width: 100%;
+  animation: landing-reveal-fade 0.28s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Escadinha da faixa em CSS (antes era motion no caminho crítico) */
+.landing-features-showcase__strip-content > *,
+.landing-features-showcase__strip-content .landing-features-showcase__chip {
+  animation: landing-feature-strip-item 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.landing-features-showcase__strip-content > *:nth-child(1) {
+  animation-delay: 20ms;
+}
+
+.landing-features-showcase__strip-content > *:nth-child(2) {
+  animation-delay: 95ms;
+}
+
+.landing-features-showcase__strip-content > *:nth-child(3) {
+  animation-delay: 170ms;
+}
+
+.landing-features-showcase__strip-content > *:nth-child(4) {
+  animation: none;
+}
+
+.landing-features-showcase__strip-content .landing-features-showcase__chip:nth-child(1) {
+  animation-delay: 245ms;
+}
+
+.landing-features-showcase__strip-content .landing-features-showcase__chip:nth-child(2) {
+  animation-delay: 320ms;
+}
+
+.landing-features-showcase__strip-content .landing-features-showcase__chip:nth-child(3) {
+  animation-delay: 395ms;
+}
+
+.landing-features-showcase__strip-content .landing-features-showcase__chip:nth-child(4) {
+  animation-delay: 470ms;
+}
+
+@keyframes landing-feature-strip-item {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-features-showcase__media-slide,
+  .landing-features-showcase__strip-content,
+  .landing-features-showcase__strip-content > *,
+  .landing-features-showcase__strip-content .landing-features-showcase__chip {
+    animation: none;
+  }
 }
 
 .landing-features-showcase__strip-content .landing-features-showcase__strip-icon {

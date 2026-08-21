@@ -26,13 +26,23 @@ function HeroTapLottie() {
 
   useEffect(() => {
     let cancelled = false;
-    import('@/public/animated/tap.json')
-      .then((mod) => {
-        if (!cancelled) setAnimationData(mod.default || mod);
-      })
-      .catch(() => undefined);
+    const load = () => {
+      import('@/public/animated/tap.json')
+        .then((mod) => {
+          if (!cancelled) setAnimationData(mod.default || mod);
+        })
+        .catch(() => undefined);
+    };
+
+    // Fora do caminho crítico: a mão só entra quando a thread está livre.
+    const idle = window.requestIdleCallback
+      ? window.requestIdleCallback(load, { timeout: 2500 })
+      : window.setTimeout(load, 1200);
+
     return () => {
       cancelled = true;
+      if (window.cancelIdleCallback) window.cancelIdleCallback(idle);
+      else window.clearTimeout(idle);
     };
   }, []);
 
@@ -224,8 +234,6 @@ export default function LandingHeroDemo({
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [hoverDevice, setHoverDevice] = useState(null);
   const [isMobileHero, setIsMobileHero] = useState(true);
-  /** Callout + Lottie só depois do splash — evita LCP no texto “Toque no celular…”. */
-  const [showMobileCallout, setShowMobileCallout] = useState(false);
   const timerRef = useRef(null);
   const stageRef = useRef(null);
   const hitMapsRef = useRef({ phone: null, laptop: null, phoneView2: null, laptopView2: null });
@@ -242,6 +250,10 @@ export default function LandingHeroDemo({
   useEffect(() => () => clearTimer(), [clearTimer]);
 
   useEffect(() => {
+    // No celular o alvo é um retângulo (HERO_MOBILE_HOTSPOT): as hitmaps são
+    // 167 KB de PNG + decode em canvas que só o desktop usa.
+    if (isMobileHero) return undefined;
+
     let cancelled = false;
     const loadHitmaps = async () => {
       const [phone, laptop, phoneView2, laptopView2] = await Promise.all([
@@ -271,7 +283,7 @@ export default function LandingHeroDemo({
       cancelled = true;
       cancelSchedule(idleId);
     };
-  }, []);
+  }, [isMobileHero]);
 
   const resolveDeviceAtPoint = useCallback((clientX, clientY) => {
     const stage = stageRef.current;
@@ -355,16 +367,6 @@ export default function LandingHeroDemo({
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
   }, [closeDemo]);
-
-  // Callout + Lottie após o splash (~1,8s) — LCP fica no celular, não no texto.
-  useEffect(() => {
-    if (!isMobileHero || phase !== 'idle') return undefined;
-    const timer = window.setTimeout(() => setShowMobileCallout(true), 1400);
-    return () => {
-      window.clearTimeout(timer);
-      setShowMobileCallout(false);
-    };
-  }, [isMobileHero, phase]);
 
   useEffect(() => {
     if (!isMobileHero) return undefined;
@@ -460,7 +462,7 @@ export default function LandingHeroDemo({
       }${isMobileHero ? ' landing-hero-demo--mobile' : ''}`}
     >
       <div className="landing-hero-demo__stage-shell">
-        {phase === 'idle' && isMobileHero && showMobileCallout ? (
+        {phase === 'idle' && isMobileHero ? (
           <div className="landing-hero-demo__callout landing-hero-demo__callout--mobile" aria-hidden="true">
             <p className="landing-hero-demo__callout-sub">{calloutSubMobile}</p>
             <HeroTapLottie />

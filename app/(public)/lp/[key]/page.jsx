@@ -7,6 +7,8 @@ import { isValidLandingShareKey } from '@/lib/landing/shareAccess';
 import { getLandingJsonLd, getLandingMetadata } from '@/lib/landing/seo';
 import '@/styles/landing.css';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   ...getLandingMetadata({ canonicalPath: '/' }),
   robots: { index: false, follow: false },
