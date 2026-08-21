@@ -123,14 +123,18 @@ function applyCardVisual(el, index, current, advance, total) {
   el.style.pointerEvents = pointerEvents;
 }
 
+/**
+ * Sticky nativo (CSS) para o título + painel.
+ * O JS só atualiza a pilha de cards — nunca move o pin com transform
+ * (era isso que “pulava” no celular real).
+ */
 export default function LandingFeaturesMobile() {
   const { categories } = landingFeaturesShowcase;
   const reducedMotion = usePrefersReducedMotion();
   const trackRef = useRef(null);
-  const pinRef = useRef(null);
   const cardsRef = useRef([]);
   const progressRef = useRef(0);
-  const layoutRef = useRef({ headerBottom: 64, pinHeight: 0, maxTranslate: 0 });
+  const layoutRef = useRef({ headerBottom: 64 });
 
   const count = categories?.length || 0;
 
@@ -138,28 +142,15 @@ export default function LandingFeaturesMobile() {
     if (reducedMotion || !count) return undefined;
 
     const track = trackRef.current;
-    const pin = pinRef.current;
-    if (!track || !pin) return undefined;
+    if (!track) return undefined;
 
     let frame = 0;
-    let layoutLocked = false;
     let lastWidth = window.innerWidth;
 
-    const lockLayout = (force = false) => {
-      if (layoutLocked && !force) return;
-
+    const syncHeaderOffset = () => {
       const headerBottom = measureHeaderBottom();
-      const viewH = window.innerHeight;
-      const pinHeight = Math.max(240, viewH - headerBottom);
-      const trackHeight = count * pinHeight;
-      const maxTranslate = Math.max(0, trackHeight - pinHeight);
-
-      track.style.height = `${trackHeight}px`;
-      pin.style.height = `${pinHeight}px`;
       track.style.setProperty('--features-header-offset', `${headerBottom}px`);
-
-      layoutRef.current = { headerBottom, pinHeight, maxTranslate };
-      layoutLocked = true;
+      layoutRef.current.headerBottom = headerBottom;
     };
 
     const paintCards = (progress) => {
@@ -175,26 +166,22 @@ export default function LandingFeaturesMobile() {
 
     const updateScroll = () => {
       frame = 0;
+      const pin = track.querySelector('.landing-features-mobile__pin');
+      if (!pin) return;
 
-      if (!layoutLocked) {
-        const rect = track.getBoundingClientRect();
-        const inView = rect.bottom > 0 && rect.top < window.innerHeight;
-        if (!inView) return;
-        lockLayout(false);
-      }
+      const { headerBottom } = layoutRef.current;
+      const trackHeight = track.offsetHeight;
+      const pinHeight = pin.offsetHeight;
+      const maxTranslate = Math.max(0, trackHeight - pinHeight);
+      if (maxTranslate <= 0) return;
 
-      const { headerBottom, maxTranslate } = layoutRef.current;
       const rect = track.getBoundingClientRect();
-      const translateY = Math.min(Math.max(0, headerBottom - rect.top), maxTranslate);
-      const travel = Math.max(1, maxTranslate);
-      const nextProgress = Math.min(1, Math.max(0, translateY / travel));
+      const scrolled = Math.min(Math.max(0, headerBottom - rect.top), maxTranslate);
+      const nextProgress = Math.min(1, Math.max(0, scrolled / maxTranslate));
 
-      pin.style.transform = `translate3d(0, ${translateY}px, 0)`;
-
-      if (Math.abs(nextProgress - progressRef.current) >= 0.002) {
-        progressRef.current = nextProgress;
-        paintCards(nextProgress);
-      }
+      if (Math.abs(nextProgress - progressRef.current) < 0.002) return;
+      progressRef.current = nextProgress;
+      paintCards(nextProgress);
     };
 
     const onScroll = () => {
@@ -202,39 +189,34 @@ export default function LandingFeaturesMobile() {
       frame = window.requestAnimationFrame(updateScroll);
     };
 
-    const onWidthChange = () => {
+    const onResize = () => {
       const width = window.innerWidth;
-      if (width === lastWidth && layoutLocked) return;
+      if (width === lastWidth) {
+        // Só o offset do header (barra do browser) — altura do pin é CSS/dvh
+        syncHeaderOffset();
+        updateScroll();
+        return;
+      }
       lastWidth = width;
-      lockLayout(true);
-      updateScroll();
-    };
-
-    const onIntersect = (entries) => {
-      const entry = entries[0];
-      if (!entry?.isIntersecting) return;
-      lockLayout(false);
+      syncHeaderOffset();
       updateScroll();
     };
 
     paintCards(0);
-
-    const observer = new IntersectionObserver(onIntersect, {
-      threshold: 0,
-      rootMargin: '10% 0px 10% 0px',
-    });
-    observer.observe(track);
+    syncHeaderOffset();
+    updateScroll();
 
     window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onWidthChange);
-    window.addEventListener('orientationchange', onWidthChange);
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    window.visualViewport?.addEventListener('resize', onResize);
 
     return () => {
       if (frame) window.cancelAnimationFrame(frame);
-      observer.disconnect();
       window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onWidthChange);
-      window.removeEventListener('orientationchange', onWidthChange);
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onResize);
+      window.visualViewport?.removeEventListener('resize', onResize);
     };
   }, [count, reducedMotion]);
 
@@ -270,7 +252,7 @@ export default function LandingFeaturesMobile() {
       aria-label="Funcionalidades do sistema"
       style={{ '--features-card-count': count }}
     >
-      <div ref={pinRef} className="landing-features-mobile__pin">
+      <div className="landing-features-mobile__pin">
         <header className="landing-features-mobile__head">
           <p className="landing-features__eyebrow">{landingFeaturesShowcase.eyebrow}</p>
           <h2 className="landing-features__title">
