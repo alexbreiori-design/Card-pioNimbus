@@ -3,10 +3,9 @@
 import { useEffect, useState } from 'react';
 import LandingSplash from '@/components/landing/LandingSplash';
 
-/** Celular: passagem rápida (Speed Index). Desktop: ciclo dos 3 mascotes. */
+/** Celular: passagem rápida (Speed Index). Desktop: tempo pra ver os 3 mascotes. */
 const SPLASH_MS_MOBILE = 600;
-const SPLASH_MS_DESKTOP = 1200;
-const FADE_MS = 240;
+const SPLASH_MS_DESKTOP = 2100;
 const SPLASH_SEEN_KEY = 'nimbus-landing-splash-seen';
 
 function splashDuration() {
@@ -14,16 +13,20 @@ function splashDuration() {
   return isMobile ? SPLASH_MS_MOBILE : SPLASH_MS_DESKTOP;
 }
 
-function fadeOutSsrSplash() {
+/**
+ * Só esconde o splash SSR — nunca el.remove().
+ * Remover o nó fora do React quebrava a navegação cliente (ex.: Login)
+ * com NotFoundError: removeChild.
+ */
+function hideSsrSplash({ immediate = false } = {}) {
   const el = document.getElementById('landing-ssr-splash');
   if (!el) return;
   el.classList.remove('is-visible');
-  window.setTimeout(() => el.remove(), FADE_MS);
-}
-
-function removeSsrSplashNow() {
-  const el = document.getElementById('landing-ssr-splash');
-  if (el) el.remove();
+  el.setAttribute('aria-hidden', 'true');
+  if (immediate) {
+    el.hidden = true;
+    el.style.display = 'none';
+  }
 }
 
 /**
@@ -42,7 +45,7 @@ export default function LandingBootGate({ children }) {
     }
 
     if (seen) {
-      removeSsrSplashNow();
+      hideSsrSplash({ immediate: true });
       return undefined;
     }
 
@@ -65,7 +68,7 @@ export default function LandingBootGate({ children }) {
       };
     }
 
-    const timer = window.setTimeout(fadeOutSsrSplash, duration);
+    const timer = window.setTimeout(() => hideSsrSplash(), duration);
     return () => window.clearTimeout(timer);
   }, []);
 
