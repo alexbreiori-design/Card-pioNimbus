@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import LandingFeaturesCatalogModal from '@/components/landing/LandingFeaturesCatalogModal';
 import LandingFeaturesMobile from '@/components/landing/LandingFeaturesMobile';
 import LandingIcon from '@/components/landing/LandingIcons';
@@ -9,6 +9,7 @@ import LandingScene from '@/components/landing/LandingScene';
 import { landingFeaturesShowcase } from '@/lib/landing/content';
 
 const MEDIA_SLIDE = 52;
+const AUTO_ROTATE_MS = 10000;
 
 function FeatureMedia({ category }) {
   const [failed, setFailed] = useState(false);
@@ -90,8 +91,6 @@ export default function LandingFeaturesSection() {
 
   const active = categories.find((item) => item.id === activeId) || categories[0];
 
-  if (!active) return null;
-
   const handleSelect = (id) => {
     const nextIndex = categories.findIndex((item) => item.id === id);
     if (nextIndex < 0 || nextIndex === activeIndexRef.current) return;
@@ -99,6 +98,25 @@ export default function LandingFeaturesSection() {
     activeIndexRef.current = nextIndex;
     setActiveId(id);
   };
+
+  // Desktop: avança sozinho a cada 10s (pausa com modal aberto ou reduced-motion)
+  useEffect(() => {
+    if (!categories?.length || catalogOpen) return undefined;
+    if (typeof window === 'undefined') return undefined;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
+    if (!window.matchMedia('(min-width: 721px)').matches) return undefined;
+
+    const timer = window.setInterval(() => {
+      const nextIndex = (activeIndexRef.current + 1) % categories.length;
+      setSlideDirection(1);
+      activeIndexRef.current = nextIndex;
+      setActiveId(categories[nextIndex].id);
+    }, AUTO_ROTATE_MS);
+
+    return () => window.clearInterval(timer);
+  }, [categories, catalogOpen, activeId]);
+
+  if (!active) return null;
 
   return (
     <LandingScene id="recursos" className="landing-section-scene landing-features-scene">

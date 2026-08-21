@@ -1,8 +1,8 @@
-import { LANDING_LOAD_FRAMES } from '@/lib/landing/loadFrames';
+import { LANDING_LOAD_FRAMES, LANDING_SPLASH_STAGGER_S } from '@/lib/landing/loadFrames';
 
 /**
  * Splash SSR: no celular só o 1º mascote (os outros ficam lazy + display:none,
- * então o browser não baixa os frames extras). No desktop, o ciclo completo.
+ * então o browser não baixa os frames extras). No desktop: burger, pizza e sorvete.
  */
 export default function LandingSsrSplash() {
   return (
@@ -20,7 +20,7 @@ export default function LandingSsrSplash() {
             decoding="async"
             fetchPriority={index === 0 ? 'high' : 'low'}
             loading={index === 0 ? 'eager' : 'lazy'}
-            style={{ animationDelay: `${index * 0.22}s` }}
+            style={{ animationDelay: `${index * LANDING_SPLASH_STAGGER_S}s` }}
           />
         ))}
       </div>
