@@ -1,22 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useReducedMotion } from 'motion/react';
 import LandingIcon from '@/components/landing/LandingIcons';
 import { landingFeaturesShowcase } from '@/lib/landing/content';
 
 function FeatureMobileMedia({ category }) {
-  const [failed, setFailed] = useState(false);
-
-  if (failed) {
-    return (
-      <div className="landing-features-mobile__placeholder" aria-hidden="true">
-        <LandingIcon name={category.icon} />
-        <span>{category.title}</span>
-      </div>
-    );
-  }
-
   return (
     // eslint-disable-next-line @next/next/no-img-element -- local showcase prints; graceful 404 fallback
     <img
@@ -25,17 +14,21 @@ function FeatureMobileMedia({ category }) {
       alt={category.imageAlt}
       loading="lazy"
       decoding="async"
-      onError={() => setFailed(true)}
+      onError={(event) => {
+        event.currentTarget.style.display = 'none';
+        const placeholder = event.currentTarget.nextElementSibling;
+        if (placeholder) placeholder.hidden = false;
+      }}
     />
   );
 }
 
-function FeatureMobileCard({ category, style, state }) {
+function FeatureMobileCard({ category, cardRef }) {
   return (
     <article
-      className={`landing-features-mobile__card landing-glass-card landing-glass-card--edged landing-features-mobile__card--${category.tone} is-${state}`}
-      style={style}
-      aria-hidden={state === 'waiting'}
+      ref={cardRef}
+      className={`landing-features-mobile__card landing-glass-card landing-glass-card--edged landing-features-mobile__card--${category.tone}`}
+      data-state="waiting"
     >
       <div className="landing-glass-edge" aria-hidden="true" />
 
@@ -54,6 +47,10 @@ function FeatureMobileCard({ category, style, state }) {
 
       <div className="landing-features-mobile__media">
         <FeatureMobileMedia category={category} />
+        <div className="landing-features-mobile__placeholder" aria-hidden="true" hidden>
+          <LandingIcon name={category.icon} />
+          <span>{category.title}</span>
+        </div>
       </div>
 
       <ul className="landing-features-mobile__chips">
@@ -82,45 +79,48 @@ function measureHeaderBottom() {
   return Math.max(56, Math.ceil(headerEl.getBoundingClientRect().bottom));
 }
 
-function cardVisualState(index, current, advance) {
-  if (index < current) return 'stacked';
-  if (index === current) return advance > 0.02 ? 'covered' : 'active';
-  if (index === current + 1) return 'incoming';
-  return 'waiting';
-}
+function applyCardVisual(el, index, current, advance, total) {
+  if (!el) return;
 
-function cardVisualStyle(index, current, advance, total) {
+  let state = 'waiting';
+  let opacity = 0;
+  let transform = 'translate3d(0, 105%, 0)';
+  let zIndex = index + 1;
+  let pointerEvents = 'none';
+
   if (index < current) {
     const depth = current - index;
-    return {
-      zIndex: index + 1,
-      opacity: Math.max(0.4, 1 - depth * 0.18),
-      transform: `translate3d(0, 0, 0) scale(${Math.max(0.92, 1 - depth * 0.035)})`,
-    };
+    state = 'stacked';
+    opacity = Math.max(0.4, 1 - depth * 0.18);
+    transform = `translate3d(0, 0, 0) scale(${Math.max(0.92, 1 - depth * 0.035)})`;
+    pointerEvents = '';
+  } else if (index === current) {
+    state = advance > 0.02 ? 'covered' : 'active';
+    opacity = 1;
+    transform = `translate3d(0, 0, 0) scale(${1 - 0.03 * advance})`;
+    pointerEvents = '';
+  } else if (index === current + 1) {
+    state = 'incoming';
+    opacity = 1;
+    transform = `translate3d(0, ${(1 - advance) * 100}%, 0)`;
+    zIndex = total + 2;
+    pointerEvents = '';
   }
 
-  if (index === current) {
-    return {
-      zIndex: index + 1,
-      opacity: 1,
-      transform: `translate3d(0, 0, 0) scale(${1 - 0.03 * advance})`,
-    };
+  if (el.dataset.state !== state) {
+    el.dataset.state = state;
+    el.setAttribute('aria-hidden', state === 'waiting' ? 'true' : 'false');
+    el.classList.toggle('is-waiting', state === 'waiting');
+    el.classList.toggle('is-active', state === 'active');
+    el.classList.toggle('is-covered', state === 'covered');
+    el.classList.toggle('is-incoming', state === 'incoming');
+    el.classList.toggle('is-stacked', state === 'stacked');
   }
 
-  if (index === current + 1) {
-    return {
-      zIndex: total + 2,
-      opacity: 1,
-      transform: `translate3d(0, ${(1 - advance) * 100}%, 0)`,
-    };
-  }
-
-  return {
-    zIndex: index + 1,
-    opacity: 0,
-    transform: 'translate3d(0, 105%, 0)',
-    pointerEvents: 'none',
-  };
+  el.style.zIndex = String(zIndex);
+  el.style.opacity = String(opacity);
+  el.style.transform = transform;
+  el.style.pointerEvents = pointerEvents;
 }
 
 export default function LandingFeaturesMobile() {
@@ -128,20 +128,11 @@ export default function LandingFeaturesMobile() {
   const reducedMotion = useReducedMotion();
   const trackRef = useRef(null);
   const pinRef = useRef(null);
+  const cardsRef = useRef([]);
   const progressRef = useRef(0);
   const layoutRef = useRef({ headerBottom: 64, pinHeight: 0, maxTranslate: 0 });
-  const [progress, setProgress] = useState(0);
 
   const count = categories?.length || 0;
-
-  const { current, advance } = useMemo(() => {
-    if (count <= 1) return { current: 0, advance: 0 };
-    const scaled = progress * (count - 1);
-    const currentIndex = Math.min(count - 1, Math.floor(scaled));
-    const local = Math.min(1, Math.max(0, scaled - currentIndex));
-    if (currentIndex >= count - 1) return { current: count - 1, advance: 0 };
-    return { current: currentIndex, advance: local };
-  }, [progress, count]);
 
   useEffect(() => {
     if (reducedMotion || !count) return undefined;
@@ -154,12 +145,6 @@ export default function LandingFeaturesMobile() {
     let layoutLocked = false;
     let lastWidth = window.innerWidth;
 
-    /**
-     * Lock pin/track to one viewport snapshot.
-     * Recalculating from window.innerHeight on every scroll (or on URL-bar
-     * resize) fights mobile chrome — that was the end-of-stack padding jump,
-     * flicker, and “crazy” oscillation when rocking the scroll.
-     */
     const lockLayout = (force = false) => {
       if (layoutLocked && !force) return;
 
@@ -175,6 +160,17 @@ export default function LandingFeaturesMobile() {
 
       layoutRef.current = { headerBottom, pinHeight, maxTranslate };
       layoutLocked = true;
+    };
+
+    const paintCards = (progress) => {
+      const scaled = progress * Math.max(1, count - 1);
+      const current = Math.min(count - 1, Math.floor(scaled));
+      const advance =
+        current >= count - 1 ? 0 : Math.min(1, Math.max(0, scaled - current));
+
+      for (let index = 0; index < count; index += 1) {
+        applyCardVisual(cardsRef.current[index], index, current, advance, count);
+      }
     };
 
     const updateScroll = () => {
@@ -197,7 +193,7 @@ export default function LandingFeaturesMobile() {
 
       if (Math.abs(nextProgress - progressRef.current) >= 0.002) {
         progressRef.current = nextProgress;
-        setProgress(nextProgress);
+        paintCards(nextProgress);
       }
     };
 
@@ -217,11 +213,11 @@ export default function LandingFeaturesMobile() {
     const onIntersect = (entries) => {
       const entry = entries[0];
       if (!entry?.isIntersecting) return;
-      // Measure when the stack is actually near the viewport (compact header +
-      // current chrome), not at page load at the top.
       lockLayout(false);
       updateScroll();
     };
+
+    paintCards(0);
 
     const observer = new IntersectionObserver(onIntersect, {
       threshold: 0,
@@ -260,7 +256,7 @@ export default function LandingFeaturesMobile() {
         </header>
         <div className="landing-features-mobile__stack">
           {categories.map((category) => (
-            <FeatureMobileCard key={category.id} category={category} state="active" style={{}} />
+            <FeatureMobileCard key={category.id} category={category} />
           ))}
         </div>
       </div>
@@ -292,8 +288,9 @@ export default function LandingFeaturesMobile() {
             <FeatureMobileCard
               key={category.id}
               category={category}
-              state={cardVisualState(index, current, advance)}
-              style={cardVisualStyle(index, current, advance, count)}
+              cardRef={(node) => {
+                cardsRef.current[index] = node;
+              }}
             />
           ))}
         </div>

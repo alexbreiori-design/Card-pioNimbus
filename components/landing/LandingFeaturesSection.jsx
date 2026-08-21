@@ -17,19 +17,18 @@ function stripItemMotion(index, reducedMotion) {
   if (reducedMotion) {
     return {
       initial: false,
-      animate: { opacity: 1, y: 0, filter: 'blur(0px)' },
+      animate: { opacity: 1, y: 0 },
     };
   }
 
   const enterDelay = 0.02 + index * STRIP_STAGGER;
 
   return {
-    initial: { opacity: 0, y: 14, filter: 'blur(4px)' },
+    initial: { opacity: 0, y: 10 },
     animate: {
       opacity: 1,
       y: 0,
-      filter: 'blur(0px)',
-      transition: { duration: 0.42, delay: enterDelay, ease: EASE_OUT },
+      transition: { duration: 0.32, delay: enterDelay, ease: EASE_OUT },
     },
   };
 }
@@ -70,7 +69,7 @@ function FeatureMediaPanel({ category, direction, reducedMotion }) {
         initial={{ opacity: 0, y: offset }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -offset }}
-        transition={{ duration: reducedMotion ? 0.01 : 0.48, ease: EASE_OUT }}
+        transition={{ duration: reducedMotion ? 0.01 : 0.32, ease: EASE_OUT }}
       >
         <FeatureMedia category={category} />
       </motion.div>

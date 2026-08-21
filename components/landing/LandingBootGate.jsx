@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react';
 import LandingSplash from '@/components/landing/LandingSplash';
 
-/** Um ciclo dos 5 mascotes (~0,55s cada). */
-const MIN_SPLASH_MS = 2800;
-const FADE_MS = 280;
-const FRAME_STEP_S = 0.55;
+/** ~1 ciclo rápido dos 5 mascotes — splash longo destruía Speed Index / LCP. */
+const MIN_SPLASH_MS = 1100;
+const FADE_MS = 240;
+const SPLASH_SEEN_KEY = 'nimbus-landing-splash-seen';
 
 function fadeOutSsrSplash() {
   const el = document.getElementById('landing-ssr-splash');
@@ -15,17 +15,51 @@ function fadeOutSsrSplash() {
   window.setTimeout(() => el.remove(), FADE_MS);
 }
 
+function removeSsrSplashNow() {
+  const el = document.getElementById('landing-ssr-splash');
+  if (el) el.remove();
+}
+
 /**
- * Splash por cima do conteúdo — sem opacity:0 no miolo (isso destruía o LCP).
+ * Splash por cima do conteúdo — sem opacity:0 no miolo.
+ * Revisits na mesma sessão pulam o splash (melhor Speed Index).
  */
 export default function LandingBootGate({ children }) {
-  const [showSplash, setShowSplash] = useState(true);
-  const [hasSsrSplash, setHasSsrSplash] = useState(true);
+  const [clientSplash, setClientSplash] = useState(false);
 
   useEffect(() => {
-    setHasSsrSplash(Boolean(document.getElementById('landing-ssr-splash')));
+    let seen = false;
+    try {
+      seen = sessionStorage.getItem(SPLASH_SEEN_KEY) === '1';
+    } catch {
+      seen = false;
+    }
+
+    if (seen) {
+      removeSsrSplashNow();
+      return undefined;
+    }
+
+    try {
+      sessionStorage.setItem(SPLASH_SEEN_KEY, '1');
+    } catch {
+      /* ignore */
+    }
+
+    const hasSsr = Boolean(document.getElementById('landing-ssr-splash'));
+    if (!hasSsr) {
+      // Fallback raro: página sem splash SSR
+      const id = window.requestAnimationFrame(() => setClientSplash(true));
+      const timer = window.setTimeout(() => {
+        setClientSplash(false);
+      }, MIN_SPLASH_MS);
+      return () => {
+        window.cancelAnimationFrame(id);
+        window.clearTimeout(timer);
+      };
+    }
+
     const timer = window.setTimeout(() => {
-      setShowSplash(false);
       fadeOutSsrSplash();
     }, MIN_SPLASH_MS);
     return () => window.clearTimeout(timer);
@@ -33,7 +67,7 @@ export default function LandingBootGate({ children }) {
 
   return (
     <>
-      {hasSsrSplash ? null : <LandingSplash show={showSplash} />}
+      {clientSplash ? <LandingSplash show /> : null}
       {children}
     </>
   );
