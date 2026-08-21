@@ -10,8 +10,7 @@ export default function LandingAmbient() {
     if (!root) return undefined;
 
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
-    if (prefersReduced || coarsePointer) return undefined;
+    if (prefersReduced) return undefined;
 
     let frame = 0;
     let targetX = 0;
