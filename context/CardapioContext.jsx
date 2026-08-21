@@ -723,7 +723,8 @@ export function CardapioProvider({
             prev.endereco === lojaWithAddress.endereco &&
             prev.fechadaManual === lojaWithAddress.fechadaManual &&
             prev.nome === lojaWithAddress.nome &&
-            prev.slug === lojaWithAddress.slug
+            prev.slug === lojaWithAddress.slug &&
+            prev.segmento === lojaWithAddress.segmento
           ) {
             return prev;
           }
