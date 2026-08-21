@@ -1,9 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
+import { LANDING_LOAD_FRAMES } from '@/lib/landing/loadFrames';
 
-const FADE_MS = 160;
+const FADE_MS = 220;
+
+/** Intervalo entre mascotes — mais lento que a landing para dar tempo de ver cada um. */
+export const ADMIN_SPLASH_STAGGER_S = 1.05;
 
 export default function AdminSplash({ show }) {
   const [mounted, setMounted] = useState(true);
@@ -25,14 +28,23 @@ export default function AdminSplash({ show }) {
 
   return (
     <div className={`admin-splash ${visible ? 'admin-splash-visible' : ''}`} aria-hidden="true">
-      <Image
-        className="admin-splash-icon"
-        src="/images/icon.png"
-        alt=""
-        width={144}
-        height={144}
-        priority
-      />
+      <div className="admin-splash-stage">
+        {LANDING_LOAD_FRAMES.map((src, index) => (
+          // eslint-disable-next-line @next/next/no-img-element -- splash leve, mesmos assets da landing
+          <img
+            key={src}
+            className="admin-splash-mascot"
+            src={src}
+            alt=""
+            width={280}
+            height={280}
+            decoding="async"
+            fetchPriority={index === 0 ? 'high' : 'low'}
+            loading={index === 0 ? 'eager' : 'lazy'}
+            style={{ animationDelay: `${index * ADMIN_SPLASH_STAGGER_S}s` }}
+          />
+        ))}
+      </div>
     </div>
   );
 }
