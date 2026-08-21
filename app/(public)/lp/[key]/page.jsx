@@ -1,9 +1,10 @@
 import { redirect } from 'next/navigation';
 import LandingJsonLd from '@/components/landing/LandingJsonLd';
 import LandingPage from '@/components/landing/LandingPage';
+import LandingSsrSplash from '@/components/landing/LandingSsrSplash';
 import { isValidLandingShareKey } from '@/lib/landing/shareAccess';
 import { getLandingJsonLd, getLandingMetadata } from '@/lib/landing/seo';
-import '@/styles/landing.css';
+import '@/styles/landing-critical.css';
 
 export const metadata = {
   ...getLandingMetadata({ canonicalPath: '/' }),
@@ -20,6 +21,7 @@ export default async function LandingSharePage({ params }) {
   return (
     <>
       <LandingJsonLd data={getLandingJsonLd()} />
+      <LandingSsrSplash />
       <LandingPage />
     </>
   );

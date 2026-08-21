@@ -30,7 +30,7 @@ function CardVisual({ card }) {
           alt=""
           width={640}
           height={400}
-          sizes="(max-width: 720px) 90vw, 360px"
+          sizes="(max-width: 720px) 85vw, 360px"
           aria-hidden="true"
         />
         <div className="landing-purpose__honesto-content">
@@ -50,10 +50,11 @@ function CardVisual({ card }) {
           className="landing-purpose-cloud"
           src={card.mascotImage}
           alt={card.mascotAlt}
-          width={840}
-          height={581}
+          width={400}
+          height={277}
           decoding="async"
           loading="lazy"
+          sizes="(max-width: 720px) 70vw, 324px"
         />
       </div>
     );
@@ -67,7 +68,7 @@ function CardVisual({ card }) {
         alt={card.imageAlt}
         width={640}
         height={720}
-        sizes="(max-width: 720px) 90vw, 360px"
+        sizes="(max-width: 720px) 85vw, 360px"
       />
     </div>
   );

@@ -7,6 +7,9 @@ const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
 
 const nextConfig = {
   reactCompiler: true,
+  experimental: {
+    optimizePackageImports: ['motion', 'lottie-react'],
+  },
   images: {
     remotePatterns: supabaseHost
       ? [

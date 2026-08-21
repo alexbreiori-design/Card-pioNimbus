@@ -1,7 +1,8 @@
 import LandingJsonLd from '@/components/landing/LandingJsonLd';
 import LandingPage from '@/components/landing/LandingPage';
+import LandingSsrSplash from '@/components/landing/LandingSsrSplash';
 import { getLandingJsonLd, getLandingMetadata } from '@/lib/landing/seo';
-import '@/styles/landing.css';
+import '@/styles/landing-critical.css';
 
 export const metadata = {
   ...getLandingMetadata({ canonicalPath: '/' }),
@@ -15,6 +16,7 @@ export default function RootPage() {
   return (
     <>
       <LandingJsonLd data={getLandingJsonLd()} />
+      <LandingSsrSplash />
       <LandingPage />
     </>
   );
