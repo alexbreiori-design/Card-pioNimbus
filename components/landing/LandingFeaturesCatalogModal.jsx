@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import LandingIcon from '@/components/landing/LandingIcons';
 import { whatsappUrl } from '@/lib/landing/constants';
 import { landingFeaturesCatalog } from '@/lib/landing/content';
+import { landingFontVariables } from '@/lib/landing/fonts';
 
 export default function LandingFeaturesCatalogModal({ open = false, onClose }) {
   const titleId = useId();
@@ -170,7 +171,7 @@ export default function LandingFeaturesCatalogModal({ open = false, onClose }) {
   if (!open || typeof document === 'undefined') return null;
 
   return createPortal(
-    <div className="landing-features-catalog" role="presentation">
+    <div className={`landing-features-catalog ${landingFontVariables}`} role="presentation">
       <button
         type="button"
         className="landing-features-catalog__backdrop"

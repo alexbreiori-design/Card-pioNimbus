@@ -26,9 +26,11 @@ function HeroTapLottie() {
 
   useEffect(() => {
     let cancelled = false;
-    import('@/public/animated/tap.json').then((mod) => {
-      if (!cancelled) setAnimationData(mod.default || mod);
-    });
+    import('@/public/animated/tap.json')
+      .then((mod) => {
+        if (!cancelled) setAnimationData(mod.default || mod);
+      })
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
@@ -36,12 +38,9 @@ function HeroTapLottie() {
 
   if (!animationData) return null;
   return (
-    <Lottie
-      className="landing-hero-demo__tap-lottie"
-      animationData={animationData}
-      loop
-      autoplay
-    />
+    <div className="landing-hero-demo__tap-lottie" aria-hidden="true">
+      <Lottie animationData={animationData} loop autoplay style={{ width: '100%', height: '100%' }} />
+    </div>
   );
 }
 
@@ -225,6 +224,8 @@ export default function LandingHeroDemo({
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [hoverDevice, setHoverDevice] = useState(null);
   const [isMobileHero, setIsMobileHero] = useState(true);
+  /** Callout + Lottie só depois do splash — evita LCP no texto “Toque no celular…”. */
+  const [showMobileCallout, setShowMobileCallout] = useState(false);
   const timerRef = useRef(null);
   const stageRef = useRef(null);
   const hitMapsRef = useRef({ phone: null, laptop: null, phoneView2: null, laptopView2: null });
@@ -355,6 +356,16 @@ export default function LandingHeroDemo({
     return () => mq.removeEventListener('change', onChange);
   }, [closeDemo]);
 
+  // Callout + Lottie após o splash (~1,8s) — LCP fica no celular, não no texto.
+  useEffect(() => {
+    if (!isMobileHero || phase !== 'idle') return undefined;
+    const timer = window.setTimeout(() => setShowMobileCallout(true), 1400);
+    return () => {
+      window.clearTimeout(timer);
+      setShowMobileCallout(false);
+    };
+  }, [isMobileHero, phase]);
+
   useEffect(() => {
     if (!isMobileHero) return undefined;
     if (phase !== 'active' && phase !== 'transitioning') return undefined;
@@ -449,7 +460,7 @@ export default function LandingHeroDemo({
       }${isMobileHero ? ' landing-hero-demo--mobile' : ''}`}
     >
       <div className="landing-hero-demo__stage-shell">
-        {phase === 'idle' && isMobileHero ? (
+        {phase === 'idle' && isMobileHero && showMobileCallout ? (
           <div className="landing-hero-demo__callout landing-hero-demo__callout--mobile" aria-hidden="true">
             <p className="landing-hero-demo__callout-sub">{calloutSubMobile}</p>
             <HeroTapLottie />
