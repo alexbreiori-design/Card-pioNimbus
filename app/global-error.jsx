@@ -1,12 +1,14 @@
 'use client';
 
-import * as Sentry from '@sentry/nextjs';
 import NextError from 'next/error';
 import { useEffect } from 'react';
 
 export default function GlobalError({ error }) {
   useEffect(() => {
-    Sentry.captureException(error);
+    // Import dinâmico: o SDK não entra no bundle compartilhado da landing.
+    import('@sentry/nextjs')
+      .then((Sentry) => Sentry.captureException(error))
+      .catch(() => undefined);
   }, [error]);
 
   return (

@@ -4,8 +4,6 @@ import { getGoogleSiteVerification, LANDING_META } from '@/lib/landing/seo';
 import { getSiteOrigin } from '@/lib/siteUrl';
 import { getSupabasePublicEnv } from '@/lib/supabase/publicEnv';
 
-export const dynamic = 'force-dynamic';
-
 export const metadata = {
   metadataBase: new URL(getSiteOrigin()),
   title: {

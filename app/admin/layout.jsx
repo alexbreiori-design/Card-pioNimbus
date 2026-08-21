@@ -8,6 +8,9 @@ import '@/styles/category-icons.css';
 import { createClient } from '@/lib/supabase/server';
 import AdminProviders from './AdminProviders';
 
+/* Sessão do lojista por request (o layout raiz agora é estático para a landing). */
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: 'Adm - Cardápio Nimbus',
   description: 'Painel administrativo do cardápio digital',

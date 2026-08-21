@@ -11,11 +11,14 @@ const RevealStaggerContext = createContext(null);
 export function LandingRevealGroup({ step = DEFAULT_STAGGER_STEP, onLoad = false, children }) {
   const counterRef = useRef(0);
   counterRef.current = 0;
-  const [groupVisible, setGroupVisible] = useState(false);
+  /* onLoad = primeira dobra: já sai visível do servidor e anima por CSS. */
+  const [groupVisible, setGroupVisible] = useState(onLoad);
   const observerRef = useRef(null);
   const nodesRef = useRef(new Set());
 
   useEffect(() => {
+    if (onLoad) return undefined;
+
     let cancelled = false;
     let timer = 0;
 
@@ -23,18 +26,6 @@ export function LandingRevealGroup({ step = DEFAULT_STAGGER_STEP, onLoad = false
     if (prefersReduced) {
       setGroupVisible(true);
       return undefined;
-    }
-
-    if (onLoad) {
-      const frame = window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => {
-          if (!cancelled) setGroupVisible(true);
-        });
-      });
-      return () => {
-        cancelled = true;
-        window.cancelAnimationFrame(frame);
-      };
     }
 
     const arm = () => {
@@ -69,6 +60,7 @@ export function LandingRevealGroup({ step = DEFAULT_STAGGER_STEP, onLoad = false
     () => ({
       step,
       groupVisible,
+      instant: onLoad,
       watch(node) {
         if (!node || onLoad) return () => {};
         nodesRef.current.add(node);
@@ -104,7 +96,7 @@ export default function LandingReveal({
   const ref = useRef(null);
   const stagger = useContext(RevealStaggerContext);
   const staggerIndexRef = useRef(null);
-  const [localVisible, setLocalVisible] = useState(false);
+  const [localVisible, setLocalVisible] = useState(onLoad);
 
   if (stagger && staggerIndexRef.current === null) {
     staggerIndexRef.current = stagger.take();
@@ -114,8 +106,11 @@ export default function LandingReveal({
     stagger && staggerIndexRef.current !== null ? staggerIndexRef.current * stagger.step : 0;
   const totalDelay = delay + staggerDelay;
   const visible = stagger ? stagger.groupVisible : localVisible;
+  const instant = stagger ? stagger.instant : onLoad;
 
   useEffect(() => {
+    if (instant) return undefined;
+
     if (stagger) {
       return stagger.watch(ref.current);
     }
@@ -124,13 +119,6 @@ export default function LandingReveal({
     if (prefersReduced) {
       setLocalVisible(true);
       return undefined;
-    }
-
-    if (onLoad) {
-      const frame = window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => setLocalVisible(true));
-      });
-      return () => window.cancelAnimationFrame(frame);
     }
 
     const node = ref.current;
@@ -155,12 +143,14 @@ export default function LandingReveal({
       observer.disconnect();
       if (timer) window.clearTimeout(timer);
     };
-  }, [entranceDelay, onLoad, once, stagger]);
+  }, [entranceDelay, instant, once, stagger]);
 
   return (
     <Tag
       ref={ref}
-      className={`landing-reveal${visible ? ' is-visible' : ''}${className ? ` ${className}` : ''}`}
+      className={`landing-reveal${instant ? ' landing-reveal--instant' : ''}${
+        visible ? ' is-visible' : ''
+      }${className ? ` ${className}` : ''}`}
       style={{ '--reveal-delay': `${totalDelay}ms`, ...style }}
       {...rest}
     >

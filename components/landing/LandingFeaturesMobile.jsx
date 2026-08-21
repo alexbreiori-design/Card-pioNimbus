@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { useReducedMotion } from 'motion/react';
 import LandingIcon from '@/components/landing/LandingIcons';
+import usePrefersReducedMotion from '@/hooks/usePrefersReducedMotion';
 import { landingFeaturesShowcase } from '@/lib/landing/content';
 
 function FeatureMobileMedia({ category }) {
@@ -125,7 +125,7 @@ function applyCardVisual(el, index, current, advance, total) {
 
 export default function LandingFeaturesMobile() {
   const { categories } = landingFeaturesShowcase;
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = usePrefersReducedMotion();
   const trackRef = useRef(null);
   const pinRef = useRef(null);
   const cardsRef = useRef([]);

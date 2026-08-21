@@ -1,6 +1,8 @@
 import PublicRouteClient from '@/components/delivery/PublicRouteClient';
 import '@/styles/public-route.css';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: 'Rota de entrega',
   robots: { index: false, follow: false },
