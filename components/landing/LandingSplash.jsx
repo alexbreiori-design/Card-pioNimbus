@@ -37,7 +37,7 @@ export default function LandingSplash({ show }) {
             height={360}
             decoding="async"
             fetchPriority={index === 0 ? 'high' : 'low'}
-            style={{ animationDelay: `${index * 0.55}s` }}
+            style={{ animationDelay: `${index * 0.22}s` }}
           />
         ))}
       </div>
