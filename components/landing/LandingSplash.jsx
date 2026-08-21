@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { LANDING_LOAD_FRAMES } from '@/lib/landing/loadFrames';
+import { LANDING_LOAD_FRAMES, LANDING_SPLASH_STAGGER_S } from '@/lib/landing/loadFrames';
 
 const FADE_MS = 240;
 
@@ -38,7 +38,7 @@ export default function LandingSplash({ show }) {
             decoding="async"
             fetchPriority={index === 0 ? 'high' : 'low'}
             loading={index === 0 ? 'eager' : 'lazy'}
-            style={{ animationDelay: `${index * 0.22}s` }}
+            style={{ animationDelay: `${index * LANDING_SPLASH_STAGGER_S}s` }}
           />
         ))}
       </div>
