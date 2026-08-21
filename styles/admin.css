@@ -19308,9 +19308,14 @@ img.delivery-route-store-icon {
   overflow: hidden;
   font-size: 18px;
   font-weight: 600;
-  line-height: 1.15;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .admin-sidebar:not(.collapsed) .admin-store-cardapio-hint {

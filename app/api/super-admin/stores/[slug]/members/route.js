@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import {
   addStoreTeamMember,
   loadStoreTeam,
+  removeStoreTeamMember,
   updateStoreTeamMember,
 } from '@/lib/superAdmin/storeTeam';
 import { requireSuperAdmin } from '@/lib/superAdminServer';
@@ -105,18 +106,70 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ ok: false, error: 'Loja não encontrada.' }, { status: 404 });
     }
 
-    await updateStoreTeamMember(supabase, {
+    if (!body.usuarioId) {
+      return NextResponse.json({ ok: false, error: 'Informe o membro.' }, { status: 400 });
+    }
+
+    const result = await updateStoreTeamMember(supabase, {
       empresaId,
       usuarioId: body.usuarioId,
       papel: body.papel,
       ativo: body.ativo,
+      email: body.email,
+      nome: body.nome,
+      password: body.password,
     });
     const members = await loadStoreTeam(supabase, empresaId);
-    return NextResponse.json({ ok: true, members });
+    return NextResponse.json({
+      ok: true,
+      members,
+      tempPassword: result?.tempPassword || null,
+    });
   } catch (error) {
     const status = error?.status || 500;
     return NextResponse.json(
       { ok: false, error: error?.message || 'Erro ao atualizar membro.' },
+      { status }
+    );
+  }
+}
+
+export async function DELETE(request, { params }) {
+  const supabase = getServiceClient();
+  if (!supabase) {
+    return NextResponse.json({ ok: false, error: 'Serviço indisponível.' }, { status: 503 });
+  }
+
+  const { slug } = await params;
+  const safeSlug = normalizeSlug(slug);
+  const body = await request.json().catch(() => ({}));
+
+  try {
+    await requireSuperAdmin();
+
+    const empresaId = await getEmpresaId(supabase, safeSlug);
+    if (!empresaId) {
+      return NextResponse.json({ ok: false, error: 'Loja não encontrada.' }, { status: 404 });
+    }
+
+    if (!body.usuarioId) {
+      return NextResponse.json({ ok: false, error: 'Informe o membro.' }, { status: 400 });
+    }
+
+    const result = await removeStoreTeamMember(supabase, {
+      empresaId,
+      usuarioId: body.usuarioId,
+    });
+    const members = await loadStoreTeam(supabase, empresaId);
+    return NextResponse.json({
+      ok: true,
+      members,
+      deletedAuthUser: result.deletedAuthUser,
+    });
+  } catch (error) {
+    const status = error?.status || 500;
+    return NextResponse.json(
+      { ok: false, error: error?.message || 'Erro ao remover membro.' },
       { status }
     );
   }
