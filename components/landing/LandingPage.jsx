@@ -58,7 +58,7 @@ export default function LandingPage() {
           <LandingScene id="topo" className="landing-hero-scene">
             <div className="landing-container">
               <div className="landing-hero landing-hero--showcase">
-                <LandingRevealGroup step={240} onLoad>
+                <LandingRevealGroup step={90} onLoad>
                   <div className="landing-hero__copy landing-hero__copy--center">
                     <LandingReveal>
                       <LandingHeroTitle

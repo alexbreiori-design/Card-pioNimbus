@@ -3,10 +3,16 @@
 import { useEffect, useState } from 'react';
 import LandingSplash from '@/components/landing/LandingSplash';
 
-/** ~1 ciclo rápido dos 5 mascotes — splash longo destruía Speed Index / LCP. */
-const MIN_SPLASH_MS = 1100;
+/** Celular: passagem rápida (Speed Index). Desktop: ciclo dos 5 mascotes. */
+const SPLASH_MS_MOBILE = 600;
+const SPLASH_MS_DESKTOP = 1100;
 const FADE_MS = 240;
 const SPLASH_SEEN_KEY = 'nimbus-landing-splash-seen';
+
+function splashDuration() {
+  const isMobile = window.matchMedia('(max-width: 720px)').matches;
+  return isMobile ? SPLASH_MS_MOBILE : SPLASH_MS_DESKTOP;
+}
 
 function fadeOutSsrSplash() {
   const el = document.getElementById('landing-ssr-splash');
@@ -21,8 +27,8 @@ function removeSsrSplashNow() {
 }
 
 /**
- * Splash por cima do conteúdo — sem opacity:0 no miolo.
- * Revisits na mesma sessão pulam o splash (melhor Speed Index).
+ * Splash por cima do conteúdo — o conteúdo é pintado desde o primeiro frame.
+ * Revisits na mesma sessão pulam o splash.
  */
 export default function LandingBootGate({ children }) {
   const [clientSplash, setClientSplash] = useState(false);
@@ -46,22 +52,20 @@ export default function LandingBootGate({ children }) {
       /* ignore */
     }
 
+    const duration = splashDuration();
     const hasSsr = Boolean(document.getElementById('landing-ssr-splash'));
+
     if (!hasSsr) {
       // Fallback raro: página sem splash SSR
-      const id = window.requestAnimationFrame(() => setClientSplash(true));
-      const timer = window.setTimeout(() => {
-        setClientSplash(false);
-      }, MIN_SPLASH_MS);
+      const frame = window.requestAnimationFrame(() => setClientSplash(true));
+      const timer = window.setTimeout(() => setClientSplash(false), duration);
       return () => {
-        window.cancelAnimationFrame(id);
+        window.cancelAnimationFrame(frame);
         window.clearTimeout(timer);
       };
     }
 
-    const timer = window.setTimeout(() => {
-      fadeOutSsrSplash();
-    }, MIN_SPLASH_MS);
+    const timer = window.setTimeout(fadeOutSsrSplash, duration);
     return () => window.clearTimeout(timer);
   }, []);
 

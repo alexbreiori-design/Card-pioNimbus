@@ -12,6 +12,10 @@ export default function LandingAmbient() {
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (prefersReduced) return undefined;
 
+    // Parallax de mouse: sem sentido em toque e o loop de rAF custava CPU no celular.
+    const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    if (!finePointer) return undefined;
+
     let frame = 0;
     let targetX = 0;
     let targetY = 0;
@@ -23,6 +27,7 @@ export default function LandingAmbient() {
       const ny = (event.clientY / window.innerHeight - 0.5) * 2;
       targetX = nx;
       targetY = ny;
+      if (!frame) frame = window.requestAnimationFrame(tick);
     }
 
     function tick() {
@@ -30,15 +35,18 @@ export default function LandingAmbient() {
       currentY += (targetY - currentY) * 0.11;
       root.style.setProperty('--mx', String(currentX));
       root.style.setProperty('--my', String(currentY));
-      frame = window.requestAnimationFrame(tick);
+
+      // Para o loop quando já chegou no alvo — antes rodava a 60fps para sempre.
+      const settled =
+        Math.abs(targetX - currentX) < 0.001 && Math.abs(targetY - currentY) < 0.001;
+      frame = settled ? 0 : window.requestAnimationFrame(tick);
     }
 
     window.addEventListener('pointermove', onMove, { passive: true });
-    frame = window.requestAnimationFrame(tick);
 
     return () => {
       window.removeEventListener('pointermove', onMove);
-      window.cancelAnimationFrame(frame);
+      if (frame) window.cancelAnimationFrame(frame);
     };
   }, []);
 

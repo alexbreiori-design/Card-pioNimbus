@@ -1,7 +1,6 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import LandingFeaturesCatalogModal from '@/components/landing/LandingFeaturesCatalogModal';
 import LandingFeaturesMobile from '@/components/landing/LandingFeaturesMobile';
 import LandingIcon from '@/components/landing/LandingIcons';
@@ -10,28 +9,6 @@ import LandingScene from '@/components/landing/LandingScene';
 import { landingFeaturesShowcase } from '@/lib/landing/content';
 
 const MEDIA_SLIDE = 52;
-const STRIP_STAGGER = 0.075;
-const EASE_OUT = [0.22, 1, 0.36, 1];
-
-function stripItemMotion(index, reducedMotion) {
-  if (reducedMotion) {
-    return {
-      initial: false,
-      animate: { opacity: 1, y: 0 },
-    };
-  }
-
-  const enterDelay = 0.02 + index * STRIP_STAGGER;
-
-  return {
-    initial: { opacity: 0, y: 10 },
-    animate: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.32, delay: enterDelay, ease: EASE_OUT },
-    },
-  };
-}
 
 function FeatureMedia({ category }) {
   const [failed, setFailed] = useState(false);
@@ -58,83 +35,54 @@ function FeatureMedia({ category }) {
   );
 }
 
-function FeatureMediaPanel({ category, direction, reducedMotion }) {
-  const offset = reducedMotion ? 0 : MEDIA_SLIDE * direction;
-
+function FeatureMediaPanel({ category, direction }) {
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.div
-        key={category.id}
-        className="landing-features-showcase__media-slide"
-        initial={{ opacity: 0, y: offset }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -offset }}
-        transition={{ duration: reducedMotion ? 0.01 : 0.32, ease: EASE_OUT }}
-      >
-        <FeatureMedia category={category} />
-      </motion.div>
-    </AnimatePresence>
+    <div
+      key={category.id}
+      className="landing-features-showcase__media-slide"
+      style={{ '--feature-slide-from': `${MEDIA_SLIDE * direction}px` }}
+    >
+      <FeatureMedia category={category} />
+    </div>
   );
 }
 
-function FeatureStrip({ category, reducedMotion }) {
-  const shellTransition = reducedMotion
-    ? { duration: 0.01 }
-    : { duration: 0.28, ease: [0.4, 0, 0.2, 1] };
-
+function FeatureStrip({ category }) {
   return (
     <div className={`landing-features-showcase__strip landing-glass-card landing-features-showcase__strip--${category.tone}`}>
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={category.id}
-          className="landing-features-showcase__strip-content"
-          initial={reducedMotion ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={reducedMotion ? undefined : { opacity: 0 }}
-          transition={shellTransition}
+      {/* key força remontagem: a entrada em escadinha roda por CSS */}
+      <div key={category.id} className="landing-features-showcase__strip-content">
+        <div
+          className={`landing-features-showcase__strip-icon landing-features-showcase__strip-icon--${category.tone}`}
+          aria-hidden="true"
         >
-          <motion.div
-            {...stripItemMotion(0, reducedMotion)}
-            className={`landing-features-showcase__strip-icon landing-features-showcase__strip-icon--${category.tone}`}
-            aria-hidden="true"
-          >
-            <LandingIcon name={category.icon} />
-          </motion.div>
+          <LandingIcon name={category.icon} />
+        </div>
 
-          <motion.h3 {...stripItemMotion(1, reducedMotion)} className="landing-features-showcase__strip-title">
-            {category.title}
-          </motion.h3>
+        <h3 className="landing-features-showcase__strip-title">{category.title}</h3>
 
-          <motion.p {...stripItemMotion(2, reducedMotion)} className="landing-features-showcase__strip-desc">
-            {category.description}
-          </motion.p>
+        <p className="landing-features-showcase__strip-desc">{category.description}</p>
 
-          <ul className="landing-features-showcase__chips">
-            {category.chips.map((chip, chipIndex) => (
-              <motion.li
-                key={`${category.id}-${chip.label}`}
-                {...stripItemMotion(3 + chipIndex, reducedMotion)}
-                className="landing-features-showcase__chip"
+        <ul className="landing-features-showcase__chips">
+          {category.chips.map((chip) => (
+            <li key={`${category.id}-${chip.label}`} className="landing-features-showcase__chip">
+              <span
+                className={`landing-features-showcase__chip-icon landing-features-showcase__chip-icon--${category.tone}`}
+                aria-hidden="true"
               >
-                <span
-                  className={`landing-features-showcase__chip-icon landing-features-showcase__chip-icon--${category.tone}`}
-                  aria-hidden="true"
-                >
-                  <LandingIcon name={chip.icon} />
-                </span>
-                <span>{chip.label}</span>
-              </motion.li>
-            ))}
-          </ul>
-        </motion.div>
-      </AnimatePresence>
+                <LandingIcon name={chip.icon} />
+              </span>
+              <span>{chip.label}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
 
 export default function LandingFeaturesSection() {
   const { categories } = landingFeaturesShowcase;
-  const reducedMotion = useReducedMotion();
   const [activeId, setActiveId] = useState(categories[0]?.id || 'venda-online');
   const [slideDirection, setSlideDirection] = useState(1);
   const [catalogOpen, setCatalogOpen] = useState(false);
@@ -208,11 +156,11 @@ export default function LandingFeaturesSection() {
                 aria-labelledby={`landing-feature-tab-${active.id}`}
                 className="landing-features-showcase__media"
               >
-                <FeatureMediaPanel category={active} direction={slideDirection} reducedMotion={reducedMotion} />
+                <FeatureMediaPanel category={active} direction={slideDirection} />
               </div>
             </div>
 
-            <FeatureStrip category={active} reducedMotion={reducedMotion} />
+            <FeatureStrip category={active} />
           </div>
 
           <LandingFeaturesMobile />
