@@ -5,10 +5,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { buildOrderWhatsAppMessage, buildSendOrderToStoreUrl } from '@/lib/storeWhatsApp';
 import { calculateCupomDiscount } from '@/lib/cupons';
 import {
-  formatDurationMinutes,
+  formatDurationMinutesRange,
   getCheckoutTipoFromDeliveryMode,
-  getEtaFromConfirmedAt,
+  getDurationMinutesRangeForOrderTipo,
+  getEtaRangeFromConfirmedAt,
+  hasDurationRangeForOrderTipo,
 } from '@/lib/deliveryDuration';
+import { formatOrderPrazoShort } from '@/lib/orders/orderPrazo';
 import {
   MOBILE_PHONE_MASK,
   formatMobilePhoneBr,
@@ -103,7 +106,6 @@ export default function CheckoutModal() {
     dismissCheckoutSuccess,
     checkoutAddressConfirmed,
     openCheckoutAddressFlow,
-    getDeliveryEstimateMinutes,
     isLandingDemo,
   } = useCardapio();
 
@@ -171,15 +173,25 @@ export default function CheckoutModal() {
 
   const confirmOrderTipo = getCheckoutTipoFromDeliveryMode(checkoutData.delivery);
   const confirmEstimate = useMemo(() => {
-    const minutes = getDeliveryEstimateMinutes(confirmOrderTipo);
-    const eta = getEtaFromConfirmedAt(new Date(), storeConfig, confirmOrderTipo);
+    const { min, max } = getDurationMinutesRangeForOrderTipo(storeConfig, confirmOrderTipo);
+    const etaRange = getEtaRangeFromConfirmedAt(new Date(), storeConfig, confirmOrderTipo);
+    const hasRange = hasDurationRangeForOrderTipo(storeConfig, confirmOrderTipo);
+    const untilShort = formatOrderPrazoShort({
+      prazo: etaRange.max.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      entregarAte: etaRange.max.toISOString(),
+      entregarAteMin:
+        hasRange && etaRange.min.getTime() < etaRange.max.getTime()
+          ? etaRange.min.toISOString()
+          : null,
+    });
     return {
-      minutes,
-      durationLabel: formatDurationMinutes(minutes),
-      untilLabel: eta.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      minutes: max,
+      durationLabel: formatDurationMinutesRange(min, max),
+      untilLabel: untilShort,
       isDelivery: confirmOrderTipo === 'delivery',
+      hasRange,
     };
-  }, [checkoutData.delivery, getDeliveryEstimateMinutes, storeConfig, confirmOrderTipo]);
+  }, [storeConfig, confirmOrderTipo]);
 
   const checkoutTitle = checkoutSuccess
     ? 'Pedido enviado'
@@ -235,7 +247,13 @@ export default function CheckoutModal() {
       checkoutData.delivery === 'entregar' && checkoutAddressConfirmed && savedAddress
         ? `${savedAddress.rua}${savedAddress.num ? `, ${savedAddress.num}` : ''} — ${savedAddress.bairro}`
         : storeAddress;
-    const etaActionLabel = confirmEstimate.isDelivery ? 'Entrega até' : 'Retirada até';
+    const etaActionLabel = confirmEstimate.hasRange
+      ? confirmEstimate.isDelivery
+        ? 'Entrega entre'
+        : 'Retirada entre'
+      : confirmEstimate.isDelivery
+        ? 'Entrega até'
+        : 'Retirada até';
     const cardMasked =
       cardDraft?.masked ||
       (cardDraft?.last4 ? `**** **** **** ${cardDraft.last4}` : '');

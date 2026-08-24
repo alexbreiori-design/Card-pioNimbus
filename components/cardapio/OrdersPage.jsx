@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useCardapio } from '@/context/CardapioContext';
 import { buildStoreWhatsAppOrderUrl } from '@/lib/storeWhatsApp';
+import { formatOrderPrazoForecastLabel } from '@/lib/orders/orderPrazo';
 
 const STATUS_STEPS = [
   ['novo', 'Recebido'],
@@ -38,8 +39,7 @@ export default function OrdersPage() {
   const historyOrders = publicOrders.filter((order) => ['concluido', 'cancelado'].includes(order.status));
 
   function etaLabel(order) {
-    if (!order.entregarAte) return order.prazo ? `Previsão: ${order.prazo}` : '';
-    return `Previsão: ${new Date(order.entregarAte).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    return formatOrderPrazoForecastLabel(order);
   }
 
   function customerNameForOrder(order) {

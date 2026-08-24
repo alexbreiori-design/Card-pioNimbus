@@ -5,7 +5,7 @@ import { useCardapio } from '@/context/CardapioContext';
 import { HeroGlassChip, V2Icon } from './CardapioV2Icons';
 import HeroRotatingChip from './HeroRotatingChip';
 import CardapioShareModal from './CardapioShareModal';
-import { useCardapioV2Mobile } from './useCardapioV2Mobile';
+import { hasDurationRangeForOrderTipo } from '@/lib/deliveryDuration';
 
 const WEEKDAY_KEYS = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
 
@@ -67,6 +67,11 @@ export default function CardapioHeroBanner() {
 
   const minOrderValue = minOrder > 0 ? formatPrice(minOrder) : 'Sem mínimo';
   const shareTitle = storeConfig?.nome || 'Cardápio';
+  const deliveryHasRange = hasDurationRangeForOrderTipo(storeConfig, 'delivery');
+  const deliveryChipLabel = deliveryHasRange ? 'Entrega em' : 'Entrega em até';
+  const deliveryChipAria = deliveryHasRange
+    ? `Entrega em ${deliveryDurationLabel}`
+    : `Entrega em até ${deliveryDurationLabel}`;
 
   return (
     <>
@@ -115,9 +120,9 @@ export default function CardapioHeroBanner() {
             {deliveryDurationLabel ? (
               <HeroRotatingChip
                 icon="clock"
-                label="Entrega em até"
+                label={deliveryChipLabel}
                 value={deliveryDurationLabel}
-                ariaLabel={`Entrega em até ${deliveryDurationLabel}`}
+                ariaLabel={deliveryChipAria}
               />
             ) : null}
             <HeroRotatingChip

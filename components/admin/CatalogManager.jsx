@@ -10,6 +10,7 @@ import { AdminCatalogSkeleton, useAdminMountSkeleton } from '@/components/admin/
 import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import { isJsonDirty } from '@/lib/admin/isFormDirty';
+import { mergeBrowseItemChanges } from '@/lib/admin/mergeBrowseItemChanges';
 import { uploadMenuAssetIfNeeded } from '@/lib/upload/menuAsset';
 import AdminGroupedSortablePanel from './AdminGroupedSortablePanel';
 import ImagePlaceholder from './ImagePlaceholder';
@@ -113,7 +114,6 @@ function cloneItemForDuplicate(item, { newCategoryId, ordem, isProdutos }) {
     ordem,
   };
 }
-
 
 function parseMoney(value) {
   if (typeof value === 'number') return value;
@@ -1127,7 +1127,12 @@ export default function CatalogManager({ mode = 'produtos' }) {
             ),
           }));
         }}
-        onItemsChange={(next) => saveData((prev) => ({ ...prev, [itemKey]: next }))}
+        onItemsChange={(nextBrowse) =>
+          saveData((prev) => ({
+            ...prev,
+            [itemKey]: mergeBrowseItemChanges(prev[itemKey], nextBrowse),
+          }))
+        }
         renderGroupHeader={(cat, { isExpanded, onToggle }) => {
           const faixa = isProdutos ? findFaixaForMember(faixasExibicao, cat.id) : null;
           return (

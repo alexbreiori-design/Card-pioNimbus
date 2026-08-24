@@ -16,6 +16,7 @@ import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import { isJsonDirty } from '@/lib/admin/isFormDirty';
+import { mergeBrowseItemChanges } from '@/lib/admin/mergeBrowseItemChanges';
 import { formatMoneyBrInput, hasMoneyBrValue, parseMoneyBrInput } from '@/lib/moneyMask';
 import { buildMarmitaProductId } from '@/lib/marmita/marmitaIds';
 import {
@@ -1044,11 +1045,11 @@ export default function MarmitaManager() {
     if (editingId === item.id) resetForm();
   }
 
-  function handleMarmitasReorder(next) {
+  function handleMarmitasReorder(nextBrowse) {
     const prevGrupoById = new Map(
       marmitas.map((item) => [item.id, item.grupoId || ''])
     );
-    const updated = next.map((item) => {
+    const updatedVisible = nextBrowse.map((item) => {
       const prevGrupo = prevGrupoById.get(item.id) || '';
       const nextGrupo = item.grupoId || '';
       if (prevGrupo !== nextGrupo) {
@@ -1056,7 +1057,10 @@ export default function MarmitaManager() {
       }
       return item;
     });
-    saveData((prev) => ({ ...prev, marmitas: updated }));
+    saveData((prev) => ({
+      ...prev,
+      marmitas: mergeBrowseItemChanges(prev.marmitas, updatedVisible),
+    }));
   }
 
   return (
