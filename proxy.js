@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isValidLandingShareKey } from '@/lib/landing/shareAccess';
 import { updateSession } from '@/lib/supabase/middleware';
 import {
   getRootDomain,
@@ -8,6 +9,8 @@ import {
   resolveSlugFromHost,
 } from '@/lib/siteUrl';
 import { isValidStoreSlug } from '@/lib/superAdmin';
+
+const LP_PATH_RE = /^\/lp\/([^/]+)\/?$/;
 
 /** Rotas do apex que nunca são slug de loja. */
 const APEX_RESERVED_SEGMENTS = new Set([
@@ -87,9 +90,28 @@ function applyStoreHostRouting(request) {
   return null;
 }
 
+function gateLandingSharePath(request) {
+  const { pathname } = request.nextUrl;
+  const match = pathname.match(LP_PATH_RE);
+  if (!match) return null;
+
+  if (!isValidLandingShareKey(match[1])) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/';
+    url.search = '';
+    return NextResponse.redirect(url);
+  }
+
+  return NextResponse.next({ request });
+}
+
 export async function proxy(request) {
   const routing = applyStoreHostRouting(request);
   if (routing) return routing;
+
+  const landingShare = gateLandingSharePath(request);
+  if (landingShare) return landingShare;
+
   return updateSession(request);
 }
 
