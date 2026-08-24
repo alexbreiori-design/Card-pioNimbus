@@ -5,6 +5,7 @@ import { useCardapio } from '@/context/CardapioContext';
 import { V2Icon } from './CardapioV2Icons';
 import { useCardapioV2Mobile } from './useCardapioV2Mobile';
 import { CARDAPIO_V2_SECTION } from './cardapioV2Sections';
+import { hasDurationRangeForOrderTipo } from '@/lib/deliveryDuration';
 import {
   FOOTER_WEEKDAY_LABELS,
   FOOTER_WEEKDAY_ORDER,
@@ -38,6 +39,18 @@ export default function CardapioInfoFooter() {
   const paymentLabels = buildFooterPaymentLabels(storeConfig?.exibirPixCardapio);
   const descricao = String(storeConfig?.descricao || '').trim();
   const telefone = String(storeConfig?.telefone || storeConfig?.whatsapp || '').trim();
+  const deliveryHasRange = hasDurationRangeForOrderTipo(storeConfig, 'delivery');
+  const pickupHasRange = hasDurationRangeForOrderTipo(storeConfig, 'retirada');
+  const deliveryFooterValue = deliveryDurationLabel
+    ? deliveryHasRange
+      ? deliveryDurationLabel
+      : `até ${deliveryDurationLabel}`
+    : '—';
+  const pickupFooterValue = pickupDurationLabel
+    ? pickupHasRange
+      ? pickupDurationLabel
+      : `até ${pickupDurationLabel}`
+    : '—';
 
   const scheduleRows = FOOTER_WEEKDAY_ORDER.map((dayKey) => ({
     key: dayKey,
@@ -167,18 +180,18 @@ export default function CardapioInfoFooter() {
               {isMobile ? (
                 <div className="cardapio-v2-info-footer-detail">
                   <dt>Entrega</dt>
-                  <dd>{deliveryDurationLabel ? `até ${deliveryDurationLabel}` : '—'}</dd>
+                  <dd>{deliveryFooterValue}</dd>
                 </div>
               ) : deliveryDurationLabel ? (
                 <div className="cardapio-v2-info-footer-detail">
                   <dt>Entrega</dt>
-                  <dd>até {deliveryDurationLabel}</dd>
+                  <dd>{deliveryFooterValue}</dd>
                 </div>
               ) : null}
               {!isMobile && pickupDurationLabel ? (
                 <div className="cardapio-v2-info-footer-detail">
                   <dt>Retirada</dt>
-                  <dd>até {pickupDurationLabel}</dd>
+                  <dd>{pickupFooterValue}</dd>
                 </div>
               ) : null}
               <div className="cardapio-v2-info-footer-detail">

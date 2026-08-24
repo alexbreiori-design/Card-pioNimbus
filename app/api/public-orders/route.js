@@ -42,7 +42,7 @@ export async function GET(request) {
     const { data: pedidos, error: pedidosError } = await supabase
       .from('pedidos')
       .select(
-        'id, codigo, status, tipo, created_at, updated_at, entregar_ate, cliente_nome, cliente_telefone, endereco_texto, subtotal, taxa_entrega, desconto, total, forma_pagamento_codigo, cupom_codigo'
+        'id, codigo, status, tipo, created_at, updated_at, entregar_ate, entregar_ate_min, cliente_nome, cliente_telefone, endereco_texto, subtotal, taxa_entrega, desconto, total, forma_pagamento_codigo, cupom_codigo'
       )
       .eq('empresa_id', empresa.id)
       .order('created_at', { ascending: false })
