@@ -5,10 +5,9 @@ import '@phosphor-icons/web/fill/style.css';
 import '@phosphor-icons/web/bold/style.css';
 import '@/styles/admin.css';
 import '@/styles/category-icons.css';
-import { createClient } from '@/lib/supabase/server';
 import AdminProviders from './AdminProviders';
 
-/* Sessão do lojista por request (o layout raiz agora é estático para a landing). */
+/* Sessão validada no proxy; layout só monta o shell do admin. */
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
@@ -16,22 +15,12 @@ export const metadata = {
   description: 'Painel administrativo do cardápio digital',
 };
 
-export default async function AdminRootLayout({ children }) {
+export default function AdminRootLayout({ children }) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
     redirect('/login?error=config');
-  }
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) {
-    redirect('/login?redirect=/admin/pedidos');
   }
 
   return (
