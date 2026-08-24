@@ -62,8 +62,8 @@ import { normalizeProductDeepLinkId, syncProductQueryParam } from '@/lib/product
 import { MAX_PECA_TAMBEM } from '@/lib/productSuggestions';
 import { PROMO_CATEGORY_NAME } from '@/lib/promocoes';
 import {
-  formatDurationMinutes,
-  getEtaFromConfirmedAt,
+  getDurationLabelForOrderTipo,
+  getEtaRangeFromConfirmedAt,
   getEstimateMinutesForOrderTipo,
 } from '@/lib/deliveryDuration';
 import {
@@ -1951,7 +1951,8 @@ export function CardapioProvider({
       const createdAt = new Date().toISOString();
       const isOnlinePayment = ['pix_online', 'credito_online'].includes(checkoutData.payment);
       const orderTipo = checkoutData.delivery === 'entregar' ? 'delivery' : 'retirada';
-      const eta = getEtaFromConfirmedAt(createdAt, storeConfig, orderTipo);
+      const etaRange = getEtaRangeFromConfirmedAt(createdAt, storeConfig, orderTipo);
+      const eta = etaRange.max;
       const subtotal = cartSubtotal();
       const taxaEntrega = checkoutData.delivery === 'entregar' ? Number(deliveryFee) || 0 : 0;
       const cupomOff = calculateCupomDiscount(appliedCupom, subtotal);
@@ -1989,6 +1990,8 @@ export function CardapioProvider({
         createdAt,
         prazo: formatTime(eta),
         entregarAte: eta.toISOString(),
+        entregarAteMin:
+          etaRange.min.getTime() < etaRange.max.getTime() ? etaRange.min.toISOString() : null,
         endereco: addressSnapshot
           ? {
               cep: addressSnapshot.cep,
@@ -2041,6 +2044,7 @@ export function CardapioProvider({
         createdAt,
         prazo: adminOrder.prazo,
         entregarAte: adminOrder.entregarAte,
+        entregarAteMin: adminOrder.entregarAteMin || null,
         clienteNome: customerName,
         clienteTelefone: formattedPhone,
         enderecoTexto: addressText,
@@ -2634,12 +2638,12 @@ export function CardapioProvider({
   }, [dynamicCategories]);
 
   const pickupDurationLabel = useMemo(
-    () => formatDurationMinutes(getEstimateMinutesForOrderTipo(storeConfig, 'retirada')),
+    () => getDurationLabelForOrderTipo(storeConfig, 'retirada'),
     [storeConfig]
   );
 
   const deliveryDurationLabel = useMemo(
-    () => formatDurationMinutes(getEstimateMinutesForOrderTipo(storeConfig, 'delivery')),
+    () => getDurationLabelForOrderTipo(storeConfig, 'delivery'),
     [storeConfig]
   );
 

@@ -255,6 +255,7 @@ CREATE TABLE pedidos (
   cupom_codigo TEXT,
   observacao TEXT,
   entregar_ate TIMESTAMPTZ,
+  entregar_ate_min TIMESTAMPTZ,
   status_novo_em TIMESTAMPTZ,
   status_em_preparo_em TIMESTAMPTZ,
   status_saiu_entrega_em TIMESTAMPTZ,

@@ -9359,6 +9359,40 @@
   min-height: 38px;
 }
 
+.admin-delivery-duration-range {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-delivery-duration-range-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--admin-text, #1e1e2e);
+}
+
+.admin-delivery-duration-range-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.admin-delivery-duration-range-block .admin-delivery-duration-range-fields {
+  align-items: flex-end;
+}
+
+.admin-delivery-duration-range-block .admin-form-group {
+  min-width: 120px;
+  margin: 0;
+}
+
+.admin-delivery-duration-strip-fields .admin-delivery-duration-range + .admin-delivery-duration-range {
+  padding-left: 4px;
+  border-left: 1px solid var(--admin-border, #e8e8ef);
+}
+
 .admin-delivery-page .admin-delivery-primary-grid > .admin-compact-page-card,
 .admin-delivery-page .admin-delivery-history-section.admin-compact-page-card {
   width: 100%;

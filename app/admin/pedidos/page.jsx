@@ -31,7 +31,8 @@ import { shouldAutoPrintOnPrep, shouldAskPrintOnPrep, isOrderPrintOnNewEnabled }
 import { paymentStatusBadgeForOrder } from '@/lib/orders/mapAdminOrder';
 import { ensureCustomer, normalizePhone, updateCustomerStats, upsertClienteEndereco } from '@/lib/supabase/customers';
 import { resolveEmpresaIdFromStore } from '@/lib/supabase/empresa';
-import { getEtaFromConfirmedAt } from '@/lib/deliveryDuration';
+import { getEtaRangeFromConfirmedAt } from '@/lib/deliveryDuration';
+import { formatOrderPrazoPhrase } from '@/lib/orders/orderPrazo';
 import { buildOrderStatusNotifyUrl, buildOrderSummaryWhatsAppUrl } from '@/lib/orderWhatsApp';
 import { formatOrderAgePt } from '@/lib/orderTimeAgo';
 import { getOrderDeadlineStatus } from '@/lib/orders/orderDeadline';
@@ -124,8 +125,7 @@ const PAYMENT_LABEL = {
 };
 
 function deadlineLabel(order) {
-  if (order.tipo === 'delivery') return `Entregar até ${order.prazo || '--:--'}`;
-  return `Retirar até ${order.prazo || '--:--'}`;
+  return formatOrderPrazoPhrase(order) || (order.tipo === 'delivery' ? 'Entregar até --:--' : 'Retirar até --:--');
 }
 
 function orderAdvanceLabel(order) {
@@ -502,7 +502,8 @@ export default function PedidosPage() {
       return;
     }
 
-    const eta = getEtaFromConfirmedAt(new Date().toISOString(), data.loja, draft.tipo);
+    const etaRange = getEtaRangeFromConfirmedAt(new Date().toISOString(), data.loja, draft.tipo);
+    const eta = etaRange.max;
     const newOrder = {
       id: '',
       status: 'novo',
@@ -512,6 +513,8 @@ export default function PedidosPage() {
       createdAt: new Date().toISOString(),
       prazo: eta.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
       entregarAte: eta.toISOString(),
+      entregarAteMin:
+        etaRange.min.getTime() < etaRange.max.getTime() ? etaRange.min.toISOString() : null,
       enderecoTexto,
       enderecoLatitude: draft.tipo === 'delivery' ? draft.enderecoLatitude : null,
       enderecoLongitude: draft.tipo === 'delivery' ? draft.enderecoLongitude : null,

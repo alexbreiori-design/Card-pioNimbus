@@ -7,6 +7,7 @@ import {
   appendAddressComplement,
   formatDeliveryAddressLine,
 } from '@/lib/formatDeliveryAddress';
+import { formatOrderPrazoPhrase } from '@/lib/orders/orderPrazo';
 import { paymentStatusBadgeForOrder } from '@/lib/orders/mapAdminOrder';
 
 const TIPO_LABEL = { delivery: 'Delivery', retirada: 'Retirada', balcao: 'Balcão' };
@@ -27,8 +28,7 @@ function formatDateTime(iso) {
 }
 
 function deadlineLabel(order) {
-  if (order.tipo === 'delivery') return `Entregar até ${order.prazo || '--:--'}`;
-  return `Retirar até ${order.prazo || '--:--'}`;
+  return formatOrderPrazoPhrase(order) || (order.tipo === 'delivery' ? 'Entregar até --:--' : 'Retirar até --:--');
 }
 
 function addressText(order) {
