@@ -1,9 +1,14 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useState } from 'react';
 import AdminAvailabilitySwitch from '@/components/admin/AdminAvailabilitySwitch';
 import { AdminListSkeleton } from '@/components/admin/AdminSkeleton';
-import DeliveryZoneModal from '@/components/admin/delivery/DeliveryZoneModal';
+
+const DeliveryZoneModal = dynamic(
+  () => import('@/components/admin/delivery/DeliveryZoneModal'),
+  { ssr: false }
+);
 import { useAdminToast } from '@/context/AdminToastContext';
 import {
   listAreasExclusaoByEmpresaId,

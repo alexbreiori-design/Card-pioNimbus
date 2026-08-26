@@ -5,6 +5,7 @@ import { useCardapio } from '@/context/CardapioContext';
 import { HeroGlassChip, V2Icon } from './CardapioV2Icons';
 import HeroRotatingChip from './HeroRotatingChip';
 import CardapioShareModal from './CardapioShareModal';
+import { useCardapioV2Mobile } from './useCardapioV2Mobile';
 import { hasDurationRangeForOrderTipo } from '@/lib/deliveryDuration';
 
 const WEEKDAY_KEYS = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
