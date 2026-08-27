@@ -129,7 +129,7 @@ function StepPreviewPopover({ preview, formatPrice, visible }) {
                 imageUrl={item.imageUrl}
                 className="cardapio-v2-step-preview-thumb"
                 alt=""
-                sizes="40px"
+                sizes="64px"
               />
               <span className="cardapio-v2-step-preview-copy">
                 <span className="cardapio-v2-step-preview-name">{item.name}</span>
@@ -224,7 +224,7 @@ function GenericStepOptions({ section, sectionIndex, selected, onToggle, onChang
                   imageUrl={item.imageUrl}
                   className="cardapio-v2-product-modal-option-thumb"
                   alt=""
-                  sizes="40px"
+                  sizes="96px"
                 />
               ) : null;
             const copy = (
