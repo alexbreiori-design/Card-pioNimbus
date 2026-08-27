@@ -44,6 +44,8 @@ export default function OrderDetailModal({
   canAdvance,
   advanceLabel,
   readOnly = false,
+  /** Em modo consulta (ex.: mobile), não mostra Imprimir mesmo com readOnly. */
+  allowPrintInReadOnly = true,
   overlayClassName = '',
   demoDeadlineEdit = false,
   storeSlug = '',
@@ -57,6 +59,7 @@ export default function OrderDetailModal({
   if (!order) return null;
   const payBadge = paymentStatusBadgeForOrder(order);
   const deadlineClass = orderDeadlineHighlightClass(order);
+  const showActions = !readOnly || (allowPrintInReadOnly && Boolean(onPrint));
 
   return (
     <div
@@ -196,50 +199,52 @@ export default function OrderDetailModal({
           </div>
         </div>
 
-        <div className="admin-order-detail-actions">
-          {!readOnly && whatsAppSummaryUrl ? (
-            <a
-              className="admin-btn admin-btn-whatsapp admin-btn-whatsapp-outline admin-order-detail-btn-compact"
-              href={whatsAppSummaryUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Enviar resumo
-            </a>
-          ) : null}
-          {!readOnly && whatsAppNotifyUrl ? (
-            <a
-              className="admin-btn admin-btn-whatsapp admin-order-detail-btn-compact"
-              href={whatsAppNotifyUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Notificar status
-            </a>
-          ) : null}
-          {!readOnly && canAdvance ? (
-            <button type="button" className="admin-btn admin-btn-primary admin-order-detail-btn-compact" onClick={onAdvance}>
-              {advanceLabel}
-            </button>
-          ) : null}
-          {!readOnly ? (
-            <>
-              <button type="button" className="admin-btn admin-btn-ghost admin-order-detail-btn-compact" onClick={onEdit}>
-                Editar pedido
+        {showActions ? (
+          <div className="admin-order-detail-actions">
+            {!readOnly && whatsAppSummaryUrl ? (
+              <a
+                className="admin-btn admin-btn-whatsapp admin-btn-whatsapp-outline admin-order-detail-btn-compact"
+                href={whatsAppSummaryUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Enviar resumo
+              </a>
+            ) : null}
+            {!readOnly && whatsAppNotifyUrl ? (
+              <a
+                className="admin-btn admin-btn-whatsapp admin-order-detail-btn-compact"
+                href={whatsAppNotifyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Notificar status
+              </a>
+            ) : null}
+            {!readOnly && canAdvance ? (
+              <button type="button" className="admin-btn admin-btn-primary admin-order-detail-btn-compact" onClick={onAdvance}>
+                {advanceLabel}
               </button>
+            ) : null}
+            {!readOnly ? (
+              <>
+                <button type="button" className="admin-btn admin-btn-ghost admin-order-detail-btn-compact" onClick={onEdit}>
+                  Editar pedido
+                </button>
+                <button type="button" className="admin-btn admin-btn-ghost admin-order-detail-btn-compact" onClick={onPrint}>
+                  Imprimir
+                </button>
+                <button type="button" className="admin-btn admin-btn-danger admin-order-detail-btn-compact" onClick={onCancel}>
+                  Cancelar pedido
+                </button>
+              </>
+            ) : (
               <button type="button" className="admin-btn admin-btn-ghost admin-order-detail-btn-compact" onClick={onPrint}>
                 Imprimir
               </button>
-              <button type="button" className="admin-btn admin-btn-danger admin-order-detail-btn-compact" onClick={onCancel}>
-                Cancelar pedido
-              </button>
-            </>
-          ) : (
-            <button type="button" className="admin-btn admin-btn-ghost admin-order-detail-btn-compact" onClick={onPrint}>
-              Imprimir
-            </button>
-          )}
-        </div>
+            )}
+          </div>
+        ) : null}
       </div>
     </div>
   );

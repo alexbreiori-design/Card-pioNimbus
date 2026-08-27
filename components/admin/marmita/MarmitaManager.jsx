@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog';
 import AdminFaixaModal from '@/components/admin/AdminFaixaModal';
@@ -16,6 +17,7 @@ import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import { isJsonDirty } from '@/lib/admin/isFormDirty';
+import { getAdminPortalRoot } from '@/lib/admin/portalRoot';
 import { mergeBrowseItemChanges } from '@/lib/admin/mergeBrowseItemChanges';
 import { formatMoneyBrInput, hasMoneyBrValue, parseMoneyBrInput } from '@/lib/moneyMask';
 import { buildMarmitaProductId } from '@/lib/marmita/marmitaIds';
@@ -736,18 +738,20 @@ export default function MarmitaManager() {
     const activeSizes = item.tamanhos.filter((tam) => tam.ativo !== false);
     return (
       <div className="admin-catalog-item-row admin-marmita-item-row admin-grouped-sort-browse-item">
-        <button
-          type="button"
-          className="admin-marmita-item-media-btn"
-          onClick={() => openEdit(item)}
-          aria-label={`Editar ${item.tagAdmin || item.nomePublico}`}
-        >
-          {item.imagemUrl ? (
-            <img className="admin-catalog-item-img" src={item.imagemUrl} alt="" loading="lazy" decoding="async" />
-          ) : (
-            <ImagePlaceholder size={112} />
-          )}
-        </button>
+        <div className="admin-catalog-item-media">
+          <button
+            type="button"
+            className="admin-marmita-item-media-btn"
+            onClick={() => openEdit(item)}
+            aria-label={`Editar ${item.tagAdmin || item.nomePublico}`}
+          >
+            {item.imagemUrl ? (
+              <img className="admin-catalog-item-img" src={item.imagemUrl} alt="" loading="lazy" decoding="async" />
+            ) : (
+              <ImagePlaceholder size={112} />
+            )}
+          </button>
+        </div>
         <div className="admin-catalog-item-main">
           <button type="button" className="admin-marmita-item-title-btn" onClick={() => openEdit(item)}>
             <span className="admin-marmita-weekday">{getMarmitaWeekdayLabel(item.diaSemana)}</span>
@@ -770,24 +774,47 @@ export default function MarmitaManager() {
             <p className="admin-help-text admin-marmita-passos-count">Cardápio fixo, sem passos de montagem</p>
           )}
         </div>
-        <div className="admin-item-actions-col">
-          <div className="admin-availability-cell">
-            <span>Ativa</span>
+        <div className="admin-catalog-item-controls">
+          <div className="admin-availability-cell admin-catalog-item-toggle">
+            <span className="admin-availability-label">Disponível</span>
             <Switch
               checked={item.ativo !== false}
               label={`Alterar disponibilidade de ${item.tagAdmin || item.nomePublico}`}
               onChange={(checked) => setAtivo(item, checked)}
             />
           </div>
-          <button type="button" className="admin-link-btn" onClick={() => openEdit(item)}>
-            Editar
-          </button>
-          <button type="button" className="admin-link-btn" onClick={() => handleDuplicate(item)}>
-            Duplicar
-          </button>
-          <button type="button" className="admin-link-btn admin-link-btn-danger" onClick={() => handleDelete(item)}>
-            Remover
-          </button>
+          <div className="admin-item-icon-actions">
+            <button
+              type="button"
+              className="admin-btn admin-btn-ghost admin-btn-sm admin-item-action-icon admin-item-action-edit"
+              onClick={() => openEdit(item)}
+              title="Editar"
+              aria-label={`Editar ${item.tagAdmin || item.nomePublico}`}
+            >
+              <i className="hgi-stroke hgi-pencil-edit-02" aria-hidden="true" />
+              <span className="admin-item-action-label">Editar</span>
+            </button>
+            <button
+              type="button"
+              className="admin-btn admin-btn-ghost admin-btn-sm admin-item-action-icon admin-item-action-dup"
+              onClick={() => handleDuplicate(item)}
+              title="Duplicar"
+              aria-label={`Duplicar ${item.tagAdmin || item.nomePublico}`}
+            >
+              <i className="hgi-stroke hgi-copy-01" aria-hidden="true" />
+              <span className="admin-item-action-label">Duplicar</span>
+            </button>
+            <button
+              type="button"
+              className="admin-btn admin-btn-ghost admin-btn-sm admin-item-action-icon admin-item-action-danger"
+              onClick={() => handleDelete(item)}
+              title="Remover"
+              aria-label={`Remover ${item.tagAdmin || item.nomePublico}`}
+            >
+              <i className="hgi-stroke hgi-delete-02" aria-hidden="true" />
+              <span className="admin-item-action-label">Remover</span>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1064,7 +1091,7 @@ export default function MarmitaManager() {
   }
 
   return (
-    <div className="admin-content admin-content-pedidos admin-catalog-page">
+    <div className="admin-content admin-content-pedidos admin-catalog-page admin-marmita-page">
       <AdminPageHeader
         title="Marmitas"
         icon="products"
@@ -1187,14 +1214,13 @@ export default function MarmitaManager() {
                 </button>
               ) : null}
               {isRealGrupo ? (
-                <>
-                  <span>Ativo</span>
+                <div className="admin-availability-cell admin-catalog-group-toggle">
                   <Switch
                     checked={grupo.ativo !== false}
                     label={`Alterar disponibilidade do grupo ${grupo.nome}`}
                     onChange={() => toggleGrupoAtivo(grupo)}
                   />
-                </>
+                </div>
               ) : null}
             </div>
             );
@@ -1206,74 +1232,79 @@ export default function MarmitaManager() {
             const faixa = findFaixaForMember(faixasExibicao, grupo.id);
             return (
               <div className="admin-category-actions">
-                <button type="button" className="admin-btn admin-btn-ghost" onClick={() => openNew(grupo.id)}>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost admin-category-new-item-btn"
+                  onClick={() => openNew(grupo.id)}
+                  aria-label={`Novo item em ${grupo.nome}`}
+                  title="Novo item"
+                >
                   <AdminIcon name="plus" />
-                  Novo item
+                  <span className="admin-category-new-item-label">Novo item</span>
                 </button>
-                <div className="admin-category-menu-wrap">
-                  <button
-                    type="button"
-                    className="admin-kebab-btn"
-                    aria-label={`Opções do grupo ${grupo.nome}`}
-                    onClick={() => setGrupoMenuId((id) => (id === grupo.id ? '' : grupo.id))}
-                  >
-                    <span />
-                    <span />
-                    <span />
-                  </button>
-                  {grupoMenuId === grupo.id ? (
-                    <div className="admin-floating-menu">
-                      <button type="button" onClick={() => openEditGrupo(grupo)}>
-                        Editar grupo
+                <button
+                  type="button"
+                  className="admin-kebab-btn"
+                  aria-label={`Opções do grupo ${grupo.nome}`}
+                  aria-expanded={grupoMenuId === grupo.id}
+                  onClick={() => setGrupoMenuId((id) => (id === grupo.id ? '' : grupo.id))}
+                >
+                  <span />
+                  <span />
+                  <span />
+                </button>
+                {grupoMenuId === grupo.id ? (
+                  <div className="admin-floating-menu">
+                    <button type="button" onClick={() => openEditGrupo(grupo)}>
+                      Editar grupo
+                    </button>
+                    {faixa ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          openEditFaixaModal(faixa);
+                          setGrupoMenuId('');
+                        }}
+                      >
+                        Editar seção do cardápio
                       </button>
-                      {faixa ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            openEditFaixaModal(faixa);
-                            setGrupoMenuId('');
-                          }}
-                        >
-                          Editar seção do cardápio
-                        </button>
-                      ) : null}
-                      {faixa ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            patchFaixas(
-                              (current) => removeMemberFromFaixas(current, grupo.id),
-                              'Grupo removido da seção.'
-                            );
-                            setGrupoMenuId('');
-                          }}
-                        >
-                          Remover da seção
-                        </button>
-                      ) : null}
-                      {faixa ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            patchFaixas(
-                              (current) => removeFaixaExibicao(current, faixa.id),
-                              'Seção desagrupada.'
-                            );
-                            setGrupoMenuId('');
-                          }}
-                        >
-                          Desagrupar seção
-                        </button>
-                      ) : null}
-                      <button type="button" onClick={() => duplicateGrupo(grupo)}>
-                        Duplicar com marmitas
+                    ) : null}
+                    {faixa ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          patchFaixas(
+                            (current) => removeMemberFromFaixas(current, grupo.id),
+                            'Grupo removido da seção.'
+                          );
+                          setGrupoMenuId('');
+                        }}
+                      >
+                        Remover da seção
                       </button>
-                      <button type="button" className="danger" onClick={() => removeGrupo(grupo)}>
-                        Remover grupo
+                    ) : null}
+                    {faixa ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          patchFaixas(
+                            (current) => removeFaixaExibicao(current, faixa.id),
+                            'Seção desagrupada.'
+                          );
+                          setGrupoMenuId('');
+                        }}
+                      >
+                        Desagrupar seção
                       </button>
-                    </div>
-                  ) : null}
-                </div>
+                    ) : null}
+                    <button type="button" onClick={() => duplicateGrupo(grupo)}>
+                      Duplicar com marmitas
+                    </button>
+                    <button type="button" className="danger" onClick={() => removeGrupo(grupo)}>
+                      Remover grupo
+                    </button>
+                  </div>
+                ) : null}
               </div>
             );
           }}
@@ -1296,8 +1327,9 @@ export default function MarmitaManager() {
         onConfirm={confirmFaixaModal}
       />
 
-      {modalOpen ? (
-        <>
+      {modalOpen && getAdminPortalRoot()
+        ? createPortal(
+            <>
         <div
           className="overlay open admin-item-overlay"
           role="presentation"
@@ -1317,7 +1349,7 @@ export default function MarmitaManager() {
                       {editingId ? 'Editando marmita' : 'Nova marmita'}
                     </div>
                     <div className="popup-header-desc">
-                      Nome interno para organização e nome externo que o cliente vê no cardápio.
+                      Nomes interno e externo no cardápio.
                     </div>
                   </div>
                 </div>
@@ -1578,25 +1610,29 @@ export default function MarmitaManager() {
               </form>
             </div>
             <div className="popup-details-col admin-preview-col admin-marmita-preview-col">
-              <div className="popup-header admin-preview-header">
-                <div className="popup-header-title">Prévia</div>
+              <div className="admin-editor-photo-block">
+                <div className="popup-header admin-preview-header">
+                  <div className="popup-header-title">Foto</div>
+                </div>
+                <div className="admin-editor-photo-body admin-marmita-preview-body">
+                  <label className="admin-upload-box admin-marmita-upload-box">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setFormImage(await compressImageFile(file));
+                      }}
+                    />
+                    {formImage ? <img src={formImage} alt="Preview marmita" /> : <ImagePlaceholder size={90} />}
+                    <span className="admin-upload-caption">Adicione uma foto</span>
+                    <small className="admin-upload-caption-hint">JPEG, PNG até 3MB</small>
+                  </label>
+                </div>
               </div>
+              <div className="admin-editor-options-block">
               <div className="popup-body admin-marmita-preview-body">
-                <label className="admin-upload-box admin-marmita-upload-box">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      setFormImage(await compressImageFile(file));
-                    }}
-                  />
-                  {formImage ? <img src={formImage} alt="Preview marmita" /> : <ImagePlaceholder size={90} />}
-                  <span className="admin-upload-caption">Adicione uma foto</span>
-                  <small className="admin-upload-caption-hint">JPEG, PNG até 3MB</small>
-                </label>
-
                 <section className="admin-product-side-section admin-marmita-passos-side">
                   <div className="admin-product-config-copy">
                     <strong>Passos de montagem</strong>
@@ -1660,10 +1696,11 @@ export default function MarmitaManager() {
                   </button>
                 </section>
               </div>
+              </div>
             </div>
             </div>
             <div className="popup-footer admin-product-popup-footer">
-              <button type="button" className="admin-btn admin-btn-ghost" onClick={requestCloseItemModal}>
+              <button type="button" className="admin-btn admin-btn-ghost admin-btn-cancel" onClick={requestCloseItemModal}>
                 Cancelar
               </button>
               <button type="submit" form="admin-marmita-item-form" className="admin-btn admin-btn-primary">
@@ -1678,7 +1715,10 @@ export default function MarmitaManager() {
           onCancel={cancelDiscardItemModal}
         />
         </>
-      ) : null}
+          ,
+            getAdminPortalRoot()
+          )
+        : null}
 
       {cardapioModalOpen ? (
         <div

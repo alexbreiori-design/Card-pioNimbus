@@ -7,7 +7,6 @@ import { useCepLookup } from '@/hooks/useCepLookup';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
-import AdminIcon from '@/components/admin/AdminIcon';
 import OrderDetailModal from '@/components/admin/orders/OrderDetailModal';
 import ClienteContaPanel from '@/components/admin/clientes/ClienteContaPanel';
 import {
@@ -21,6 +20,7 @@ import { isJsonDirty } from '@/lib/admin/isFormDirty';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOrders } from '@/hooks/useAdminOrders';
 import { useOrderPrint } from '@/context/OrderPrintContext';
+import { isAdminMobileViewport } from '@/lib/admin/mobileAccess';
 import {
   createCustomer,
   deleteCliente,
@@ -81,7 +81,7 @@ function customerWhatsAppUrl(phone) {
 
 const STATUS_FILTERS = [
   { key: 'todos', label: 'Todos' },
-  { key: 'com_saldo', label: 'Com pendência' },
+  { key: 'com_saldo', label: 'Pendência' },
   { key: 'inativo', label: 'Inativos' },
   { key: 'recorrente', label: 'Recorrentes' },
   { key: 'novo', label: 'Novos' },
@@ -258,6 +258,8 @@ export default function ClientesPage() {
   const [selectedOrderId, setSelectedOrderId] = useState('');
 
   function startNewOrderForCustomer(customer) {
+    // Pedidos ainda não está liberado no mobile — evita redirecionar para tela bloqueada.
+    if (isAdminMobileViewport()) return;
     const draft = buildOrderDraftFromCustomer(customer, addressesByCustomer[customer.id] || []);
     stashPendingNewOrderDraft(draft);
     router.push('/admin/pedidos');
@@ -639,13 +641,27 @@ export default function ClientesPage() {
           >
             + Novo cliente
           </button>
-          <div className="admin-pedidos-search-wrap">
-            <AdminIcon name="search" />
+          <div className="admin-clientes-search" role="search">
+            <svg
+              className="admin-clientes-search-glyph"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.5-3.5" />
+            </svg>
             <input
-              className="admin-input admin-pedidos-search"
+              className="admin-clientes-search-input"
+              type="search"
               placeholder="Buscar por nome ou telefone"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
+              aria-label="Buscar por nome ou telefone"
             />
           </div>
         </div>
@@ -656,7 +672,9 @@ export default function ClientesPage() {
               type="button"
               role="tab"
               aria-selected={statusFilter === opt.key}
-              className={`admin-clientes-filter-chip${statusFilter === opt.key ? ' is-active' : ''}`}
+              className={`admin-clientes-filter-chip${statusFilter === opt.key ? ' is-active' : ''}${
+                opt.key === 'novo' ? ' admin-clientes-filter-chip--secondary' : ''
+              }`}
               onClick={() => changeStatusFilter(opt.key)}
             >
               {opt.label}
@@ -735,23 +753,26 @@ export default function ClientesPage() {
                 const waUrl = customerWhatsAppUrl(c.phone);
                 return (
                   <li key={c.id} className="admin-clientes-mobile-item">
-                    <div className="admin-clientes-mobile-top">
-                      <span className="admin-clientes-table-name">{c.name || '—'}</span>
-                      <span className={`admin-clientes-status-chip is-${status.key}`}>
-                        {status.label}
-                      </span>
-                    </div>
-                    <div className="admin-clientes-mobile-meta">
-                      <span>{fmtPhone(c.phone) || '—'}</span>
-                      <span>
-                        {c.total_orders || 0} pedidos · {money(c.total_spent)}
-                      </span>
-                      {Number(c.saldo_fiado) > 0 ? (
-                        <span className="admin-clientes-saldo-value is-debt">
-                          {formatSaldoDevedor(c.saldo_fiado)}
+                    <div className="admin-clientes-mobile-main">
+                      <div className="admin-clientes-mobile-top">
+                        <span className="admin-clientes-table-name">{c.name || '—'}</span>
+                        <span className={`admin-clientes-status-chip is-${status.key}`}>
+                          {status.label}
                         </span>
-                      ) : null}
-                      <span>Último: {fmtDateBr(c.last_order_at)}</span>
+                      </div>
+                      <div className="admin-clientes-mobile-meta">
+                        <span>{fmtPhone(c.phone) || '—'}</span>
+                        <span>
+                          {c.total_orders || 0} pedidos · {money(c.total_spent)}
+                          <span aria-hidden="true"> · </span>
+                          Último: {fmtDateBr(c.last_order_at)}
+                        </span>
+                        {Number(c.saldo_fiado) > 0 ? (
+                          <span className="admin-clientes-saldo-value is-debt">
+                            {formatSaldoDevedor(c.saldo_fiado)}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                     <CustomerRowActions
                       customer={c}
@@ -766,44 +787,68 @@ export default function ClientesPage() {
             </ul>
 
             <div className="admin-clientes-pagination">
-              <p className="admin-clientes-pagination-meta">
-                {pageStart}–{pageEnd} de {customersTotal} cliente{customersTotal === 1 ? '' : 's'}
-              </p>
-              <div className="admin-clientes-pagination-controls">
-                <button
-                  type="button"
-                  className="admin-btn admin-btn-ghost admin-btn-sm"
-                  disabled={listPage <= 0 || loading}
-                  onClick={() => setListPage(0)}
-                >
-                  Primeira
-                </button>
-                <button
-                  type="button"
-                  className="admin-btn admin-btn-ghost admin-btn-sm"
-                  disabled={listPage <= 0 || loading}
-                  onClick={() => setListPage((p) => Math.max(0, p - 1))}
-                >
-                  Anterior
-                </button>
+              <div className="admin-clientes-pagination-head">
+                <p className="admin-clientes-pagination-meta">
+                  {pageStart}–{pageEnd} de {customersTotal} cliente{customersTotal === 1 ? '' : 's'}
+                </p>
                 <span className="admin-clientes-pagination-page">
                   Página {listPage + 1} de {totalPages}
                 </span>
+              </div>
+              <div className="admin-clientes-pagination-controls">
                 <button
                   type="button"
-                  className="admin-btn admin-btn-ghost admin-btn-sm"
-                  disabled={listPage >= totalPages - 1 || loading}
-                  onClick={() => setListPage((p) => Math.min(totalPages - 1, p + 1))}
+                  className="admin-btn admin-btn-ghost admin-btn-sm admin-clientes-pagination-btn is-edge"
+                  disabled={listPage <= 0 || loading}
+                  onClick={() => setListPage(0)}
+                  aria-label="Primeira página"
+                  title="Primeira"
                 >
-                  Próxima
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="admin-clientes-pagination-icon">
+                    <path d="M11 6l-6 6 6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M18 6l-6 6 6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className="admin-clientes-pagination-label">Primeira</span>
                 </button>
                 <button
                   type="button"
-                  className="admin-btn admin-btn-ghost admin-btn-sm"
+                  className="admin-btn admin-btn-ghost admin-btn-sm admin-clientes-pagination-btn"
+                  disabled={listPage <= 0 || loading}
+                  onClick={() => setListPage((p) => Math.max(0, p - 1))}
+                  aria-label="Página anterior"
+                  title="Anterior"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="admin-clientes-pagination-icon">
+                    <path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className="admin-clientes-pagination-label">Anterior</span>
+                </button>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost admin-btn-sm admin-clientes-pagination-btn"
+                  disabled={listPage >= totalPages - 1 || loading}
+                  onClick={() => setListPage((p) => Math.min(totalPages - 1, p + 1))}
+                  aria-label="Próxima página"
+                  title="Próxima"
+                >
+                  <span className="admin-clientes-pagination-label">Próxima</span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="admin-clientes-pagination-icon">
+                    <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost admin-btn-sm admin-clientes-pagination-btn is-edge"
                   disabled={listPage >= totalPages - 1 || loading}
                   onClick={() => setListPage(totalPages - 1)}
+                  aria-label="Última página"
+                  title="Última"
                 >
-                  Última
+                  <span className="admin-clientes-pagination-label">Última</span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="admin-clientes-pagination-icon">
+                    <path d="M6 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M13 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -819,7 +864,11 @@ export default function ClientesPage() {
           onPointerDown={newOverlayPointerDown}
           onClick={newOverlayClick}
         >
-          <div className="admin-confirm-modal" style={{ width: 'min(560px, 96vw)' }} onClick={(e) => e.stopPropagation()}>
+          <div
+            className="admin-confirm-modal admin-clientes-new-modal"
+            style={{ width: 'min(560px, 96vw)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3>Novo cliente</h3>
             <div className="admin-form-group">
               <label className="admin-label">Nome *</label>
@@ -863,7 +912,7 @@ export default function ClientesPage() {
                 placeholder="Rua, avenida ou travessa"
               />
             </div>
-            <div className="admin-store-form-grid" style={{ padding: 0, gridTemplateColumns: '1fr 1fr 1fr' }}>
+            <div className="admin-store-form-grid admin-clientes-address-grid">
               <div className="admin-form-group">
                 <label className="admin-label">Número</label>
                 <input
@@ -929,7 +978,7 @@ export default function ClientesPage() {
           onClick={detailOverlayClick}
         >
           <div
-            className="admin-confirm-modal"
+            className="admin-confirm-modal admin-clientes-detail-modal"
             style={{ width: 'min(900px, 96vw)', maxHeight: '90vh', overflowY: 'auto' }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1013,7 +1062,7 @@ export default function ClientesPage() {
                           placeholder="Rua, avenida ou travessa"
                         />
                       </div>
-                      <div className="admin-store-form-grid" style={{ padding: 0, gridTemplateColumns: '1fr 1fr 1fr' }}>
+                      <div className="admin-store-form-grid admin-clientes-address-grid">
                         <div className="admin-form-group">
                           <label className="admin-label">Número</label>
                           <input
@@ -1119,7 +1168,7 @@ export default function ClientesPage() {
               </button>
               <button
                 type="button"
-                className="admin-btn admin-btn-primary"
+                className="admin-btn admin-btn-primary admin-clientes-new-order-btn"
                 onClick={() => startNewOrderForCustomer(detail)}
               >
                 Novo pedido

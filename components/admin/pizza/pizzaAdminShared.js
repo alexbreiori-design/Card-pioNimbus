@@ -1,7 +1,9 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
+import { getAdminPortalRoot } from '@/lib/admin/portalRoot';
 
 const MAX_IMAGE_SIZE = 900;
 const IMAGE_QUALITY = 0.72;
@@ -125,7 +127,12 @@ export function PizzaEditorShell({
   const footerContent =
     typeof footer === 'function' ? footer({ requestClose }) : footer;
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  const portalRoot = getAdminPortalRoot();
+  if (!portalRoot) return null;
+
+  return createPortal(
     <>
       <div
         className="overlay open admin-item-overlay"
@@ -166,7 +173,8 @@ export function PizzaEditorShell({
         onConfirm={confirmDiscard}
         onCancel={cancelDiscard}
       />
-    </>
+    </>,
+    portalRoot
   );
 }
 
