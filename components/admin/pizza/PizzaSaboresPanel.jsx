@@ -334,36 +334,55 @@ export default function PizzaSaboresPanel() {
             }}
             renderItem={(sabor) => (
               <div className="admin-catalog-item-row admin-pizza-sabor-row admin-grouped-sort-browse-item">
-                {sabor.imagemUrl ? (
-                  <img className="admin-catalog-item-img" src={sabor.imagemUrl} alt="" loading="lazy" decoding="async" />
-                ) : (
-                  <ImagePlaceholder size={112} />
-                )}
+                <div className="admin-catalog-item-media">
+                  {sabor.imagemUrl ? (
+                    <img
+                      className="admin-catalog-item-img"
+                      src={sabor.imagemUrl}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  ) : (
+                    <ImagePlaceholder size={112} />
+                  )}
+                </div>
                 <div className="admin-catalog-item-main">
                   <div className="admin-item-title">{sabor.nome || 'Sem nome'}</div>
                   <div className="admin-item-desc">{sabor.descricao || '—'}</div>
-                  <div className="admin-pizza-sabor-prices">{saborPriceSummary(sabor)}</div>
+                  <div className="admin-pizza-sabor-prices admin-order-price">{saborPriceSummary(sabor)}</div>
                 </div>
-                <div className="admin-item-actions-col">
-                  <div className="admin-availability-cell">
-                    <span>Disponível</span>
+                <div className="admin-catalog-item-controls">
+                  <div className="admin-availability-cell admin-catalog-item-toggle">
+                    <span className="admin-availability-label">Disponível</span>
                     <Switch
                       checked={sabor.ativo !== false}
                       label={`Alterar disponibilidade de ${sabor.nome}`}
                       onChange={(checked) => toggleSaborAtivo(sabor.id, checked)}
                     />
                   </div>
-                  <button type="button" className="admin-link-btn" onClick={() => openEditSabor(sabor)}>
-                    Editar
-                  </button>
-                  <button
-                    type="button"
-                    className="admin-link-btn"
-                    style={{ color: 'var(--admin-danger, #dc2626)' }}
-                    onClick={() => removeSabor(sabor.id)}
-                  >
-                    Remover
-                  </button>
+                  <div className="admin-item-icon-actions">
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-ghost admin-btn-sm admin-item-action-icon admin-item-action-edit"
+                      onClick={() => openEditSabor(sabor)}
+                      title="Editar"
+                      aria-label={`Editar ${sabor.nome}`}
+                    >
+                      <i className="hgi-stroke hgi-pencil-edit-02" aria-hidden="true" />
+                      <span className="admin-item-action-label">Editar</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-ghost admin-btn-sm admin-item-action-icon admin-item-action-danger"
+                      onClick={() => removeSabor(sabor.id)}
+                      title="Remover"
+                      aria-label={`Remover ${sabor.nome}`}
+                    >
+                      <i className="hgi-stroke hgi-delete-02" aria-hidden="true" />
+                      <span className="admin-item-action-label">Remover</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -384,7 +403,7 @@ export default function PizzaSaboresPanel() {
           isDirty={isSizesDirty}
           footer={({ requestClose }) => (
             <>
-              <button type="button" className="admin-btn admin-btn-ghost" onClick={requestClose}>
+              <button type="button" className="admin-btn admin-btn-ghost admin-btn-cancel" onClick={requestClose}>
                 Cancelar
               </button>
               <button type="button" className="admin-btn admin-btn-primary" onClick={saveTamanhos}>
@@ -453,14 +472,14 @@ export default function PizzaSaboresPanel() {
       {draft ? (
         <PizzaEditorShell
           title={sabores.some((item) => item.id === draft.id) ? 'Editar sabor' : 'Novo sabor'}
-          subtitle="Defina foto, descrição e preço por tamanho em um único lugar."
+          subtitle="Foto, descrição e preços por tamanho."
           active={draft.ativo !== false}
           onActiveChange={(checked) => setDraft((prev) => ({ ...prev, ativo: checked }))}
           onClose={cancelEdit}
           isDirty={isDraftDirty}
           footer={({ requestClose }) => (
             <>
-              <button type="button" className="admin-btn admin-btn-ghost" onClick={requestClose}>
+              <button type="button" className="admin-btn admin-btn-ghost admin-btn-cancel" onClick={requestClose}>
                 Cancelar
               </button>
               <button type="button" className="admin-btn admin-btn-primary" onClick={saveSabor}>
@@ -470,13 +489,13 @@ export default function PizzaSaboresPanel() {
           )}
         >
           <div className="admin-pizza-editor-layout">
-            <aside className="admin-pizza-editor-side">
+            <aside className="admin-pizza-editor-side admin-editor-photo-block">
               <PizzaPhotoField imageUrl={draft.imagemUrl} label="Foto do sabor" onFile={handleSaborImage} />
               <div className="admin-pizza-editor-tip">
                 A imagem do sabor aparece na montagem da pizza quando disponível.
               </div>
             </aside>
-            <div className="admin-pizza-editor-main">
+            <div className="admin-pizza-editor-main admin-editor-form-block">
               <div className="admin-catalog-form-grid">
                 <div className="admin-form-group">
                   <label className="admin-label">Nome do sabor</label>

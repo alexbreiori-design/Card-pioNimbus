@@ -256,12 +256,13 @@ export default function PromocoesCrud() {
       {pickerOpen ? (
         <AdminProductPickerModal
           title="Selecionar produto"
-          subtitle="Busque e filtre por categoria para escolher o item da promoção."
+          subtitle="Escolha o item da promoção. Filtre pela categoria se quiser."
           products={produtos}
           categories={promoCategories}
           selectedId={draft.produtoId}
           onSelect={onSelectProduct}
           onClose={() => setPickerOpen(false)}
+          showDescription={false}
         />
       ) : null}
 

@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog';
 import AdminFaixaModal from '@/components/admin/AdminFaixaModal';
@@ -10,6 +11,7 @@ import { AdminCatalogSkeleton, useAdminMountSkeleton } from '@/components/admin/
 import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import { isJsonDirty } from '@/lib/admin/isFormDirty';
+import { getAdminPortalRoot } from '@/lib/admin/portalRoot';
 import { mergeBrowseItemChanges } from '@/lib/admin/mergeBrowseItemChanges';
 import { uploadMenuAssetIfNeeded } from '@/lib/upload/menuAsset';
 import AdminGroupedSortablePanel from './AdminGroupedSortablePanel';
@@ -1164,17 +1166,18 @@ export default function CatalogManager({ mode = 'produtos' }) {
                 Seção: {faixa.nome}
               </button>
             ) : null}
-            <span>Disponivel</span>
-            <Switch
-              checked={Boolean(cat.ativo)}
-              label={`Alterar disponibilidade da categoria ${cat.nome}`}
-              onChange={(checked) =>
-                saveData((prev) => ({
-                  ...prev,
-                  [catKey]: prev[catKey].map((c) => (c.id === cat.id ? { ...c, ativo: checked } : c)),
-                }))
-              }
-            />
+            <div className="admin-availability-cell admin-catalog-group-toggle">
+              <Switch
+                checked={Boolean(cat.ativo)}
+                label={`Alterar disponibilidade da categoria ${cat.nome}`}
+                onChange={(checked) =>
+                  saveData((prev) => ({
+                    ...prev,
+                    [catKey]: prev[catKey].map((c) => (c.id === cat.id ? { ...c, ativo: checked } : c)),
+                  }))
+                }
+              />
+            </div>
           </div>
           );
         }}
@@ -1182,101 +1185,108 @@ export default function CatalogManager({ mode = 'produtos' }) {
           const faixa = isProdutos ? findFaixaForMember(faixasExibicao, cat.id) : null;
           return (
           <div className="admin-category-actions">
-            <button type="button" className="admin-btn admin-btn-ghost" onClick={() => openNewItemModal(cat.id)}>
+            <button
+              type="button"
+              className="admin-btn admin-btn-ghost admin-category-new-item-btn"
+              onClick={() => openNewItemModal(cat.id)}
+              aria-label={`Novo item em ${cat.nome}`}
+              title="Novo item"
+            >
               <AdminIcon name="plus" />
-              Novo item
+              <span className="admin-category-new-item-label">Novo item</span>
             </button>
-            <div className="admin-category-menu-wrap">
-              <button
-                type="button"
-                className="admin-kebab-btn"
-                aria-label={`Opcoes da categoria ${cat.nome}`}
-                onClick={() => setCategoryMenuId((id) => (id === cat.id ? '' : cat.id))}
-              >
-                <span />
-                <span />
-                <span />
-              </button>
-              {categoryMenuId === cat.id ? (
-                <div className="admin-floating-menu">
-                  <button type="button" onClick={() => openEditCategory(cat)}>Editar categoria</button>
-                  {faixa ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        openEditFaixaModal(faixa);
-                        setCategoryMenuId('');
-                      }}
-                    >
-                      Editar seção do cardápio
-                    </button>
-                  ) : null}
-                  {faixa ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        saveData((prev) => ({
-                          ...prev,
-                          faixasExibicao: removeMemberFromFaixas(prev.faixasExibicao, cat.id),
-                        }));
-                        setCategoryMenuId('');
-                      }}
-                    >
-                      Remover da seção
-                    </button>
-                  ) : null}
-                  {faixa ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        saveData((prev) => ({
-                          ...prev,
-                          faixasExibicao: removeFaixaExibicao(prev.faixasExibicao, faixa.id),
-                        }));
-                        setCategoryMenuId('');
-                      }}
-                    >
-                      Desagrupar seção
-                    </button>
-                  ) : null}
+            <button
+              type="button"
+              className="admin-kebab-btn"
+              aria-label={`Opcoes da categoria ${cat.nome}`}
+              aria-expanded={categoryMenuId === cat.id}
+              onClick={() => setCategoryMenuId((id) => (id === cat.id ? '' : cat.id))}
+            >
+              <span />
+              <span />
+              <span />
+            </button>
+            {categoryMenuId === cat.id ? (
+              <div className="admin-floating-menu">
+                <button type="button" onClick={() => openEditCategory(cat)}>Editar categoria</button>
+                {faixa ? (
                   <button
                     type="button"
                     onClick={() => {
-                      setDuplicateCategoryTarget(cat);
+                      openEditFaixaModal(faixa);
                       setCategoryMenuId('');
                     }}
                   >
-                    Duplicar categoria
+                    Editar seção do cardápio
                   </button>
+                ) : null}
+                {faixa ? (
                   <button
                     type="button"
-                    className="danger"
                     onClick={() => {
-                      setRemovingCategory(cat);
+                      saveData((prev) => ({
+                        ...prev,
+                        faixasExibicao: removeMemberFromFaixas(prev.faixasExibicao, cat.id),
+                      }));
                       setCategoryMenuId('');
                     }}
                   >
-                    Remover categoria
+                    Remover da seção
                   </button>
-                </div>
-              ) : null}
-            </div>
+                ) : null}
+                {faixa ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      saveData((prev) => ({
+                        ...prev,
+                        faixasExibicao: removeFaixaExibicao(prev.faixasExibicao, faixa.id),
+                      }));
+                      setCategoryMenuId('');
+                    }}
+                  >
+                    Desagrupar seção
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDuplicateCategoryTarget(cat);
+                    setCategoryMenuId('');
+                  }}
+                >
+                  Duplicar categoria
+                </button>
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={() => {
+                    setRemovingCategory(cat);
+                    setCategoryMenuId('');
+                  }}
+                >
+                  Remover categoria
+                </button>
+              </div>
+            ) : null}
           </div>
           );
         }}
         renderItemPreview={(item) => (
           <div className="admin-catalog-item-row admin-grouped-sort-browse-item">
-            {item.imagemUrl ? (
-              <img
-                className="admin-catalog-item-img"
-                src={item.imagemUrl}
-                alt=""
-                loading="lazy"
-                decoding="async"
-              />
-            ) : (
-              <ImagePlaceholder size={112} />
-            )}
+            <div className="admin-catalog-item-media">
+              {item.imagemUrl ? (
+                <img
+                  className="admin-catalog-item-img"
+                  src={item.imagemUrl}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : (
+                <ImagePlaceholder size={112} />
+              )}
+            </div>
             <div className="admin-catalog-item-main">
               <div className="admin-item-title">{item.nome}</div>
               <div className="admin-item-desc">{item.descricao || '-'}</div>
@@ -1291,9 +1301,9 @@ export default function CatalogManager({ mode = 'produtos' }) {
                   : `R$ ${Number(item.preco || 0).toFixed(2).replace('.', ',')}`}
               </div>
             </div>
-            <div className="admin-item-actions-col">
-              <div className="admin-availability-cell">
-                <span>Disponivel</span>
+            <div className="admin-catalog-item-controls">
+              <div className="admin-availability-cell admin-catalog-item-toggle">
+                <span className="admin-availability-label">Disponível</span>
                 <Switch
                   checked={Boolean(item.ativo)}
                   label={`Alterar disponibilidade de ${item.nome}`}
@@ -1305,25 +1315,46 @@ export default function CatalogManager({ mode = 'produtos' }) {
                   }
                 />
               </div>
-              <button type="button" className="admin-link-btn" onClick={() => openEditItemModal(item)}>Editar</button>
-              <button type="button" className="admin-link-btn" onClick={() => duplicateItem(item, item.categoriaId)}>
-                Duplicar
-              </button>
-              <button
-                type="button"
-                className="admin-link-btn"
-                style={{ color: 'var(--admin-danger, #dc2626)' }}
-                onClick={() => setRemovingProduct(item)}
-              >
-                Remover
-              </button>
+              <div className="admin-item-icon-actions">
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost admin-btn-sm admin-item-action-icon admin-item-action-edit"
+                  onClick={() => openEditItemModal(item)}
+                  title="Editar"
+                  aria-label={`Editar ${item.nome}`}
+                >
+                  <i className="hgi-stroke hgi-pencil-edit-02" aria-hidden="true" />
+                  <span className="admin-item-action-label">Editar</span>
+                </button>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost admin-btn-sm admin-item-action-icon admin-item-action-dup"
+                  onClick={() => duplicateItem(item, item.categoriaId)}
+                  title="Duplicar"
+                  aria-label={`Duplicar ${item.nome}`}
+                >
+                  <i className="hgi-stroke hgi-copy-01" aria-hidden="true" />
+                  <span className="admin-item-action-label">Duplicar</span>
+                </button>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost admin-btn-sm admin-item-action-icon admin-item-action-danger"
+                  onClick={() => setRemovingProduct(item)}
+                  title="Remover"
+                  aria-label={`Remover ${item.nome}`}
+                >
+                  <i className="hgi-stroke hgi-delete-02" aria-hidden="true" />
+                  <span className="admin-item-action-label">Remover</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
       />
 
-      {modalOpen ? (
-        <>
+      {modalOpen && getAdminPortalRoot()
+        ? createPortal(
+            <>
         <div
           className="overlay open admin-item-overlay"
           role="presentation"
@@ -1347,7 +1378,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
                   </span>
                   <div>
                     <div className="popup-header-title">{editingItemId ? 'Editando item' : 'Cadastrando novo item'}</div>
-                    <div className="popup-header-desc">Configure o item como ele sera exibido no cardapio.</div>
+                    <div className="popup-header-desc">Como aparece no cardápio.</div>
                   </div>
                 </div>
                 <div className="admin-inline-switch">
@@ -1706,30 +1737,34 @@ export default function CatalogManager({ mode = 'produtos' }) {
               </div>
             </div>
             <div className="popup-details-col admin-preview-col admin-product-side-col">
-              <div className="popup-header admin-preview-header">
-                <div className="popup-header-title">Foto e opções</div>
+              <div className="admin-editor-photo-block">
+                <div className="popup-header admin-preview-header">
+                  <div className="popup-header-title">Foto</div>
+                </div>
+                <div className="admin-editor-photo-body">
+                  <label className="admin-upload-box admin-upload-box-compact">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setSaveError('');
+                        try {
+                          setFormImage(await compressImageFile(file));
+                        } catch {
+                          setSaveError('Nao foi possivel processar essa imagem. Tente outra foto.');
+                        }
+                      }}
+                    />
+                    {formImage ? <img src={formImage} alt="Preview item" /> : <ImagePlaceholder size={90} />}
+                    <span className="admin-upload-caption">Adicione uma foto</span>
+                    <small className="admin-upload-caption-hint">JPEG, PNG até 3MB</small>
+                  </label>
+                </div>
               </div>
+              <div className="admin-editor-options-block">
               <div className="popup-body admin-product-side-body">
-                <label className="admin-upload-box admin-upload-box-compact">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      setSaveError('');
-                      try {
-                        setFormImage(await compressImageFile(file));
-                      } catch {
-                        setSaveError('Nao foi possivel processar essa imagem. Tente outra foto.');
-                      }
-                    }}
-                  />
-                  {formImage ? <img src={formImage} alt="Preview item" /> : <ImagePlaceholder size={90} />}
-                  <span className="admin-upload-caption">Adicione uma foto</span>
-                  <small className="admin-upload-caption-hint">JPEG, PNG até 3MB</small>
-                </label>
-
                 {isProdutos && form.tipo === 'combo' ? (
                   <div className="admin-product-side-section admin-product-combo-side">
                     <section className="admin-product-combo-block">
@@ -1946,10 +1981,11 @@ export default function CatalogManager({ mode = 'produtos' }) {
                   </div>
                 ) : null}
               </div>
+              </div>
             </div>
             </div>
             <div className="popup-footer admin-product-popup-footer">
-              <button type="button" className="admin-btn admin-btn-ghost" onClick={requestCloseItemModal}>
+              <button type="button" className="admin-btn admin-btn-ghost admin-btn-cancel" onClick={requestCloseItemModal}>
                 Cancelar
               </button>
               <button type="submit" className="admin-btn admin-btn-primary">
@@ -2102,7 +2138,10 @@ export default function CatalogManager({ mode = 'produtos' }) {
           }}
         />
         </>
-      ) : null}
+          ,
+            getAdminPortalRoot()
+          )
+        : null}
 
       {editingCategory ? (
         <div className="admin-confirm-overlay" onClick={() => setEditingCategory(null)}>
@@ -2152,7 +2191,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
               </>
             ) : (
               <div className="admin-addon-category-rules">
-                <label className="admin-category-rule-option admin-category-rule-option-full">
+                <label className="admin-pizza-check admin-category-rule-option-full">
                   <input
                     type="checkbox"
                     checked={editingCategory.obrigatorio === true}
@@ -2160,7 +2199,8 @@ export default function CatalogManager({ mode = 'produtos' }) {
                       setEditingCategory((cat) => ({ ...cat, obrigatorio: e.target.checked }))
                     }
                   />
-                  <span>Obrigatório</span>
+                  <span className="admin-pizza-check-box" aria-hidden="true" />
+                  <span className="admin-pizza-check-label">Obrigatório</span>
                 </label>
                 <div className="admin-category-rule-pair">
                   <label className="admin-category-rule-option">

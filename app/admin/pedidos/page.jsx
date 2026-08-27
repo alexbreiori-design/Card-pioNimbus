@@ -221,8 +221,8 @@ export default function PedidosPage() {
   }, [searchExpanded, query]);
 
   useEffect(() => {
-    if (searchExpanded) searchInputRef.current?.focus();
-  }, [searchExpanded]);
+    if (!isMobile && searchExpanded) searchInputRef.current?.focus();
+  }, [isMobile, searchExpanded]);
 
   function openCaixaManage(view = 'menu') {
     setCaixaManageView(view);
@@ -230,10 +230,16 @@ export default function PedidosPage() {
   }
 
   function guardCaixa() {
-    if (isMobile || caixaOpen) return true;
+    if (caixaOpen) return true;
     toast.error('Abra o caixa para continuar.');
     openCaixaManage(canReopen ? 'reabrir' : 'abrir');
     return false;
+  }
+
+  /** Mobile: só consulta — sem criar/editar/avançar/restaurar. */
+  function guardOperate() {
+    if (isMobile) return false;
+    return guardCaixa();
   }
 
   const products = useMemo(() => buildAdminOrderCatalogProducts(data), [data]);
@@ -284,7 +290,7 @@ export default function PedidosPage() {
   );
 
   function openNewOrderModal(initialDraft = null) {
-    if (!guardCaixa()) return;
+    if (!guardOperate()) return;
     if (!initialDraft) setEditingOrder(null);
     setModalInitialDraft(initialDraft);
     setCreateOpen(true);
@@ -293,7 +299,7 @@ export default function PedidosPage() {
   const pendingOrderPromptedRef = useRef(false);
 
   useEffect(() => {
-    if (caixaLoading || createOpen) return;
+    if (caixaLoading || createOpen || isMobile) return;
 
     const draft = peekPendingNewOrderDraft();
     if (!draft) {
@@ -301,7 +307,7 @@ export default function PedidosPage() {
       return;
     }
 
-    if (!isMobile && !caixaOpen) {
+    if (!caixaOpen) {
       if (!pendingOrderPromptedRef.current) {
         pendingOrderPromptedRef.current = true;
         toast.error('Abra o caixa para continuar.');
@@ -318,7 +324,7 @@ export default function PedidosPage() {
   }, [caixaLoading, caixaOpen, isMobile, canReopen, createOpen, toast]);
 
   async function moveStatus(order) {
-    if (!guardCaixa()) return;
+    if (!guardOperate()) return;
     const next = STATUS_NEXT[order.status];
     if (!next) return;
     try {
@@ -339,7 +345,7 @@ export default function PedidosPage() {
   }
 
   async function rollbackStatus(order) {
-    if (!guardCaixa()) return;
+    if (!guardOperate()) return;
     const prevStatus = STATUS_PREV[order.status];
     if (!prevStatus) return;
     try {
@@ -351,7 +357,7 @@ export default function PedidosPage() {
   }
 
   async function handleRestoreArchived(orderId) {
-    if (!guardCaixa()) return;
+    if (!guardOperate()) return;
     const order = allOrders.find((o) => String(o.id) === String(orderId));
     if (!order) return;
     try {
@@ -405,7 +411,7 @@ export default function PedidosPage() {
   }, [allOrders, archiveDateFrom, archiveDateTo]);
 
   async function saveOrder(draft, printNow = false) {
-    if (!guardCaixa()) return;
+    if (!guardOperate()) return;
     const totals = computeOrderTotals(draft);
     const phoneDigits = normalizePhone(draft.telefone);
     const trocoPara = resolveDraftTroco(draft);
@@ -635,10 +641,10 @@ export default function PedidosPage() {
       <div className="admin-pedidos-top">
         <div className="admin-pedidos-actions-row">
           <div
-            className={`admin-pedidos-search-row${searchExpanded ? ' is-expanded' : ''}`}
+            className={`admin-pedidos-search-row${isMobile || searchExpanded ? ' is-expanded' : ''}`}
             ref={searchRowRef}
           >
-            {searchExpanded ? (
+            {isMobile || searchExpanded ? (
               <div className="admin-pedidos-search-wrap">
                 <AdminIcon name="search" />
                 <input
@@ -648,7 +654,7 @@ export default function PedidosPage() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Escape' && !query.trim()) setSearchExpanded(false);
+                    if (!isMobile && e.key === 'Escape' && !query.trim()) setSearchExpanded(false);
                   }}
                 />
               </div>
@@ -728,7 +734,10 @@ export default function PedidosPage() {
             <button
               type="button"
               className="admin-btn admin-btn-ghost admin-pedidos-routes-btn"
-              onClick={() => setRoutesOpen(true)}
+              onClick={() => {
+                if (isMobile) return;
+                setRoutesOpen(true);
+              }}
             >
               <AdminKanbanStatusIcon status="delivery" />
               Rotas de entrega
@@ -963,10 +972,12 @@ export default function PedidosPage() {
           detailOrder && !detailOrder.arquivado ? buildOrderSummaryWhatsAppUrl(detailOrder) : null
         }
         readOnly={
+          isMobile ||
           Boolean(detailOrder?.arquivado) ||
           detailOrder?.status === 'concluido' ||
           detailOrder?.status === 'cancelado'
         }
+        allowPrintInReadOnly={!isMobile}
         overlayClassName={archiveOpen ? 'admin-confirm-overlay-top' : ''}
         demoDeadlineEdit={demoDeadlineEdit}
         storeSlug={storeSlug}

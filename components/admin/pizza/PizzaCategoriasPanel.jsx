@@ -87,6 +87,7 @@ export default function PizzaCategoriasPanel() {
   const [removingAddonPassoId, setRemovingAddonPassoId] = useState('');
   const [draftBaseline, setDraftBaseline] = useState(null);
   const [faixaModal, setFaixaModal] = useState(null);
+  const [catMenuId, setCatMenuId] = useState('');
   const toast = useAdminToast();
 
   const faixasExibicao = useMemo(
@@ -442,11 +443,19 @@ export default function PizzaCategoriasPanel() {
                     faixa ? ' is-in-faixa' : ''
                   }`}
                 >
-                  {cat.imagemUrl ? (
-                    <img className="admin-catalog-item-img" src={cat.imagemUrl} alt="" loading="lazy" decoding="async" />
-                  ) : (
-                    <ImagePlaceholder size={112} />
-                  )}
+                  <div className="admin-catalog-item-media">
+                    {cat.imagemUrl ? (
+                      <img
+                        className="admin-catalog-item-img"
+                        src={cat.imagemUrl}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : (
+                      <ImagePlaceholder size={112} />
+                    )}
+                  </div>
                   <div className="admin-catalog-item-main">
                     <div className="admin-item-title">{cat.nomePublico || 'Sem nome'}</div>
                     {faixa ? (
@@ -470,54 +479,89 @@ export default function PizzaCategoriasPanel() {
                       {fromPrice > 0 ? `A partir de ${formatCurrency(fromPrice)}` : 'Sem preço'}
                     </div>
                   </div>
-                  <div className="admin-item-actions-col">
-                    <div className="admin-availability-cell">
-                      <span>Disponível</span>
+                  <div className="admin-catalog-item-controls">
+                    <div className="admin-availability-cell admin-catalog-item-toggle">
+                      <span className="admin-availability-label">Disponível</span>
                       <Switch
                         checked={cat.ativo !== false}
                         label={`Alterar disponibilidade de ${cat.nomePublico}`}
                         onChange={(checked) => toggleCategoriaAtivo(cat.id, checked)}
                       />
                     </div>
-                    <button type="button" className="admin-link-btn" onClick={() => openEditCategoria(cat)}>
-                      Editar
-                    </button>
-                    {faixa ? (
+                    <div className="admin-item-icon-actions">
                       <button
                         type="button"
-                        className="admin-link-btn"
-                        onClick={() =>
-                          persistFaixas(
-                            removeMemberFromFaixas(faixasExibicao, cat.id),
-                            'Categoria removida da seção.'
-                          )
-                        }
+                        className="admin-btn admin-btn-ghost admin-btn-sm admin-item-action-icon admin-item-action-edit"
+                        onClick={() => openEditCategoria(cat)}
+                        title="Editar"
+                        aria-label={`Editar ${cat.nomePublico}`}
                       >
-                        Remover da seção
+                        <i className="hgi-stroke hgi-pencil-edit-02" aria-hidden="true" />
+                        <span className="admin-item-action-label">Editar</span>
                       </button>
-                    ) : null}
-                    {faixa ? (
+                      {faixa ? (
+                        <>
+                          <button
+                            type="button"
+                            className="admin-kebab-btn admin-item-action-kebab"
+                            aria-label={`Opções de ${cat.nomePublico}`}
+                            aria-expanded={catMenuId === cat.id}
+                            onClick={() => setCatMenuId((id) => (id === cat.id ? '' : cat.id))}
+                          >
+                            <span />
+                            <span />
+                            <span />
+                          </button>
+                          {catMenuId === cat.id ? (
+                            <div className="admin-floating-menu">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  openEditFaixaModal(faixa);
+                                  setCatMenuId('');
+                                }}
+                              >
+                                Editar seção do cardápio
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  persistFaixas(
+                                    removeMemberFromFaixas(faixasExibicao, cat.id),
+                                    'Categoria removida da seção.'
+                                  );
+                                  setCatMenuId('');
+                                }}
+                              >
+                                Remover da seção
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  persistFaixas(
+                                    removeFaixaExibicao(faixasExibicao, faixa.id),
+                                    'Seção desagrupada.'
+                                  );
+                                  setCatMenuId('');
+                                }}
+                              >
+                                Desagrupar seção
+                              </button>
+                            </div>
+                          ) : null}
+                        </>
+                      ) : null}
                       <button
                         type="button"
-                        className="admin-link-btn"
-                        onClick={() =>
-                          persistFaixas(
-                            removeFaixaExibicao(faixasExibicao, faixa.id),
-                            'Seção desagrupada.'
-                          )
-                        }
+                        className="admin-btn admin-btn-ghost admin-btn-sm admin-item-action-icon admin-item-action-danger"
+                        onClick={() => removeCategoria(cat.id)}
+                        title="Remover"
+                        aria-label={`Remover ${cat.nomePublico}`}
                       >
-                        Desagrupar seção
+                        <i className="hgi-stroke hgi-delete-02" aria-hidden="true" />
+                        <span className="admin-item-action-label">Remover</span>
                       </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="admin-link-btn"
-                      style={{ color: 'var(--admin-danger, #dc2626)' }}
-                      onClick={() => removeCategoria(cat.id)}
-                    >
-                      Remover
-                    </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -546,14 +590,14 @@ export default function PizzaCategoriasPanel() {
       {draft ? (
         <PizzaEditorShell
           title={categorias.some((item) => item.id === draft.id) ? 'Editar categoria' : 'Nova categoria'}
-          subtitle="Defina como este grupo aparece no cardápio e quais opções entram na montagem."
+          subtitle="Como o grupo aparece e o que entra na montagem."
           active={draft.ativo !== false}
           onActiveChange={(checked) => setDraft((prev) => ({ ...prev, ativo: checked }))}
           onClose={cancelEdit}
           isDirty={isDraftDirty}
           footer={({ requestClose }) => (
             <>
-              <button type="button" className="admin-btn admin-btn-ghost" onClick={requestClose}>
+              <button type="button" className="admin-btn admin-btn-ghost admin-btn-cancel" onClick={requestClose}>
                 Cancelar
               </button>
               <button type="button" className="admin-btn admin-btn-primary" onClick={saveCategoria}>
@@ -563,14 +607,14 @@ export default function PizzaCategoriasPanel() {
           )}
         >
           <div className="admin-pizza-editor-layout">
-            <aside className="admin-pizza-editor-side">
+            <aside className="admin-pizza-editor-side admin-editor-photo-block">
               <PizzaPhotoField imageUrl={draft.imagemUrl} label="Foto do grupo" onFile={handleCategoriaImage} />
               <div className="admin-pizza-editor-tip">
                 Essa foto aparece no cardápio como capa do grupo de pizzas.
               </div>
             </aside>
 
-            <div className="admin-pizza-editor-main">
+            <div className="admin-pizza-editor-main admin-editor-form-block">
               <div className="admin-catalog-form-grid">
                 <div className="admin-form-group">
                   <label className="admin-label">Nome no cardápio</label>
