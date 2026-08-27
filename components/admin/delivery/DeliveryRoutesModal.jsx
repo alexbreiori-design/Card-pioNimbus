@@ -15,6 +15,12 @@ import {
   computeBestRouteStops,
 } from '@/lib/delivery/routePreview';
 import DeliveryRouteReviewPanel from '@/components/admin/delivery/DeliveryRouteReviewPanel';
+import DeliveryMapBasemapControl from '@/components/admin/delivery/DeliveryMapBasemapControl';
+import {
+  createBasemapLayer,
+  persistBasemapId,
+  readStoredBasemapId,
+} from '@/lib/delivery/mapBasemaps';
 
 const NO_WHATSAPP_MSG =
   'Cadastre o WhatsApp com 11 dígitos deste entregador em Entrega antes de criar a rota.';
@@ -105,9 +111,13 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged, on
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
+  const basemapLayerRef = useRef(null);
+  const basemapApplyTokenRef = useRef(null);
   const markersLayerRef = useRef(null);
   const storeMarkerRef = useRef(null);
   const routeLineRef = useRef(null);
+
+  const [basemapId, setBasemapId] = useState(readStoredBasemapId);
 
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -266,6 +276,53 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged, on
     [toast, sideTab]
   );
 
+  const applyBasemap = useCallback(async (id) => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    const token = Symbol('basemap');
+    basemapApplyTokenRef.current = token;
+    const mountLayer = async (styleId) => {
+      const layer = await createBasemapLayer(L, styleId);
+      if (basemapApplyTokenRef.current !== token || mapInstanceRef.current !== map) {
+        if (layer?.remove) layer.remove();
+        return false;
+      }
+      if (basemapLayerRef.current) {
+        map.removeLayer(basemapLayerRef.current);
+        basemapLayerRef.current = null;
+      }
+      layer.addTo(map);
+      if (typeof layer.bringToBack === 'function') layer.bringToBack();
+      basemapLayerRef.current = layer;
+      const glMap = typeof layer.getMaplibreMap === 'function' ? layer.getMaplibreMap() : null;
+      if (glMap) {
+        const syncSize = () => {
+          try {
+            glMap.resize();
+            map.invalidateSize();
+          } catch {
+            /* ignore */
+          }
+        };
+        if (glMap.loaded()) syncSize();
+        else glMap.once('load', syncSize);
+      }
+      return true;
+    };
+    try {
+      await mountLayer(id);
+    } catch (error) {
+      console.error(error);
+      if (id !== 'ruas') {
+        try {
+          await mountLayer('ruas');
+        } catch (fallbackError) {
+          console.error(fallbackError);
+        }
+      }
+    }
+  }, []);
+
   const initMap = useCallback(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
@@ -274,16 +331,16 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged, on
       attributionControl: true,
     });
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; CARTO',
-      subdomains: 'abcd',
-      maxZoom: 20,
-    }).addTo(map);
-
-    markersLayerRef.current = L.layerGroup().addTo(map);
     mapInstanceRef.current = map;
-  }, []);
+    applyBasemap(basemapId);
+    markersLayerRef.current = L.layerGroup().addTo(map);
+  }, [applyBasemap, basemapId]);
+
+  useEffect(() => {
+    if (!open || !mapInstanceRef.current) return;
+    applyBasemap(basemapId);
+    persistBasemapId(basemapId);
+  }, [open, basemapId, applyBasemap]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -389,6 +446,7 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged, on
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove();
       mapInstanceRef.current = null;
+      basemapLayerRef.current = null;
       markersLayerRef.current = null;
       storeMarkerRef.current = null;
     }
@@ -615,6 +673,7 @@ export default function DeliveryRoutesModal({ open, onClose, onRoutesChanged, on
                 <span>Salve o endereço em Minha loja ou recalcule em Entrega.</span>
               </div>
             ) : null}
+            <DeliveryMapBasemapControl value={basemapId} onChange={setBasemapId} />
             <div ref={mapRef} className="admin-delivery-routes-map" />
           </div>
 
