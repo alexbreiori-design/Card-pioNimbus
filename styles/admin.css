@@ -4267,6 +4267,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding: 16px 20px 20px;
 }
 
 .admin-product-form-grid.admin-catalog-form-grid {
@@ -4978,6 +4979,21 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
+  flex-shrink: 0;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid #e8e8ef;
+  background: #fff;
+}
+
+.admin-item-overlay .admin-preview-header {
+  flex-shrink: 0;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid #e8e8ef;
+  background: #fff;
+}
+
+.admin-item-overlay .admin-editor-photo-body {
+  padding: 16px 20px 12px;
 }
 
 .admin-inline-switch {
@@ -15197,7 +15213,7 @@ textarea.admin-input::placeholder {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-bottom: 20px;
+  padding: 16px 20px 20px;
 }
 
 .admin-marmita-upload-box.admin-upload-box {
