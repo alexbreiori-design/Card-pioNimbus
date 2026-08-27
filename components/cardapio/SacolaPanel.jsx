@@ -2,12 +2,14 @@
 
 import CartItemOptsList from '@/components/cardapio/CartItemOptsList';
 
-import { useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { useCardapio } from '@/context/CardapioContext';
 import { calculateCupomDiscount } from '@/lib/cupons';
-import CategoryIcon from '@/components/admin/CategoryIcon';
-import { IconCupom, IconChevron } from './icons';
+import { IconChevron } from './icons';
 import MenuImageArea from '@/components/cardapio/MenuImageArea';
+
+const SACOLA_ITEMS_PEEK_PX = 28;
+const SACOLA_VISIBLE_ITEMS = 3;
 
 function AlsoCarousel({ items, formatPrice, onOpen }) {
   const scrollRef = useRef(null);
@@ -55,12 +57,40 @@ function AlsoCarousel({ items, formatPrice, onOpen }) {
   );
 }
 
+function CartItemQty({ item, inlineQtyControls, changeCartItemQty }) {
+  if (inlineQtyControls) {
+    return (
+      <div className="sacola-item-qty-stepper">
+        <button
+          type="button"
+          className="sacola-item-qty-btn"
+          onClick={() => changeCartItemQty(item.id, -1)}
+          aria-label={`Diminuir quantidade de ${item.name}`}
+        >
+          −
+        </button>
+        <span className="sacola-item-qty-value">{item.qty}</span>
+        <button
+          type="button"
+          className="sacola-item-qty-btn"
+          onClick={() => changeCartItemQty(item.id, 1)}
+          aria-label={`Aumentar quantidade de ${item.name}`}
+        >
+          +
+        </button>
+      </div>
+    );
+  }
+
+  return <div className="sacola-item-qty">{item.qty}x</div>;
+}
+
 export default function SacolaPanel({
   onFinalize,
   finalizeLabel = 'Finalizar pedido',
   onAddMore,
   orderTerminology = false,
-  promoCupomIcon = false,
+  promoCupomIcon: _promoCupomIcon = false,
   cartEmptyIcon = false,
   inlineQtyControls = false,
 }) {
@@ -92,9 +122,59 @@ export default function SacolaPanel({
   const empty = cart.length === 0;
   const emptyLabel = orderTerminology ? 'Pedido vazio' : 'Sacola vazia';
   const headerLabel = orderTerminology ? 'Seu pedido' : 'Sua sacola';
+  const itemsScrollable = cart.length > SACOLA_VISIBLE_ITEMS;
+  const itemsShellRef = useRef(null);
+  const itemsWrapRef = useRef(null);
+  const itemsListRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const shell = itemsShellRef.current;
+    const wrap = itemsWrapRef.current;
+    const list = itemsListRef.current;
+    if (!shell || !wrap || !list) return undefined;
+
+    const updateFade = () => {
+      if (!itemsScrollable) {
+        shell.classList.remove('has-fade');
+        return;
+      }
+      const remaining = wrap.scrollHeight - wrap.clientHeight - wrap.scrollTop;
+      shell.classList.toggle('has-fade', remaining > 2);
+    };
+
+    const measure = () => {
+      if (!itemsScrollable) {
+        wrap.style.maxHeight = '';
+        shell.classList.remove('has-fade');
+        return;
+      }
+      const rows = list.querySelectorAll('.sacola-item');
+      if (rows.length <= SACOLA_VISIBLE_ITEMS) {
+        wrap.style.maxHeight = '';
+        shell.classList.remove('has-fade');
+        return;
+      }
+      let height = 0;
+      for (let i = 0; i < SACOLA_VISIBLE_ITEMS; i += 1) {
+        height += rows[i].getBoundingClientRect().height;
+      }
+      wrap.style.maxHeight = `${Math.ceil(height + SACOLA_ITEMS_PEEK_PX)}px`;
+      updateFade();
+    };
+
+    measure();
+    wrap.addEventListener('scroll', updateFade, { passive: true });
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    ro?.observe(list);
+
+    return () => {
+      wrap.removeEventListener('scroll', updateFade);
+      ro?.disconnect();
+    };
+  }, [itemsScrollable, cart]);
 
   return (
-    <>
+    <div className={`sacola-panel${empty ? ' is-empty' : ''}`}>
       <div id="sacolaContent" className="sacola-panel-content">
         {empty ? (
           <div className="sacola-empty">
@@ -119,134 +199,124 @@ export default function SacolaPanel({
                 LIMPAR
               </button>
             </div>
-            {cart.map((item) => (
-              <div className="sacola-item" key={item.id}>
-                <div className="sacola-item-info">
-                  {inlineQtyControls ? (
-                    <div className="sacola-item-qty-stepper">
-                      <button
-                        type="button"
-                        className="sacola-item-qty-btn"
-                        onClick={() => changeCartItemQty(item.id, -1)}
-                        aria-label={`Diminuir quantidade de ${item.name}`}
-                      >
-                        −
-                      </button>
-                      <span className="sacola-item-qty-value">{item.qty}</span>
-                      <button
-                        type="button"
-                        className="sacola-item-qty-btn"
-                        onClick={() => changeCartItemQty(item.id, 1)}
-                        aria-label={`Aumentar quantidade de ${item.name}`}
-                      >
-                        +
-                      </button>
+            <div
+              ref={itemsShellRef}
+              className={`sacola-items-shell${itemsScrollable ? ' is-scrollable' : ''}`}
+            >
+              <div className="sacola-items-wrap" ref={itemsWrapRef}>
+                <div className="sacola-items" role="list" ref={itemsListRef}>
+                  {cart.map((item) => (
+                    <div className="sacola-item" key={item.id} role="listitem">
+                      <MenuImageArea
+                        imageUrl={item.imageUrl}
+                        className="sacola-item-thumb"
+                        alt={item.name}
+                        sizes="56px"
+                      />
+                      <div className="sacola-item-info">
+                        <div className="sacola-item-name">{item.name}</div>
+                        <CartItemOptsList opts={item.opts} note={item.note} className="sacola-item-opts" />
+                        <div className="sacola-item-actions">
+                          <button type="button" onClick={() => editCartItem(item.id)}>
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            className="remove-btn"
+                            onClick={() => removeCartItem(item.id)}
+                          >
+                            Remover
+                          </button>
+                        </div>
+                      </div>
+                      <div className="sacola-item-side">
+                        <CartItemQty
+                          item={item}
+                          inlineQtyControls={inlineQtyControls}
+                          changeCartItemQty={changeCartItemQty}
+                        />
+                        <div className="sacola-item-price">{formatPrice(item.price * item.qty)}</div>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="sacola-item-qty">{item.qty}x</div>
-                  )}
-                  <div className="sacola-item-name">{item.name}</div>
-                  <CartItemOptsList opts={item.opts} note={item.note} className="sacola-item-opts" />
-                  <div className="sacola-item-actions">
-                    <button type="button" onClick={() => editCartItem(item.id)}>
-                      Editar
-                    </button>
-                    <button
-                      type="button"
-                      className="remove-btn"
-                      onClick={() => removeCartItem(item.id)}
-                    >
-                      Remover
-                    </button>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-                  <div className="sacola-item-price">{formatPrice(item.price * item.qty)}</div>
-                  <MenuImageArea
-                    imageUrl={item.imageUrl}
-                    className="sacola-item-thumb"
-                    alt={item.name}
-                    sizes="56px"
-                  />
+                  ))}
                 </div>
               </div>
-            ))}
-            {relatedItems.length > 0 ? (
-              <>
-                <div className="sacola-also-title">Adicione ao pedido</div>
-                <AlsoCarousel items={relatedItems} formatPrice={formatPrice} onOpen={openProduct} />
-              </>
-            ) : null}
-            <div className="sacola-totals">
-              {minOrder > 0 ? (
-                <div className="totals-row totals-row--meta">
-                  <span>Pedido mínimo</span>
-                  <span>{formatPrice(minOrder)}</span>
-                </div>
-              ) : null}
-              <div className="totals-row">
-                <span>Subtotal</span>
-                <span>{formatPrice(subtotal)}</span>
-              </div>
-              {isDelivery ? (
-                <div className="totals-row">
-                  <span>Taxa de entrega</span>
-                  <span>{fee > 0 ? formatPrice(fee) : 'Grátis'}</span>
-                </div>
-              ) : null}
-              {cupomOff > 0 ? (
-                <div className="totals-row">
-                  <span>Cupom ({appliedCupom.codigo})</span>
-                  <span>− {formatPrice(cupomOff)}</span>
-                </div>
-              ) : null}
-              <div className="totals-row total">
-                <span>Total</span>
-                <span>{formatPrice(total)}</span>
-              </div>
+              <div className="sacola-items-fade" aria-hidden="true" />
             </div>
           </>
         )}
       </div>
       {!empty ? (
-        <div className="sacola-panel-footer">
-          <div className="cupom-row" onClick={openCupomPopup} role="button" tabIndex={0}>
-            <span className="cupom-icon">
-              {promoCupomIcon ? (
-                <CategoryIcon name="promo" size={20} className="sacola-cupom-promo-icon" tinted />
-              ) : (
-                <IconCupom />
-              )}
-            </span>
-            <span className="cupom-info">
-              <div className="cupom-title">
-                {appliedCupom ? `Cupom ${appliedCupom.codigo} aplicado` : 'Tem um cupom?'}
-              </div>
-              <div className="cupom-sub">
-                {appliedCupom
-                  ? `Desconto de ${formatPrice(appliedCupom.valorDesconto)}`
-                  : 'Clique e insira o código'}
-              </div>
-            </span>
-            <span className="cupom-chev">
-              <IconChevron />
-            </span>
-          </div>
-          {onAddMore ? (
-            <button type="button" className="btn-sacola-secondary" onClick={onAddMore}>
-              Adicionar mais itens
-            </button>
+        <div className="sacola-panel-sticky">
+          {relatedItems.length > 0 ? (
+            <div className="sacola-also">
+              <div className="sacola-also-title">Adicione ao pedido</div>
+              <AlsoCarousel items={relatedItems} formatPrice={formatPrice} onOpen={openProduct} />
+            </div>
           ) : null}
-          <button
-            type="button"
-            className="btn-continuar"
-            disabled={!isStoreOpen}
-            onClick={onFinalize}
-          >
-            {!isStoreOpen ? 'Loja fechada no momento' : finalizeLabel}
-          </button>
+          <div className="sacola-totals">
+            {minOrder > 0 ? (
+              <div className="totals-row totals-row--meta">
+                <span>Pedido mínimo</span>
+                <span>{formatPrice(minOrder)}</span>
+              </div>
+            ) : null}
+            <div className="totals-row">
+              <span>Subtotal</span>
+              <span>{formatPrice(subtotal)}</span>
+            </div>
+            {isDelivery ? (
+              <div className="totals-row">
+                <span>Taxa de entrega</span>
+                <span>{fee > 0 ? formatPrice(fee) : 'Grátis'}</span>
+              </div>
+            ) : null}
+            {cupomOff > 0 ? (
+              <div className="totals-row">
+                <span>Cupom ({appliedCupom.codigo})</span>
+                <span>− {formatPrice(cupomOff)}</span>
+              </div>
+            ) : null}
+            <div className="totals-row total">
+              <span>Total</span>
+              <span>{formatPrice(total)}</span>
+            </div>
+          </div>
+          <div className="sacola-panel-footer">
+            <div className="cupom-row" onClick={openCupomPopup} role="button" tabIndex={0}>
+              <span className="cupom-icon" aria-hidden="true">
+                <i className="ph ph-ticket" />
+              </span>
+              <span className="cupom-info">
+                <div className="cupom-title">
+                  {appliedCupom ? `Cupom ${appliedCupom.codigo} aplicado` : 'Tem um cupom?'}
+                </div>
+                <div className="cupom-sub">
+                  {appliedCupom
+                    ? `Desconto de ${formatPrice(appliedCupom.valorDesconto)}`
+                    : 'Clique e insira o código'}
+                </div>
+              </span>
+              <span className="cupom-chev">
+                <IconChevron />
+              </span>
+            </div>
+            {onAddMore ? (
+              <button type="button" className="btn-sacola-secondary" onClick={onAddMore}>
+                Adicionar mais itens
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="btn-continuar"
+              disabled={!isStoreOpen}
+              onClick={onFinalize}
+            >
+              {!isStoreOpen ? 'Loja fechada no momento' : finalizeLabel}
+            </button>
+          </div>
         </div>
       ) : null}
-    </>
+    </div>
   );
 }
