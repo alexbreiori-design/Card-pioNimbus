@@ -2969,10 +2969,14 @@
   background: var(--white, #fff);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.07);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: min(78vh, 720px);
 }
 
 .cardapio-v2-cart-head {
   padding: 18px 20px 0;
+  flex-shrink: 0;
 }
 
 .cardapio-v2-cart-title {
@@ -2989,8 +2993,34 @@
   color: var(--text, #141414);
 }
 
+.cardapio-v2-cart-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cardapio-v2-cart-body .sacola-panel {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .cardapio-v2-cart-body .sacola-panel-content {
-  padding-top: 8px;
+  padding-top: 4px;
+}
+
+/* Evita título duplicado com "Meu pedido" do card */
+.cardapio-v2-cart-body .sacola-header {
+  justify-content: flex-end;
+  padding-top: 4px;
+  padding-bottom: 8px;
+  border-bottom: none;
+}
+
+.cardapio-v2-cart-body .sacola-header h3 {
+  display: none;
 }
 
 .cardapio-v2-cart-body .sidebar-card,
@@ -3027,46 +3057,9 @@
   background-color: var(--brand, #4e48dd);
 }
 
-.cardapio-v2-cart-body .sacola-item-qty-stepper {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-  padding: 2px;
-  border-radius: 999px;
-  background: var(--bg, #f5f5f5);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.cardapio-v2-cart-body .sacola-item-qty-btn {
-  width: 22px;
-  height: 22px;
-  border: none;
-  border-radius: 50%;
-  background: var(--white, #fff);
-  color: var(--text, #141414);
-  font-size: 14px;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 0;
-  font-family: inherit;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
 .cardapio-v2-cart-body .sacola-item-qty-btn:hover {
   background: color-mix(in srgb, var(--brand, #4e48dd) 10%, white);
   color: var(--brand, #4e48dd);
-}
-
-.cardapio-v2-cart-body .sacola-item-qty-value {
-  min-width: 16px;
-  text-align: center;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text, #141414);
 }
 
 /* ——— Checkout v1 dentro do v2 ——— */
@@ -3437,8 +3430,8 @@
 
 .cardapio-v2-step-preview-thumb {
   flex-shrink: 0;
-  width: 36px;
-  height: 36px;
+  width: 56px;
+  height: 56px;
   border-radius: 10px;
   overflow: hidden;
   background: #f3f4f6;
@@ -3597,24 +3590,27 @@
 
 .cardapio-v2-product-modal-option {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) 22px;
-  align-items: center;
-  gap: 8px;
+  grid-template-columns: 80px minmax(0, 1fr) 22px;
+  align-items: stretch;
+  gap: 0 12px;
   width: 100%;
   min-height: 0;
   box-sizing: border-box;
-  padding: 12px 14px;
+  padding: 0 14px 0 0;
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 12px;
   background: #fff;
   text-align: left;
   cursor: pointer;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  overflow: hidden;
 }
 
 .cardapio-v2-product-modal-option.is-text-only {
   grid-template-columns: minmax(0, 1fr) 22px;
   align-items: start;
+  padding: 12px 14px;
+  gap: 10px;
 }
 
 .cardapio-v2-product-modal-option:hover {
@@ -3639,11 +3635,24 @@
 }
 
 .cardapio-v2-product-modal-option-thumb {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 80px;
+  height: 100%;
+  min-height: 76px;
+  border-radius: 0;
   overflow: hidden;
   flex-shrink: 0;
+  align-self: stretch;
+  background: #f3f4f6;
+}
+
+.cardapio-v2-product-modal-option-thumb.has-image,
+.cardapio-v2-product-modal-option-thumb.menu-img-next {
+  background-size: cover;
+  background-position: center;
+}
+
+.cardapio-v2-product-modal-option-thumb.menu-img-next .menu-img-next-fill {
+  object-fit: cover;
 }
 
 .cardapio-v2-product-modal-option-copy {
@@ -3651,6 +3660,8 @@
   flex-direction: column;
   gap: 1px;
   min-width: 0;
+  padding: 12px 0;
+  align-self: center;
 }
 
 .cardapio-v2-product-modal-option-copy strong {
@@ -3691,6 +3702,7 @@
   justify-content: center;
   color: #fff;
   flex-shrink: 0;
+  align-self: center;
 }
 
 .cardapio-v2-product-modal-option-check .cardapio-v2-icon {
@@ -3707,8 +3719,8 @@
 }
 
 .cardapio-v2-product-modal-option.has-qty-stepper {
-  grid-template-columns: 36px minmax(0, 1fr) auto;
-  gap: 8px;
+  grid-template-columns: 80px minmax(0, 1fr) auto;
+  gap: 0 12px;
 }
 
 .cardapio-v2-product-modal-option.is-text-only.has-qty-stepper {
@@ -3718,6 +3730,7 @@
 .cardapio-v2-product-modal-option.has-qty-stepper .addon-qty-stepper {
   margin-left: auto;
   flex: 0 0 auto;
+  align-self: center;
 }
 
 .cardapio-v2-product-modal-option.has-qty-stepper .cardapio-v2-product-modal-option-copy {
