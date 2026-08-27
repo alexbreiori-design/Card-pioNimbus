@@ -18241,6 +18241,59 @@ textarea.admin-input::placeholder {
   color: var(--admin-text-light, #6b6b7b);
 }
 
+.admin-delivery-basemap-control {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
+.admin-delivery-basemap-btn {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--admin-text-mid, #566078);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.admin-delivery-basemap-btn:hover {
+  background: #f3f4f8;
+  color: var(--admin-text, #20243a);
+}
+
+.admin-delivery-basemap-btn.is-active {
+  background: #eef0ff;
+  color: var(--admin-brand, #4e48dd);
+}
+
+.admin-delivery-routes-map .maplibregl-map,
+.admin-delivery-zone-map .maplibregl-map {
+  font: inherit;
+}
+
+.admin-delivery-routes-map .leaflet-gl-layer,
+.admin-delivery-zone-map .leaflet-gl-layer,
+.admin-delivery-routes-map .leaflet-maplibre-gl,
+.admin-delivery-zone-map .leaflet-maplibre-gl {
+  z-index: 0 !important;
+}
+
 .admin-delivery-routes-map-wrap {
   position: relative;
   min-height: 0;

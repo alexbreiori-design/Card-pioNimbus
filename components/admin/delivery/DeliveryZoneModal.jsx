@@ -4,6 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
+import DeliveryMapBasemapControl from '@/components/admin/delivery/DeliveryMapBasemapControl';
+import {
+  createBasemapLayer,
+  persistBasemapId,
+  readStoredBasemapId,
+} from '@/lib/delivery/mapBasemaps';
 
 const CIRCLE_COLOR = '#4e48dd';
 const EXCLUSION_COLOR = '#dc2626';
@@ -144,6 +150,8 @@ export default function DeliveryZoneModal({
 }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
+  const basemapLayerRef = useRef(null);
+  const basemapApplyTokenRef = useRef(null);
   const circleRef = useRef(null);
   const storeMarkerRef = useRef(null);
   const exclusionsLayerRef = useRef(null);
@@ -154,6 +162,8 @@ export default function DeliveryZoneModal({
   const exclusionsRef = useRef([]);
   const selectedExclusionIdRef = useRef(null);
   const exclusionModeRef = useRef(false);
+
+  const [basemapId, setBasemapId] = useState(readStoredBasemapId);
 
   const [nome, setNome] = useState('');
   const [raioKm, setRaioKm] = useState(DEFAULT_RAIO);
@@ -354,12 +364,60 @@ export default function DeliveryZoneModal({
       mapInstanceRef.current.remove();
       mapInstanceRef.current = null;
     }
+    basemapLayerRef.current = null;
     circleRef.current = null;
     storeMarkerRef.current = null;
     exclusionsLayerRef.current = null;
     handlesLayerRef.current = null;
     rectangleByIdRef.current.clear();
     drawStateRef.current = { start: null, preview: null };
+  }, []);
+
+  const applyBasemap = useCallback(async (id) => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    const token = Symbol('basemap');
+    basemapApplyTokenRef.current = token;
+    const mountLayer = async (styleId) => {
+      const layer = await createBasemapLayer(L, styleId);
+      if (basemapApplyTokenRef.current !== token || mapInstanceRef.current !== map) {
+        if (layer?.remove) layer.remove();
+        return false;
+      }
+      if (basemapLayerRef.current) {
+        map.removeLayer(basemapLayerRef.current);
+        basemapLayerRef.current = null;
+      }
+      layer.addTo(map);
+      if (typeof layer.bringToBack === 'function') layer.bringToBack();
+      basemapLayerRef.current = layer;
+      const glMap = typeof layer.getMaplibreMap === 'function' ? layer.getMaplibreMap() : null;
+      if (glMap) {
+        const syncSize = () => {
+          try {
+            glMap.resize();
+            map.invalidateSize();
+          } catch {
+            /* ignore */
+          }
+        };
+        if (glMap.loaded()) syncSize();
+        else glMap.once('load', syncSize);
+      }
+      return true;
+    };
+    try {
+      await mountLayer(id);
+    } catch (error) {
+      console.error(error);
+      if (id !== 'ruas') {
+        try {
+          await mountLayer('ruas');
+        } catch (fallbackError) {
+          console.error(fallbackError);
+        }
+      }
+    }
   }, []);
 
   const initMap = useCallback(() => {
@@ -372,15 +430,9 @@ export default function DeliveryZoneModal({
       attributionControl: true,
     });
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      subdomains: 'abcd',
-      maxZoom: 20,
-    }).addTo(map);
-
     map.setView([storePoint.lat, storePoint.lng], zoomForRadiusKm(initialKm));
     mapInstanceRef.current = map;
+    applyBasemap(basemapId);
 
     exclusionsLayerRef.current = L.layerGroup().addTo(map);
     handlesLayerRef.current = L.layerGroup().addTo(map);
@@ -481,7 +533,7 @@ export default function DeliveryZoneModal({
         syncExclusionLayers();
       }, 120);
     });
-  }, [storePoint, storeLabel, initialDraft?.raio_km, syncExclusionLayers]);
+  }, [storePoint, storeLabel, initialDraft?.raio_km, syncExclusionLayers, applyBasemap, basemapId]);
 
   useEffect(() => {
     if (!open) {
@@ -499,6 +551,12 @@ export default function DeliveryZoneModal({
       destroyMap();
     };
   }, [open, storePoint, initMap, destroyMap]);
+
+  useEffect(() => {
+    if (!open || !mapInstanceRef.current) return;
+    applyBasemap(basemapId);
+    persistBasemapId(basemapId);
+  }, [open, basemapId, applyBasemap]);
 
   useEffect(() => {
     if (!open || !mapInstanceRef.current) return;
@@ -664,6 +722,7 @@ export default function DeliveryZoneModal({
                 {exclusions.length} exclus{exclusions.length === 1 ? 'ão' : 'ões'}
               </span>
             </div>
+            <DeliveryMapBasemapControl value={basemapId} onChange={setBasemapId} />
             <div ref={mapRef} className="admin-delivery-zone-map" />
           </div>
 

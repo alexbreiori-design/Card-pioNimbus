@@ -51,6 +51,9 @@ dev-out.txt
 
 tmp/
 
+# MapLibre worker (gerado por scripts/copy-maplibre-worker.mjs no predev/prebuild)
+/public/maplibre/
+
 # Python (tools/menu-extractor)
 __pycache__/
 *.py[cod]
