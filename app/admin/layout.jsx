@@ -31,7 +31,6 @@ export default function AdminRootLayout({ children }) {
         rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap"
       />
-      <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css" />
       <Script
         type="module"
         src="https://cdn.jsdelivr.net/npm/ionicons@7.4.0/dist/ionicons/ionicons.esm.js"

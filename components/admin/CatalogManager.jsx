@@ -26,6 +26,7 @@ import PizzaPecaTambemPickerModal from '@/components/admin/pizza/PizzaPecaTambem
 import ProductPromoChip from '@/components/cardapio/ProductPromoChip';
 import { DraggableReorderList } from '@/components/lightswind/draggable-reorder-list';
 import { CATEGORY_LAYOUT_DEFAULT } from '@/lib/cardapio/categoryLayouts';
+import { applyCatalogGroupToggle, isCatalogItemUnavailable } from '@/lib/catalog/groupAvailability';
 import {
   createFaixaFromMembers,
   findFaixaForMember,
@@ -323,6 +324,10 @@ export default function CatalogManager({ mode = 'produtos' }) {
   const [faixaModal, setFaixaModal] = useState(null);
 
   const categories = useMemo(() => data[catKey] || [], [data, catKey]);
+  const categoriesById = useMemo(
+    () => new Map(categories.map((cat) => [cat.id, cat])),
+    [categories]
+  );
   const faixasExibicao = useMemo(
     () =>
       isProdutos
@@ -1171,10 +1176,14 @@ export default function CatalogManager({ mode = 'produtos' }) {
                 checked={Boolean(cat.ativo)}
                 label={`Alterar disponibilidade da categoria ${cat.nome}`}
                 onChange={(checked) =>
-                  saveData((prev) => ({
-                    ...prev,
-                    [catKey]: prev[catKey].map((c) => (c.id === cat.id ? { ...c, ativo: checked } : c)),
-                  }))
+                  saveData((prev) =>
+                    applyCatalogGroupToggle(prev, {
+                      catKey,
+                      itemKey,
+                      groupId: cat.id,
+                      active: checked,
+                    })
+                  )
                 }
               />
             </div>
@@ -1272,8 +1281,10 @@ export default function CatalogManager({ mode = 'produtos' }) {
           </div>
           );
         }}
-        renderItemPreview={(item) => (
-          <div className="admin-catalog-item-row admin-grouped-sort-browse-item">
+        renderItemPreview={(item) => {
+          const isUnavailable = isCatalogItemUnavailable(item, categoriesById);
+          return (
+          <div className={`admin-catalog-item-row admin-grouped-sort-browse-item${isUnavailable ? ' is-unavailable' : ''}`}>
             <div className="admin-catalog-item-media">
               {item.imagemUrl ? (
                 <img
@@ -1323,7 +1334,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
                   title="Editar"
                   aria-label={`Editar ${item.nome}`}
                 >
-                  <i className="hgi-stroke hgi-pencil-edit-02" aria-hidden="true" />
+                  <i className="ph ph-pencil-simple" aria-hidden="true" />
                   <span className="admin-item-action-label">Editar</span>
                 </button>
                 <button
@@ -1333,7 +1344,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
                   title="Duplicar"
                   aria-label={`Duplicar ${item.nome}`}
                 >
-                  <i className="hgi-stroke hgi-copy-01" aria-hidden="true" />
+                  <i className="ph ph-copy" aria-hidden="true" />
                   <span className="admin-item-action-label">Duplicar</span>
                 </button>
                 <button
@@ -1343,13 +1354,14 @@ export default function CatalogManager({ mode = 'produtos' }) {
                   title="Remover"
                   aria-label={`Remover ${item.nome}`}
                 >
-                  <i className="hgi-stroke hgi-delete-02" aria-hidden="true" />
+                  <i className="ph ph-trash" aria-hidden="true" />
                   <span className="admin-item-action-label">Remover</span>
                 </button>
               </div>
             </div>
           </div>
-        )}
+          );
+        }}
       />
 
       {modalOpen && getAdminPortalRoot()
