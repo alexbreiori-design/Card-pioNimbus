@@ -229,10 +229,21 @@
     margin: 0 !important;
     padding: 0 !important;
     background: #fff !important;
-    width: auto !important;
     height: auto !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  body.order-ticket-printing--80 {
+    width: 80mm !important;
+    min-width: 80mm !important;
+    max-width: 80mm !important;
+  }
+
+  body.order-ticket-printing--58 {
+    width: 58mm !important;
+    min-width: 58mm !important;
+    max-width: 58mm !important;
   }
 
   body.order-ticket-printing > *:not(.order-ticket-print-root) {
@@ -312,6 +323,16 @@
 
   .order-ticket-print-root .order-ticket-order-number {
     font-size: 23px !important;
+  }
+
+  .order-ticket-print-root .order-ticket-logo {
+    max-width: 44mm !important;
+    max-height: 16mm !important;
+  }
+
+  .order-ticket-print-root.order-ticket--58 .order-ticket-logo {
+    max-width: 32mm !important;
+    max-height: 12mm !important;
   }
 
   .order-ticket-logo {
