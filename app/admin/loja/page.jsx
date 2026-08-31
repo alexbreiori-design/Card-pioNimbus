@@ -47,7 +47,6 @@ import { useAdminToast } from '@/context/AdminToastContext';
 const DESCRICAO_MAX = 120;
 const MENSAGEM_FECHADA_MAX = 280;
 const SAVE_SKELETON_MIN_MS = 480;
-const SAVE_TOAST_PROGRESS_MS = 5000;
 
 const DAYS = [
   ['segunda', 'Segunda'],
@@ -401,12 +400,6 @@ export default function MinhaLojaPage() {
       return;
     }
     setSaving(true);
-    const savingToastId = toast.toast({
-      title: 'Salvando…',
-      description: 'Aguarde a conclusão do salvamento.',
-      variant: 'info',
-      duration: SAVE_TOAST_PROGRESS_MS,
-    });
     const startedAt = Date.now();
     const nextLoja = applyScheduleOpenStatus({
       ...draft,
@@ -418,6 +411,7 @@ export default function MinhaLojaPage() {
         .slice(0, MENSAGEM_FECHADA_MAX),
       telefone: String(draft.whatsapp || draft.telefone || '').trim(),
     });
+    let storeSaved = false;
     try {
       const enderecoText = [
         nextLoja.enderecoLogradouro,
@@ -440,6 +434,22 @@ export default function MinhaLojaPage() {
           endereco: enderecoText || prev.loja.endereco,
         },
       }));
+      storeSaved = true;
+    } catch {
+      /* Erro exibido pelo AdminSaveFeedback. */
+    } finally {
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < SAVE_SKELETON_MIN_MS) {
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, SAVE_SKELETON_MIN_MS - elapsed);
+        });
+      }
+      setSaving(false);
+    }
+
+    if (!storeSaved) return;
+
+    try {
       if (slug) {
         const empresaPatch = lojaPatchToEmpresa(nextLoja);
         if (!canEditSegment) {
@@ -469,20 +479,10 @@ export default function MinhaLojaPage() {
           /* geocoding opcional */
         }
       }
-      toast.dismiss(savingToastId);
       toast.success('Alterações salvas com sucesso.');
       setPedidoMinimo(moneyToDisplay(nextLoja.pedidoMinimo));
     } catch (e) {
-      toast.dismiss(savingToastId);
       toast.error(e?.message || 'Erro ao salvar. Tente novamente.');
-    } finally {
-      const elapsed = Date.now() - startedAt;
-      if (elapsed < SAVE_SKELETON_MIN_MS) {
-        await new Promise((resolve) => {
-          window.setTimeout(resolve, SAVE_SKELETON_MIN_MS - elapsed);
-        });
-      }
-      setSaving(false);
     }
   }
 

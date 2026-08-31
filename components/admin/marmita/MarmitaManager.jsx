@@ -28,7 +28,11 @@ import {
 } from '@/lib/marmita/marmitaWeekdays';
 import MarmitaGrupoEditorModal from '@/components/admin/marmita/MarmitaGrupoEditorModal';
 import { CATEGORY_LAYOUT_DEFAULT } from '@/lib/cardapio/categoryLayouts';
-import { applyMarmitaGrupoToggle, isMarmitaItemUnavailable } from '@/lib/catalog/groupAvailability';
+import {
+  applyMarmitaGrupoToggle,
+  applyMarmitaItemToggle,
+  isMarmitaItemUnavailable,
+} from '@/lib/catalog/groupAvailability';
 import {
   createFaixaFromMembers,
   findFaixaForMember,
@@ -1039,10 +1043,7 @@ export default function MarmitaManager() {
         return;
       }
     }
-    await saveData((prev) => ({
-      ...prev,
-      marmitas: (prev.marmitas || []).map((row) => (row.id === item.id ? { ...row, ativo } : row)),
-    }));
+    await saveData((prev) => applyMarmitaItemToggle(prev, item.id, ativo));
   }
 
   async function handleDuplicate(item) {
