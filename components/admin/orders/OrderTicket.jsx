@@ -3,6 +3,7 @@
 import CartItemOptsList from '@/components/cardapio/CartItemOptsList';
 import '@/styles/orderTicket.css';
 import { currency, fmtPhone } from './orderDraftUtils';
+import { resolveStoreContactPhone } from '@/lib/storeWhatsApp';
 import {
   appendAddressComplement,
   formatDeliveryAddressLine,
@@ -60,6 +61,7 @@ export default function OrderTicket({ order, store = {}, widthMm = 80, mode = 'p
     mode === 'preview'
       ? `order-ticket-preview-root ${widthClass}`
       : `order-ticket-print-root ${widthClass}`;
+  const storePhone = resolveStoreContactPhone(store);
 
   return (
     <div className={rootClass} aria-hidden={mode === 'print' ? 'true' : undefined}>
@@ -69,10 +71,8 @@ export default function OrderTicket({ order, store = {}, widthMm = 80, mode = 'p
             <img src={store.logoComandaUrl} alt="" className="order-ticket-logo" />
           ) : null}
           <p className="order-ticket-store">{store.nome || 'Minha loja'}</p>
-          {store.telefone || store.whatsapp ? (
-            <p className="order-ticket-store-phone">
-              {fmtPhone(store.telefone || store.whatsapp)}
-            </p>
+          {storePhone ? (
+            <p className="order-ticket-store-phone">{fmtPhone(storePhone)}</p>
           ) : null}
         </header>
 

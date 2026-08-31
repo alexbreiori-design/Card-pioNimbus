@@ -416,6 +416,7 @@ export default function MinhaLojaPage() {
       mensagemLojaFechada: String(draft.mensagemLojaFechada || '')
         .trim()
         .slice(0, MENSAGEM_FECHADA_MAX),
+      telefone: String(draft.whatsapp || draft.telefone || '').trim(),
     });
     try {
       const enderecoText = [
