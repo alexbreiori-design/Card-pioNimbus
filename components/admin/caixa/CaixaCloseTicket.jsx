@@ -4,6 +4,7 @@
 
 import '@/styles/orderTicket.css';
 import { currency, fmtPhone } from '@/components/admin/orders/orderDraftUtils';
+import { resolveStoreContactPhone } from '@/lib/storeWhatsApp';
 
 function formatDateTime(iso) {
   if (!iso) return '—';
@@ -78,6 +79,7 @@ export default function CaixaCloseTicket({
           : null;
 
   const observacao = extras?.observacao || turno?.observacaoFechamento || '';
+  const storePhone = resolveStoreContactPhone(store);
 
   return (
     <div className={rootClass} aria-hidden={mode === 'print' ? 'true' : undefined}>
@@ -87,10 +89,8 @@ export default function CaixaCloseTicket({
             <img src={store.logoComandaUrl} alt="" className="order-ticket-logo" />
           ) : null}
           <p className="order-ticket-store">{store.nome || 'Minha loja'}</p>
-          {store.telefone || store.whatsapp ? (
-            <p className="order-ticket-store-phone">
-              {fmtPhone(store.telefone || store.whatsapp)}
-            </p>
+          {storePhone ? (
+            <p className="order-ticket-store-phone">{fmtPhone(storePhone)}</p>
           ) : null}
         </header>
 
