@@ -133,6 +133,14 @@ export default function SacolaPanel({
     const list = itemsListRef.current;
     if (!shell || !wrap || !list) return undefined;
 
+    const panel = shell.closest('.sacola-panel');
+
+    const clearWrapSize = () => {
+      wrap.style.height = '';
+      wrap.style.maxHeight = '';
+      shell.classList.remove('has-fade');
+    };
+
     const updateFade = () => {
       if (!itemsScrollable) {
         shell.classList.remove('has-fade');
@@ -144,21 +152,39 @@ export default function SacolaPanel({
 
     const measure = () => {
       if (!itemsScrollable) {
-        wrap.style.maxHeight = '';
-        shell.classList.remove('has-fade');
+        clearWrapSize();
         return;
       }
-      const rows = list.querySelectorAll('.sacola-item');
+      const rows = list.querySelectorAll(':scope > .sacola-item');
       if (rows.length <= SACOLA_VISIBLE_ITEMS) {
-        wrap.style.maxHeight = '';
-        shell.classList.remove('has-fade');
+        clearWrapSize();
         return;
       }
-      let height = 0;
+
+      let itemsHeight = 0;
       for (let i = 0; i < SACOLA_VISIBLE_ITEMS; i += 1) {
-        height += rows[i].getBoundingClientRect().height;
+        itemsHeight += rows[i].getBoundingClientRect().height;
       }
-      wrap.style.maxHeight = `${Math.ceil(height + SACOLA_ITEMS_PEEK_PX)}px`;
+      const desired = Math.ceil(itemsHeight + SACOLA_ITEMS_PEEK_PX);
+
+      // Cabe no card da sacola (totais/sugestões ficam fixos embaixo).
+      let available = desired;
+      if (panel) {
+        const headerEl = panel.querySelector('.sacola-header');
+        const stickyEl = panel.querySelector('.sacola-panel-sticky');
+        const used =
+          (headerEl?.getBoundingClientRect().height || 0) +
+          (stickyEl?.getBoundingClientRect().height || 0);
+        const panelH = panel.clientHeight || 0;
+        if (panelH > 0) {
+          available = Math.max(96, Math.floor(panelH - used));
+        }
+      }
+
+      const capped = Math.max(96, Math.min(desired, available));
+      // height fixa o scrollport; maxHeight reforça o teto de ~3 itens.
+      wrap.style.maxHeight = `${capped}px`;
+      wrap.style.height = `${capped}px`;
       updateFade();
     };
 
@@ -166,6 +192,9 @@ export default function SacolaPanel({
     wrap.addEventListener('scroll', updateFade, { passive: true });
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
     ro?.observe(list);
+    if (panel) ro?.observe(panel);
+    const stickyEl = panel?.querySelector('.sacola-panel-sticky');
+    if (stickyEl) ro?.observe(stickyEl);
 
     return () => {
       wrap.removeEventListener('scroll', updateFade);

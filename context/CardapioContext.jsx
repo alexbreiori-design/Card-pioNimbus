@@ -84,16 +84,14 @@ const STEP_LABELS_ONLINE_PIX = ['Dados', 'Entrega', 'Pagamento', 'Confirmar'];
 const STEP_LABELS_ONLINE_CARD = ['Dados', 'Entrega', 'Pagamento', 'Cartão', 'Confirmar'];
 
 const PUBLIC_PAYMENT_METHODS_BASE = [
-  { id: 'pix', label: 'Pix (enviar comprovante)', group: 'Pagar na entrega' },
   { id: 'dinheiro', label: 'Dinheiro', group: 'Pagar na entrega' },
   { id: 'credito', label: 'Cartão de crédito', group: 'Pagar na entrega' },
   { id: 'debito', label: 'Cartão de débito', group: 'Pagar na entrega' },
 ];
 
-function buildPublicPaymentMethods(exibirPixCardapio = true, onlineAccount = null) {
-  const offline = exibirPixCardapio === false
-    ? PUBLIC_PAYMENT_METHODS_BASE.filter((method) => method.id !== 'pix')
-    : PUBLIC_PAYMENT_METHODS_BASE;
+/** Monta métodos do checkout. Pix manual (comprovante) fica desligado por enquanto — só Pix online. */
+function buildPublicPaymentMethods(_exibirPixCardapio = true, onlineAccount = null) {
+  const offline = PUBLIC_PAYMENT_METHODS_BASE;
   if (!onlineAccount) return offline;
   const online = [];
   if (onlineAccount.methods?.pix !== false) {
@@ -493,10 +491,11 @@ export function CardapioProvider({
   }, [effectiveSlug, slug, storeConfig.slug]);
 
   useEffect(() => {
-    if (storeConfig.exibirPixCardapio === false && checkoutData.payment === 'pix') {
+    // Pix manual (comprovante) desligado no checkout público.
+    if (checkoutData.payment === 'pix') {
       setCheckoutData((current) => ({ ...current, payment: '' }));
     }
-  }, [storeConfig.exibirPixCardapio, checkoutData.payment]);
+  }, [checkoutData.payment]);
 
   const persistStoreSnapshot = useCallback(
     async (nextState) => {

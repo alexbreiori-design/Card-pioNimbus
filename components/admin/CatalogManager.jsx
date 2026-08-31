@@ -2,13 +2,14 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
 import AdminConfirmDialog from '@/components/admin/AdminConfirmDialog';
 import AdminFaixaModal from '@/components/admin/AdminFaixaModal';
 import { AdminCatalogSkeleton, useAdminMountSkeleton } from '@/components/admin/AdminSkeleton';
 import { useAdminData } from '@/hooks/useAdminData';
+import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
 import { isJsonDirty } from '@/lib/admin/isFormDirty';
 import { getAdminPortalRoot } from '@/lib/admin/portalRoot';
@@ -26,7 +27,11 @@ import PizzaPecaTambemPickerModal from '@/components/admin/pizza/PizzaPecaTambem
 import ProductPromoChip from '@/components/cardapio/ProductPromoChip';
 import { DraggableReorderList } from '@/components/lightswind/draggable-reorder-list';
 import { CATEGORY_LAYOUT_DEFAULT } from '@/lib/cardapio/categoryLayouts';
-import { applyCatalogGroupToggle, isCatalogItemUnavailable } from '@/lib/catalog/groupAvailability';
+import {
+  applyCatalogGroupToggle,
+  applyCatalogItemToggle,
+  isCatalogItemUnavailable,
+} from '@/lib/catalog/groupAvailability';
 import {
   createFaixaFromMembers,
   findFaixaForMember,
@@ -293,6 +298,19 @@ export default function CatalogManager({ mode = 'produtos' }) {
   const itemKey = isProdutos ? 'produtos' : 'adicionaisItens';
 
   const { data, saveData, activeSlug, ready } = useAdminData();
+  const toast = useAdminToast();
+  const itemLabel = isProdutos ? 'Produto' : 'Adicional';
+  const persistCatalog = useCallback(
+    async (updater, successMsg) => {
+      try {
+        await saveData(updater);
+        if (successMsg) toast.success(successMsg);
+      } catch {
+        /* Erro exibido pelo AdminSaveFeedback. */
+      }
+    },
+    [saveData, toast]
+  );
   const showCatalogSkeleton = useAdminMountSkeleton(ready);
   const productTypeOptions = useMemo(() => ['comum', 'combo'], []);
   const [search, setSearch] = useState('');
@@ -477,54 +495,63 @@ export default function CatalogManager({ mode = 'produtos' }) {
             };
           })();
 
-      saveData((prev) => ({
-        ...prev,
-        [catKey]: [...prev[catKey], nextCategory],
-      }));
+      void persistCatalog(
+        (prev) => ({
+          ...prev,
+          [catKey]: [...prev[catKey], nextCategory],
+        }),
+        'Categoria criada.'
+      );
       setEditingCategory(null);
       return;
     }
 
-    saveData((prev) => ({
-      ...prev,
-      [catKey]: prev[catKey].map((cat) => {
-        if (cat.id !== editingCategory.id) return cat;
-        if (isProdutos) {
+    void persistCatalog(
+      (prev) => ({
+        ...prev,
+        [catKey]: prev[catKey].map((cat) => {
+          if (cat.id !== editingCategory.id) return cat;
+          if (isProdutos) {
+            return {
+              ...cat,
+              nome,
+              icone: editingCategory.icone || cat.icone || 'burger',
+              exibicaoCardapio: editingCategory.exibicaoCardapio || CATEGORY_LAYOUT_DEFAULT,
+            };
+          }
+          const min = Math.max(0, Number(editingCategory.min || 0));
+          let max = Math.max(min, Number(editingCategory.max || min));
+          if (editingCategory.tipoSelecao === 'simples') max = 1;
           return {
             ...cat,
             nome,
-            icone: editingCategory.icone || cat.icone || 'burger',
-            exibicaoCardapio: editingCategory.exibicaoCardapio || CATEGORY_LAYOUT_DEFAULT,
+            obrigatorio: editingCategory.obrigatorio === true,
+            min,
+            max,
+            tipoSelecao: editingCategory.tipoSelecao === 'simples' ? 'simples' : 'multipla',
           };
-        }
-        const min = Math.max(0, Number(editingCategory.min || 0));
-        let max = Math.max(min, Number(editingCategory.max || min));
-        if (editingCategory.tipoSelecao === 'simples') max = 1;
-        return {
-          ...cat,
-          nome,
-          obrigatorio: editingCategory.obrigatorio === true,
-          min,
-          max,
-          tipoSelecao: editingCategory.tipoSelecao === 'simples' ? 'simples' : 'multipla',
-        };
+        }),
       }),
-    }));
+      'Categoria salva.'
+    );
     setEditingCategory(null);
   }
 
   function confirmRemoveCategory() {
     if (!removingCategory) return;
-    saveData((prev) => ({
-      ...prev,
-      [catKey]: prev[catKey].filter((cat) => cat.id !== removingCategory.id),
-      [itemKey]: prev[itemKey].filter((item) => item.categoriaId !== removingCategory.id),
-      ...(isProdutos
-        ? {
-            faixasExibicao: removeMemberFromFaixas(prev.faixasExibicao, removingCategory.id),
-          }
-        : {}),
-    }));
+    void persistCatalog(
+      (prev) => ({
+        ...prev,
+        [catKey]: prev[catKey].filter((cat) => cat.id !== removingCategory.id),
+        [itemKey]: prev[itemKey].filter((item) => item.categoriaId !== removingCategory.id),
+        ...(isProdutos
+          ? {
+              faixasExibicao: removeMemberFromFaixas(prev.faixasExibicao, removingCategory.id),
+            }
+          : {}),
+      }),
+      'Categoria removida.'
+    );
     if (selectedCat === removingCategory.id) setSelectedCat(TAB_ALL);
     setRemovingCategory(null);
   }
@@ -553,53 +580,59 @@ export default function CatalogManager({ mode = 'produtos' }) {
   function confirmFaixaModal({ nome, layout, membroIds }) {
     if (!faixaModal || !isProdutos) return;
     const ids = Array.isArray(membroIds) ? membroIds : [];
-    saveData((prev) => {
-      const current = sanitizeFaixasExibicao(
-        prev.faixasExibicao,
-        (prev.categorias || []).map((cat) => cat.id)
-      );
-      const cleaned = current.map((faixa) => {
-        if (faixaModal.mode === 'edit' && faixa.id === faixaModal.faixaId) return faixa;
-        return {
-          ...faixa,
-          membroIds: faixa.membroIds.filter((id) => !ids.includes(id)),
-        };
-      });
-      if (faixaModal.mode === 'edit' && faixaModal.faixaId) {
+    void persistCatalog(
+      (prev) => {
+        const current = sanitizeFaixasExibicao(
+          prev.faixasExibicao,
+          (prev.categorias || []).map((cat) => cat.id)
+        );
+        const cleaned = current.map((faixa) => {
+          if (faixaModal.mode === 'edit' && faixa.id === faixaModal.faixaId) return faixa;
+          return {
+            ...faixa,
+            membroIds: faixa.membroIds.filter((id) => !ids.includes(id)),
+          };
+        });
+        if (faixaModal.mode === 'edit' && faixaModal.faixaId) {
+          return {
+            ...prev,
+            faixasExibicao: updateFaixaExibicao(cleaned, faixaModal.faixaId, {
+              nome,
+              layout,
+              membroIds: ids,
+            }),
+          };
+        }
         return {
           ...prev,
-          faixasExibicao: updateFaixaExibicao(cleaned, faixaModal.faixaId, {
+          faixasExibicao: createFaixaFromMembers({
             nome,
             layout,
             membroIds: ids,
+            existing: cleaned,
           }),
         };
-      }
-      return {
-        ...prev,
-        faixasExibicao: createFaixaFromMembers({
-          nome,
-          layout,
-          membroIds: ids,
-          existing: cleaned,
-        }),
-      };
-    });
+      },
+      'Seção do cardápio salva.'
+    );
     setFaixaModal(null);
   }
 
   function confirmRemoveProduct() {
     if (!removingProduct) return;
-    saveData((prev) => {
-      const next = {
-        ...prev,
-        [itemKey]: prev[itemKey].filter((item) => item.id !== removingProduct.id),
-      };
-      if (isProdutos) {
-        next.promocoes = (prev.promocoes || []).filter((p) => p.produtoId !== removingProduct.id);
-      }
-      return next;
-    });
+    void persistCatalog(
+      (prev) => {
+        const next = {
+          ...prev,
+          [itemKey]: prev[itemKey].filter((item) => item.id !== removingProduct.id),
+        };
+        if (isProdutos) {
+          next.promocoes = (prev.promocoes || []).filter((p) => p.produtoId !== removingProduct.id);
+        }
+        return next;
+      },
+      `${itemLabel} removido.`
+    );
     setRemovingProduct(null);
   }
 
@@ -610,35 +643,41 @@ export default function CatalogManager({ mode = 'produtos' }) {
       ordem: catGroup.length,
       isProdutos,
     });
-    saveData((prev) => ({
-      ...prev,
-      [itemKey]: [...prev[itemKey], copy],
-    }));
+    void persistCatalog(
+      (prev) => ({
+        ...prev,
+        [itemKey]: [...prev[itemKey], copy],
+      }),
+      `${itemLabel} duplicado.`
+    );
   }
 
   function confirmDuplicateCategory(includeProducts) {
     if (!duplicateCategoryTarget) return;
     const source = duplicateCategoryTarget;
     const newCatId = uid(isProdutos ? 'cat' : 'add-cat');
-    saveData((prev) => {
-      const nextCategory = {
-        ...source,
-        id: newCatId,
-        nome: duplicateCopyLabel(source.nome),
-        ordem: prev[catKey].length,
-      };
-      const sourceItems = prev[itemKey].filter((item) => item.categoriaId === source.id);
-      const copiedItems = includeProducts
-        ? sourceItems.map((item, idx) =>
-            cloneItemForDuplicate(item, { newCategoryId: newCatId, ordem: idx, isProdutos })
-          )
-        : [];
-      return {
-        ...prev,
-        [catKey]: [...prev[catKey], nextCategory],
-        [itemKey]: includeProducts ? [...prev[itemKey], ...copiedItems] : prev[itemKey],
-      };
-    });
+    void persistCatalog(
+      (prev) => {
+        const nextCategory = {
+          ...source,
+          id: newCatId,
+          nome: duplicateCopyLabel(source.nome),
+          ordem: prev[catKey].length,
+        };
+        const sourceItems = prev[itemKey].filter((item) => item.categoriaId === source.id);
+        const copiedItems = includeProducts
+          ? sourceItems.map((item, idx) =>
+              cloneItemForDuplicate(item, { newCategoryId: newCatId, ordem: idx, isProdutos })
+            )
+          : [];
+        return {
+          ...prev,
+          [catKey]: [...prev[catKey], nextCategory],
+          [itemKey]: includeProducts ? [...prev[itemKey], ...copiedItems] : prev[itemKey],
+        };
+      },
+      'Categoria duplicada.'
+    );
     setDuplicateCategoryTarget(null);
     setCategoryMenuId('');
   }
@@ -833,7 +872,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
         ];
       }
 
-      saveData({ ...compactData, [itemKey]: nextItems });
+      await persistCatalog({ ...compactData, [itemKey]: nextItems }, `${itemLabel} salvo.`);
       closeItemModal();
     } catch (error) {
       setSaveError(
@@ -1127,7 +1166,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
         groupIdKey="categoriaId"
         onGroupsReorder={(next) => {
           const orderMap = new Map(next.map((cat, ordem) => [cat.id, ordem]));
-          saveData((prev) => ({
+          void saveData((prev) => ({
             ...prev,
             [catKey]: prev[catKey].map((cat) =>
               orderMap.has(cat.id) ? { ...cat, ordem: orderMap.get(cat.id) } : cat
@@ -1135,7 +1174,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
           }));
         }}
         onItemsChange={(nextBrowse) =>
-          saveData((prev) => ({
+          void saveData((prev) => ({
             ...prev,
             [itemKey]: mergeBrowseItemChanges(prev[itemKey], nextBrowse),
           }))
@@ -1176,7 +1215,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
                 checked={Boolean(cat.ativo)}
                 label={`Alterar disponibilidade da categoria ${cat.nome}`}
                 onChange={(checked) =>
-                  saveData((prev) =>
+                  void saveData((prev) =>
                     applyCatalogGroupToggle(prev, {
                       catKey,
                       itemKey,
@@ -1233,10 +1272,13 @@ export default function CatalogManager({ mode = 'produtos' }) {
                   <button
                     type="button"
                     onClick={() => {
-                      saveData((prev) => ({
-                        ...prev,
-                        faixasExibicao: removeMemberFromFaixas(prev.faixasExibicao, cat.id),
-                      }));
+                      void persistCatalog(
+                        (prev) => ({
+                          ...prev,
+                          faixasExibicao: removeMemberFromFaixas(prev.faixasExibicao, cat.id),
+                        }),
+                        'Categoria removida da seção.'
+                      );
                       setCategoryMenuId('');
                     }}
                   >
@@ -1247,10 +1289,13 @@ export default function CatalogManager({ mode = 'produtos' }) {
                   <button
                     type="button"
                     onClick={() => {
-                      saveData((prev) => ({
-                        ...prev,
-                        faixasExibicao: removeFaixaExibicao(prev.faixasExibicao, faixa.id),
-                      }));
+                      void persistCatalog(
+                        (prev) => ({
+                          ...prev,
+                          faixasExibicao: removeFaixaExibicao(prev.faixasExibicao, faixa.id),
+                        }),
+                        'Seção desagrupada.'
+                      );
                       setCategoryMenuId('');
                     }}
                   >
@@ -1319,10 +1364,14 @@ export default function CatalogManager({ mode = 'produtos' }) {
                   checked={Boolean(item.ativo)}
                   label={`Alterar disponibilidade de ${item.nome}`}
                   onChange={(checked) =>
-                    saveData((prev) => ({
-                      ...prev,
-                      [itemKey]: prev[itemKey].map((p) => (p.id === item.id ? { ...p, ativo: checked } : p)),
-                    }))
+                    void saveData((prev) =>
+                      applyCatalogItemToggle(prev, {
+                        catKey,
+                        itemKey,
+                        itemId: item.id,
+                        active: checked,
+                      })
+                    )
                   }
                 />
               </div>

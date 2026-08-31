@@ -1038,11 +1038,24 @@ body {
 .sacola-items-shell {
   --sacola-items-peek: 28px;
   position: relative;
-  flex: 0 0 auto;
+  /* Pode encolher se o card estiver apertado; não cresce com espaço sobrando */
+  flex: 0 1 auto;
   min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.sacola-items-wrap {
+  min-height: 0;
+  width: 100%;
 }
 
 .sacola-items-shell.is-scrollable .sacola-items-wrap {
+  flex: 0 1 auto;
+  min-height: 0;
+  /* Fallback antes do JS medir; inline height/maxHeight refina */
+  max-height: min(42vh, 320px);
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
