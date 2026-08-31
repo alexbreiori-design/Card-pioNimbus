@@ -2266,6 +2266,16 @@
   height: 112px;
 }
 
+.admin-catalog-item-row.is-unavailable {
+  opacity: 0.78;
+}
+
+.admin-catalog-item-row.is-unavailable .admin-catalog-item-img,
+.admin-catalog-item-row.is-unavailable .admin-catalog-item-media .admin-img-placeholder,
+.admin-catalog-item-row.is-unavailable .admin-img-placeholder {
+  filter: grayscale(1);
+}
+
 .admin-catalog-item-tags {
   display: flex;
   flex-wrap: wrap;

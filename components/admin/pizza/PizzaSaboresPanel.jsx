@@ -369,7 +369,7 @@ export default function PizzaSaboresPanel() {
                       title="Editar"
                       aria-label={`Editar ${sabor.nome}`}
                     >
-                      <i className="hgi-stroke hgi-pencil-edit-02" aria-hidden="true" />
+                      <i className="ph ph-pencil-simple" aria-hidden="true" />
                       <span className="admin-item-action-label">Editar</span>
                     </button>
                     <button
@@ -379,7 +379,7 @@ export default function PizzaSaboresPanel() {
                       title="Remover"
                       aria-label={`Remover ${sabor.nome}`}
                     >
-                      <i className="hgi-stroke hgi-delete-02" aria-hidden="true" />
+                      <i className="ph ph-trash" aria-hidden="true" />
                       <span className="admin-item-action-label">Remover</span>
                     </button>
                   </div>

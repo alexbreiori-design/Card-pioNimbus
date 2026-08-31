@@ -75,7 +75,7 @@ export default function OrderPaymentTotalsBar({
                     {m.adminIcon ? (
                       <AdminIcon name={m.adminIcon} />
                     ) : (
-                      <i className={`hgi-stroke ${m.hgiIcon}`} />
+                      <i className={`ph ph-${m.phIcon}`} aria-hidden="true" />
                     )}
                   </span>
                   <span>{m.label}</span>

@@ -28,6 +28,7 @@ import {
 } from '@/lib/marmita/marmitaWeekdays';
 import MarmitaGrupoEditorModal from '@/components/admin/marmita/MarmitaGrupoEditorModal';
 import { CATEGORY_LAYOUT_DEFAULT } from '@/lib/cardapio/categoryLayouts';
+import { applyMarmitaGrupoToggle, isMarmitaItemUnavailable } from '@/lib/catalog/groupAvailability';
 import {
   createFaixaFromMembers,
   findFaixaForMember,
@@ -227,6 +228,10 @@ export default function MarmitaManager() {
   }, [settingsMenuOpen]);
 
   const grupos = useMemo(() => sortByOrdem(marmitaGrupos), [marmitaGrupos]);
+  const gruposById = useMemo(
+    () => new Map(grupos.map((grupo) => [grupo.id, grupo])),
+    [grupos]
+  );
 
   const cardapioSummary = useMemo(
     () => describeMarmitaCardapioForAdmin(savedCardapio, categoriasCardapio),
@@ -406,12 +411,8 @@ export default function MarmitaManager() {
 
   async function toggleGrupoAtivo(grupo) {
     if (grupo.id === '__sem_grupo__' || grupo.id === '__all__') return;
-    await saveData((prev) => ({
-      ...prev,
-      marmitaGrupos: (prev.marmitaGrupos || []).map((row) =>
-        row.id === grupo.id ? { ...row, ativo: row.ativo === false } : row
-      ),
-    }));
+    const nextActive = grupo.ativo === false;
+    await saveData((prev) => applyMarmitaGrupoToggle(prev, grupo.id, nextActive));
   }
 
   async function removeGrupo(grupo) {
@@ -736,8 +737,9 @@ export default function MarmitaManager() {
 
   function renderMarmitaRow(item) {
     const activeSizes = item.tamanhos.filter((tam) => tam.ativo !== false);
+    const isUnavailable = isMarmitaItemUnavailable(item, gruposById);
     return (
-      <div className="admin-catalog-item-row admin-marmita-item-row admin-grouped-sort-browse-item">
+      <div className={`admin-catalog-item-row admin-marmita-item-row admin-grouped-sort-browse-item${isUnavailable ? ' is-unavailable' : ''}`}>
         <div className="admin-catalog-item-media">
           <button
             type="button"
@@ -791,7 +793,7 @@ export default function MarmitaManager() {
               title="Editar"
               aria-label={`Editar ${item.tagAdmin || item.nomePublico}`}
             >
-              <i className="hgi-stroke hgi-pencil-edit-02" aria-hidden="true" />
+              <i className="ph ph-pencil-simple" aria-hidden="true" />
               <span className="admin-item-action-label">Editar</span>
             </button>
             <button
@@ -801,7 +803,7 @@ export default function MarmitaManager() {
               title="Duplicar"
               aria-label={`Duplicar ${item.tagAdmin || item.nomePublico}`}
             >
-              <i className="hgi-stroke hgi-copy-01" aria-hidden="true" />
+              <i className="ph ph-copy" aria-hidden="true" />
               <span className="admin-item-action-label">Duplicar</span>
             </button>
             <button
@@ -811,7 +813,7 @@ export default function MarmitaManager() {
               title="Remover"
               aria-label={`Remover ${item.tagAdmin || item.nomePublico}`}
             >
-              <i className="hgi-stroke hgi-delete-02" aria-hidden="true" />
+              <i className="ph ph-trash" aria-hidden="true" />
               <span className="admin-item-action-label">Remover</span>
             </button>
           </div>

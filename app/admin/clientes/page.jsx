@@ -184,7 +184,7 @@ function CustomerRowActions({ customer, waUrl, onOpen, onNewOrder, onDelete }) {
         title="Abrir cliente"
         aria-label="Abrir cliente"
       >
-        <i className="hgi-stroke hgi-pencil-edit-02" aria-hidden="true" />
+        <i className="ph ph-pencil-simple" aria-hidden="true" />
       </button>
       <button
         type="button"
@@ -193,7 +193,7 @@ function CustomerRowActions({ customer, waUrl, onOpen, onNewOrder, onDelete }) {
         title="Novo pedido"
         aria-label="Novo pedido"
       >
-        <i className="hgi-stroke hgi-note-add" aria-hidden="true" />
+        <i className="ph ph-note-pencil" aria-hidden="true" />
       </button>
       {waUrl ? (
         <a
@@ -224,7 +224,7 @@ function CustomerRowActions({ customer, waUrl, onOpen, onNewOrder, onDelete }) {
         title="Excluir cliente"
         aria-label="Excluir cliente"
       >
-        <i className="hgi-stroke hgi-delete-02" aria-hidden="true" />
+        <i className="ph ph-trash" aria-hidden="true" />
       </button>
     </div>
   );
