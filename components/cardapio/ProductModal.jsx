@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useCardapioCart, useCardapioCatalog } from '@/context/CardapioContext';
 import {
+  collectAddonSelections,
   getAddonStepBadge,
   getAddonStepHint,
   getSectionMaxRepeticoes,
@@ -464,6 +465,7 @@ export default function ProductModal() {
       qty: currentQty,
       unitPrice: pizzaUnitPrice,
       opts: buildPizzaCartLabels(product, pizzaState, selectedAddons),
+      addonSelections: collectAddonSelections(product, selectedAddons),
     });
   }
 
@@ -492,6 +494,7 @@ export default function ProductModal() {
       qty: currentQty,
       unitPrice: getProductChargeBase(product) + addonExtras,
       opts: buildMarmitaCartOpts(product, selectedAddons),
+      addonSelections: collectAddonSelections(product, selectedAddons),
     });
   }
 
