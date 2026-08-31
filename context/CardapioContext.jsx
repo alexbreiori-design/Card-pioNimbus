@@ -12,9 +12,11 @@ import {
 import { formatMarmitaCartObs } from '@/lib/marmita/marmitaWizard';
 import {
   collectAddonOptLabels,
+  collectAddonSelections,
   getSectionMaxRepeticoes,
   sectionToQtyMap,
   sectionTotalQty,
+  toOrderAddonPayload,
 } from '@/lib/cardapio/addonSelection';
 import { formatPrice } from '@/lib/utils/format';
 import { formatDeliveryAddressLine } from '@/lib/formatDeliveryAddress';
@@ -1575,6 +1577,7 @@ export function CardapioProvider({
       }
     }
     const optLabels = collectAddonOptLabels(currentProduct, selectedAddons);
+    const addonSelections = collectAddonSelections(currentProduct, selectedAddons);
     const unitPrice = getProductChargeBase(currentProduct) + addonExtras;
     const note = String(productNote || '').trim();
     commitCartAdd({
@@ -1584,6 +1587,7 @@ export function CardapioProvider({
       price: unitPrice,
       qty: currentQty,
       opts: optLabels,
+      addonSelections,
       note,
       imageUrl: currentProduct.imageUrl || '',
     });
@@ -1611,10 +1615,20 @@ export function CardapioProvider({
   }, [currentProduct, selectedAddons, addonExtras, currentQty, productNote, commitCartAdd, closeProductPopup]);
 
   const addToCartCustom = useCallback(
-    ({ product, qty = 1, unitPrice = 0, opts = [], note } = {}) => {
+    ({ product, qty = 1, unitPrice = 0, opts = [], addonSelections = null, note } = {}) => {
       if (!product) return;
       const resolvedNote =
         note != null ? String(note).trim() : String(productNote || '').trim();
+      const resolvedSelections = Array.isArray(addonSelections)
+        ? addonSelections
+        : (opts || [])
+            .map((opt) => ({
+              id: String(opt?.id || '').trim(),
+              qty: Math.max(1, Math.floor(Number(opt?.qty || 1) || 1)),
+              name: String(opt?.name || opt?.label || '').trim(),
+              step: String(opt?.step || '').trim(),
+            }))
+            .filter((entry) => entry.id);
       commitCartAdd({
         id: Date.now(),
         productId: product.id,
@@ -1622,6 +1636,7 @@ export function CardapioProvider({
         price: unitPrice,
         qty,
         opts,
+        addonSelections: resolvedSelections,
         note: resolvedNote,
         imageUrl: product.imageUrl || '',
       });
@@ -2018,14 +2033,22 @@ export function CardapioProvider({
             ? Number(deliveryMeta.distanciaKm)
             : null,
         observacao,
-        itens: cart.map((item) => ({
-          nome: item.name,
-          qtd: item.qty,
-          precoUnit: item.price,
-          subtotal: item.price * item.qty,
-          obs: formatMarmitaCartObs(item.opts || [], item.note || ''),
-          produtoId: item.productId,
-        })),
+        itens: cart.map((item) => {
+          const hasAddonSelections = Array.isArray(item.addonSelections);
+          const adicionais = toOrderAddonPayload(
+            hasAddonSelections ? item.addonSelections : item.opts
+          );
+          return {
+            nome: item.name,
+            qtd: item.qty,
+            precoUnit: item.price,
+            subtotal: item.price * item.qty,
+            obs: formatMarmitaCartObs(item.opts || [], item.note || ''),
+            produtoId: item.productId,
+            // Só envia IDs quando o carrinho os tiver — senão a validação usa a obs (legado).
+            ...(hasAddonSelections || adicionais.length ? { adicionais } : {}),
+          };
+        }),
         subtotal,
         frete: taxaEntrega,
         acrescimo: 0,

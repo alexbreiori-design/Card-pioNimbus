@@ -19,6 +19,7 @@ import MarmitaWizardSteps from '@/components/cardapio/MarmitaWizardSteps';
 import PizzaWizardSteps from '@/components/cardapio/PizzaWizardSteps';
 import MenuImageArea from '@/components/cardapio/MenuImageArea';
 import {
+  collectAddonSelections,
   getAddonStepBadge,
   getAddonStepHint,
   getSectionMaxRepeticoes,
@@ -614,6 +615,7 @@ export default function ProductModalV2() {
       qty: currentQty,
       unitPrice: pizzaUnitPrice,
       opts: buildPizzaCartLabels(product, pizzaState, selectedAddons),
+      addonSelections: collectAddonSelections(product, selectedAddons),
     });
   }
 
@@ -629,6 +631,7 @@ export default function ProductModalV2() {
       qty: currentQty,
       unitPrice: getProductChargeBase(product) + addonExtras,
       opts: buildMarmitaCartOpts(product, selectedAddons),
+      addonSelections: collectAddonSelections(product, selectedAddons),
     });
   }
 

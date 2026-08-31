@@ -442,6 +442,7 @@ export default function PedidosPage() {
       subtotal: i.qtd * i.preco,
       obs: i.obs || '',
       produtoId: i.produtoId || null,
+      adicionais: Array.isArray(i.adicionais) ? i.adicionais : [],
     }));
 
     if (editingOrder) {
