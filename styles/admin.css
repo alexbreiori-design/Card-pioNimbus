@@ -11805,30 +11805,6 @@ textarea.admin-input::placeholder {
   }
 }
 
-.admin-sync-banner {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 16px;
-  font-size: 13px;
-}
-
-.admin-sync-banner-saving {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border-bottom: 1px solid #bfdbfe;
-}
-
-.admin-sync-banner-error {
-  background: #fef2f2;
-  color: #b91c1c;
-  border-bottom: 1px solid #fecaca;
-}
-
 .admin-nav-badge {
   margin-left: auto;
   min-width: 20px;

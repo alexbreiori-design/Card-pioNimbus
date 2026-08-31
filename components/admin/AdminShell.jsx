@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { usePathname } from 'next/navigation';
 import AdminSidebar from './AdminSidebar';
 import AdminMobileDrawer from './AdminMobileDrawer';
 import AdminMobileGate from './AdminMobileGate';
+import AdminSaveFeedback from './AdminSaveFeedback';
 import EnvironmentBanner from '@/components/shared/EnvironmentBanner';
+import { useAdminToast } from '@/context/AdminToastContext';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOrders } from '@/hooks/useAdminOrders';
 import { useAdminMobileAccess } from '@/hooks/useAdminMobileAccess';
@@ -13,8 +14,7 @@ import { persistStoreManualClose } from '@/lib/storeManualClose';
 import { resolveStoreOpenStatus } from '@/lib/storeHours';
 
 export default function AdminShell({ children }) {
-  const pathname = usePathname();
-  const isLojaPage = pathname === '/admin/loja';
+  const toast = useAdminToast();
   const [collapsed, setCollapsed] = useState(false);
   const [compactViewport, setCompactViewport] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -22,8 +22,7 @@ export default function AdminShell({ children }) {
   const [storeToggleBusy, setStoreToggleBusy] = useState(false);
   const [storeToggleError, setStoreToggleError] = useState('');
   const isMobile = useAdminMobileAccess();
-  const { data, saving, saveError, clearSaveError, switchingStore, saveData, activeSlug } =
-    useAdminData();
+  const { data, saving, saveData, activeSlug } = useAdminData();
   const { orders, setAlertsActive } = useAdminOrders();
   const store = useMemo(() => data.loja, [data]);
   const openStatus = useMemo(
@@ -59,12 +58,15 @@ export default function AdminShell({ children }) {
         fechadaManual: true,
         loja: store,
       });
+      toast.success('Loja fechada manualmente.');
     } catch (error) {
-      setStoreToggleError(error?.message || 'Não foi possível fechar a loja.');
+      const message = error?.message || 'Não foi possível fechar a loja.';
+      setStoreToggleError(message);
+      toast.error(message);
     } finally {
       setStoreToggleBusy(false);
     }
-  }, [activeSlug, saveData, store]);
+  }, [activeSlug, saveData, store, toast]);
 
   const handleReopen = useCallback(async () => {
     setStoreToggleError('');
@@ -76,12 +78,15 @@ export default function AdminShell({ children }) {
         fechadaManual: false,
         loja: store,
       });
+      toast.success('Loja reaberta.');
     } catch (error) {
-      setStoreToggleError(error?.message || 'Não foi possível reabrir a loja.');
+      const message = error?.message || 'Não foi possível reabrir a loja.';
+      setStoreToggleError(message);
+      toast.error(message);
     } finally {
       setStoreToggleBusy(false);
     }
-  }, [activeSlug, saveData, store]);
+  }, [activeSlug, saveData, store, toast]);
 
   useEffect(() => {
     if (isMobile) return undefined;
@@ -143,21 +148,8 @@ export default function AdminShell({ children }) {
         </>
       )}
       <div className={`admin-main ${collapsed ? 'sidebar-collapsed' : ''}`}>
+        <AdminSaveFeedback />
         <EnvironmentBanner className="nimbus-env-banner-admin" />
-        {switchingStore ? (
-          <div className="admin-sync-banner admin-sync-banner-saving">Trocando de loja…</div>
-        ) : null}
-        {saveError ? (
-          <div className="admin-sync-banner admin-sync-banner-error">
-            <span>{saveError}</span>
-            <button type="button" className="admin-btn admin-btn-ghost" onClick={clearSaveError}>
-              Fechar
-            </button>
-          </div>
-        ) : null}
-        {saving && !isLojaPage ? (
-          <div className="admin-sync-banner admin-sync-banner-saving">Salvando alterações…</div>
-        ) : null}
         <AdminMobileGate>{children}</AdminMobileGate>
       </div>
     </div>

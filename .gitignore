@@ -58,3 +58,7 @@ tmp/
 __pycache__/
 *.py[cod]
 .venv/
+
+# Nimbus Cozinha installer output
+scripts/cozinha-installer/dist/
+
