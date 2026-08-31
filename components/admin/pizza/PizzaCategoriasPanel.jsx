@@ -496,7 +496,7 @@ export default function PizzaCategoriasPanel() {
                         title="Editar"
                         aria-label={`Editar ${cat.nomePublico}`}
                       >
-                        <i className="hgi-stroke hgi-pencil-edit-02" aria-hidden="true" />
+                        <i className="ph ph-pencil-simple" aria-hidden="true" />
                         <span className="admin-item-action-label">Editar</span>
                       </button>
                       {faixa ? (
@@ -558,7 +558,7 @@ export default function PizzaCategoriasPanel() {
                         title="Remover"
                         aria-label={`Remover ${cat.nomePublico}`}
                       >
-                        <i className="hgi-stroke hgi-delete-02" aria-hidden="true" />
+                        <i className="ph ph-trash" aria-hidden="true" />
                         <span className="admin-item-action-label">Remover</span>
                       </button>
                     </div>
