@@ -15,7 +15,7 @@ import {
 import { useCardapioV2ScrollSpy } from './useCardapioV2ScrollSpy';
 
 export default function CardapioSidebar() {
-  const { storeConfig, CATEGORIES, promoProducts, filteredProducts } = useCardapio();
+  const { storeConfig, CATEGORIES, categoryLabelsByKey, promoProducts, filteredProducts } = useCardapio();
 
   const iconByCategory = useMemo(() => {
     const map = {};
@@ -40,12 +40,12 @@ export default function CardapioSidebar() {
     fromCatalog.forEach((cat) => {
       links.push({
         id: cardapioV2CategorySectionId(cat),
-        label: cat,
+        label: categoryLabelsByKey[cat] || cat,
         categoryIcon: iconByCategory[cat] || 'burger',
       });
     });
     return links;
-  }, [CATEGORIES, promoProducts, iconByCategory]);
+  }, [CATEGORIES, categoryLabelsByKey, promoProducts, iconByCategory]);
 
   const reviewsEnabled = isReviewsEnabledOnCardapio(storeConfig);
 

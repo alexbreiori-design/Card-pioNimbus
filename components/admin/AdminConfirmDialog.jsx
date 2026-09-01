@@ -9,6 +9,7 @@ export default function AdminConfirmDialog({
   confirmLabel = 'Confirmar',
   cancelLabel = 'Cancelar',
   danger = false,
+  overlayClassName = '',
   onConfirm,
   onCancel,
 }) {
@@ -21,7 +22,7 @@ export default function AdminConfirmDialog({
 
   return (
     <div
-      className="admin-confirm-overlay"
+      className={`admin-confirm-overlay ${overlayClassName}`.trim()}
       role="presentation"
       onPointerDown={overlayPointerDown}
       onClick={overlayClick}

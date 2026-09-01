@@ -3177,6 +3177,26 @@ button.addon-item.addon-item--selectable,
 .btn-checkout-continue.is-loading:hover {
   background: var(--brand);
 }
+.btn-checkout-continue.btn-checkout-continue--whatsapp {
+  background: #25d366;
+}
+.btn-checkout-continue.btn-checkout-continue--whatsapp:hover {
+  background: #20bd5a;
+}
+.btn-checkout-continue.btn-checkout-continue--whatsapp:disabled,
+.btn-checkout-continue.btn-checkout-continue--whatsapp.is-loading {
+  background: #25d366;
+  opacity: 0.72;
+}
+.checkout-closed-whatsapp-hint {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(37, 211, 102, 0.1);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+}
 .btn-checkout-continue-label {
   display: inline-flex;
   align-items: center;

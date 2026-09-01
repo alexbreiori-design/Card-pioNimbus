@@ -31,11 +31,11 @@ export default function CardapioMainColumn() {
 
     filteredProducts
       .filter(({ category }) => category !== PROMO_CATEGORY_NAME)
-      .forEach(({ category, items, categoryIcon, categoryLayout, isMarmitaSection }) => {
+      .forEach(({ category, label, items, categoryIcon, categoryLayout, isMarmitaSection }) => {
         if (!items?.length) return;
         list.push({
           id: cardapioV2CategorySectionId(category),
-          label: category,
+          label: label || category,
           items,
           categoryIcon,
           displayLayout: categoryLayout || CATEGORY_LAYOUT_DEFAULT,

@@ -899,6 +899,7 @@ export default function PizzaCategoriasPanel() {
       />
       <AdminConfirmDialog
         open={Boolean(removingAddonPassoId)}
+        overlayClassName="admin-confirm-overlay-stacked"
         title="Remover passo?"
         message="Esse passo de adicionais será removido desta categoria de pizza."
         confirmLabel="Remover"

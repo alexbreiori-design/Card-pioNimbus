@@ -29,7 +29,7 @@ export default function ProductSections() {
   return (
     <>
       {showPromoCarousel ? <PromoCarouselSection products={promoProducts} /> : null}
-      {gridSections.map(({ category, items, categoryIcon, isMarmitaSection }) => {
+      {gridSections.map(({ category, label, items, categoryIcon, isMarmitaSection }) => {
         const vitrineNotice =
           isMarmitaSection && items.some((product) => product.isMarmitaVitrine)
             ? 'Cardápio de referência — pedidos disponíveis nos dias de funcionamento.'
@@ -41,7 +41,7 @@ export default function ProductSections() {
               {categoryIcon ? (
                 <CardapioCategoryIcon name={categoryIcon} size={18} className="section-title-icon" tinted />
               ) : null}
-              {category}
+              {label || category}
             </div>
             {vitrineNotice ? <p className="marmita-vitrine-notice">{vitrineNotice}</p> : null}
             <div className="product-grid">

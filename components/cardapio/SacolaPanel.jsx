@@ -109,7 +109,7 @@ export default function SacolaPanel({
     changeCartItemQty,
     openCupomPopup,
     openProduct,
-    isStoreOpen,
+    canFinalizeCart,
     storeConfig,
   } = useCardapio();
 
@@ -338,10 +338,10 @@ export default function SacolaPanel({
             <button
               type="button"
               className="btn-continuar"
-              disabled={!isStoreOpen}
+              disabled={!canFinalizeCart}
               onClick={onFinalize}
             >
-              {!isStoreOpen ? 'Loja fechada no momento' : finalizeLabel}
+              {!canFinalizeCart ? 'Loja fechada no momento' : finalizeLabel}
             </button>
           </div>
         </div>
