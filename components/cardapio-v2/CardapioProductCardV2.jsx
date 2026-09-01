@@ -3,12 +3,14 @@
 import { useCardapio } from '@/context/CardapioContext';
 import MenuImageArea from '@/components/cardapio/MenuImageArea';
 import ProductPromoChip from '@/components/cardapio/ProductPromoChip';
+import { shouldShowProductListPrice } from '@/lib/cardapio/productPriceDisplay';
 
 export default function CardapioProductCardV2({ product, layout = 'rail' }) {
   const { addProductFromCard, formatPrice } = useCardapio();
   const isPromo = product.isPromocao && product.promoOriginalPrice > product.price;
   const highlightLabel = !isPromo ? String(product.highlightLabel || '').trim() : '';
   const showFromPrice = Boolean(product.priceLabel) && !isPromo;
+  const showPrice = shouldShowProductListPrice(product);
 
   function handleOpen() {
     addProductFromCard(product.id);
@@ -53,23 +55,27 @@ export default function CardapioProductCardV2({ product, layout = 'rail' }) {
           {product.desc || ''}
         </p>
         <div className="cardapio-v2-product-card-footer">
-          <div
-            className={`cardapio-v2-product-card-price${isPromo ? ' has-promo' : ''}${
-              showFromPrice ? ' is-from-price' : ''
-            }`}
-          >
-            {isPromo ? (
-              <>
-                <span className="product-price-original">{formatPrice(product.promoOriginalPrice)}</span>
-                <span className="product-price-promo">{formatPrice(product.price)}</span>
-              </>
-            ) : (
-              <>
-                {showFromPrice ? <span className="product-price-from">{product.priceLabel}</span> : null}
-                <span className="product-price-value">{formatPrice(product.price)}</span>
-              </>
-            )}
-          </div>
+          {showPrice ? (
+            <div
+              className={`cardapio-v2-product-card-price${isPromo ? ' has-promo' : ''}${
+                showFromPrice ? ' is-from-price' : ''
+              }`}
+            >
+              {isPromo ? (
+                <>
+                  <span className="product-price-original">{formatPrice(product.promoOriginalPrice)}</span>
+                  <span className="product-price-promo">{formatPrice(product.price)}</span>
+                </>
+              ) : (
+                <>
+                  {showFromPrice ? <span className="product-price-from">{product.priceLabel}</span> : null}
+                  <span className="product-price-value">{formatPrice(product.price)}</span>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="cardapio-v2-product-card-price is-empty" aria-hidden="true" />
+          )}
           <button
             type="button"
             className="cardapio-v2-product-card-add"

@@ -56,7 +56,7 @@ import {
   normalizePecaTambemIds,
   suggestedComboPrice,
 } from '@/lib/productSuggestions';
-import { formatMoneyBrInput, hasMoneyBrValue } from '@/lib/moneyMask';
+import { formatMoneyBrInput } from '@/lib/moneyMask';
 
 const TAB_ALL = 'all';
 
@@ -806,16 +806,6 @@ export default function CatalogManager({ mode = 'produtos' }) {
         errors.comboItens = true;
         missingLabels.push('produtos do combo (mínimo 2)');
       }
-      if (!hasMoneyBrValue(comboConfig.precoCombo)) {
-        errors.comboPreco = true;
-        missingLabels.push('preço do combo');
-      }
-    } else if (
-      !(isProdutos && formState.precoSoExibicao === true) &&
-      !hasMoneyBrValue(formState.preco)
-    ) {
-      errors.preco = true;
-      missingLabels.push('preço');
     }
 
     const message = missingLabels.length

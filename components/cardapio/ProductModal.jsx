@@ -30,6 +30,10 @@ import MenuImageArea from '@/components/cardapio/MenuImageArea';
 import { getObservationPlaceholder } from '@/lib/empresaSegmentos';
 import { getMarmitaStepBadge } from '@/lib/marmita/marmitaWizard';
 import { getProductChargeBase } from '@/lib/cardapio/productChargeBase';
+import {
+  hasVisibleCatalogPrice,
+  shouldShowModalUnitPrice,
+} from '@/lib/cardapio/productPriceDisplay';
 import { IconClose } from './icons';
 
 const GENERIC_SEARCH_MIN_ITEMS = 8;
@@ -309,6 +313,10 @@ export default function ProductModal() {
   const isLastPizzaStep = hasPizzaWizard && pizzaStep >= pizzaSteps.length - 1;
 
   const marmitaUnitTotal = product ? (getProductChargeBase(product) + addonExtras) * currentQty : 0;
+  const headerUnitPrice = hasPizzaWizard
+    ? pizzaUnitPrice
+    : Number(product?.price || 0) + (hasMarmitaWizard ? addonExtras : 0);
+  const showHeaderPrice = shouldShowModalUnitPrice(product, headerUnitPrice);
   const currentMarmitaSection = hasMarmitaWizard ? marmitaSteps[marmitaStep] : null;
   const currentMarmitaSelected = selectedAddons[marmitaStep] || [];
   const canMarmitaAdvance = currentMarmitaSection
@@ -648,31 +656,33 @@ export default function ProductModal() {
                 ) : null}
               </div>
             ) : null}
-            <div
-              className={`popup-header-price ${
-                product.isPromocao && product.promoOriginalPrice > product.price ? 'has-promo' : ''
-              }${product.priceLabel && !(product.isPromocao && product.promoOriginalPrice > product.price) ? ' is-from-price' : ''}`}
-            >
-              {product.isPromocao && product.promoOriginalPrice > product.price ? (
-                <>
-                  <span className="product-price-original">{formatPrice(product.promoOriginalPrice)}</span>
-                  <span className="product-price-promo">
-                    {formatPrice(hasPizzaWizard ? pizzaUnitPrice : product.price)}
-                  </span>
-                </>
-              ) : (
-                <>
-                  {product.priceLabel ? (
-                    <span className="product-price-from">{product.priceLabel}</span>
-                  ) : null}
-                  <span className="product-price-value">
-                    {formatPrice(
-                      hasPizzaWizard ? pizzaUnitPrice : product.price + (hasMarmitaWizard ? addonExtras : 0)
-                    )}
-                  </span>
-                </>
-              )}
-            </div>
+            {showHeaderPrice ? (
+              <div
+                className={`popup-header-price ${
+                  product.isPromocao && product.promoOriginalPrice > product.price ? 'has-promo' : ''
+                }${product.priceLabel && !(product.isPromocao && product.promoOriginalPrice > product.price) ? ' is-from-price' : ''}`}
+              >
+                {product.isPromocao && product.promoOriginalPrice > product.price ? (
+                  <>
+                    <span className="product-price-original">{formatPrice(product.promoOriginalPrice)}</span>
+                    <span className="product-price-promo">
+                      {formatPrice(hasPizzaWizard ? pizzaUnitPrice : product.price)}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    {product.priceLabel ? (
+                      <span className="product-price-from">{product.priceLabel}</span>
+                    ) : null}
+                    <span className="product-price-value">
+                      {formatPrice(
+                        hasPizzaWizard ? pizzaUnitPrice : product.price + (hasMarmitaWizard ? addonExtras : 0)
+                      )}
+                    </span>
+                  </>
+                )}
+              </div>
+            ) : null}
           </div>
           <div className="popup-body" id="popupBody">
             {pizzaPromoShortcut ? (
@@ -791,7 +801,9 @@ export default function ProductModal() {
                   onClick={handlePizzaPrimaryAction}
                 >
                   <span>{onNoteStep ? 'Adicionar pizza' : 'Próximo'}</span>
-                  <span>{formatPrice(pizzaUnitPrice * currentQty)}</span>
+                  {hasVisibleCatalogPrice(pizzaUnitPrice * currentQty) ? (
+                    <span>{formatPrice(pizzaUnitPrice * currentQty)}</span>
+                  ) : null}
                 </button>
               </div>
             ) : hasMarmitaWizard || showGenericWizard ? (
@@ -827,15 +839,19 @@ export default function ProductModal() {
                   onClick={hasMarmitaWizard ? handleMarmitaPrimaryAction : handleGenericPrimaryAction}
                 >
                   <span>{onNoteStep ? 'Adicionar' : 'Próximo'}</span>
-                  <span>
-                    {formatPrice(hasMarmitaWizard ? marmitaUnitTotal : genericUnitTotal)}
-                  </span>
+                  {hasVisibleCatalogPrice(hasMarmitaWizard ? marmitaUnitTotal : genericUnitTotal) ? (
+                    <span>
+                      {formatPrice(hasMarmitaWizard ? marmitaUnitTotal : genericUnitTotal)}
+                    </span>
+                  ) : null}
                 </button>
               </div>
             ) : (
               <button type="button" className="btn-adicionar" onClick={addToCart}>
                 <span>Adicionar</span>
-                <span>{formatPrice(adicionarTotal)}</span>
+                {hasVisibleCatalogPrice(adicionarTotal) ? (
+                  <span>{formatPrice(adicionarTotal)}</span>
+                ) : null}
               </button>
             )}
           </div>

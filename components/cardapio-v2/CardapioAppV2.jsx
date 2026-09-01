@@ -10,7 +10,6 @@ import CheckoutModal from '@/components/cardapio/CheckoutModal';
 import CupomModal from '@/components/cardapio/CupomModal';
 import CepModal from '@/components/cardapio/CepModal';
 import AddressModal from '@/components/cardapio/AddressModal';
-import DeliveryCheckNumberModal from '@/components/cardapio/DeliveryCheckNumberModal';
 import DeliveryCheckResultModal from '@/components/cardapio/DeliveryCheckResultModal';
 import StoreClosedNotice from '@/components/cardapio/StoreClosedNotice';
 import CartReviewModal from '@/components/cardapio/CartReviewModal';
@@ -48,7 +47,6 @@ export default function CardapioAppV2() {
       <CupomModal />
       <CepModal />
       <AddressModal />
-      <DeliveryCheckNumberModal />
       <DeliveryCheckResultModal />
       <StoreClosedNotice />
       <div className="cardapio-v2-site-footer">
