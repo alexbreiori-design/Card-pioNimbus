@@ -1081,6 +1081,26 @@
   border-radius: 8px;
   font-size: 13px;
   margin-bottom: 16px;
+  border: 1px solid #fecaca;
+}
+
+.admin-form-group.is-field-invalid .admin-label,
+.admin-product-combo-block.is-field-invalid .admin-form-section-title {
+  color: #b91c1c;
+}
+
+.admin-input.admin-field-invalid,
+select.admin-input.admin-field-invalid,
+textarea.admin-input.admin-field-invalid {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 1px #dc2626;
+}
+
+.admin-product-combo-block.is-field-invalid {
+  padding: 12px;
+  margin: -12px;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px #dc2626;
 }
 
 .admin-kanban-wrap {
@@ -3728,6 +3748,10 @@
   z-index: 340;
 }
 
+.admin-confirm-overlay-stacked {
+  z-index: 1200;
+}
+
 .admin-caixa-billing-overlay {
   z-index: 360;
 }
@@ -4235,6 +4259,8 @@
 }
 
 .admin-product-popup-footer.popup-footer {
+  display: flex;
+  align-items: center;
   position: relative;
   bottom: auto;
   width: 100%;
@@ -10889,8 +10915,66 @@
 .admin-store-hours-body {
   display: grid;
   grid-template-columns: minmax(0, 520px) minmax(240px, 1fr);
-  gap: 28px 40px;
+  gap: 28px 0;
   align-items: start;
+}
+
+.admin-store-hours-side {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  border-left: 1px solid var(--admin-border, #e2e8f0);
+  padding-left: 40px;
+}
+
+.admin-store-whatsapp-closed-option {
+  min-width: 0;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--admin-border, #e2e8f0);
+}
+
+.admin-store-whatsapp-closed-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.admin-store-whatsapp-toggle {
+  flex-shrink: 0;
+  min-width: 96px;
+  height: 34px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.admin-store-whatsapp-toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.admin-store-whatsapp-closed-text {
+  min-width: 0;
+  flex: 1;
+  padding-top: 1px;
+}
+
+.admin-store-whatsapp-closed-title {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--admin-text);
+}
+
+.admin-store-whatsapp-closed-text .admin-store-closed-message-hint {
+  margin: 0;
+}
+
+.admin-store-whatsapp-closed-footnote {
+  margin: 10px 0 0 108px;
 }
 
 .admin-store-closed-message {
@@ -10912,10 +10996,25 @@
 }
 
 .admin-store-closed-message-count {
-  margin-top: 6px;
+  margin-top: 0;
   font-size: 12px;
   color: var(--admin-muted, #94a3b8);
-  text-align: right;
+}
+
+.admin-store-closed-message-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+  min-height: 32px;
+}
+
+.admin-store-closed-message-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .admin-hours-row-v2 {
@@ -10981,6 +11080,17 @@
   .admin-store-hours-body {
     grid-template-columns: 1fr;
     gap: 22px;
+  }
+
+  .admin-store-hours-side {
+    border-left: none;
+    padding-left: 0;
+    border-top: 1px solid var(--admin-border, #e2e8f0);
+    padding-top: 22px;
+  }
+
+  .admin-store-whatsapp-closed-footnote {
+    margin-left: 0;
   }
 
   .admin-hours-row-v2 {
@@ -15063,6 +15173,80 @@ textarea.admin-input::placeholder {
 
 .admin-marmita-vitrine-field {
   grid-column: 1 / -1;
+}
+
+.admin-marmita-vitrine-picker {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--admin-border);
+}
+
+.admin-marmita-vitrine-picker .admin-label {
+  margin: 0 0 6px;
+}
+
+.admin-marmita-vitrine-options {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-marmita-vitrine-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.admin-marmita-vitrine-option:hover {
+  border-color: #c7d2fe;
+  background: #fafaff;
+}
+
+.admin-marmita-vitrine-option.is-selected {
+  border-color: var(--admin-brand);
+  background: #f4f3ff;
+}
+
+.admin-marmita-vitrine-option.is-unavailable {
+  opacity: 0.72;
+}
+
+.admin-marmita-vitrine-option input {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.admin-marmita-vitrine-option-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.admin-marmita-vitrine-option-copy strong {
+  font-size: 13px;
+  color: var(--admin-text);
+}
+
+.admin-marmita-vitrine-option-copy > span {
+  font-size: 12px;
+  color: var(--admin-muted);
+  line-height: 1.35;
+}
+
+.admin-marmita-vitrine-option-prices {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--admin-muted);
 }
 
 .admin-marmita-list-card {

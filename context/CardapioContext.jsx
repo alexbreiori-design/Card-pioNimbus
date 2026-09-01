@@ -28,7 +28,11 @@ import { applyBrandThemeTargets } from '@/lib/brandTheme';
 import { buildCardapioBootState, resolveStoreSlugFromBrowser } from '@/lib/cardapioBoot';
 import { resolveCardapioFromPublicPayload } from '@/lib/catalogPublic';
 import { createEmptyStoreSeed, getConfiguredDefaultSlug } from '@/lib/storeBoot';
-import { applyScheduleOpenStatus } from '@/lib/storeHours';
+import { applyScheduleOpenStatus, canCheckoutViaWhatsAppWhenClosed, getStoreClosedWhatsappOpeningPhrase } from '@/lib/storeHours';
+import {
+  buildClosedStoreCheckoutWhatsAppMessage,
+  buildSendOrderToStoreUrl,
+} from '@/lib/storeWhatsApp';
 import { DEFAULT_ADMIN_DATA, withDerivedData } from '@/lib/adminData';
 import { fetchStoreStateMetaRemote, fetchStoreStateRemote } from '@/lib/storeStateClient';
 import {
@@ -50,6 +54,7 @@ import {
 import { formatMoneyBrInput, hasMoneyBrValue, parseMoneyBrInput } from '@/lib/moneyMask';
 import { mergeEmpresaIntoLoja } from '@/lib/supabase/empresa';
 import { CATEGORY_LAYOUT_DEFAULT, resolveMarmitaSectionLayout } from '@/lib/cardapio/categoryLayouts';
+import { buildProductSectionKey } from '@/lib/cardapio/catalogSections';
 import { fetchPublicEmpresaCardapio } from '@/lib/supabase/publicEmpresa';
 import { initMetaPixel, sanitizeMetaPixelId, trackMetaEvent } from '@/lib/meta/pixel';
 import {
@@ -276,6 +281,9 @@ export function CardapioProvider({
   const [dynamicCategories, setDynamicCategories] = useState(
     () => boot?.resolved?.categories ?? ['Todos']
   );
+  const [categoryLabelsByKey, setCategoryLabelsByKey] = useState(
+    () => boot?.resolved?.categoryLabelsByKey ?? {}
+  );
   const [storeReady, setStoreReady] = useState(() => Boolean(boot?.loja));
   const [splashVisible, setSplashVisible] = useState(() => !boot?.loja);
   const [categoryIconsByName, setCategoryIconsByName] = useState(
@@ -468,10 +476,18 @@ export function CardapioProvider({
     []
   );
 
-  const paymentMethods = useMemo(
-    () => buildPublicPaymentMethods(storeConfig.exibirPixCardapio, onlinePaymentConfig),
-    [storeConfig.exibirPixCardapio, onlinePaymentConfig]
+  const checkoutViaWhatsappWhenClosed = useMemo(
+    () => canCheckoutViaWhatsAppWhenClosed(storeConfig),
+    [storeConfig]
   );
+
+  const canFinalizeCart = Boolean(storeConfig.aberta) || checkoutViaWhatsappWhenClosed;
+
+  const paymentMethods = useMemo(() => {
+    const all = buildPublicPaymentMethods(storeConfig.exibirPixCardapio, onlinePaymentConfig);
+    if (!checkoutViaWhatsappWhenClosed) return all;
+    return all.filter((m) => !['pix_online', 'credito_online'].includes(m.id));
+  }, [storeConfig.exibirPixCardapio, onlinePaymentConfig, checkoutViaWhatsappWhenClosed]);
 
   useEffect(() => {
     const storeSlug = normalizeSlug(storeConfig.slug || effectiveSlug || slug);
@@ -696,6 +712,10 @@ export function CardapioProvider({
             }
             return next;
           });
+          setCategoryLabelsByKey((prev) => {
+            const next = resolved.categoryLabelsByKey || {};
+            return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+          });
           setCategoryIconsByName((prev) => {
             const next = resolved.categoryIconsByName;
             return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
@@ -723,6 +743,7 @@ export function CardapioProvider({
             prev.corMarca === lojaWithAddress.corMarca &&
             prev.endereco === lojaWithAddress.endereco &&
             prev.fechadaManual === lojaWithAddress.fechadaManual &&
+            prev.pedidoWhatsappForaHorario === lojaWithAddress.pedidoWhatsappForaHorario &&
             prev.nome === lojaWithAddress.nome &&
             prev.slug === lojaWithAddress.slug &&
             prev.segmento === lojaWithAddress.segmento
@@ -970,28 +991,31 @@ export function CardapioProvider({
   }, [promoCarouselProducts, productMatchesSearch]);
 
   const filteredProducts = useMemo(() => {
+    const resolveSectionKey = (product) => product.sectionKey || buildProductSectionKey(product);
     const cats =
       selectedCategory === 'Todos'
         ? dynamicCategories.filter((cat) => cat !== 'Todos' && cat !== PROMO_CATEGORY_NAME)
         : [selectedCategory];
     const sections = [];
-    cats.forEach((cat) => {
-      if (cat === PROMO_CATEGORY_NAME) return;
+    cats.forEach((sectionKey) => {
+      if (sectionKey === PROMO_CATEGORY_NAME) return;
       const items = dynamicProducts.filter(
-        (p) => p.category === cat && productMatchesSearch(p)
+        (p) => resolveSectionKey(p) === sectionKey && productMatchesSearch(p)
       );
       if (items.length > 0) {
+        const label = categoryLabelsByKey[sectionKey] || sectionKey;
         const isMarmitaSection = items.every((p) => p.type === 'marmita');
         const categoryLayout = isMarmitaSection
-          ? resolveMarmitaSectionLayout(cat, items, {
+          ? resolveMarmitaSectionLayout(label, items, {
               categoryLayoutsByName,
               marmitaGrupoLayoutsById,
             })
-          : categoryLayoutsByName[cat] || CATEGORY_LAYOUT_DEFAULT;
+          : categoryLayoutsByName[sectionKey] || CATEGORY_LAYOUT_DEFAULT;
         sections.push({
-          category: cat,
+          category: sectionKey,
+          label,
           items,
-          categoryIcon: categoryIconsByName[cat] || 'burger',
+          categoryIcon: categoryIconsByName[sectionKey] || 'burger',
           categoryLayout,
           isMarmitaSection,
         });
@@ -1003,6 +1027,7 @@ export function CardapioProvider({
     selectedCategory,
     dynamicProducts,
     dynamicCategories,
+    categoryLabelsByKey,
     categoryIconsByName,
     categoryLayoutsByName,
     marmitaGrupoLayoutsById,
@@ -1734,7 +1759,7 @@ export function CardapioProvider({
   );
 
   const openCheckout = useCallback(() => {
-    if (cart.length === 0 || !storeConfig.aberta) return;
+    if (cart.length === 0 || !canFinalizeCart) return;
     const minOrder = Number(storeConfig.pedidoMinimo || 0);
     if (minOrder > 0 && cartSubtotal() < minOrder) {
       void showAlert(`Pedido mínimo de ${formatPrice(minOrder)}. Adicione mais itens para continuar.`);
@@ -1804,6 +1829,7 @@ export function CardapioProvider({
     showAlert,
     storeConfig.aberta,
     storeConfig.pedidoMinimo,
+    canFinalizeCart,
   ]);
 
   const finalizeFromCartReview = useCallback(() => {
@@ -2415,6 +2441,85 @@ export function CardapioProvider({
     };
   }, [completeCheckoutOrder, onlinePayment]);
 
+  const sendCheckoutViaWhatsApp = useCallback(() => {
+    const subtotal = cartSubtotal();
+    const taxaEntrega = checkoutData.delivery === 'entregar' ? Number(deliveryFee) || 0 : 0;
+    const cupomOff = calculateCupomDiscount(appliedCupom, subtotal);
+    const total = Math.max(0, subtotal + taxaEntrega - cupomOff);
+    const addressSnapshot =
+      checkoutData.delivery === 'entregar' && savedAddress && checkoutAddressConfirmed
+        ? { ...savedAddress }
+        : null;
+    const addressText =
+      checkoutData.delivery === 'entregar' && addressSnapshot
+        ? formatDeliveryAddressLine({
+            logradouro: addressSnapshot.rua,
+            numero: addressSnapshot.num,
+            bairro: addressSnapshot.bairro,
+            cidade: addressSnapshot.cidade,
+            complemento: addressSnapshot.comp,
+          })
+        : checkoutData.delivery === 'retirar'
+          ? formatStoreAddress(storeConfig)
+          : null;
+    let trocoNote = null;
+    if (checkoutData.payment === 'dinheiro' && checkoutData.trocoAnswer === 'sim') {
+      trocoNote = `Troco para ${formatPrice(parseMoneyBrInput(checkoutData.trocoValue))}`;
+    }
+    const openingPhrase = getStoreClosedWhatsappOpeningPhrase(storeConfig);
+    const message = buildClosedStoreCheckoutWhatsAppMessage({
+      customerName: checkoutData.name,
+      customerPhone: checkoutData.phone,
+      items: cart.map((item) => ({
+        qty: item.qty,
+        name: item.name,
+        opts: item.opts,
+        obs: formatMarmitaCartObs(item.opts || [], item.note || ''),
+        lineTotal: formatPrice(item.price * item.qty),
+      })),
+      deliveryLabel:
+        checkoutData.delivery === 'entregar'
+          ? 'Receber em casa'
+          : 'Retirar no estabelecimento',
+      addressText,
+      paymentLabel: PAY_LABELS[checkoutData.payment] || checkoutData.payment,
+      subtotalFormatted: formatPrice(subtotal),
+      deliveryFeeFormatted:
+        checkoutData.delivery === 'entregar' && taxaEntrega > 0
+          ? formatPrice(taxaEntrega)
+          : null,
+      cupomOffFormatted: cupomOff > 0 ? formatPrice(cupomOff) : null,
+      totalFormatted: formatPrice(total),
+      openingPhrase,
+      trocoNote,
+    });
+    const url = buildSendOrderToStoreUrl(storeConfig, message);
+    if (!url) {
+      void showAlert('WhatsApp da loja não configurado.');
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+    setCart([]);
+    setAppliedCupom(null);
+    setCartReviewOpen(false);
+    setCheckoutOpen(false);
+    setCheckoutStep(1);
+    setCheckoutSuccess(false);
+    setCheckoutSuccessSnapshot(null);
+    void showAlert('Abra o WhatsApp para enviar seu pedido à loja.');
+  }, [
+    appliedCupom,
+    cart,
+    cartSubtotal,
+    checkoutAddressConfirmed,
+    checkoutData,
+    deliveryFee,
+    formatPrice,
+    savedAddress,
+    showAlert,
+    storeConfig,
+  ]);
+
   const checkoutNext = useCallback(async () => {
     if (checkoutStep === 1) {
       const phone = checkoutPhone.trim();
@@ -2522,7 +2627,7 @@ export function CardapioProvider({
       setCheckoutStep(4);
     } else if (checkoutStep === 4) {
       // Cartão: formulário avança via confirmCheckoutCardDraft → passo 5.
-      // Pix: CTA fica no resumo (painel). Offline: envia pedido.
+      // Pix: CTA fica no resumo (painel). Offline: envia pedido ou WhatsApp (loja fechada).
       if (checkoutData.payment === 'credito_online' || checkoutData.payment === 'pix_online') {
         return;
       }
@@ -2530,6 +2635,10 @@ export function CardapioProvider({
       checkoutSubmittingRef.current = true;
       setCheckoutSubmitting(true);
       try {
+        if (checkoutViaWhatsappWhenClosed) {
+          sendCheckoutViaWhatsApp();
+          return;
+        }
         const completedOrder = await persistCompletedOrder({
           customerName: checkoutData.name,
           customerPhone: checkoutData.phone,
@@ -2578,6 +2687,8 @@ export function CardapioProvider({
     effectiveSlug,
     slug,
     storeConfig,
+    checkoutViaWhatsappWhenClosed,
+    sendCheckoutViaWhatsApp,
   ]);
 
   const checkoutBack = useCallback(() => {
@@ -2697,6 +2808,7 @@ export function CardapioProvider({
       storeReady,
       splashVisible,
       CATEGORIES: dynamicCategories,
+      categoryLabelsByKey,
       relatedItems,
       filteredProducts,
       promoProducts,
@@ -2713,6 +2825,8 @@ export function CardapioProvider({
       formatPrice,
       handlePromoNav,
       isStoreOpen: Boolean(storeConfig.aberta),
+      canFinalizeCart,
+      checkoutViaWhatsappWhenClosed,
       formatStoreAddress,
       STORE_ADDRESS,
       pickupDurationLabel,
@@ -2723,6 +2837,7 @@ export function CardapioProvider({
       storeReady,
       splashVisible,
       dynamicCategories,
+      categoryLabelsByKey,
       relatedItems,
       filteredProducts,
       promoProducts,
@@ -2736,6 +2851,8 @@ export function CardapioProvider({
       openProduct,
       formatPrice,
       handlePromoNav,
+      canFinalizeCart,
+      checkoutViaWhatsappWhenClosed,
       pickupDurationLabel,
       deliveryDurationLabel,
     ]
@@ -2864,6 +2981,7 @@ export function CardapioProvider({
       STEP_LABELS_ONLINE_CARD,
       PAYMENT_METHODS: paymentMethods,
       PAY_LABELS,
+      checkoutViaWhatsappWhenClosed,
       openCheckout,
       closeCheckout,
       openCheckoutAddressFlow,
@@ -2874,6 +2992,7 @@ export function CardapioProvider({
       checkoutNext,
       checkoutBack,
       dismissCheckoutSuccess,
+      sendCheckoutViaWhatsApp,
       toggleDeliveryCard,
       openDeliveryCheckCep,
       closeDeliveryCheckNumber,
@@ -2942,6 +3061,7 @@ export function CardapioProvider({
       locStrong,
       locSub,
       paymentMethods,
+      checkoutViaWhatsappWhenClosed,
       openCheckout,
       closeCheckout,
       openCheckoutAddressFlow,
@@ -2952,6 +3072,7 @@ export function CardapioProvider({
       checkoutNext,
       checkoutBack,
       dismissCheckoutSuccess,
+      sendCheckoutViaWhatsApp,
       toggleDeliveryCard,
       openDeliveryCheckCep,
       closeDeliveryCheckNumber,

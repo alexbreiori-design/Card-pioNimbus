@@ -28,6 +28,10 @@ import ProductPromoChip from '@/components/cardapio/ProductPromoChip';
 import { DraggableReorderList } from '@/components/lightswind/draggable-reorder-list';
 import { CATEGORY_LAYOUT_DEFAULT } from '@/lib/cardapio/categoryLayouts';
 import {
+  findCategoryNameConflicts,
+  formatCategoryNameConflictMessage,
+} from '@/lib/catalog/categoryNameConflicts';
+import {
   applyCatalogGroupToggle,
   applyCatalogItemToggle,
   isCatalogItemUnavailable,
@@ -52,7 +56,7 @@ import {
   normalizePecaTambemIds,
   suggestedComboPrice,
 } from '@/lib/productSuggestions';
-import { formatMoneyBrInput } from '@/lib/moneyMask';
+import { formatMoneyBrInput, hasMoneyBrValue } from '@/lib/moneyMask';
 
 const TAB_ALL = 'all';
 
@@ -327,6 +331,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
   const [formImage, setFormImage] = useState('');
   const [formImageBaseline, setFormImageBaseline] = useState('');
   const [saveError, setSaveError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [pickerType, setPickerType] = useState('');
   const [pickerSearch, setPickerSearch] = useState('');
   const [comboPickerOpen, setComboPickerOpen] = useState(false);
@@ -468,6 +473,14 @@ export default function CatalogManager({ mode = 'produtos' }) {
   function saveCategoryName() {
     const nome = editingCategory?.nome?.trim();
     if (!nome) return;
+
+    if (isProdutos) {
+      const conflicts = findCategoryNameConflicts(nome, data, {
+        excludeCategoryId: editingCategory.isNew ? '' : editingCategory.id,
+      });
+      const conflictMsg = formatCategoryNameConflictMessage(conflicts);
+      if (conflictMsg) toast.warning(conflictMsg);
+    }
 
     if (editingCategory.isNew) {
       const baseCategory = {
@@ -690,6 +703,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
     setFormImage('');
     setFormImageBaseline('');
     setSaveError('');
+    setFieldErrors({});
     setComboPickerOpen(false);
     setComboPriceManual(false);
     setPecaTambemPickerOpen(false);
@@ -718,6 +732,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
     setFormImage(image);
     setFormImageBaseline(image);
     setSaveError('');
+    setFieldErrors({});
     setComboPickerOpen(false);
     setComboPriceManual(true);
     setPecaTambemPickerOpen(false);
@@ -747,6 +762,68 @@ export default function CatalogManager({ mode = 'produtos' }) {
     setDescricaoDraft('');
     setDestaqueEditing(false);
     setDestaqueDraft('');
+    setFieldErrors({});
+  }
+
+  function clearFieldError(key) {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    setSaveError('');
+  }
+
+  function scrollToFirstInvalidField(errors) {
+    if (typeof document === 'undefined') return;
+    const order = ['nome', 'categoriaId', 'preco', 'comboItens', 'comboPreco'];
+    const key = order.find((fieldKey) => errors[fieldKey]);
+    if (!key) return;
+    requestAnimationFrame(() => {
+      document
+        .querySelector(`.admin-item-overlay [data-field="${key}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
+
+  function validateRequiredItemFields(formState) {
+    const errors = {};
+    const missingLabels = [];
+
+    if (!String(formState.nome || '').trim()) {
+      errors.nome = true;
+      missingLabels.push(isProdutos ? 'nome do produto' : 'nome do item');
+    }
+    if (!formState.categoriaId) {
+      errors.categoriaId = true;
+      missingLabels.push('categoria');
+    }
+
+    if (formState.tipo === 'combo') {
+      const comboConfig = normalizeComboConfig(formState.comboConfig);
+      if (comboConfig.itens.length < 2) {
+        errors.comboItens = true;
+        missingLabels.push('produtos do combo (mínimo 2)');
+      }
+      if (!hasMoneyBrValue(comboConfig.precoCombo)) {
+        errors.comboPreco = true;
+        missingLabels.push('preço do combo');
+      }
+    } else if (!hasMoneyBrValue(formState.preco)) {
+      errors.preco = true;
+      missingLabels.push('preço');
+    }
+
+    const message = missingLabels.length
+      ? `Preencha: ${missingLabels.join(', ')}.`
+      : '';
+
+    return {
+      valid: Object.keys(errors).length === 0,
+      errors,
+      message,
+    };
   }
 
   const isItemFormDirty = useMemo(() => {
@@ -770,11 +847,19 @@ export default function CatalogManager({ mode = 'produtos' }) {
 
   async function saveItem() {
     setSaveError('');
+    const required = validateRequiredItemFields(form);
+    if (!required.valid) {
+      setFieldErrors(required.errors);
+      setSaveError(required.message);
+      scrollToFirstInvalidField(required.errors);
+      return;
+    }
+    setFieldErrors({});
+
     const nome = form.nome.trim();
     const comboConfig = normalizeComboConfig(form.comboConfig);
     const comboPrice = parseMoney(comboConfig.precoCombo);
     const preco = form.tipo === 'combo' ? comboPrice : parseMoney(form.preco);
-    if (!nome || !form.categoriaId || Number.isNaN(preco)) return;
     if (form.tipo === 'combo' && comboConfig.itens.length < 2) {
       setSaveError('Combo precisa ter pelo menos 2 produtos.');
       return;
@@ -1017,10 +1102,19 @@ export default function CatalogManager({ mode = 'produtos' }) {
 
   function updateComboConfig(updater, options = {}) {
     const manual = options.manual ?? comboPriceManual;
-    setForm((prev) => ({
-      ...prev,
-      comboConfig: withComboPriceSuggestion(updater(normalizeComboConfig(prev.comboConfig)), manual),
-    }));
+    let nextItemCount = 0;
+    setForm((prev) => {
+      const nextConfig = withComboPriceSuggestion(
+        updater(normalizeComboConfig(prev.comboConfig)),
+        manual
+      );
+      nextItemCount = nextConfig.itens.length;
+      return {
+        ...prev,
+        comboConfig: nextConfig,
+      };
+    });
+    if (nextItemCount >= 2) clearFieldError('comboItens');
   }
 
   const comboTotals = (() => {
@@ -1451,7 +1545,16 @@ export default function CatalogManager({ mode = 'produtos' }) {
                 {isProdutos ? (
                   <div className="admin-tabs admin-tabs-pedidos admin-product-type-tabs">
                     {productTypeOptions.map((t) => (
-                      <button key={t} type="button" className={`admin-tab ${form.tipo === t ? 'active' : ''}`} onClick={() => setForm((p) => ({ ...p, tipo: t }))}>
+                      <button
+                        key={t}
+                        type="button"
+                        className={`admin-tab ${form.tipo === t ? 'active' : ''}`}
+                        onClick={() => {
+                          setFieldErrors({});
+                          setSaveError('');
+                          setForm((p) => ({ ...p, tipo: t }));
+                        }}
+                      >
                         {t === 'comum' ? 'Padrão' : 'Combo'}
                       </button>
                     ))}
@@ -1461,22 +1564,36 @@ export default function CatalogManager({ mode = 'produtos' }) {
                 {saveError ? <div className="admin-error">{saveError}</div> : null}
 
                 <div className="admin-catalog-form-grid admin-product-form-grid">
-                  <div className="admin-form-group">
+                  <div
+                    className={`admin-form-group${fieldErrors.nome ? ' is-field-invalid' : ''}`}
+                    data-field="nome"
+                  >
                     <label className="admin-label">{isProdutos ? 'Nome do produto' : 'Nome do item'}</label>
                     <input
-                      className="admin-input"
+                      className={`admin-input${fieldErrors.nome ? ' admin-field-invalid' : ''}`}
                       value={form.nome}
-                      onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))}
+                      onChange={(e) => {
+                        clearFieldError('nome');
+                        setForm((p) => ({ ...p, nome: e.target.value }));
+                      }}
                       placeholder={isProdutos ? 'Ex: Burger artesanal da casa' : 'Ex: Bacon crocante'}
+                      aria-invalid={fieldErrors.nome ? 'true' : undefined}
                     />
                   </div>
                   {isProdutos ? (
-                    <div className="admin-form-group">
+                    <div
+                      className={`admin-form-group${fieldErrors.categoriaId ? ' is-field-invalid' : ''}`}
+                      data-field="categoriaId"
+                    >
                       <label className="admin-label">Categoria</label>
                       <select
-                        className="admin-input"
+                        className={`admin-input${fieldErrors.categoriaId ? ' admin-field-invalid' : ''}`}
                         value={form.categoriaId}
-                        onChange={(e) => setForm((p) => ({ ...p, categoriaId: e.target.value }))}
+                        onChange={(e) => {
+                          clearFieldError('categoriaId');
+                          setForm((p) => ({ ...p, categoriaId: e.target.value }));
+                        }}
+                        aria-invalid={fieldErrors.categoriaId ? 'true' : undefined}
                       >
                         <option value="">Selecione</option>
                         {categories.map((c) => (
@@ -1487,18 +1604,23 @@ export default function CatalogManager({ mode = 'produtos' }) {
                       </select>
                     </div>
                   ) : null}
-                  <div className={`admin-form-group${isProdutos ? ' admin-product-price-row-full' : ''}`}>
+                  <div
+                    className={`admin-form-group${fieldErrors.preco ? ' is-field-invalid' : ''}${isProdutos ? ' admin-product-price-row-full' : ''}`}
+                    data-field="preco"
+                  >
                     <label className="admin-label">Preço</label>
                     {isProdutos ? (
                       <div className="admin-product-price-apartir-row">
                         <input
-                          className="admin-input"
+                          className={`admin-input${fieldErrors.preco ? ' admin-field-invalid' : ''}`}
                           inputMode="numeric"
                           value={form.preco}
-                          onChange={(e) =>
-                            setForm((p) => ({ ...p, preco: formatMoneyBrInput(e.target.value) }))
-                          }
+                          onChange={(e) => {
+                            clearFieldError('preco');
+                            setForm((p) => ({ ...p, preco: formatMoneyBrInput(e.target.value) }));
+                          }}
                           placeholder="R$ 0,00"
+                          aria-invalid={fieldErrors.preco ? 'true' : undefined}
                         />
                         <button
                           type="button"
@@ -1532,23 +1654,32 @@ export default function CatalogManager({ mode = 'produtos' }) {
                       </div>
                     ) : (
                       <input
-                        className="admin-input"
+                        className={`admin-input${fieldErrors.preco ? ' admin-field-invalid' : ''}`}
                         inputMode="numeric"
                         value={form.preco}
-                        onChange={(e) =>
-                          setForm((p) => ({ ...p, preco: formatMoneyBrInput(e.target.value) }))
-                        }
+                        onChange={(e) => {
+                          clearFieldError('preco');
+                          setForm((p) => ({ ...p, preco: formatMoneyBrInput(e.target.value) }));
+                        }}
                         placeholder="R$ 0,00"
+                        aria-invalid={fieldErrors.preco ? 'true' : undefined}
                       />
                     )}
                   </div>
                   {!isProdutos ? (
-                    <div className="admin-form-group">
+                    <div
+                      className={`admin-form-group${fieldErrors.categoriaId ? ' is-field-invalid' : ''}`}
+                      data-field="categoriaId"
+                    >
                       <label className="admin-label">Categoria</label>
                       <select
-                        className="admin-input"
+                        className={`admin-input${fieldErrors.categoriaId ? ' admin-field-invalid' : ''}`}
                         value={form.categoriaId}
-                        onChange={(e) => setForm((p) => ({ ...p, categoriaId: e.target.value }))}
+                        onChange={(e) => {
+                          clearFieldError('categoriaId');
+                          setForm((p) => ({ ...p, categoriaId: e.target.value }));
+                        }}
+                        aria-invalid={fieldErrors.categoriaId ? 'true' : undefined}
                       >
                         <option value="">Selecione</option>
                         {categories.map((c) => (
@@ -1828,7 +1959,10 @@ export default function CatalogManager({ mode = 'produtos' }) {
               <div className="popup-body admin-product-side-body">
                 {isProdutos && form.tipo === 'combo' ? (
                   <div className="admin-product-side-section admin-product-combo-side">
-                    <section className="admin-product-combo-block">
+                    <section
+                      className={`admin-product-combo-block${fieldErrors.comboItens ? ' is-field-invalid' : ''}`}
+                      data-field="comboItens"
+                    >
                       <div className="admin-product-combo-head">
                         <div className="admin-form-section-title">Produtos do combo</div>
                         <button
@@ -1890,7 +2024,10 @@ export default function CatalogManager({ mode = 'produtos' }) {
                           Valor Sugerido: R$ {formatComboPriceBr(comboTotals.sugestao)}
                         </span>
                       </p>
-                      <div className="admin-form-group admin-product-combo-price-field">
+                      <div
+                        className={`admin-form-group admin-product-combo-price-field${fieldErrors.comboPreco ? ' is-field-invalid' : ''}`}
+                        data-field="comboPreco"
+                      >
                         <label
                           className="admin-label"
                           title="Preço final de venda do combo. Pode ser alterado livremente."
@@ -1898,10 +2035,11 @@ export default function CatalogManager({ mode = 'produtos' }) {
                           Preço do combo
                         </label>
                         <input
-                          className="admin-input"
+                          className={`admin-input${fieldErrors.comboPreco ? ' admin-field-invalid' : ''}`}
                           inputMode="numeric"
                           value={normalizeComboConfig(form.comboConfig).precoCombo}
                           onChange={(e) => {
+                            clearFieldError('comboPreco');
                             setComboPriceManual(true);
                             updateComboConfig(
                               (cfg) => ({ ...cfg, precoCombo: formatMoneyBrInput(e.target.value) }),
@@ -1909,6 +2047,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
                             );
                           }}
                           placeholder={formatComboPriceBr(comboTotals.sugestao)}
+                          aria-invalid={fieldErrors.comboPreco ? 'true' : undefined}
                         />
                       </div>
                       <p
@@ -2182,6 +2321,7 @@ export default function CatalogManager({ mode = 'produtos' }) {
         />
         <AdminConfirmDialog
           open={Boolean(removingAddonPassoId)}
+          overlayClassName="admin-confirm-overlay-stacked"
           title="Remover passo?"
           message="Esse passo de adicionais será removido deste produto."
           confirmLabel="Remover"

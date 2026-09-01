@@ -9,13 +9,16 @@ export default function FiltersBar() {
     categoryMenuOpen,
     setCategoryMenuOpen,
     CATEGORIES,
+    categoryLabelsByKey,
     selectCategory,
     searchQuery,
     setSearchQuery,
   } = useCardapio();
 
   const catLabel =
-    selectedCategory === 'Todos' ? 'Lista de categorias' : selectedCategory;
+    selectedCategory === 'Todos'
+      ? 'Lista de categorias'
+      : categoryLabelsByKey[selectedCategory] || selectedCategory;
 
   return (
     <div className="filters-bar">
@@ -39,7 +42,7 @@ export default function FiltersBar() {
               role="button"
               tabIndex={0}
             >
-              {cat}
+              {categoryLabelsByKey[cat] || cat}
             </div>
           ))}
         </div>

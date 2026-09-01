@@ -56,6 +56,10 @@ import {
 import { emptyMarmita, emptyMarmitaGrupo, marmitaUid, normalizeMarmita } from '@/lib/marmita/marmitaModel';
 import { uploadMenuAssetIfNeeded } from '@/lib/upload/menuAsset';
 import { normalizeAddonPasso } from '@/lib/productAddonPassos';
+import {
+  findCategoryNameConflicts,
+  formatCategoryNameConflictMessage,
+} from '@/lib/catalog/categoryNameConflicts';
 
 const MAX_IMAGE_SIZE = 900;
 const IMAGE_QUALITY = 0.72;
@@ -192,6 +196,7 @@ export default function MarmitaManager() {
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const [cardapioModalOpen, setCardapioModalOpen] = useState(false);
   const [vitrineModalOpen, setVitrineModalOpen] = useState(false);
+  const [vitrineDraftId, setVitrineDraftId] = useState('');
   const settingsMenuRef = useRef(null);
 
   const isCardapioDirty = useMemo(() => {
@@ -214,11 +219,42 @@ export default function MarmitaManager() {
     isDirty: isCardapioDirty,
   });
 
-  const { overlayPointerDown: vitrineOverlayPointerDown, overlayClick: vitrineOverlayClick } =
-    useAdminOverlayClose({
-      onClose: () => setVitrineModalOpen(false),
-      isDirty: false,
-    });
+  const savedVitrineId = useMemo(() => {
+    const selected = sortByOrdem(marmitas.map(normalizeMarmita)).find((item) => item.vitrine === true);
+    return selected?.id || '';
+  }, [marmitas]);
+
+  const isVitrineDirty = useMemo(() => {
+    if (!vitrineModalOpen) return false;
+    return vitrineDraftId !== savedVitrineId;
+  }, [vitrineModalOpen, vitrineDraftId, savedVitrineId]);
+
+  const vitrinePickerMarmitas = useMemo(
+    () => sortByOrdem(marmitas.map(normalizeMarmita)),
+    [marmitas]
+  );
+
+  const vitrineDraftPreview = useMemo(() => {
+    if (!vitrineDraftId) return null;
+    const marmita = vitrinePickerMarmitas.find((item) => item.id === vitrineDraftId);
+    if (!marmita) return null;
+    return {
+      marmita,
+      sizes: marmita.tamanhos.filter((tam) => tam.ativo !== false),
+    };
+  }, [vitrineDraftId, vitrinePickerMarmitas]);
+
+  const {
+    overlayPointerDown: vitrineOverlayPointerDown,
+    overlayClick: vitrineOverlayClick,
+    requestClose: requestCloseVitrineModal,
+    discardOpen: vitrineDiscardOpen,
+    confirmDiscard: confirmDiscardVitrineModal,
+    cancelDiscard: cancelDiscardVitrineModal,
+  } = useAdminOverlayClose({
+    onClose: () => setVitrineModalOpen(false),
+    isDirty: isVitrineDirty,
+  });
 
   useEffect(() => {
     if (!settingsMenuOpen) return undefined;
@@ -337,9 +373,16 @@ export default function MarmitaManager() {
     });
   }
 
+  function warnGrupoNameConflicts(nome, excludeGrupoId = '') {
+    const conflicts = findCategoryNameConflicts(nome, data, { excludeGrupoId });
+    const conflictMsg = formatCategoryNameConflictMessage(conflicts);
+    if (conflictMsg) toast.warning(conflictMsg);
+  }
+
   function addGrupo() {
     const nome = String(grupoModal?.nome || '').trim();
     if (!nome || !grupoModal?.isNew) return;
+    warnGrupoNameConflicts(nome, grupoModal.id);
     saveData((prev) => ({
       ...prev,
       marmitaGrupos: [
@@ -377,6 +420,7 @@ export default function MarmitaManager() {
       toast.error('Informe o nome do grupo.');
       return;
     }
+    warnGrupoNameConflicts(nome, grupoModal.isNew ? '' : grupoModal.id);
     if (grupoModal.isNew) {
       addGrupo();
       return;
@@ -569,6 +613,23 @@ export default function MarmitaManager() {
     setCardapioEditing(true);
   }
 
+  function openVitrineModal() {
+    setVitrineDraftId(savedVitrineId);
+    setVitrineModalOpen(true);
+  }
+
+  async function saveVitrineSelection() {
+    await saveData((prev) => ({
+      ...prev,
+      marmitas: (prev.marmitas || []).map((item) => ({
+        ...normalizeMarmita(item),
+        vitrine: Boolean(vitrineDraftId && item.id === vitrineDraftId),
+      })),
+    }));
+    setVitrineModalOpen(false);
+    toast.success('Vitrine de preços atualizada.');
+  }
+
   async function saveCardapioSettings() {
     const payload = normalizeMarmitaCardapio({
       ...cardapioDraft,
@@ -718,24 +779,104 @@ export default function MarmitaManager() {
   }
 
   function renderVitrinePreviewPanel() {
+    const preview = vitrineDraftPreview;
+    const weekdayLabel = getMarmitaWeekdayLabel(publicPreview.weekday);
+
     return (
       <div className="admin-marmita-preview-body">
-        {publicPreview.mode !== 'vitrine' ? (
-          <p className="admin-marmita-preview-headline">{publicPreview.headline}</p>
-        ) : null}
-        <p className="admin-help-text admin-marmita-preview-detail">{publicPreview.detail}</p>
+        <p className="admin-marmita-preview-headline">Vitrine de preços ({weekdayLabel})</p>
+        <p className="admin-help-text admin-marmita-preview-detail">
+          {publicPreview.mode === 'today'
+            ? `Hoje há marmita do dia ativa. A vitrine só aparece nos dias sem cardápio do dia.`
+            : preview
+              ? preview.marmita.ativo === false
+                ? `A marmita selecionada está indisponível. Ative-a para exibir a vitrine nos dias sem cardápio do dia.`
+                : `Sem marmita do dia ativa hoje. O cliente veria "${preview.marmita.nomePublico || preview.marmita.tagAdmin}" como referência de preços.`
+              : 'Escolha abaixo qual marmita usar como referência de preços nos dias sem cardápio do dia.'}
+        </p>
 
-        {publicPreview.marmita ? (
+        {preview ? (
           <div className="admin-marmita-preview-sizes">
-            <p className="admin-label">{publicPreview.marmita.nomePublico || publicPreview.marmita.tagAdmin}</p>
-            {publicPreview.sizes.map((tam) => (
-              <span key={tam.id} className="admin-marmita-size-chip">
-                {tam.nome}: {formatCurrency(tam.preco)}
-              </span>
-            ))}
+            <p className="admin-label">{preview.marmita.nomePublico || preview.marmita.tagAdmin}</p>
+            {preview.sizes.length ? (
+              preview.sizes.map((tam) => (
+                <span key={tam.id} className="admin-marmita-size-chip">
+                  {tam.nome}: {formatCurrency(tam.preco)}
+                </span>
+              ))
+            ) : (
+              <p className="admin-help-text">Nenhum tamanho ativo nesta marmita.</p>
+            )}
           </div>
         ) : null}
       </div>
+    );
+  }
+
+  function renderVitrinePicker() {
+    return (
+      <section className="admin-marmita-vitrine-picker" aria-labelledby="admin-marmita-vitrine-picker-title">
+        <h4 id="admin-marmita-vitrine-picker-title" className="admin-label">
+          Marmita da vitrine
+        </h4>
+        <p className="admin-help-text">
+          Nos dias sem marmita do dia, o cardápio público mostra os preços da opção escolhida aqui.
+        </p>
+
+        {vitrinePickerMarmitas.length ? (
+          <ul className="admin-marmita-vitrine-options">
+            <li>
+              <label className="admin-marmita-vitrine-option">
+                <input
+                  type="radio"
+                  name="admin-marmita-vitrine"
+                  checked={!vitrineDraftId}
+                  onChange={() => setVitrineDraftId('')}
+                />
+                <span className="admin-marmita-vitrine-option-copy">
+                  <strong>Nenhuma</strong>
+                  <span>Sem vitrine de preços nos dias vazios</span>
+                </span>
+              </label>
+            </li>
+            {vitrinePickerMarmitas.map((item) => {
+              const activeSizes = item.tamanhos.filter((tam) => tam.ativo !== false);
+              const grupo = gruposById.get(item.grupoId);
+              return (
+                <li key={item.id}>
+                  <label
+                    className={`admin-marmita-vitrine-option${vitrineDraftId === item.id ? ' is-selected' : ''}${item.ativo === false ? ' is-unavailable' : ''}`}
+                  >
+                    <input
+                      type="radio"
+                      name="admin-marmita-vitrine"
+                      checked={vitrineDraftId === item.id}
+                      onChange={() => setVitrineDraftId(item.id)}
+                    />
+                    <span className="admin-marmita-vitrine-option-copy">
+                      <strong>{item.tagAdmin || 'Sem tag'}</strong>
+                      <span>
+                        {getMarmitaWeekdayLabel(item.diaSemana)}
+                        {' · '}
+                        {item.nomePublico || 'Sem nome público'}
+                        {grupo?.nome ? ` · ${grupo.nome}` : ''}
+                        {item.ativo === false ? ' · Indisponível' : ''}
+                      </span>
+                      {activeSizes.length ? (
+                        <span className="admin-marmita-vitrine-option-prices">
+                          {activeSizes.map((tam) => `${tam.nome}: ${formatCurrency(tam.preco)}`).join(' · ')}
+                        </span>
+                      ) : null}
+                    </span>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="admin-help-text">Cadastre uma marmita para definir a vitrine de preços.</p>
+        )}
+      </section>
     );
   }
 
@@ -1129,7 +1270,7 @@ export default function MarmitaManager() {
                     className="admin-marmita-settings-menu-item"
                     onClick={() => {
                       setSettingsMenuOpen(false);
-                      setVitrineModalOpen(true);
+                      openVitrineModal();
                     }}
                   >
                     Vitrine de preços
@@ -1717,6 +1858,20 @@ export default function MarmitaManager() {
           onConfirm={confirmDiscardItemModal}
           onCancel={cancelDiscardItemModal}
         />
+        <AdminConfirmDialog
+          open={Boolean(removingPassoId)}
+          overlayClassName="admin-confirm-overlay-stacked"
+          title="Remover passo?"
+          message="Esse passo de montagem será removido desta marmita."
+          confirmLabel="Remover"
+          cancelLabel="Cancelar"
+          danger
+          onCancel={() => setRemovingPassoId('')}
+          onConfirm={() => {
+            removePassoById(removingPassoId);
+            setRemovingPassoId('');
+          }}
+        />
         </>
           ,
             getAdminPortalRoot()
@@ -1764,9 +1919,18 @@ export default function MarmitaManager() {
           >
             <h3 id="admin-marmita-vitrine-modal-title">Vitrine de preços</h3>
             {renderVitrinePreviewPanel()}
+            {renderVitrinePicker()}
             <div className="admin-confirm-actions">
-              <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setVitrineModalOpen(false)}>
+              <button type="button" className="admin-btn admin-btn-ghost" onClick={requestCloseVitrineModal}>
                 Fechar
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn-primary"
+                disabled={!isVitrineDirty}
+                onClick={saveVitrineSelection}
+              >
+                Salvar
               </button>
             </div>
           </div>
@@ -1791,6 +1955,12 @@ export default function MarmitaManager() {
         open={cardapioDiscardOpen}
         onConfirm={confirmDiscardCardapioModal}
         onCancel={cancelDiscardCardapioModal}
+      />
+
+      <AdminDiscardDialog
+        open={vitrineDiscardOpen}
+        onConfirm={confirmDiscardVitrineModal}
+        onCancel={cancelDiscardVitrineModal}
       />
 
       <ProductAddonPassoModal
@@ -1819,20 +1989,6 @@ export default function MarmitaManager() {
           });
           setPassoModalOpen(false);
           setEditingPassoId('');
-        }}
-      />
-
-      <AdminConfirmDialog
-        open={Boolean(removingPassoId)}
-        title="Remover passo?"
-        message="Esse passo de montagem será removido desta marmita."
-        confirmLabel="Remover"
-        cancelLabel="Cancelar"
-        danger
-        onCancel={() => setRemovingPassoId('')}
-        onConfirm={() => {
-          removePassoById(removingPassoId);
-          setRemovingPassoId('');
         }}
       />
     </div>

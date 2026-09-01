@@ -12,6 +12,8 @@ Não é lista de tudo que o produto já faz. Referência do que **já está no a
 
 | Status | Item | Notas |
 |--------|------|--------|
+| **Próximo** | Pedidos pelo WhatsApp com loja fechada | Ver seção abaixo. Paliativo antes da pré-abertura. ~1–2 dias. |
+| **Longo prazo** | Pedidos online fora do horário (pré-abertura + ETA ancorado) | Ver seção abaixo. ~3–5 dias quando priorizar. |
 | **Adiado (custo)** | WhatsApp automático via API oficial da Meta | Ver seção completa abaixo. Hoje só `wa.me` manual. |
 | Pendente | CAPTCHA no checkout (Turnstile/hCaptcha) | Corta spam. |
 | Pendente | Rate limit distribuído (Redis/Upstash) | O limite atual some entre instâncias serverless. |
@@ -27,6 +29,60 @@ Não é lista de tudo que o produto já faz. Referência do que **já está no a
 | Feito | Relatórios redesenhados (KPI + gráfico) | Ship 2026-08-13. |
 | Feito | Sentry | Monitoring no app. |
 | Feito | Extrator / import de cardápio | Super-admin + `tools/menu-extractor`. |
+
+---
+
+## Pedidos pelo WhatsApp com loja fechada
+
+**Status:** próximo. Paliativo de médio prazo — cliente monta pedido no cardápio e envia resumo pelo WhatsApp quando a loja está fechada pelo horário.
+
+### O que o lojista configura (Minha loja)
+
+- Toggle: **Aceitar pedidos pelo WhatsApp quando estivermos fechados** (`pedidoWhatsappForaHorario`).
+- Requer WhatsApp cadastrado. Default desligado.
+- v1: só quando fechado **pelo horário**; fechamento manual (“Loja fechada agora”) mantém bloqueio atual.
+
+### O que o cliente vê
+
+- Modal/banner com **copy pré-pronta** (não depende de textarea customizada).
+- Sacola e checkout **liberados**; fluxo até confirmação; botão verde **Enviar pelo WhatsApp** → `wa.me` (sem persistir).
+- **Pix/cartão online indisponíveis** neste modo — pedidos pagos fora do horário ficam para **pré-abertura**.
+
+### Peças principais
+
+- Admin: [`app/admin/loja/page.jsx`](app/admin/loja/page.jsx)
+- Cardápio: [`StoreClosedNotice.jsx`](components/cardapio/StoreClosedNotice.jsx), [`StoreHeader.jsx`](components/cardapio/StoreHeader.jsx), [`SacolaPanel.jsx`](components/cardapio/SacolaPanel.jsx), [`CheckoutModal.jsx`](components/cardapio/CheckoutModal.jsx), [`CardapioContext.jsx`](context/CardapioContext.jsx)
+- Mensagem: [`lib/storeWhatsApp.js`](lib/storeWhatsApp.js) (`buildOrderWhatsAppMessage` / variante sem nº de pedido)
+- Horários: [`lib/storeHours.js`](lib/storeHours.js)
+
+### Limitações aceitas
+
+- Pedido não entra no painel automaticamente — lojista confirma e lança manualmente.
+- Sem pagamento online com loja fechada neste paliativo (pré-abertura cobre isso).
+- Não substitui pré-abertura com ETA real ancorado na abertura oficial.
+
+---
+
+## Pedidos online fora do horário (pré-abertura)
+
+**Status:** longo prazo. Solução definitiva quando o paliativo WhatsApp não bastar.
+
+### Ideia
+
+- Horário **oficial** de abertura continua visível (ex.: 11h).
+- Campo **`pedidosAPartir`** por dia (ex.: 10h) — cliente já pode pedir online antes da abertura.
+- Modal/copy: preparo/entrega a partir da abertura oficial.
+- `entregar_ate` ancorado em `max(agora, aberturaOficial) + duração` — kanban funciona sem coluna `agendado`.
+
+### Antes de shipar (obrigatório)
+
+- Recalcular ETA no servidor ([`lib/deliveryDuration.js`](lib/deliveryDuration.js), [`lib/orderValidation.js`](lib/orderValidation.js), [`lib/orders/publicOrderServer.js`](lib/orders/publicOrderServer.js)).
+- Ajustar `finalize_online_payment` (Pix não pode reancorar prazo no `approved_at`).
+- Revisar alertas/impressão cedo no kanban e copy enganosa (“Loja aberta”, countdown).
+
+### Esforço estimado
+
+~3–5 dias (migration leve ou JSON em `horarios`, gates API, UX checkout/header, testes).
 
 ---
 
