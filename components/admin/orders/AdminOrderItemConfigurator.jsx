@@ -2,8 +2,15 @@
 
 import { useMemo, useState } from 'react';
 import '@/styles/cardapio.css';
+import GenericAddonWizardStep from '@/components/cardapio/GenericAddonWizardStep';
 import MarmitaWizardSteps from '@/components/cardapio/MarmitaWizardSteps';
 import PizzaWizardSteps from '@/components/cardapio/PizzaWizardSteps';
+import {
+  getSectionMaxRepeticoes,
+  isAddonSectionComplete,
+  sectionToQtyMap,
+  sectionTotalQty,
+} from '@/lib/cardapio/addonSelection';
 import { IconClose } from '@/components/cardapio/icons';
 import AdminDiscardDialog from '@/components/admin/AdminDiscardDialog';
 import {
@@ -52,7 +59,8 @@ export default function AdminOrderItemConfigurator({
   const marmitaSteps = catalog?.addons || [];
   const hasMarmitaWizard = isMarmita && marmitaSteps.length > 0;
   const hasPizzaWizard = Boolean(isPizza);
-  const hasGenericAddons = !isPizza && !isMarmita && (catalog?.addons || []).length > 0;
+  const genericSteps = catalog?.addons || [];
+  const hasGenericAddons = !isPizza && !isMarmita && genericSteps.length > 0;
   const isEditing = Boolean(initialConfig);
 
   const [qty, setQty] = useState(() => (Number(initialQty) > 0 ? Number(initialQty) : 1));
@@ -63,6 +71,7 @@ export default function AdminOrderItemConfigurator({
     () => initialConfig?.pizzaState || { sizeId: '', flavorSlots: [] }
   );
   const [marmitaStep, setMarmitaStep] = useState(0);
+  const [genericStep, setGenericStep] = useState(0);
   const [error, setError] = useState('');
   const [discardOpen, setDiscardOpen] = useState(false);
 
@@ -90,6 +99,13 @@ export default function AdminOrderItemConfigurator({
     : true;
   const isLastMarmitaStep = hasMarmitaWizard && marmitaStep >= marmitaSteps.length - 1;
 
+  const currentGenericSection = hasGenericAddons ? genericSteps[genericStep] : null;
+  const currentGenericSelected = selectedAddons[genericStep] || {};
+  const canGenericAdvance = currentGenericSection
+    ? isAddonSectionComplete(currentGenericSection, currentGenericSelected)
+    : true;
+  const isLastGenericStep = hasGenericAddons && genericStep >= genericSteps.length - 1;
+
   const unitPrice = hasPizzaWizard
     ? pizzaUnitPrice
     : Number(catalog?.price || product?.preco || 0) + addonExtras;
@@ -106,7 +122,11 @@ export default function AdminOrderItemConfigurator({
           ? isLastMarmitaStep
             ? 'Adicionar ao pedido'
             : 'Próximo'
-          : 'Adicionar ao pedido');
+          : hasGenericAddons
+            ? isLastGenericStep
+              ? 'Adicionar ao pedido'
+              : 'Próximo'
+            : 'Adicionar ao pedido');
 
   function toggleAddon(sectionIdx, itemId) {
     if (!catalog) return;
@@ -122,6 +142,60 @@ export default function AdminOrderItemConfigurator({
         arr.push(itemId);
       }
       next[sectionIdx] = arr;
+      setAddonExtras(recalcAddonExtras(catalog, next));
+      return next;
+    });
+  }
+
+  function toggleGenericAddon(sectionIdx, itemId) {
+    if (!catalog) return false;
+    let blocked = false;
+    setSelectedAddons((prev) => {
+      const next = { ...prev };
+      const section = catalog.addons[sectionIdx];
+      if (!section) return prev;
+      const map = sectionToQtyMap(next[sectionIdx]);
+      const maxUnits = Math.max(1, Number(section.max || 1));
+      const currentQtyForItem = Number(map[itemId] || 0);
+
+      if (currentQtyForItem > 0) {
+        delete map[itemId];
+      } else {
+        const total = sectionTotalQty(map);
+        if (total >= maxUnits) {
+          blocked = true;
+          return prev;
+        }
+        map[itemId] = 1;
+      }
+      next[sectionIdx] = map;
+      setAddonExtras(recalcAddonExtras(catalog, next));
+      return next;
+    });
+    return !blocked;
+  }
+
+  function changeGenericAddonQty(sectionIdx, itemId, delta) {
+    if (!catalog || !delta) return;
+    setSelectedAddons((prev) => {
+      const next = { ...prev };
+      const section = catalog.addons[sectionIdx];
+      if (!section) return prev;
+      const map = sectionToQtyMap(next[sectionIdx]);
+      const maxUnits = Math.max(1, Number(section.max || 1));
+      const maxRep = getSectionMaxRepeticoes(section);
+      const current = Number(map[itemId] || 0);
+      const total = sectionTotalQty(map);
+      let desired = current + delta;
+      if (desired < 0) desired = 0;
+      if (desired > maxRep) desired = maxRep;
+      if (delta > 0) {
+        const room = Math.max(0, maxUnits - (total - current));
+        desired = Math.min(desired, current + room);
+      }
+      if (desired <= 0) delete map[itemId];
+      else map[itemId] = desired;
+      next[sectionIdx] = map;
       setAddonExtras(recalcAddonExtras(catalog, next));
       return next;
     });
@@ -152,6 +226,7 @@ export default function AdminOrderItemConfigurator({
       if (validation.step >= 0) {
         if (hasPizzaWizard) setPizzaStep(validation.step);
         if (hasMarmitaWizard) setMarmitaStep(validation.step);
+        if (hasGenericAddons) setGenericStep(validation.step);
       }
       return;
     }
@@ -188,6 +263,16 @@ export default function AdminOrderItemConfigurator({
     setMarmitaStep((value) => Math.min(value + 1, marmitaSteps.length - 1));
   }
 
+  function handleGenericPrimaryAction() {
+    setError('');
+    if (!canGenericAdvance) return;
+    if (isLastGenericStep) {
+      handleConfirm();
+      return;
+    }
+    setGenericStep((value) => Math.min(value + 1, genericSteps.length - 1));
+  }
+
   function isDirty() {
     const baselineQty = Number(initialQty) > 0 ? Number(initialQty) : 1;
     const baselineAddons = initialConfig?.selectedAddons || {};
@@ -205,7 +290,7 @@ export default function AdminOrderItemConfigurator({
     }
 
     if (qty !== 1) return true;
-    if (pizzaStep > 0 || marmitaStep > 0) return true;
+    if (pizzaStep > 0 || marmitaStep > 0 || genericStep > 0) return true;
     if (pizzaState.sizeId) return true;
     if ((pizzaState.flavorSlots || []).some(Boolean)) return true;
     if (hasAddonSelection(selectedAddons)) return true;
@@ -232,6 +317,12 @@ export default function AdminOrderItemConfigurator({
     isEditing && isLastMarmitaStep
       ? 'Salvar alterações'
       : isLastMarmitaStep
+        ? 'Adicionar ao pedido'
+        : 'Próximo';
+  const genericButtonLabel =
+    isEditing && isLastGenericStep
+      ? 'Salvar alterações'
+      : isLastGenericStep
         ? 'Adicionar ao pedido'
         : 'Próximo';
 
@@ -288,45 +379,17 @@ export default function AdminOrderItemConfigurator({
                 />
               ) : null}
 
-              {hasGenericAddons
-                ? catalog.addons.map((section, sectionIndex) => {
-                    const selected = selectedAddons[sectionIndex] || [];
-                    return (
-                      <div className="addon-section" key={section.section}>
-                        <div className="addon-section-header">
-                          <div className="addon-section-title">{section.stepTitle || section.section}</div>
-                        </div>
-                        <div className="addon-section-meta">
-                          <span className="addon-count-badge">
-                            {selected.length} / {section.max}
-                          </span>
-                          {section.required ? <span className="obrigatorio-badge">OBRIGATÓRIO</span> : null}
-                        </div>
-                        {section.items.map((item) => {
-                          const isActive = selected.includes(item.id);
-                          return (
-                            <div className="addon-item" key={item.id}>
-                              <div className="addon-info">
-                                <div className="addon-name">{item.name}</div>
-                                {item.desc ? <div className="addon-desc">{item.desc}</div> : null}
-                                {item.extra > 0 ? (
-                                  <div className="addon-price">+ {formatPrice(item.extra)}</div>
-                                ) : null}
-                              </div>
-                              <button
-                                type="button"
-                                className={`addon-add-btn ${isActive ? 'active' : ''}`}
-                                onClick={() => toggleAddon(sectionIndex, item.id)}
-                              >
-                                {isActive ? '✓' : '+'}
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })
-                : null}
+              {hasGenericAddons && currentGenericSection ? (
+                <GenericAddonWizardStep
+                  key={`generic-step-${genericStep}`}
+                  sec={currentGenericSection}
+                  si={genericStep}
+                  selected={currentGenericSelected}
+                  formatPrice={formatPrice}
+                  onToggle={toggleGenericAddon}
+                  onChangeQty={changeGenericAddonQty}
+                />
+              ) : null}
             </div>
 
             {error ? <p className="admin-order-config-error">{error}</p> : null}
@@ -398,7 +461,30 @@ export default function AdminOrderItemConfigurator({
                 </div>
               ) : null}
 
-              {!hasPizzaWizard && !hasMarmitaWizard ? (
+              {hasGenericAddons ? (
+                <div className="marmita-wizard-footer-actions">
+                  {genericStep > 0 ? (
+                    <button
+                      type="button"
+                      className="marmita-wizard-nav-btn"
+                      onClick={() => setGenericStep((value) => Math.max(0, value - 1))}
+                    >
+                      Voltar
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="btn-adicionar marmita-wizard-primary-btn"
+                    disabled={!canGenericAdvance}
+                    onClick={handleGenericPrimaryAction}
+                  >
+                    <span>{genericButtonLabel}</span>
+                    <span>{formatPrice(unitPrice * qty)}</span>
+                  </button>
+                </div>
+              ) : null}
+
+              {!hasPizzaWizard && !hasMarmitaWizard && !hasGenericAddons ? (
                 <button type="button" className="admin-btn admin-btn-primary" onClick={handleConfirm}>
                   {primaryLabel} · {formatPrice(unitPrice * qty)}
                 </button>
