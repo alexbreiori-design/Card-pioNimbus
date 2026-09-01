@@ -3,10 +3,12 @@
 import { useCardapio } from '@/context/CardapioContext';
 import MenuImageArea from '@/components/cardapio/MenuImageArea';
 import ProductPromoChip from '@/components/cardapio/ProductPromoChip';
+import { shouldShowProductListPrice } from '@/lib/cardapio/productPriceDisplay';
 
 export default function PromoProductCard({ product }) {
   const { openProduct, formatPrice } = useCardapio();
   const isPromo = product.isPromocao && product.promoOriginalPrice > product.price;
+  const showPrice = shouldShowProductListPrice(product);
 
   return (
     <button
@@ -28,16 +30,18 @@ export default function PromoProductCard({ product }) {
       <div className="promo-product-card-body">
         <div className="promo-product-card-title">{product.name}</div>
         {product.desc ? <div className="promo-product-card-desc">{product.desc}</div> : null}
-        <div className={`promo-product-card-price ${isPromo ? 'has-promo' : ''}`}>
-          {isPromo ? (
-            <>
-              <span className="product-price-original">{formatPrice(product.promoOriginalPrice)}</span>
-              <span className="product-price-promo">{formatPrice(product.price)}</span>
-            </>
-          ) : (
-            formatPrice(product.price)
-          )}
-        </div>
+        {showPrice ? (
+          <div className={`promo-product-card-price ${isPromo ? 'has-promo' : ''}`}>
+            {isPromo ? (
+              <>
+                <span className="product-price-original">{formatPrice(product.promoOriginalPrice)}</span>
+                <span className="product-price-promo">{formatPrice(product.price)}</span>
+              </>
+            ) : (
+              formatPrice(product.price)
+            )}
+          </div>
+        ) : null}
       </div>
     </button>
   );

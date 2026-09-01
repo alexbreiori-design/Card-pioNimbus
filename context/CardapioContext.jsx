@@ -23,6 +23,7 @@ import { formatDeliveryAddressLine } from '@/lib/formatDeliveryAddress';
 import { getProductChargeBase } from '@/lib/cardapio/productChargeBase';
 import { digitsOnly } from '@/lib/cpfCnpj';
 import { fetchViaCep } from '@/lib/cep/viacep';
+import { normalizeDeliveryEnderecoInput } from '@/lib/delivery/formatAddress';
 import { calculateCupomDiscount, findCupomByCode } from '@/lib/cupons';
 import { applyBrandThemeTargets } from '@/lib/brandTheme';
 import { buildCardapioBootState, resolveStoreSlugFromBrowser } from '@/lib/cardapioBoot';
@@ -352,7 +353,6 @@ export function CardapioProvider({
 
   const [cepOpen, setCepOpen] = useState(false);
   const [addressOpen, setAddressOpen] = useState(false);
-  const [deliveryCheckNumberOpen, setDeliveryCheckNumberOpen] = useState(false);
   const [deliveryCheckResultOpen, setDeliveryCheckResultOpen] = useState(false);
   const [deliveryCheckResult, setDeliveryCheckResult] = useState(null);
   const [deliveryAvailability, setDeliveryAvailability] = useState(null);
@@ -367,8 +367,11 @@ export function CardapioProvider({
     bairro: '',
     comp: '',
     ref: '',
-    cidade: 'São Paulo',
-    estado: 'SP',
+    cidade: '',
+    estado: '',
+    latitude: null,
+    longitude: null,
+    streetSelected: false,
   });
   const [cupomValue, setCupomValue] = useState('');
   const [availableCupons, setAvailableCupons] = useState(() => boot?.resolved?.cupons ?? []);
@@ -1105,10 +1108,6 @@ export function CardapioProvider({
     setCepOpen(true);
   }, []);
 
-  const closeDeliveryCheckNumber = useCallback(() => {
-    setDeliveryCheckNumberOpen(false);
-  }, []);
-
   const closeDeliveryCheckResult = useCallback(() => {
     setDeliveryCheckResultOpen(false);
     setDeliveryCheckResult(null);
@@ -1152,6 +1151,28 @@ export function CardapioProvider({
     return v;
   }, []);
 
+  const openManualAddressForm = useCallback(() => {
+    setCepOpen(false);
+    setAddrForm({
+      cep: '',
+      rua: '',
+      num: '',
+      bairro: '',
+      comp: '',
+      ref: '',
+      cidade: storeConfig.enderecoCidade || '',
+      estado: storeConfig.enderecoEstado || '',
+      latitude: null,
+      longitude: null,
+      streetSelected: false,
+    });
+    setAddressOpen(true);
+  }, [storeConfig.enderecoCidade, storeConfig.enderecoEstado]);
+
+  const goToAddressManual = useCallback(() => {
+    openManualAddressForm();
+  }, [openManualAddressForm]);
+
   const goToAddress = useCallback(async () => {
     setCepOpen(false);
     const cepDigits = cepValue.replace(/\D/g, '');
@@ -1164,25 +1185,25 @@ export function CardapioProvider({
             ...f,
             cep: maskCep(cepValue),
             rua: result.logradouro || f.rua,
+            num: '',
             bairro: result.bairro || f.bairro,
             cidade: result.cidade || f.cidade,
             estado: result.estado || f.estado,
+            latitude: null,
+            longitude: null,
+            streetSelected: Boolean(result.logradouro),
           }));
         } else {
           setAddrForm((f) => ({ ...f, cep: maskCep(cepValue) }));
-          void showAlert('CEP não encontrado. Preencha o endereço manualmente.');
-          if (addressFlowContext === 'deliveryCheck') {
-            setCepOpen(true);
-            return;
-          }
+          void showAlert('CEP não encontrado. Busque sua rua pelo nome.');
+          openManualAddressForm();
+          return;
         }
       } catch {
         setAddrForm((f) => ({ ...f, cep: maskCep(cepValue) }));
-        void showAlert('Não foi possível consultar o CEP. Preencha o endereço manualmente.');
-        if (addressFlowContext === 'deliveryCheck') {
-          setCepOpen(true);
-          return;
-        }
+        void showAlert('Não foi possível consultar o CEP. Busque sua rua pelo nome.');
+        openManualAddressForm();
+        return;
       }
     } else if (profileCep.length === 8 && !cepDigits.length) {
       setAddrForm((f) => ({
@@ -1195,16 +1216,22 @@ export function CardapioProvider({
         ref: profileAddress.ref || f.ref,
         cidade: profileAddress.cidade || f.cidade,
         estado: profileAddress.estado || f.estado,
+        latitude: null,
+        longitude: null,
+        streetSelected: Boolean(profileAddress.rua && profileAddress.bairro),
       }));
     } else {
-      setAddrForm((f) => ({ ...f, cep: maskCep(cepValue) }));
+      openManualAddressForm();
+      return;
     }
-    if (addressFlowContext === 'deliveryCheck') {
-      setDeliveryCheckNumberOpen(true);
-    } else {
-      setAddressOpen(true);
-    }
-  }, [cepValue, maskCep, profileAddress, addressFlowContext]);
+    setAddressOpen(true);
+  }, [
+    cepValue,
+    maskCep,
+    profileAddress,
+    openManualAddressForm,
+    showAlert,
+  ]);
 
   const closeAddressPopup = useCallback(() => {
     setAddressOpen(false);
@@ -1213,14 +1240,18 @@ export function CardapioProvider({
     }
   }, [savedAddress]);
 
-  const confirmDeliveryCheckNumber = useCallback(async () => {
-    const { rua, num, bairro, cidade, estado, cep } = addrForm;
-    if (!num.trim()) {
-      void showAlert('Informe o número do endereço.');
+  const confirmAddress = useCallback(async () => {
+    const { rua, num, bairro, cidade, estado, cep, comp } = addrForm;
+    if (!addrForm.streetSelected) {
+      void showAlert('Selecione sua rua na lista de sugestões.');
       return;
     }
     if (!rua.trim() || !bairro.trim()) {
-      void showAlert('Endereço incompleto. Volte e informe um CEP válido.');
+      void showAlert('Endereço incompleto. Volte e selecione sua rua na lista.');
+      return;
+    }
+    if (!num.trim()) {
+      void showAlert('Informe o número do endereço.');
       return;
     }
 
@@ -1230,47 +1261,48 @@ export function CardapioProvider({
       return;
     }
 
+    const isDeliveryCheck = addressFlowContext === 'deliveryCheck';
+
     try {
       const res = await fetch('/api/delivery-fee', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           slug: storeSlug,
-          endereco: {
-            logradouro: rua.trim(),
-            numero: num.trim(),
-            bairro: bairro.trim(),
-            cidade: cidade.trim(),
-            estado: estado.trim(),
-            cep: cep.replace(/\D/g, ''),
-          },
+          endereco: normalizeDeliveryEnderecoInput(addrForm),
         }),
       });
       const json = await res.json();
 
+      const nextAddress = {
+        rua: rua.trim(),
+        num: num.trim(),
+        bairro: bairro.trim(),
+        cidade: cidade.trim(),
+        estado: estado.trim(),
+        cep: cep.trim(),
+        comp: comp.trim(),
+      };
+
       if (res.ok && json.ok !== false) {
         const fee = Number(json.taxaEntrega) || 0;
-        const nextAddress = {
-          rua: rua.trim(),
-          num: num.trim(),
-          bairro: bairro.trim(),
-          cidade: cidade.trim(),
-          estado: estado.trim(),
-          cep: cep.trim(),
-          comp: addrForm.comp?.trim() || '',
-          ref: addrForm.ref?.trim() || '',
-        };
-        setDeliveryFee(fee);
-        setDeliveryMeta({
+        const meta = {
           distanciaKm: json.distanciaKm,
           zonaNome: json.zonaNome,
           latitude: json.latitude,
           longitude: json.longitude,
-        });
+        };
+        setDeliveryFee(fee);
+        setDeliveryMeta(meta);
         setSavedAddress(nextAddress);
         setProfileAddress(nextAddress);
-        setDeliveryAvailability({ available: true, fee });
-        setDeliveryCheckResult({ available: true, fee });
+        if (addressFlowContext === 'checkout') {
+          setCheckoutAddressConfirmed(true);
+        }
+        if (isDeliveryCheck) {
+          setDeliveryAvailability({ available: true, fee });
+          setDeliveryCheckResult({ available: true, fee });
+        }
         try {
           window.localStorage.setItem(
             PROFILE_STORAGE_KEY,
@@ -1282,78 +1314,48 @@ export function CardapioProvider({
             })
           );
         } catch {}
-      } else if (res.status === 503) {
-        setDeliveryAvailability(null);
-        setDeliveryCheckResult({ available: false, serviceUnavailable: true });
-      } else {
-        setDeliveryFee(0);
-        setDeliveryMeta(null);
-        setDeliveryAvailability({ available: false, fee: 0 });
-        setDeliveryCheckResult({ available: false, fee: 0 });
+        if (profileDisplayName !== 'Seu nome' && profileDisplayPhone !== '(00) 00000-0000') {
+          void persistClientSnapshot({
+            name: profileDisplayName,
+            phone: profileDisplayPhone,
+            address: nextAddress,
+          });
+        }
+        setAddressOpen(false);
+        setCurrentDeliveryMode('entregar');
+        if (isDeliveryCheck) {
+          setDeliveryCheckResultOpen(true);
+        }
+        return;
       }
-    } catch {
-      setDeliveryAvailability(null);
-      setDeliveryCheckResult({ available: false, serviceUnavailable: true });
-    }
 
-    setDeliveryCheckNumberOpen(false);
-    setDeliveryCheckResultOpen(true);
-  }, [
-    addrForm,
-    storeConfig.slug,
-    effectiveSlug,
-    slug,
-    profileDisplayName,
-    profileDisplayPhone,
-    profileImage,
-    showAlert,
-  ]);
+      if (isDeliveryCheck) {
+        if (res.status === 503) {
+          setDeliveryAvailability(null);
+          setDeliveryCheckResult({ available: false, serviceUnavailable: true });
+        } else {
+          setDeliveryFee(0);
+          setDeliveryMeta(null);
+          setDeliveryAvailability({ available: false, fee: 0 });
+          setDeliveryCheckResult({ available: false, fee: 0 });
+        }
+        setAddressOpen(false);
+        setDeliveryCheckResultOpen(true);
+        return;
+      }
 
-  const confirmAddress = useCallback(async () => {
-    const { rua, num, bairro, cidade, estado, cep, comp, ref } = addrForm;
-    if (!rua.trim() || !bairro.trim()) {
-      void showAlert('Preencha pelo menos a rua e o bairro.');
-      return;
-    }
-
-    const storeSlug = normalizeSlug(storeConfig.slug || effectiveSlug || slug);
-    if (!storeSlug) {
-      void showAlert('Cardápio sem slug configurado. Contate a loja.');
-      return;
-    }
-
-    let fee = 0;
-    let meta = null;
-    try {
-      const res = await fetch('/api/delivery-fee', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          slug: storeSlug,
-          endereco: {
-            logradouro: rua.trim(),
-            numero: num.trim(),
-            bairro: bairro.trim(),
-            cidade: cidade.trim(),
-            estado: estado.trim(),
-            cep: cep.replace(/\D/g, ''),
-          },
-        }),
-      });
-      const json = await res.json();
-      if (res.ok) {
-        fee = Number(json.taxaEntrega) || 0;
-        meta = {
-          distanciaKm: json.distanciaKm,
-          zonaNome: json.zonaNome,
-          latitude: json.latitude,
-          longitude: json.longitude,
-        };
-      } else if (res.status !== 503) {
+      if (res.status !== 503) {
         void showAlert(json.error || 'Não foi possível calcular a entrega para este endereço.');
         return;
       }
     } catch {
+      if (isDeliveryCheck) {
+        setDeliveryAvailability(null);
+        setDeliveryCheckResult({ available: false, serviceUnavailable: true });
+        setAddressOpen(false);
+        setDeliveryCheckResultOpen(true);
+        return;
+      }
       /* MVP: permite entrega com taxa zero se API indisponível */
     }
 
@@ -1365,10 +1367,9 @@ export function CardapioProvider({
       estado: estado.trim(),
       cep: cep.trim(),
       comp: comp.trim(),
-      ref: ref.trim(),
     };
-    setDeliveryFee(fee);
-    setDeliveryMeta(meta);
+    setDeliveryFee(0);
+    setDeliveryMeta(null);
     setSavedAddress(nextAddress);
     setProfileAddress(nextAddress);
     if (addressFlowContext === 'checkout') {
@@ -1403,6 +1404,7 @@ export function CardapioProvider({
     profileDisplayPhone,
     profileImage,
     addressFlowContext,
+    showAlert,
   ]);
 
   const openCupomPopup = useCallback(() => {
@@ -2954,7 +2956,6 @@ export function CardapioProvider({
       addressFlowContext,
       cepOpen,
       addressOpen,
-      deliveryCheckNumberOpen,
       deliveryCheckResultOpen,
       deliveryCheckResult,
       deliveryAvailability,
@@ -2995,7 +2996,6 @@ export function CardapioProvider({
       sendCheckoutViaWhatsApp,
       toggleDeliveryCard,
       openDeliveryCheckCep,
-      closeDeliveryCheckNumber,
       closeDeliveryCheckResult,
       closeStoreClosedNotice,
       selectDeliveryMode,
@@ -3003,9 +3003,9 @@ export function CardapioProvider({
       closeCepPopup,
       maskCep,
       goToAddress,
+      goToAddressManual,
       closeAddressPopup,
       confirmAddress,
-      confirmDeliveryCheckNumber,
       openCupomPopup,
       closeCupomPopup,
       aplicarCupom,
@@ -3041,7 +3041,6 @@ export function CardapioProvider({
       addressFlowContext,
       cepOpen,
       addressOpen,
-      deliveryCheckNumberOpen,
       deliveryCheckResultOpen,
       deliveryCheckResult,
       deliveryAvailability,
@@ -3075,7 +3074,6 @@ export function CardapioProvider({
       sendCheckoutViaWhatsApp,
       toggleDeliveryCard,
       openDeliveryCheckCep,
-      closeDeliveryCheckNumber,
       closeDeliveryCheckResult,
       closeStoreClosedNotice,
       selectDeliveryMode,
@@ -3083,9 +3081,9 @@ export function CardapioProvider({
       closeCepPopup,
       maskCep,
       goToAddress,
+      goToAddressManual,
       closeAddressPopup,
       confirmAddress,
-      confirmDeliveryCheckNumber,
       openCupomPopup,
       closeCupomPopup,
       aplicarCupom,

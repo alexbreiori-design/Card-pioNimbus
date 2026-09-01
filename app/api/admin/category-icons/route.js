@@ -8,6 +8,8 @@ import { humanizeIconId } from '@/lib/categoryIconsShared';
 const EXCLUDED_FILES = new Set([
   'pix.svg',
   'store.svg',
+  'store-pin.svg',
+  'loja.svg',
   'logo-nimbus-light.svg',
 ]);
 

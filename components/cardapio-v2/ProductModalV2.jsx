@@ -29,6 +29,10 @@ import {
 } from '@/lib/cardapio/addonSelection';
 import { getObservationPlaceholder, getObservationStepHint } from '@/lib/empresaSegmentos';
 import { getProductChargeBase } from '@/lib/cardapio/productChargeBase';
+import {
+  hasVisibleCatalogPrice,
+  shouldShowModalUnitPrice,
+} from '@/lib/cardapio/productPriceDisplay';
 import { V2Icon } from './CardapioV2Icons';
 
 const STEP_PREVIEW_MAX = 6;
@@ -585,6 +589,7 @@ export default function ProductModalV2() {
     : hasMarmitaWizard
       ? marmitaUnitTotal
       : adicionarTotal;
+  const showHeaderPrice = shouldShowModalUnitPrice(product, displayUnitPrice);
 
   function handleOverlayClick(event) {
     if (event.target === event.currentTarget) closeProductPopup();
@@ -789,30 +794,32 @@ export default function ProductModalV2() {
               {product.desc ? (
                 <p className="cardapio-v2-product-modal-desc">{product.desc}</p>
               ) : null}
-              <div
-                className={`cardapio-v2-product-modal-price${
-                  product.isPromocao && product.promoOriginalPrice > product.price ? ' has-promo' : ''
-                }${
-                  product.priceLabel &&
-                  !(product.isPromocao && product.promoOriginalPrice > product.price)
-                    ? ' is-from-price'
-                    : ''
-                }`}
-              >
-                {product.isPromocao && product.promoOriginalPrice > product.price ? (
-                  <>
-                    <span className="product-price-original">{formatPrice(product.promoOriginalPrice)}</span>
-                    <span className="product-price-promo">{formatPrice(displayUnitPrice)}</span>
-                  </>
-                ) : (
-                  <>
-                    {product.priceLabel ? (
-                      <span className="product-price-from">{product.priceLabel}</span>
-                    ) : null}
-                    <span className="product-price-value">{formatPrice(displayUnitPrice)}</span>
-                  </>
-                )}
-              </div>
+              {showHeaderPrice ? (
+                <div
+                  className={`cardapio-v2-product-modal-price${
+                    product.isPromocao && product.promoOriginalPrice > product.price ? ' has-promo' : ''
+                  }${
+                    product.priceLabel &&
+                    !(product.isPromocao && product.promoOriginalPrice > product.price)
+                      ? ' is-from-price'
+                      : ''
+                  }`}
+                >
+                  {product.isPromocao && product.promoOriginalPrice > product.price ? (
+                    <>
+                      <span className="product-price-original">{formatPrice(product.promoOriginalPrice)}</span>
+                      <span className="product-price-promo">{formatPrice(displayUnitPrice)}</span>
+                    </>
+                  ) : (
+                    <>
+                      {product.priceLabel ? (
+                        <span className="product-price-from">{product.priceLabel}</span>
+                      ) : null}
+                      <span className="product-price-value">{formatPrice(displayUnitPrice)}</span>
+                    </>
+                  )}
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -981,9 +988,9 @@ export default function ProductModalV2() {
                   onClick={handlePrimaryAction}
                 >
                   <span>{primaryLabel}</span>
-                  {primaryLabel === 'Adicionar' ? (
+                  {primaryLabel === 'Adicionar' && hasVisibleCatalogPrice(footerPrice) ? (
                     <span className="cardapio-v2-product-modal-btn-price">{formatPrice(footerPrice)}</span>
-                  ) : (
+                  ) : primaryLabel === 'Adicionar' ? null : (
                     <V2Icon name="arrow-right" />
                   )}
                 </button>
