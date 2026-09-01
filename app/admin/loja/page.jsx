@@ -142,6 +142,7 @@ export default function MinhaLojaPage() {
   const [printMode, setPrintMode] = useState('ask_prep');
   const [ticketPreviewOpen, setTicketPreviewOpen] = useState(false);
   const [superAdmin, setSuperAdmin] = useState(false);
+  const [savingMensagemFechada, setSavingMensagemFechada] = useState(false);
   const segmentBeforeModeloRef = useRef('restaurante');
 
   useEffect(() => {
@@ -198,6 +199,7 @@ export default function MinhaLojaPage() {
             enderecoEstado: data.loja.enderecoEstado,
             horarios: data.loja.horarios,
             mensagemLojaFechada: data.loja.mensagemLojaFechada,
+            pedidoWhatsappForaHorario: data.loja.pedidoWhatsappForaHorario,
           })
         : '',
     [ready, data.loja]
@@ -286,6 +288,37 @@ export default function MinhaLojaPage() {
         [day]: { ...prev.horarios[day], ...patch },
       },
     }));
+  }
+
+  const mensagemFechadaSalva = String(data.loja?.mensagemLojaFechada ?? '');
+  const mensagemFechadaRascunho = String(draft?.mensagemLojaFechada ?? '');
+  const mensagemFechadaDirty =
+    draft != null && mensagemFechadaRascunho !== mensagemFechadaSalva;
+
+  function cancelMensagemFechada() {
+    setLojaField('mensagemLojaFechada', mensagemFechadaSalva);
+  }
+
+  async function saveMensagemFechada() {
+    const next = String(draft?.mensagemLojaFechada || '')
+      .trim()
+      .slice(0, MENSAGEM_FECHADA_MAX);
+    setSavingMensagemFechada(true);
+    try {
+      await saveData((prev) => ({
+        ...prev,
+        loja: {
+          ...prev.loja,
+          mensagemLojaFechada: next,
+        },
+      }));
+      setDraft((prev) => (prev ? { ...prev, mensagemLojaFechada: next } : prev));
+      toast.success('Mensagem salva.');
+    } catch {
+      /* Erro exibido pelo AdminSaveFeedback. */
+    } finally {
+      setSavingMensagemFechada(false);
+    }
   }
 
   async function runPaletteExtract(logoUrl) {
@@ -944,27 +977,81 @@ export default function MinhaLojaPage() {
               );
             })}
           </div>
-          <div className="admin-store-closed-message">
-            <label className="admin-label" htmlFor="mensagem-loja-fechada">
-              Aviso quando a loja estiver fechada
-            </label>
-            <p className="admin-store-closed-message-hint">
-              Aparece no cardápio ao tocar em um produto com a loja fechada. Deixe em branco para usar a
-              mensagem padrão.
-            </p>
-            <textarea
-              id="mensagem-loja-fechada"
-              className="admin-input admin-store-closed-message-input"
-              rows={5}
-              maxLength={MENSAGEM_FECHADA_MAX}
-              placeholder="Ex.: Estamos de férias até 15/08. Pedidos voltam no dia 16!"
-              value={draft.mensagemLojaFechada || ''}
-              onChange={(e) =>
-                setLojaField('mensagemLojaFechada', e.target.value.slice(0, MENSAGEM_FECHADA_MAX))
-              }
-            />
-            <div className="admin-store-closed-message-count">
-              {String(draft.mensagemLojaFechada || '').length}/{MENSAGEM_FECHADA_MAX}
+          <div className="admin-store-hours-side">
+            <div className="admin-store-closed-message">
+              <label className="admin-label" htmlFor="mensagem-loja-fechada">
+                Aviso quando a loja estiver fechada
+              </label>
+              <p className="admin-store-closed-message-hint">
+                Aparece no cardápio ao tocar em um produto com a loja fechada. Deixe em branco para usar a
+                mensagem padrão.
+              </p>
+              <textarea
+                id="mensagem-loja-fechada"
+                className="admin-input admin-store-closed-message-input"
+                rows={5}
+                maxLength={MENSAGEM_FECHADA_MAX}
+                placeholder="Ex.: Estamos de férias até 15/08. Pedidos voltam no dia 16!"
+                value={draft.mensagemLojaFechada || ''}
+                onChange={(e) =>
+                  setLojaField('mensagemLojaFechada', e.target.value.slice(0, MENSAGEM_FECHADA_MAX))
+                }
+              />
+              <div className="admin-store-closed-message-footer">
+                <div className="admin-store-closed-message-count">
+                  {String(draft.mensagemLojaFechada || '').length}/{MENSAGEM_FECHADA_MAX}
+                </div>
+                {mensagemFechadaDirty ? (
+                  <div className="admin-store-closed-message-actions">
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-ghost admin-btn-sm"
+                      disabled={savingMensagemFechada}
+                      onClick={cancelMensagemFechada}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-primary admin-btn-sm"
+                      disabled={savingMensagemFechada}
+                      onClick={() => void saveMensagemFechada()}
+                    >
+                      {savingMensagemFechada ? 'Salvando…' : 'Salvar'}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+            <div className="admin-store-whatsapp-closed-option">
+              <div className="admin-store-whatsapp-closed-head">
+                <button
+                  type="button"
+                  className={`admin-hours-open admin-store-whatsapp-toggle${
+                    draft.pedidoWhatsappForaHorario ? ' open' : ''
+                  }`}
+                  disabled={!String(draft.whatsapp || '').trim()}
+                  onClick={() =>
+                    setLojaField('pedidoWhatsappForaHorario', !draft.pedidoWhatsappForaHorario)
+                  }
+                >
+                  {draft.pedidoWhatsappForaHorario ? 'Aceitar' : 'Não aceitar'}
+                </button>
+                <div className="admin-store-whatsapp-closed-text">
+                  <strong className="admin-store-whatsapp-closed-title">
+                    Pedidos pelo whatsapp com a loja fechada
+                  </strong>
+                  <p className="admin-store-closed-message-hint">
+                    Enquanto a loja estiver fechada pelo horário, o cliente monta o pedido no cardápio e
+                    envia o resumo pelo WhatsApp.
+                  </p>
+                </div>
+              </div>
+              {!String(draft.whatsapp || '').trim() ? (
+                <p className="admin-help-text admin-store-whatsapp-closed-footnote">
+                  Cadastre o WhatsApp da loja acima para usar esta opção.
+                </p>
+              ) : null}
             </div>
           </div>
         </div>

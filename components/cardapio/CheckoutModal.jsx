@@ -12,6 +12,7 @@ import {
   hasDurationRangeForOrderTipo,
 } from '@/lib/deliveryDuration';
 import { formatOrderPrazoShort } from '@/lib/orders/orderPrazo';
+import { getStoreClosedWhatsappOpeningPhrase } from '@/lib/storeHours';
 import {
   MOBILE_PHONE_MASK,
   formatMobilePhoneBr,
@@ -107,6 +108,7 @@ export default function CheckoutModal() {
     checkoutAddressConfirmed,
     openCheckoutAddressFlow,
     isLandingDemo,
+    checkoutViaWhatsappWhenClosed,
   } = useCardapio();
 
   const [pixCopied, setPixCopied] = useState(false);
@@ -238,6 +240,10 @@ export default function CheckoutModal() {
     );
   }
 
+  const closedWhatsappOpeningPhrase = checkoutViaWhatsappWhenClosed
+    ? getStoreClosedWhatsappOpeningPhrase(storeConfig)
+    : null;
+
   function renderOrderSummary({ cardDraft = null } = {}) {
     const deliveryLabel =
       checkoutData.delivery === 'retirar'
@@ -261,6 +267,14 @@ export default function CheckoutModal() {
 
     return (
       <div className="checkout-confirm">
+        {checkoutViaWhatsappWhenClosed ? (
+          <p className="checkout-closed-whatsapp-hint" role="status">
+            A loja está fechada. Envie o resumo pelo WhatsApp para confirmarmos.
+            {closedWhatsappOpeningPhrase ? (
+              <> Atendimento a partir de {closedWhatsappOpeningPhrase}.</>
+            ) : null}
+          </p>
+        ) : null}
         <section className="confirm-panel confirm-panel--l2" aria-label="Dados do cliente">
           <h3 className="confirm-panel__label">Contato</h3>
           <dl className="confirm-meta-list">
@@ -332,15 +346,36 @@ export default function CheckoutModal() {
           {pixInfoBlock}
         </section>
 
-        <section className="confirm-panel confirm-panel--l3" aria-label="Tempo estimado" role="status">
-          <h3 className="confirm-panel__label">Tempo estimado</h3>
-          <p className="confirm-panel__lead">
-            <span className="confirm-eta-duration">{confirmEstimate.durationLabel}</span>
-            <span className="confirm-eta-sep">·</span>
-            <span>
-              {etaActionLabel} <strong>{confirmEstimate.untilLabel}</strong>
-            </span>
-          </p>
+        <section
+          className="confirm-panel confirm-panel--l3"
+          aria-label={checkoutViaWhatsappWhenClosed ? 'Atendimento' : 'Tempo estimado'}
+          role="status"
+        >
+          {checkoutViaWhatsappWhenClosed ? (
+            <>
+              <h3 className="confirm-panel__label">Atendimento</h3>
+              <p className="confirm-panel__lead">
+                {closedWhatsappOpeningPhrase ? (
+                  <>
+                    Previsão de atendimento a partir de <strong>{closedWhatsappOpeningPhrase}</strong>
+                  </>
+                ) : (
+                  'A loja confirmará horário pelo WhatsApp.'
+                )}
+              </p>
+            </>
+          ) : (
+            <>
+              <h3 className="confirm-panel__label">Tempo estimado</h3>
+              <p className="confirm-panel__lead">
+                <span className="confirm-eta-duration">{confirmEstimate.durationLabel}</span>
+                <span className="confirm-eta-sep">·</span>
+                <span>
+                  {etaActionLabel} <strong>{confirmEstimate.untilLabel}</strong>
+                </span>
+              </p>
+            </>
+          )}
         </section>
 
         <section className="confirm-panel confirm-panel--l5" aria-label="Valor a pagar">
@@ -663,14 +698,18 @@ export default function CheckoutModal() {
     checkoutSuccess
       ? ''
       : checkoutSubmitting
-        ? 'Enviando pedido…'
+        ? checkoutViaWhatsappWhenClosed && isConfirmStep
+          ? 'Abrindo WhatsApp…'
+          : 'Enviando pedido…'
         : checkoutStep === 5 && isCardOnline
           ? onlinePayment?.loading
             ? 'Processando…'
             : 'Confirmar pagamento'
-          : checkoutStep === 4
-            ? 'Enviar pedido'
-            : 'Continuar';
+          : checkoutStep === 4 && checkoutViaWhatsappWhenClosed
+            ? 'Enviar pelo WhatsApp'
+            : checkoutStep === 4
+              ? 'Enviar pedido'
+              : 'Continuar';
 
   const footerBusy =
     checkoutSubmitting || Boolean(isCardOnline && checkoutStep === 5 && onlinePayment?.loading);
@@ -741,7 +780,9 @@ export default function CheckoutModal() {
           <div className="checkout-footer">
             <button
               type="button"
-              className={`btn-checkout-continue${footerBusy ? ' is-loading' : ''}`}
+              className={`btn-checkout-continue${footerBusy ? ' is-loading' : ''}${
+                checkoutViaWhatsappWhenClosed && isConfirmStep ? ' btn-checkout-continue--whatsapp' : ''
+              }`}
               onClick={checkoutNext}
               disabled={footerBusy}
               aria-busy={footerBusy}

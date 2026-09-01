@@ -1,7 +1,7 @@
 'use client';
 
 import { useCardapio } from '@/context/CardapioContext';
-import { getStoreClosedBannerText } from '@/lib/storeHours';
+import { getStoreClosedBannerText, getStoreClosedWhatsappBannerText } from '@/lib/storeHours';
 import { IconChevron, IconUserPin } from './icons';
 
 export default function StoreHeader() {
@@ -12,6 +12,7 @@ export default function StoreHeader() {
     locStrong,
     locSub,
     storeConfig,
+    checkoutViaWhatsappWhenClosed,
     formatStoreAddress,
   } = useCardapio();
   const weekdays = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
@@ -20,7 +21,11 @@ export default function StoreHeader() {
   const todaySchedule = !today || today.fechado
     ? 'Fechado hoje'
     : `${today.abertura} às ${today.fechamento}`;
-  const closedBannerText = !storeConfig.aberta ? getStoreClosedBannerText(storeConfig) : null;
+  const closedBannerText = !storeConfig.aberta
+    ? checkoutViaWhatsappWhenClosed
+      ? getStoreClosedWhatsappBannerText(storeConfig)
+      : getStoreClosedBannerText(storeConfig)
+    : null;
 
   return (
     <div className="store-header">

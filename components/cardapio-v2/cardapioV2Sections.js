@@ -6,8 +6,8 @@ export const CARDAPIO_V2_SECTION = {
   informacoes: 'cardapio-v2-informacoes',
 };
 
-export function cardapioV2CategorySectionId(categoryName) {
-  const slug = normalizeSlug(String(categoryName || '').replace(/[^\w\s-]/g, ''));
+export function cardapioV2CategorySectionId(sectionKey) {
+  const slug = normalizeSlug(String(sectionKey || '').replace(/:/g, '-').replace(/[^\w\s-]/g, ''));
   return slug ? `cardapio-v2-cat-${slug}` : 'cardapio-v2-cat-secao';
 }
 
