@@ -1,11 +1,3 @@
-/* Isola o login do CSS residual de admin/cardápio (soft nav) e do margin padrão do body. */
-:global(html),
-:global(body) {
-  margin: 0;
-  padding: 0;
-  background: #8eabdf;
-}
-
 .page,
 .page * {
   box-sizing: border-box;

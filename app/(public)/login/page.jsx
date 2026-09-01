@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import { Suspense } from 'react';
 import LoginForm from './LoginForm';
+import './login-globals.css';
 import styles from './login.module.css';
 
 export const metadata = {
