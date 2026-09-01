@@ -810,7 +810,10 @@ export default function CatalogManager({ mode = 'produtos' }) {
         errors.comboPreco = true;
         missingLabels.push('preço do combo');
       }
-    } else if (!hasMoneyBrValue(formState.preco)) {
+    } else if (
+      !(isProdutos && formState.precoSoExibicao === true) &&
+      !hasMoneyBrValue(formState.preco)
+    ) {
       errors.preco = true;
       missingLabels.push('preço');
     }
