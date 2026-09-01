@@ -15,7 +15,6 @@ import ProductModal from './ProductModal';
 import CheckoutModal from './CheckoutModal';
 import CepModal from './CepModal';
 import AddressModal from './AddressModal';
-import DeliveryCheckNumberModal from './DeliveryCheckNumberModal';
 import DeliveryCheckResultModal from './DeliveryCheckResultModal';
 import StoreClosedNotice from './StoreClosedNotice';
 import CupomModal from './CupomModal';
@@ -53,7 +52,6 @@ export default function CardapioApp() {
         <CheckoutModal />
         <CepModal />
         <AddressModal />
-        <DeliveryCheckNumberModal />
         <DeliveryCheckResultModal />
         <StoreClosedNotice />
         <CupomModal />

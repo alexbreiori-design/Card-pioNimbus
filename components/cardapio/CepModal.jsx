@@ -11,6 +11,7 @@ export default function CepModal() {
     setCepValue,
     maskCep,
     goToAddress,
+    goToAddressManual,
     cepInputRef,
     addressFlowContext,
   } = useCardapio();
@@ -57,8 +58,8 @@ export default function CepModal() {
           <button type="button" className="btn-buscar-cep" onClick={goToAddress}>
             {isDeliveryCheck ? 'CONTINUAR' : 'BUSCAR CEP'}
           </button>
-          <a className="no-cep-link" onClick={goToAddress} role="button" tabIndex={0}>
-            Não sei meu CEP
+          <a className="no-cep-link" onClick={goToAddressManual} role="button" tabIndex={0}>
+            Não sei meu CEP — buscar pelo nome da rua
           </a>
         </div>
       </div>

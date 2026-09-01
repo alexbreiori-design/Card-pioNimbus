@@ -3871,6 +3871,145 @@ button.addon-item.addon-item--selectable,
 .address-grid-full { grid-column: 1 / -1; }
 .address-grid-state { display: grid; grid-template-columns: 1fr 80px; gap: 10px; }
 
+.cardapio-address-autocomplete {
+  position: relative;
+  grid-column: 1 / -1;
+}
+.cardapio-address-autocomplete-input-wrap {
+  position: relative;
+}
+.cardapio-address-autocomplete-loader {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  border: 2px solid var(--border);
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: cardapio-address-spin 0.7s linear infinite;
+}
+@keyframes cardapio-address-spin {
+  to { transform: rotate(360deg); }
+}
+.cardapio-address-autocomplete-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  max-height: 220px;
+  overflow: auto;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+.cardapio-address-autocomplete-option {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+.cardapio-address-autocomplete-option:last-of-type {
+  border-bottom: none;
+}
+.cardapio-address-autocomplete-option:hover,
+.cardapio-address-autocomplete-option.is-active {
+  background: var(--brand-light, rgba(0, 0, 0, 0.04));
+}
+.cardapio-address-autocomplete-option strong {
+  display: block;
+  font-size: 14px;
+  color: var(--text-dark);
+}
+.cardapio-address-autocomplete-option small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-mid);
+}
+.cardapio-address-autocomplete-message {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text-mid);
+}
+.cardapio-address-autocomplete-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text-mid);
+}
+
+.address-modal-body {
+  padding-bottom: 12px;
+}
+
+.cardapio-address-form-group {
+  margin-bottom: 10px;
+}
+
+.address-grid-num-bairro {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.form-input-readonly {
+  background: var(--bg-soft, #f6f6f6);
+  color: var(--text-mid);
+  cursor: default;
+}
+
+.cardapio-address-cep-line {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--text-mid);
+}
+
+.cardapio-address-selected-line {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-soft, #f6f6f6);
+}
+
+.cardapio-address-selected-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-dark);
+}
+
+.cardapio-address-change-btn {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-modal-confirm:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .modal-footer {
   display: flex; gap: 10px;
   padding: 14px 20px;
