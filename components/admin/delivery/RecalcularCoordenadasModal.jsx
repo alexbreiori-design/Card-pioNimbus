@@ -1,8 +1,15 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState } from 'react';
 import { formatCep } from '@/lib/cep/viacep';
+import { parseCoordinate } from '@/lib/delivery/formatAddress';
 import { useAdminOverlayClose } from '@/hooks/useAdminOverlayClose';
+
+const StoreAddressMapPin = dynamic(
+  () => import('@/components/admin/loja/StoreAddressMapPin'),
+  { ssr: false }
+);
 
 export default function RecalcularCoordenadasModal({
   open,
@@ -10,8 +17,37 @@ export default function RecalcularCoordenadasModal({
   addressLines,
   geocoding,
   onRecalcular,
+  latitude = null,
+  longitude = null,
+  onSavePin,
+  savingPin = false,
 }) {
   const confirmRef = useRef(null);
+  const parsedLatitude = parseCoordinate(latitude);
+  const parsedLongitude = parseCoordinate(longitude);
+  const [pinCoords, setPinCoords] = useState({
+    latitude: parsedLatitude,
+    longitude: parsedLongitude,
+  });
+  const [pinTouched, setPinTouched] = useState(false);
+  const [wasOpen, setWasOpen] = useState(false);
+  const [syncedPropsKey, setSyncedPropsKey] = useState(
+    () => `${parsedLatitude}:${parsedLongitude}`
+  );
+  const propsKey = `${parsedLatitude}:${parsedLongitude}`;
+
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setPinCoords({ latitude: parsedLatitude, longitude: parsedLongitude });
+      setPinTouched(false);
+      setSyncedPropsKey(propsKey);
+    }
+  } else if (open && propsKey !== syncedPropsKey) {
+    setSyncedPropsKey(propsKey);
+    setPinCoords({ latitude: parsedLatitude, longitude: parsedLongitude });
+    setPinTouched(false);
+  }
   const { overlayPointerDown, overlayClick } = useAdminOverlayClose({
     onClose,
     isDirty: false,
@@ -36,6 +72,12 @@ export default function RecalcularCoordenadasModal({
 
   if (!open) return null;
 
+  const canSavePin =
+    pinTouched &&
+    pinCoords.latitude != null &&
+    pinCoords.longitude != null &&
+    typeof onSavePin === 'function';
+
   return (
     <div
       className="admin-confirm-overlay admin-light-modal-overlay"
@@ -52,31 +94,47 @@ export default function RecalcularCoordenadasModal({
       >
         <h3 id="admin-delivery-geocode-title">Endereço da loja</h3>
         <p className="admin-delivery-geocode-lead">
-          Origem das entregas. Para alterar o endereço, edite em Minha loja.
+          Origem das entregas. Para alterar o texto do endereço, edite em Minha loja. Aqui você pode
+          recalcular ou ajustar o pin no mapa.
         </p>
         <div className="admin-delivery-address-body">
           <p className="admin-delivery-store-address-line1">{addressLines.line1}</p>
           {addressLines.line2 ? (
             <p className="admin-delivery-store-address-line2">{addressLines.line2}</p>
           ) : null}
-          <p className="admin-help-text admin-delivery-address-hint">
-            As coordenadas são salvas ao salvar o endereço em Minha loja. Use o botão abaixo para forçar
-            uma nova consulta.
-          </p>
+          <StoreAddressMapPin
+            latitude={pinCoords.latitude}
+            longitude={pinCoords.longitude}
+            loading={geocoding}
+            onChange={(next) => {
+              setPinCoords(next);
+              setPinTouched(true);
+            }}
+          />
         </div>
-        <div className="admin-confirm-actions">
+        <div className="admin-confirm-actions admin-delivery-geocode-actions">
           <button type="button" className="admin-btn admin-btn-ghost" onClick={onClose}>
             Fechar
           </button>
           <button
             ref={confirmRef}
             type="button"
-            className="admin-btn admin-btn-primary"
+            className={`admin-btn ${canSavePin ? 'admin-btn-ghost' : 'admin-btn-primary'}`}
             onClick={onRecalcular}
-            disabled={geocoding}
+            disabled={geocoding || savingPin}
           >
-            {geocoding ? 'Recalculando…' : 'Recalcular coordenadas'}
+            {geocoding ? 'Recalculando…' : 'Recalcular'}
           </button>
+          {canSavePin ? (
+            <button
+              type="button"
+              className="admin-btn admin-btn-primary"
+              disabled={savingPin || geocoding}
+              onClick={() => onSavePin?.(pinCoords)}
+            >
+              {savingPin ? 'Salvando…' : 'Salvar posição'}
+            </button>
+          ) : null}
         </div>
       </div>
     </div>
