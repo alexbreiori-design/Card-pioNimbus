@@ -127,7 +127,7 @@ export default function StoreAddressMapPin({
     marker.setLatLng([coords.latitude, coords.longitude]);
     map.setView([coords.latitude, coords.longitude], map.getZoom() || DEFAULT_ZOOM);
     map.invalidateSize();
-  }, [coords?.latitude, coords?.longitude]);
+  }, [coords]);
 
   return (
     <div className="admin-store-map-pin">
