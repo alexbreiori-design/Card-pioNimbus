@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { isModeloSegment, MODELO_SEGMENTO_ID, getSegmentoLabel } from '@/lib/empresaSegmentos';
 import { isModelStoreSlug } from '@/lib/superAdmin/modelStore';
 import { getStorePublicHost, getStorePublicUrl } from '@/lib/siteUrl';
@@ -16,6 +17,7 @@ import {
   AdminLojaSkeleton,
 } from '@/components/admin/AdminSkeleton';
 import { formatCep } from '@/lib/cep/viacep';
+import { parseCoordinate } from '@/lib/delivery/formatAddress';
 import { useCepLookup } from '@/hooks/useCepLookup';
 import { useAdminData } from '@/hooks/useAdminData';
 import { useEmpresa } from '@/hooks/useEmpresa';
@@ -43,6 +45,11 @@ import OrderTicketPreviewModal from '@/components/admin/orders/OrderTicketPrevie
 import { ORDER_TICKET_SAMPLE_ORDER } from '@/lib/orderTicketSample';
 import { useOrderPrint } from '@/context/OrderPrintContext';
 import { useAdminToast } from '@/context/AdminToastContext';
+
+const StoreAddressMapPin = dynamic(
+  () => import('@/components/admin/loja/StoreAddressMapPin'),
+  { ssr: false }
+);
 
 const DESCRICAO_MAX = 120;
 const MENSAGEM_FECHADA_MAX = 280;
@@ -143,7 +150,18 @@ export default function MinhaLojaPage() {
   const [ticketPreviewOpen, setTicketPreviewOpen] = useState(false);
   const [superAdmin, setSuperAdmin] = useState(false);
   const [savingMensagemFechada, setSavingMensagemFechada] = useState(false);
+  const [storeCoords, setStoreCoords] = useState({ latitude: null, longitude: null });
+  const [pinTouched, setPinTouched] = useState(false);
+  const [mapGeocoding, setMapGeocoding] = useState(false);
   const segmentBeforeModeloRef = useRef('restaurante');
+  const pinTouchedRef = useRef(false);
+  const storeCoordsRef = useRef({ latitude: null, longitude: null });
+  const lastGeocodedAddressRef = useRef('');
+
+  useEffect(() => {
+    pinTouchedRef.current = pinTouched;
+    storeCoordsRef.current = storeCoords;
+  }, [pinTouched, storeCoords]);
 
   useEffect(() => {
     setTicketWidthMm(getOrderTicketWidthMm());
@@ -210,10 +228,14 @@ export default function MinhaLojaPage() {
     let cancelled = false;
     async function load() {
       let loja = { ...data.loja };
+      let latitude = null;
+      let longitude = null;
       if (slug) {
         try {
           const empresa = await getEmpresaBySlug(slug);
           loja = mergeEmpresaIntoLoja(loja, empresa);
+          latitude = parseCoordinate(empresa?.latitude);
+          longitude = parseCoordinate(empresa?.longitude);
         } catch {
           /* mantém dados locais */
         }
@@ -222,6 +244,16 @@ export default function MinhaLojaPage() {
         const durations = resolveLojaDurations(loja);
         setDraft({ ...loja, ...durations });
         setPedidoMinimo(moneyToDisplay(loja.pedidoMinimo));
+        setStoreCoords({ latitude, longitude });
+        setPinTouched(false);
+        lastGeocodedAddressRef.current = JSON.stringify({
+          logradouro: loja.enderecoLogradouro || '',
+          numero: loja.enderecoNumero || '',
+          bairro: loja.enderecoBairro || '',
+          cidade: loja.enderecoCidade || '',
+          estado: loja.enderecoEstado || '',
+          cep: loja.enderecoCep || '',
+        });
       }
     }
     load();
@@ -229,6 +261,70 @@ export default function MinhaLojaPage() {
       cancelled = true;
     };
   }, [ready, slug, lojaSyncKey]);
+
+  useEffect(() => {
+    if (!draft) return undefined;
+    const addressKey = JSON.stringify({
+      logradouro: draft.enderecoLogradouro || '',
+      numero: draft.enderecoNumero || '',
+      bairro: draft.enderecoBairro || '',
+      cidade: draft.enderecoCidade || '',
+      estado: draft.enderecoEstado || '',
+      cep: draft.enderecoCep || '',
+    });
+    if (addressKey !== lastGeocodedAddressRef.current) {
+      setPinTouched(false);
+    }
+
+    const logradouro = String(draft.enderecoLogradouro || '').trim();
+    const numero = String(draft.enderecoNumero || '').trim();
+    const cidade = String(draft.enderecoCidade || '').trim();
+    if (!logradouro || !numero || !cidade) return undefined;
+    if (addressKey === lastGeocodedAddressRef.current) return undefined;
+
+    const timer = window.setTimeout(async () => {
+      if (pinTouchedRef.current) return;
+      setMapGeocoding(true);
+      try {
+        const bias = storeCoordsRef.current;
+        const res = await fetch('/api/geocode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            persist: false,
+            logradouro,
+            numero,
+            bairro: draft.enderecoBairro,
+            cidade,
+            estado: draft.enderecoEstado,
+            cep: draft.enderecoCep,
+            biasLatitude: bias.latitude,
+            biasLongitude: bias.longitude,
+          }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || pinTouchedRef.current) return;
+        const latitude = parseCoordinate(json.latitude);
+        const longitude = parseCoordinate(json.longitude);
+        if (latitude == null || longitude == null) return;
+        setStoreCoords({ latitude, longitude });
+        lastGeocodedAddressRef.current = addressKey;
+      } catch {
+        /* preview opcional */
+      } finally {
+        setMapGeocoding(false);
+      }
+    }, 700);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    draft?.enderecoLogradouro,
+    draft?.enderecoNumero,
+    draft?.enderecoBairro,
+    draft?.enderecoCidade,
+    draft?.enderecoEstado,
+    draft?.enderecoCep,
+  ]);
 
   useEffect(() => {
     const capaUrl = draft?.capaUrl;
@@ -502,11 +598,28 @@ export default function MinhaLojaPage() {
               cidade: nextLoja.enderecoCidade,
               estado: nextLoja.enderecoEstado,
               cep: nextLoja.enderecoCep,
+              ...(storeCoords.latitude != null && storeCoords.longitude != null
+                ? {
+                    latitude: storeCoords.latitude,
+                    longitude: storeCoords.longitude,
+                  }
+                : {
+                    biasLatitude: storeCoords.latitude,
+                    biasLongitude: storeCoords.longitude,
+                  }),
             }),
           });
           if (!geoRes.ok) {
             const geoJson = await geoRes.json().catch(() => ({}));
             console.warn('Geocoding da loja:', geoJson.error || geoRes.status);
+          } else {
+            const geoJson = await geoRes.json().catch(() => ({}));
+            const latitude = parseCoordinate(geoJson.latitude);
+            const longitude = parseCoordinate(geoJson.longitude);
+            if (latitude != null && longitude != null) {
+              setStoreCoords({ latitude, longitude });
+              setPinTouched(false);
+            }
           }
         } catch {
           /* geocoding opcional */
@@ -782,6 +895,15 @@ export default function MinhaLojaPage() {
               />
             </div>
           </div>
+          <StoreAddressMapPin
+            latitude={storeCoords.latitude}
+            longitude={storeCoords.longitude}
+            loading={mapGeocoding}
+            onChange={(next) => {
+              setStoreCoords(next);
+              setPinTouched(true);
+            }}
+          />
         </div>
       </div>
 
