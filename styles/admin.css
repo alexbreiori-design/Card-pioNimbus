@@ -10675,12 +10675,25 @@ textarea.admin-input.admin-field-invalid {
   .admin-store-section-head {
     flex-direction: column;
   }
+  .admin-store-address-layout {
+    grid-template-columns: 1fr;
+  }
+  .admin-store-section-body.admin-store-address-layout {
+    grid-template-columns: 1fr;
+  }
   .admin-store-address-grid {
     grid-template-columns: 1fr;
+  }
+  .admin-store-address-row-numero-bairro,
+  .admin-store-address-row-cidade-estado {
+    grid-template-columns: 1fr 1fr;
   }
   .admin-store-cep-field {
     width: 100%;
     max-width: none;
+  }
+  .admin-store-address-map .admin-store-map-pin-wrap {
+    min-height: 240px;
   }
   .admin-store-fields-center {
     max-width: none;
@@ -10774,6 +10787,38 @@ textarea.admin-input.admin-field-invalid {
   justify-content: center;
 }
 
+.admin-store-address-layout {
+  /* display/grid definido em .admin-store-section-body.admin-store-address-layout
+     para não perder para o flex column do section-body */
+  gap: 20px 24px;
+  align-items: stretch;
+}
+
+.admin-store-address-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.admin-store-address-fields .admin-form-group {
+  margin-bottom: 0;
+}
+
+.admin-store-address-row {
+  display: grid;
+  gap: 10px;
+  align-items: start;
+}
+
+.admin-store-address-row-numero-bairro {
+  grid-template-columns: minmax(72px, 0.42fr) minmax(0, 1fr);
+}
+
+.admin-store-address-row-cidade-estado {
+  grid-template-columns: minmax(0, 1fr) 72px;
+}
+
 .admin-store-address-grid {
   display: grid;
   grid-template-columns: minmax(72px, 18fr) minmax(100px, 35fr) minmax(
@@ -10788,6 +10833,24 @@ textarea.admin-input.admin-field-invalid {
   width: 40%;
   max-width: 220px;
   min-width: 140px;
+}
+
+.admin-store-address-map {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-store-address-map .admin-store-map-pin {
+  margin-top: 0;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-store-address-map .admin-store-map-pin-wrap {
+  flex: 1;
+  min-height: 280px;
+  height: auto;
 }
 
 .admin-store-map-pin {
@@ -10863,7 +10926,8 @@ textarea.admin-input.admin-field-invalid {
 }
 
 .admin-delivery-geocode-modal {
-  max-width: min(560px, calc(100vw - 32px));
+  width: min(720px, calc(100vw - 32px));
+  max-width: min(720px, calc(100vw - 32px));
 }
 
 .admin-delivery-geocode-modal .admin-store-map-pin {
@@ -10871,7 +10935,7 @@ textarea.admin-input.admin-field-invalid {
 }
 
 .admin-delivery-geocode-modal .admin-store-map-pin-wrap {
-  height: 220px;
+  height: 360px;
 }
 
 .admin-delivery-geocode-actions {
@@ -10902,6 +10966,13 @@ textarea.admin-input.admin-field-invalid {
   display: flex;
   flex-direction: column;
   gap: 0;
+}
+
+.admin-store-section-body.admin-store-address-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.92fr) minmax(320px, 1.15fr);
+  gap: 20px 28px;
+  align-items: stretch;
 }
 
 .admin-store-pix-toggle-row {
@@ -11207,7 +11278,17 @@ textarea.admin-input.admin-field-invalid {
     max-width: none;
   }
 
+  .admin-store-page-v2 .admin-store-address-layout,
+  .admin-store-page-v2 .admin-store-section-body.admin-store-address-layout {
+    grid-template-columns: 1fr;
+  }
+
   .admin-store-page-v2 .admin-store-address-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-store-page-v2 .admin-store-address-row-numero-bairro,
+  .admin-store-page-v2 .admin-store-address-row-cidade-estado {
     grid-template-columns: 1fr 1fr;
   }
 }
@@ -16439,8 +16520,18 @@ textarea.admin-input::placeholder {
     width: 100%;
   }
 
+  .admin-shell-mobile .admin-store-page-v2 .admin-store-address-layout,
+  .admin-shell-mobile .admin-store-page-v2 .admin-store-section-body.admin-store-address-layout {
+    grid-template-columns: 1fr;
+  }
+
   .admin-shell-mobile .admin-store-page-v2 .admin-store-address-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-shell-mobile .admin-store-page-v2 .admin-store-address-row-numero-bairro,
+  .admin-shell-mobile .admin-store-page-v2 .admin-store-address-row-cidade-estado {
+    grid-template-columns: 1fr 1fr;
   }
 
   .admin-shell-mobile .admin-store-delivery-time-row,
@@ -16870,6 +16961,10 @@ textarea.admin-input::placeholder {
     width: calc(100% - 24px);
     max-width: none;
     margin: 12px;
+  }
+
+  .admin-shell-mobile .admin-delivery-geocode-modal .admin-store-map-pin-wrap {
+    height: 300px;
   }
 
   .admin-shell-mobile .admin-delivery-geocode-modal .admin-confirm-actions {

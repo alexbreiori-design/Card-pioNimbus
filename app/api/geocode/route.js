@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { geocodeAddress } from '@/lib/delivery/geocode';
+import { geocodeAddress, reverseGeocodeCoordinates } from '@/lib/delivery/geocode';
 import { parseCoordinate } from '@/lib/delivery/formatAddress';
 import { getLocationIqKey } from '@/lib/env/server';
 import { createClient } from '@/lib/supabase/server';
@@ -8,8 +8,9 @@ import { updateEmpresaCoordinates } from '@/lib/supabase/empresaServer';
 /**
  * POST {
  *   slug?, persist?,
+ *   reverse?,                 // true = reverse geocode a partir de lat/lng
  *   logradouro, numero, bairro, cidade, estado, cep,
- *   latitude?, longitude?,   // pin manual (com persist)
+ *   latitude?, longitude?,   // pin manual (com persist) ou reverse
  *   biasLatitude?, biasLongitude?
  * }
  */
@@ -18,6 +19,7 @@ export async function POST(request) {
     const body = await request.json();
     const slug = String(body.slug || '').trim().toLowerCase();
     const persist = Boolean(body.persist);
+    const reverse = Boolean(body.reverse);
 
     const manualLatitude = parseCoordinate(body.latitude);
     const manualLongitude = parseCoordinate(body.longitude);
@@ -25,6 +27,27 @@ export async function POST(request) {
       manualLatitude != null &&
       manualLongitude != null &&
       !(manualLatitude === 0 && manualLongitude === 0);
+
+    if (reverse) {
+      if (!hasManualPin) {
+        return NextResponse.json(
+          { error: 'Informe latitude e longitude para obter o endereço.' },
+          { status: 400 }
+        );
+      }
+      if (!process.env.LOCATIONIQ_API_KEY) {
+        return NextResponse.json(
+          { error: 'Serviço de geocoding não configurado. Defina LOCATIONIQ_API_KEY.' },
+          { status: 503 }
+        );
+      }
+      const resolved = await reverseGeocodeCoordinates(
+        manualLatitude,
+        manualLongitude,
+        getLocationIqKey()
+      );
+      return NextResponse.json({ ok: true, ...resolved, source: 'reverse' });
+    }
 
     if (hasManualPin && persist) {
       if (!slug) {

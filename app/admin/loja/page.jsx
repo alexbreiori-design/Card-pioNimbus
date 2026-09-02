@@ -157,6 +157,7 @@ export default function MinhaLojaPage() {
   const pinTouchedRef = useRef(false);
   const storeCoordsRef = useRef({ latitude: null, longitude: null });
   const lastGeocodedAddressRef = useRef('');
+  const reversePinTokenRef = useRef(0);
 
   useEffect(() => {
     pinTouchedRef.current = pinTouched;
@@ -363,6 +364,69 @@ export default function MinhaLojaPage() {
 
   function setLojaField(field, value) {
     setDraft((prev) => ({ ...prev, [field]: value }));
+  }
+
+  async function handleStorePinChange(next) {
+    setStoreCoords(next);
+    setPinTouched(true);
+    const token = reversePinTokenRef.current + 1;
+    reversePinTokenRef.current = token;
+    setMapGeocoding(true);
+    try {
+      const res = await fetch('/api/geocode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reverse: true,
+          latitude: next.latitude,
+          longitude: next.longitude,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || reversePinTokenRef.current !== token) return;
+
+      const addressPatch = {
+        enderecoLogradouro: String(json.logradouro || '').trim(),
+        enderecoNumero: String(json.numero || '').trim(),
+        enderecoBairro: String(json.bairro || '').trim(),
+        enderecoCidade: String(json.cidade || '').trim(),
+        enderecoEstado: String(json.estado || '')
+          .trim()
+          .toUpperCase()
+          .slice(0, 2),
+        enderecoCep: json.cep ? formatCep(String(json.cep)) : '',
+      };
+
+      if (!addressPatch.enderecoLogradouro && !addressPatch.enderecoCidade) return;
+
+      setDraft((prev) => {
+        const next = {
+          ...prev,
+          ...(addressPatch.enderecoLogradouro
+            ? { enderecoLogradouro: addressPatch.enderecoLogradouro }
+            : null),
+          enderecoNumero: addressPatch.enderecoNumero,
+          ...(addressPatch.enderecoBairro ? { enderecoBairro: addressPatch.enderecoBairro } : null),
+          ...(addressPatch.enderecoCidade ? { enderecoCidade: addressPatch.enderecoCidade } : null),
+          ...(addressPatch.enderecoEstado ? { enderecoEstado: addressPatch.enderecoEstado } : null),
+          ...(addressPatch.enderecoCep ? { enderecoCep: addressPatch.enderecoCep } : null),
+        };
+        // Evita o efeito de geocode forward reposicionar o pin após o reverse.
+        lastGeocodedAddressRef.current = JSON.stringify({
+          logradouro: next.enderecoLogradouro || '',
+          numero: next.enderecoNumero || '',
+          bairro: next.enderecoBairro || '',
+          cidade: next.enderecoCidade || '',
+          estado: next.enderecoEstado || '',
+          cep: next.enderecoCep || '',
+        });
+        return next;
+      });
+    } catch {
+      /* reverse opcional — mantém só o pin */
+    } finally {
+      if (reversePinTokenRef.current === token) setMapGeocoding(false);
+    }
   }
 
   function handleModeloToggle(enabled) {
@@ -826,84 +890,87 @@ export default function MinhaLojaPage() {
 
       <div className="admin-card admin-store-section-card">
         <StoreSectionHead icon="location" title="Endereço da loja" />
-        <div className="admin-store-section-body">
-          <div className="admin-form-group admin-store-cep-field">
-            <label className="admin-label">CEP</label>
-            <div className="admin-input-icon-wrap">
+        <div className="admin-store-section-body admin-store-address-layout">
+          <div className="admin-store-address-fields">
+            <div className="admin-form-group admin-store-cep-field">
+              <label className="admin-label">CEP</label>
+              <div className="admin-input-icon-wrap">
+                <input
+                  className="admin-input admin-input-with-icon"
+                  value={draft.enderecoCep || ''}
+                  onChange={(e) => setLojaField('enderecoCep', formatCep(e.target.value))}
+                  placeholder="00000-000"
+                />
+                <button
+                  type="button"
+                  className="admin-input-icon-btn"
+                  onClick={handleCepSearch}
+                  disabled={cepLoading}
+                  title="Buscar CEP"
+                  aria-label="Buscar CEP"
+                >
+                  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
+                    <line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" strokeWidth="2" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="admin-form-group">
+              <label className="admin-label">Logradouro</label>
               <input
-                className="admin-input admin-input-with-icon"
-                value={draft.enderecoCep || ''}
-                onChange={(e) => setLojaField('enderecoCep', formatCep(e.target.value))}
-                placeholder="00000-000"
+                className="admin-input"
+                value={draft.enderecoLogradouro || ''}
+                onChange={(e) => setLojaField('enderecoLogradouro', e.target.value)}
               />
-              <button
-                type="button"
-                className="admin-input-icon-btn"
-                onClick={handleCepSearch}
-                disabled={cepLoading}
-                title="Buscar CEP"
-                aria-label="Buscar CEP"
-              >
-                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                  <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
-                  <line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" strokeWidth="2" />
-                </svg>
-              </button>
+            </div>
+            <div className="admin-store-address-row admin-store-address-row-numero-bairro">
+              <div className="admin-form-group">
+                <label className="admin-label">Número</label>
+                <input
+                  className="admin-input"
+                  value={draft.enderecoNumero || ''}
+                  onChange={(e) => setLojaField('enderecoNumero', e.target.value)}
+                />
+              </div>
+              <div className="admin-form-group">
+                <label className="admin-label">Bairro</label>
+                <input
+                  className="admin-input"
+                  value={draft.enderecoBairro || ''}
+                  onChange={(e) => setLojaField('enderecoBairro', e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="admin-store-address-row admin-store-address-row-cidade-estado">
+              <div className="admin-form-group">
+                <label className="admin-label">Cidade</label>
+                <input
+                  className="admin-input"
+                  value={draft.enderecoCidade || ''}
+                  onChange={(e) => setLojaField('enderecoCidade', e.target.value)}
+                />
+              </div>
+              <div className="admin-form-group admin-store-field-estado">
+                <label className="admin-label">Estado</label>
+                <input
+                  className="admin-input"
+                  value={draft.enderecoEstado || ''}
+                  onChange={(e) => setLojaField('enderecoEstado', e.target.value.toUpperCase().slice(0, 2))}
+                  maxLength={2}
+                  placeholder="SP"
+                />
+              </div>
             </div>
           </div>
-          <div className="admin-form-group">
-            <label className="admin-label">Logradouro</label>
-            <input
-              className="admin-input"
-              value={draft.enderecoLogradouro || ''}
-              onChange={(e) => setLojaField('enderecoLogradouro', e.target.value)}
+          <div className="admin-store-address-map">
+            <StoreAddressMapPin
+              latitude={storeCoords.latitude}
+              longitude={storeCoords.longitude}
+              loading={mapGeocoding}
+              onChange={handleStorePinChange}
             />
           </div>
-          <div className="admin-store-address-grid">
-            <div className="admin-form-group">
-              <label className="admin-label">Número</label>
-              <input
-                className="admin-input"
-                value={draft.enderecoNumero || ''}
-                onChange={(e) => setLojaField('enderecoNumero', e.target.value)}
-              />
-            </div>
-            <div className="admin-form-group">
-              <label className="admin-label">Bairro</label>
-              <input
-                className="admin-input"
-                value={draft.enderecoBairro || ''}
-                onChange={(e) => setLojaField('enderecoBairro', e.target.value)}
-              />
-            </div>
-            <div className="admin-form-group">
-              <label className="admin-label">Cidade</label>
-              <input
-                className="admin-input"
-                value={draft.enderecoCidade || ''}
-                onChange={(e) => setLojaField('enderecoCidade', e.target.value)}
-              />
-            </div>
-            <div className="admin-form-group admin-store-field-estado">
-              <label className="admin-label">Estado</label>
-              <input
-                className="admin-input"
-                value={draft.enderecoEstado || ''}
-                onChange={(e) => setLojaField('enderecoEstado', e.target.value.toUpperCase().slice(0, 2))}
-                maxLength={2}
-                placeholder="SP"
-              />
-            </div>
-          </div>
-          <StoreAddressMapPin
-            latitude={storeCoords.latitude}
-            longitude={storeCoords.longitude}
-            loading={mapGeocoding}
-            onChange={(next) => {
-              setStoreCoords(next);
-              setPinTouched(true);
-            }}
-          />
         </div>
       </div>
 
