@@ -160,6 +160,13 @@ export function formatDistanceKm(value) {
   if (value === null || value === undefined || value === '') return '';
   const distance = Number(value);
   if (!Number.isFinite(distance) || distance < 0) return '';
+  // Abaixo de 1 km: mostrar metros (0,7 → "700 m"). Com 1 casa decimal,
+  // qualquer valor < 0,05 km virava "0,0 km" e confundia o lojista.
+  if (distance < 1) {
+    const meters = Math.round(distance * 1000);
+    if (meters <= 0) return '< 1 m';
+    return `${meters.toLocaleString('pt-BR')} m`;
+  }
   return `${distance.toLocaleString('pt-BR', {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
