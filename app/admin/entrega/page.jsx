@@ -30,10 +30,11 @@ function EntregaPageIcon() {
 
 export default function EntregaPage() {
   const { data, ready } = useAdminData();
-  const { empresa, slug, error: empresaError } = useEmpresa();
+  const { empresa, slug, error: empresaError, refresh: refreshEmpresa } = useEmpresa();
   const loja = data?.loja;
   const toast = useAdminToast();
   const [geocoding, setGeocoding] = useState(false);
+  const [savingPin, setSavingPin] = useState(false);
   const {
     menuRef,
     menuOpen,
@@ -60,18 +61,51 @@ export default function EntregaPage() {
           cidade: loja.enderecoCidade,
           estado: loja.enderecoEstado,
           cep: loja.enderecoCep,
+          biasLatitude: empresa?.latitude,
+          biasLongitude: empresa?.longitude,
         }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Falha no geocoding.');
-      toast.success('Coordenadas da loja atualizadas com sucesso.');
-      setGeocodeModalOpen(false);
+      await refreshEmpresa?.();
+      toast.success('Coordenadas atualizadas. Ajuste o pin se precisar e salve a posição.');
     } catch (e) {
       toast.error(e?.message || 'Não foi possível recalcular as coordenadas.');
     } finally {
       setGeocoding(false);
     }
-  }, [slug, loja, toast, setGeocodeModalOpen]);
+  }, [slug, loja, empresa, toast, refreshEmpresa]);
+
+  const salvarPosicaoPin = useCallback(
+    async ({ latitude, longitude }) => {
+      if (!slug) return;
+      setSavingPin(true);
+      try {
+        const res = await fetch('/api/geocode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            slug,
+            persist: true,
+            latitude,
+            longitude,
+          }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(json?.error || 'Não foi possível salvar a posição no mapa.');
+        }
+        await refreshEmpresa?.();
+        toast.success('Posição da loja salva. As áreas de entrega usam este ponto.');
+        setGeocodeModalOpen(false);
+      } catch (e) {
+        toast.error(e?.message || 'Não foi possível salvar a posição no mapa.');
+      } finally {
+        setSavingPin(false);
+      }
+    },
+    [slug, toast, setGeocodeModalOpen, refreshEmpresa]
+  );
 
   if (!ready) {
     return (
@@ -186,6 +220,10 @@ export default function EntregaPage() {
         addressLines={addressLines}
         geocoding={geocoding}
         onRecalcular={() => void recalcularCoordenadas()}
+        latitude={empresa?.latitude}
+        longitude={empresa?.longitude}
+        onSavePin={(coords) => void salvarPosicaoPin(coords)}
+        savingPin={savingPin}
       />
     </div>
   );
