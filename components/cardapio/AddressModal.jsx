@@ -15,6 +15,7 @@ export default function AddressModal() {
     setAddrForm,
     confirmAddress,
     addressFlowContext,
+    markAddressLookupAsStreet,
     storeConfig,
     slug,
     effectiveSlug,
@@ -35,6 +36,7 @@ export default function AddressModal() {
     setAddrForm((f) => ({ ...f, [field]: e.target.value }));
 
   function handleStreetSelect(address) {
+    markAddressLookupAsStreet();
     setAddrForm((f) => ({
       ...f,
       rua: address.logradouro || f.rua,
