@@ -12927,30 +12927,38 @@ textarea.admin-input::placeholder {
   width: auto;
   min-width: 0;
   flex: 0 1 auto;
-  padding: 10px 16px;
+  padding: 14px 18px;
+  min-height: 3rem;
 }
 
 .admin-ticket-choice--grid2 {
-  display: grid;
-  grid-template-columns: repeat(2, max-content);
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  width: max-content;
+  max-width: 100%;
   justify-content: start;
   gap: 8px;
 }
 
 .admin-ticket-choice--grid2 .admin-ticket-choice-btn {
-  width: auto;
+  width: 100%;
   min-width: 0;
-  padding: 10px 16px;
+  padding: 14px 18px;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .admin-ticket-choice-btn {
   display: inline-flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   gap: 2px;
   min-width: 7.5rem;
-  padding: 10px 14px;
+  min-height: 3rem;
+  padding: 14px 18px;
   border: 1px solid #e2e2ea;
   border-radius: 10px;
   background: #fff;
@@ -12960,7 +12968,7 @@ textarea.admin-input::placeholder {
   font-weight: 600;
   line-height: 1.25;
   cursor: pointer;
-  text-align: left;
+  text-align: center;
   transition:
     border-color 0.15s ease,
     background-color 0.15s ease,
@@ -12994,7 +13002,28 @@ textarea.admin-input::placeholder {
 
 .admin-ticket-print-settings {
   display: grid;
-  gap: 28px;
+  gap: 0;
+}
+
+.admin-ticket-print-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 48px;
+  row-gap: 28px;
+  align-items: start;
+  position: relative;
+}
+
+.admin-ticket-print-columns::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: #ececf2;
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .admin-ticket-print-block {
@@ -13004,13 +13033,26 @@ textarea.admin-input::placeholder {
   border-bottom: none;
 }
 
+.admin-ticket-print-col {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+  padding: 4px 0 0;
+}
+
+.admin-ticket-print-col + .admin-ticket-print-col {
+  padding-left: 0;
+  border-left: none;
+}
+
 .admin-ticket-print-block-title {
   margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   text-transform: none;
-  color: var(--admin-text, #1a1a2e);
+  color: #2a2a3a;
+  line-height: 1.3;
 }
 
 .admin-ticket-appearance {
@@ -13031,14 +13073,15 @@ textarea.admin-input::placeholder {
   justify-content: start;
 }
 
-.admin-ticket-print-col {
-  display: grid;
-  gap: 10px;
-  min-width: 0;
-}
-
 .admin-ticket-print-col > .admin-label {
   margin: 0;
+}
+
+.admin-ticket-print-note {
+  margin: 0;
+  color: var(--admin-muted, #6b6b7b);
+  font-size: 12.5px;
+  line-height: 1.4;
 }
 
 .admin-ticket-print-footnote {
@@ -13053,22 +13096,38 @@ textarea.admin-input::placeholder {
 }
 
 @media (max-width: 900px) {
-  .admin-ticket-prefs-grid {
+  .admin-ticket-print-columns {
     grid-template-columns: 1fr;
+    column-gap: 0;
+    row-gap: 24px;
   }
 
-  .admin-ticket-choice--grid2 {
-    grid-template-columns: repeat(2, max-content);
+  .admin-ticket-print-columns::before {
+    display: none;
+  }
+
+  .admin-ticket-print-col + .admin-ticket-print-col {
+    padding-top: 8px;
+    border-top: 1px solid #ececf2;
+  }
+
+  .admin-ticket-prefs-grid {
+    grid-template-columns: 1fr;
   }
 
   .admin-ticket-choice--row .admin-ticket-choice-btn {
     flex: 1 1 calc(50% - 8px);
   }
+
+  .admin-ticket-choice--grid2 {
+    width: 100%;
+  }
 }
 
 @media (max-width: 520px) {
   .admin-ticket-choice--grid2 {
-    grid-template-columns: max-content;
+    grid-template-columns: 1fr;
+    width: 100%;
   }
 
   .admin-ticket-choice--row .admin-ticket-choice-btn {
