@@ -27,7 +27,12 @@ import { useAdminOrders } from '@/hooks/useAdminOrders';
 import { useOrderPrint } from '@/context/OrderPrintContext';
 import OrderPrintPrepDialog from '@/components/admin/orders/OrderPrintPrepDialog';
 import OrderDeadlineDemoEdit from '@/components/admin/orders/OrderDeadlineDemoEdit';
-import { shouldAutoPrintOnPrep, shouldAskPrintOnPrep, isOrderPrintOnNewEnabled } from '@/lib/orderTicketPrefs';
+import {
+  shouldAutoPrintOnPrep,
+  shouldAskPrintOnPrep,
+  isOrderPrintOnNewEnabled,
+  getAdminManualOrderInitialStatus,
+} from '@/lib/orderTicketPrefs';
 import { paymentStatusBadgeForOrder } from '@/lib/orders/mapAdminOrder';
 import { ensureCustomer, normalizePhone, updateCustomerStats, upsertClienteEndereco } from '@/lib/supabase/customers';
 import { resolveEmpresaIdFromStore } from '@/lib/supabase/empresa';
@@ -333,7 +338,7 @@ export default function PedidosPage() {
       if (next === 'em_preparo') {
         const updatedOrder = { ...order, status: next };
         if (shouldAutoPrintOnPrep()) {
-          printOrder(updatedOrder);
+          printOrder(updatedOrder, null, { source: 'auto' });
         } else if (shouldAskPrintOnPrep()) {
           setPrintPrepOrder(updatedOrder);
           setPrintPrepOpen(true);
@@ -511,9 +516,10 @@ export default function PedidosPage() {
 
     const etaRange = getEtaRangeFromConfirmedAt(new Date().toISOString(), data.loja, draft.tipo);
     const eta = etaRange.max;
+    const initialStatus = getAdminManualOrderInitialStatus();
     const newOrder = {
       id: '',
-      status: 'novo',
+      status: initialStatus,
       tipo: draft.tipo,
       clienteNome: draft.clienteNome,
       clienteTelefone: phoneDigits,
@@ -630,8 +636,19 @@ export default function PedidosPage() {
     setModalInitialDraft(null);
     setEditingOrder(null);
     toast.success(`Pedido #${newOrder.id} criado com sucesso.`);
-    // Com auto-print em Novos, o refresh já dispara a comanda — evita impressão dupla.
-    if (printNow && !isOrderPrintOnNewEnabled()) printOrder(newOrder);
+
+    // Matriz de impressão no create (online continua só via evento em Novos).
+    if (initialStatus === 'novo') {
+      // Auto em Novos: o refresh dispara AUTO_PRINT_NEW_ORDER_EVENT — evita duplicar.
+      if (printNow && !isOrderPrintOnNewEnabled()) printOrder(newOrder);
+    } else if (printNow || isOrderPrintOnNewEnabled() || shouldAutoPrintOnPrep()) {
+      printOrder(newOrder, null, {
+        source: printNow ? 'user' : 'auto',
+      });
+    } else if (shouldAskPrintOnPrep()) {
+      setPrintPrepOrder(newOrder);
+      setPrintPrepOpen(true);
+    }
   }
 
   const detailOrder = allOrders.find((o) => o.id === detailOrderId);
