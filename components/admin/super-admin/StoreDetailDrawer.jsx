@@ -1574,15 +1574,20 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed, initia
               </div>
 
               <section className={styles.panel}>
-                <h3 className={styles.panelTitle}>Ferramentas</h3>
+                <h3 className={styles.panelTitle}>Cardápio — backup, export e import</h3>
+                <p className={styles.muted}>
+                  <strong>Backup por data</strong> no primeiro bloco (cópias diárias). Export manual
+                  e import ficam nos blocos seguintes.
+                </p>
                 <div className={styles.actionGroup}>
+                  <p className={styles.actionGroupLabel}>Estado completo da loja</p>
                   <button
                     type="button"
                     className={styles.btnGhost}
                     disabled={saving}
                     onClick={downloadBackup}
                   >
-                    Exportar backup JSON
+                    Baixar estado bruto (JSON técnico)
                   </button>
                 </div>
                 <StoreCatalogImportPanel
@@ -2127,9 +2132,8 @@ export default function StoreDetailDrawer({ slug, onClose, onSlugRenamed, initia
                   </div>
                   <button
                     type="submit"
-                    className={styles.btnPrimary}
+                    className={`${styles.btnPrimary} ${styles.teamFormSubmit}`}
                     disabled={saving}
-                    style={{ marginTop: 14 }}
                   >
                     {saving ? 'Salvando...' : 'Vincular membro'}
                   </button>
