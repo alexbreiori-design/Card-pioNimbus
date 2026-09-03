@@ -40,6 +40,9 @@ import {
   getOrderPrintMode,
   setOrderPrintMode,
   setOrderTicketWidthMm,
+  ADMIN_MANUAL_ORDER_INITIAL_STATUS_OPTIONS,
+  getAdminManualOrderInitialStatus,
+  setAdminManualOrderInitialStatus,
 } from '@/lib/orderTicketPrefs';
 import OrderTicketPreviewModal from '@/components/admin/orders/OrderTicketPreviewModal';
 import { ORDER_TICKET_SAMPLE_ORDER } from '@/lib/orderTicketSample';
@@ -147,6 +150,7 @@ export default function MinhaLojaPage() {
   const [coverImageReady, setCoverImageReady] = useState(true);
   const [ticketWidthMm, setTicketWidthMm] = useState(80);
   const [printMode, setPrintMode] = useState('ask_prep');
+  const [manualInitialStatus, setManualInitialStatus] = useState('em_preparo');
   const [ticketPreviewOpen, setTicketPreviewOpen] = useState(false);
   const [superAdmin, setSuperAdmin] = useState(false);
   const [savingMensagemFechada, setSavingMensagemFechada] = useState(false);
@@ -167,6 +171,7 @@ export default function MinhaLojaPage() {
   useEffect(() => {
     setTicketWidthMm(getOrderTicketWidthMm());
     setPrintMode(getOrderPrintMode());
+    setManualInitialStatus(getAdminManualOrderInitialStatus());
   }, []);
 
   useEffect(() => {
@@ -996,125 +1001,154 @@ export default function MinhaLojaPage() {
         <StoreSectionHead
           icon="printer"
           title="Impressão de comanda"
-          hint="Configura a impressora térmica da cozinha."
+          hint="Logo, tamanho da bobina e quando a comanda sai."
         />
         <div className="admin-store-section-body admin-ticket-print-settings">
-          <section className="admin-ticket-print-block">
-            <h3 className="admin-ticket-print-block-title">Aparência da comanda</h3>
-            <div className="admin-ticket-appearance">
-              <div className="admin-ticket-logo-upload">
-                <div className="admin-ticket-logo-thumb" aria-hidden="true">
-                  {draft.logoComandaUrl ? (
-                    <img src={draft.logoComandaUrl} alt="" />
-                  ) : (
-                    <span className="admin-ticket-logo-thumb-empty">—</span>
-                  )}
-                </div>
-                <div className="admin-ticket-logo-upload-meta">
-                  <div className="admin-ticket-logo-upload-actions">
+          <div className="admin-ticket-print-columns">
+            <div className="admin-ticket-print-col">
+              <section className="admin-ticket-print-block">
+                <h3 className="admin-ticket-print-block-title">Aparência</h3>
+                <div className="admin-ticket-appearance">
+                  <div className="admin-ticket-logo-upload">
+                    <div className="admin-ticket-logo-thumb" aria-hidden="true">
+                      {draft.logoComandaUrl ? (
+                        <img src={draft.logoComandaUrl} alt="" />
+                      ) : (
+                        <span className="admin-ticket-logo-thumb-empty">—</span>
+                      )}
+                    </div>
+                    <div className="admin-ticket-logo-upload-meta">
+                      <div className="admin-ticket-logo-upload-actions">
+                        <button
+                          type="button"
+                          className="admin-btn admin-btn-ghost admin-btn-sm"
+                          onClick={() => comandaLogoInputRef.current?.click()}
+                        >
+                          Enviar PNG/SVG
+                        </button>
+                        {draft.logoComandaUrl ? (
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-ghost admin-btn-sm"
+                            onClick={() => setLojaField('logoComandaUrl', '')}
+                          >
+                            Remover
+                          </button>
+                        ) : null}
+                      </div>
+                      <p className="admin-help-text admin-ticket-logo-help">
+                        PNG ou SVG preto, fundo transparente. Máx. 1 MB.
+                      </p>
+                      <input
+                        ref={comandaLogoInputRef}
+                        type="file"
+                        accept=".png,.svg,image/png,image/svg+xml"
+                        hidden
+                        onChange={onComandaLogoSelect}
+                      />
+                    </div>
+                  </div>
+                  <div className="admin-ticket-print-preview-row">
                     <button
                       type="button"
-                      className="admin-btn admin-btn-ghost admin-btn-sm"
-                      onClick={() => comandaLogoInputRef.current?.click()}
+                      className="admin-btn admin-btn-primary admin-btn-sm"
+                      onClick={() => setTicketPreviewOpen(true)}
                     >
-                      Enviar PNG/SVG
+                      Visualizar comanda teste
                     </button>
-                    {draft.logoComandaUrl ? (
-                      <button
-                        type="button"
-                        className="admin-btn admin-btn-ghost admin-btn-sm"
-                        onClick={() => setLojaField('logoComandaUrl', '')}
-                      >
-                        Remover
-                      </button>
-                    ) : null}
                   </div>
-                  <p className="admin-help-text admin-ticket-logo-help">
-                    PNG ou SVG preto, fundo transparente. Máx. 1 MB — só para a térmica, separada da
-                    logo colorida do cardápio.
-                  </p>
-                  <input
-                    ref={comandaLogoInputRef}
-                    type="file"
-                    accept=".png,.svg,image/png,image/svg+xml"
-                    hidden
-                    onChange={onComandaLogoSelect}
-                  />
                 </div>
-              </div>
-              <div className="admin-ticket-print-preview-row">
-                <button
-                  type="button"
-                  className="admin-btn admin-btn-primary admin-btn-sm"
-                  onClick={() => setTicketPreviewOpen(true)}
+              </section>
+
+              <section className="admin-ticket-print-block">
+                <h3 className="admin-ticket-print-block-title">Largura da bobina</h3>
+                <div className="admin-ticket-choice" role="radiogroup" aria-label="Largura da bobina">
+                  {ORDER_TICKET_WIDTH_OPTIONS.map((opt) => {
+                    const selected = ticketWidthMm === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        className={`admin-ticket-choice-btn${selected ? ' is-selected' : ''}`}
+                        onClick={() => {
+                          setTicketWidthMm(opt.value);
+                          setOrderTicketWidthMm(opt.value);
+                        }}
+                      >
+                        <span className="admin-ticket-choice-label">{opt.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            </div>
+
+            <div className="admin-ticket-print-col">
+              <section className="admin-ticket-print-block">
+                <h3 className="admin-ticket-print-block-title">Pedidos do admin</h3>
+                <div
+                  className="admin-ticket-choice admin-ticket-choice--row"
+                  role="radiogroup"
+                  aria-label="Pedidos do admin"
                 >
-                  Visualizar comanda teste
-                </button>
-                <span className="admin-help-text">
-                  Pedido fictício para testar impressão sem criar pedido real.
-                </span>
-              </div>
-            </div>
-          </section>
+                  {ADMIN_MANUAL_ORDER_INITIAL_STATUS_OPTIONS.map((opt) => {
+                    const selected = manualInitialStatus === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        className={`admin-ticket-choice-btn${selected ? ' is-selected' : ''}`}
+                        onClick={() => {
+                          setManualInitialStatus(opt.value);
+                          setAdminManualOrderInitialStatus(opt.value);
+                        }}
+                      >
+                        <span className="admin-ticket-choice-label">{opt.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="admin-help-text admin-ticket-print-note">
+                  Do cardápio digital, os pedidos sempre entram em Novos.
+                </p>
+              </section>
 
-          <section className="admin-ticket-print-block">
-            <h3 className="admin-ticket-print-block-title">Largura da bobina</h3>
-            <div className="admin-ticket-choice" role="radiogroup" aria-label="Largura da bobina">
-              {ORDER_TICKET_WIDTH_OPTIONS.map((opt) => {
-                const selected = ticketWidthMm === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    className={`admin-ticket-choice-btn${selected ? ' is-selected' : ''}`}
-                    onClick={() => {
-                      setTicketWidthMm(opt.value);
-                      setOrderTicketWidthMm(opt.value);
-                    }}
-                  >
-                    <span className="admin-ticket-choice-label">{opt.label}</span>
-                    {opt.hint ? <span className="admin-ticket-choice-hint">{opt.hint}</span> : null}
-                  </button>
-                );
-              })}
+              <section className="admin-ticket-print-block">
+                <h3 className="admin-ticket-print-block-title">Quando imprimir</h3>
+                <div
+                  className="admin-ticket-choice admin-ticket-choice--grid2"
+                  role="radiogroup"
+                  aria-label="Quando imprimir"
+                >
+                  {ORDER_PRINT_MODE_OPTIONS.map((opt) => {
+                    const selected = printMode === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        className={`admin-ticket-choice-btn${selected ? ' is-selected' : ''}`}
+                        onClick={() => {
+                          setPrintMode(opt.value);
+                          setOrderPrintMode(opt.value);
+                        }}
+                      >
+                        <span className="admin-ticket-choice-label">{opt.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="admin-help-text admin-ticket-print-note">
+                  Impressão automática silenciosa só no modo quiosque da cozinha.
+                </p>
+              </section>
             </div>
-          </section>
-
-          <section className="admin-ticket-print-block">
-            <h3 className="admin-ticket-print-block-title">Quando imprimir</h3>
-            <div
-              className="admin-ticket-choice admin-ticket-choice--row"
-              role="radiogroup"
-              aria-label="Quando imprimir"
-            >
-              {ORDER_PRINT_MODE_OPTIONS.map((opt) => {
-                const selected = printMode === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    className={`admin-ticket-choice-btn${selected ? ' is-selected' : ''}`}
-                    onClick={() => {
-                      setPrintMode(opt.value);
-                      setOrderPrintMode(opt.value);
-                    }}
-                  >
-                    <span className="admin-ticket-choice-label">{opt.label}</span>
-                    {opt.hint ? <span className="admin-ticket-choice-hint">{opt.hint}</span> : null}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <p className="admin-help-text admin-ticket-print-footnote">
-            A impressão automática só funciona de forma silenciosa no modo quiosque da cozinha. No
-            navegador comum, o Windows ainda pede confirmação — ou a automação pode ser bloqueada.
-          </p>
+          </div>
         </div>
       </div>
 

@@ -11,7 +11,10 @@ import AdminProviders from './AdminProviders';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Adm - Cardápio Nimbus',
+  title: {
+    template: '%s',
+    default: 'Pedidos',
+  },
   description: 'Painel administrativo do cardápio digital',
 };
 
