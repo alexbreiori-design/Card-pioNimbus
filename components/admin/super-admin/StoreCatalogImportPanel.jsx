@@ -17,6 +17,24 @@ function formatCounts(counts = {}) {
   return parts.length ? parts.join(' · ') : 'Nenhum item detectado';
 }
 
+function formatBackupDateLabel(isoDate) {
+  const [year, month, day] = String(isoDate || '').slice(0, 10).split('-');
+  if (!year || !month || !day) return String(isoDate || '—');
+  return `${day}/${month}/${year}`;
+}
+
+function formatBackupTime(isoDateTime) {
+  if (!isoDateTime) return '';
+  try {
+    return new Intl.DateTimeFormat('pt-BR', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(new Date(isoDateTime));
+  } catch {
+    return '';
+  }
+}
+
 export default function StoreCatalogImportPanel({ slug, onImported }) {
   const fileRef = useRef(null);
   const [payloadText, setPayloadText] = useState('');
@@ -29,6 +47,13 @@ export default function StoreCatalogImportPanel({ slug, onImported }) {
   const [outlineModules, setOutlineModules] = useState([]);
   const [selectedModules, setSelectedModules] = useState({});
   const [selectedCats, setSelectedCats] = useState({});
+  const [backups, setBackups] = useState([]);
+  const [backupRetentionDays, setBackupRetentionDays] = useState(7);
+  const [selectedBackupDate, setSelectedBackupDate] = useState('');
+  const [backupsLoading, setBackupsLoading] = useState(false);
+  const [backupsError, setBackupsError] = useState('');
+  const [backupGenerating, setBackupGenerating] = useState(false);
+  const [backupNotice, setBackupNotice] = useState('');
 
   useEffect(() => {
     if (!slug) return undefined;
@@ -56,6 +81,46 @@ export default function StoreCatalogImportPanel({ slug, onImported }) {
         /* ignore outline load */
       }
     })();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  async function loadBackups({ signalCancelled } = {}) {
+    if (!slug) return;
+    setBackupsLoading(true);
+    setBackupsError('');
+    try {
+      const response = await fetch(
+        `/api/super-admin/stores/${encodeURIComponent(slug)}/catalog-backups`
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (signalCancelled?.()) return;
+      if (!response.ok || !payload.ok) {
+        setBackups([]);
+        setSelectedBackupDate('');
+        setBackupsError(payload.error || 'Não foi possível carregar os backups.');
+        return;
+      }
+      const rows = payload.backups || [];
+      setBackups(rows);
+      setBackupRetentionDays(Number(payload.retentionDays) || 7);
+      setSelectedBackupDate(rows[0]?.backupDate || '');
+    } catch {
+      if (!signalCancelled?.()) {
+        setBackups([]);
+        setSelectedBackupDate('');
+        setBackupsError('Não foi possível carregar os backups.');
+      }
+    } finally {
+      if (!signalCancelled?.()) setBackupsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!slug) return undefined;
+    let cancelled = false;
+    void loadBackups({ signalCancelled: () => cancelled });
     return () => {
       cancelled = true;
     };
@@ -132,6 +197,45 @@ export default function StoreCatalogImportPanel({ slug, onImported }) {
     window.location.href = `/api/super-admin/stores/${encodeURIComponent(slug)}/catalog-export?${query}`;
   }
 
+  function downloadDailyBackup() {
+    if (!slug || !selectedBackupDate) {
+      setError('Selecione uma data de backup para baixar.');
+      return;
+    }
+    setError('');
+    window.location.href = `/api/super-admin/stores/${encodeURIComponent(slug)}/catalog-backups?date=${encodeURIComponent(selectedBackupDate)}`;
+  }
+
+  async function generateBackupNow() {
+    if (!slug) return;
+    setBackupGenerating(true);
+    setBackupsError('');
+    setBackupNotice('');
+    try {
+      const response = await fetch(
+        `/api/super-admin/stores/${encodeURIComponent(slug)}/catalog-backups`,
+        { method: 'POST' }
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || 'Não foi possível gerar o backup.');
+      }
+      const rows = payload.backups || [];
+      setBackups(rows);
+      setBackupRetentionDays(Number(payload.retentionDays) || 7);
+      setSelectedBackupDate(payload.backupDate || rows[0]?.backupDate || '');
+      setBackupNotice(
+        `Backup de ${formatBackupDateLabel(payload.backupDate)} gerado. Já pode baixar.`
+      );
+    } catch (generateError) {
+      setBackupsError(generateError?.message || 'Erro ao gerar backup.');
+    } finally {
+      setBackupGenerating(false);
+    }
+  }
+
+  const selectedBackup = backups.find((row) => row.backupDate === selectedBackupDate);
+
   async function readPayloadFromFile(file) {
     const text = await file.text();
     setPayloadText(text);
@@ -191,7 +295,80 @@ export default function StoreCatalogImportPanel({ slug, onImported }) {
   return (
     <div className={styles.catalogImport}>
       <div className={styles.catalogExportBox}>
-        <h3 className={styles.panelTitle}>Exportar cardápio</h3>
+        <h3 className={styles.panelTitle}>Backups automáticos (por data)</h3>
+        <p className={styles.muted}>
+          Cópias diárias geradas à meia-noite (horário de Brasília). Ficam disponíveis por{' '}
+          {backupRetentionDays} dias. Se ainda não houver nenhum, gere o de hoje abaixo.
+        </p>
+        {backupsLoading ? (
+          <p className={styles.muted}>Carregando backups…</p>
+        ) : backups.length ? (
+          <>
+            <div className={styles.catalogBackupRow}>
+              <label className={styles.metaLabel} htmlFor={`catalog-backup-date-${slug}`}>
+                Data do backup
+              </label>
+              <select
+                id={`catalog-backup-date-${slug}`}
+                className={styles.catalogBackupSelect}
+                value={selectedBackupDate}
+                onChange={(event) => setSelectedBackupDate(event.target.value)}
+              >
+                {backups.map((row) => (
+                  <option key={row.backupDate} value={row.backupDate}>
+                    {formatBackupDateLabel(row.backupDate)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {selectedBackup?.createdAt ? (
+              <p className={styles.catalogBackupMeta}>
+                Gerado em {formatBackupTime(selectedBackup.createdAt)}
+              </p>
+            ) : null}
+            <div className={styles.catalogImportActions}>
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                disabled={!selectedBackupDate}
+                onClick={downloadDailyBackup}
+              >
+                Baixar backup de {formatBackupDateLabel(selectedBackupDate)}
+              </button>
+              <button
+                type="button"
+                className={styles.btnGhost}
+                disabled={backupGenerating}
+                onClick={generateBackupNow}
+              >
+                {backupGenerating ? 'Gerando…' : 'Atualizar backup de hoje'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className={styles.muted}>
+              Ainda não há backup salvo desta loja. Clique abaixo para criar o de hoje — depois o
+              botão de download aparece.
+            </p>
+            <div className={styles.catalogImportActions}>
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                disabled={backupGenerating}
+                onClick={generateBackupNow}
+              >
+                {backupGenerating ? 'Gerando…' : 'Gerar backup de hoje'}
+              </button>
+            </div>
+          </>
+        )}
+        {backupNotice ? <p className={styles.alertSuccess}>{backupNotice}</p> : null}
+        {backupsError ? <p className={styles.alertError}>{backupsError}</p> : null}
+      </div>
+
+      <div className={styles.catalogExportBox}>
+        <h3 className={styles.panelTitle}>Exportar cardápio (agora)</h3>
         <p className={styles.muted}>
           Escolha módulos e categorias. O JSON inclui <code>imagemUrl</code> para restaurar fotos.
         </p>
