@@ -355,6 +355,8 @@ export function CardapioProvider({
   const [addressOpen, setAddressOpen] = useState(false);
   const [deliveryCheckResultOpen, setDeliveryCheckResultOpen] = useState(false);
   const [deliveryCheckResult, setDeliveryCheckResult] = useState(null);
+  /** 'cep' | 'street' — usado para sugerir busca por rua após falha de cobertura pelo CEP. */
+  const [addressLookupSource, setAddressLookupSource] = useState(null);
   const [deliveryAvailability, setDeliveryAvailability] = useState(null);
   const [storeClosedNoticeOpen, setStoreClosedNoticeOpen] = useState(false);
   const [cupomOpen, setCupomOpen] = useState(false);
@@ -1113,6 +1115,31 @@ export function CardapioProvider({
     setDeliveryCheckResult(null);
   }, []);
 
+  const markAddressLookupAsStreet = useCallback(() => {
+    setAddressLookupSource('street');
+  }, []);
+
+  const retryDeliveryAddressByStreet = useCallback(() => {
+    setDeliveryCheckResultOpen(false);
+    setDeliveryCheckResult(null);
+    setAddressLookupSource('street');
+    setCepOpen(false);
+    setAddrForm({
+      cep: '',
+      rua: '',
+      num: '',
+      bairro: '',
+      comp: '',
+      ref: '',
+      cidade: storeConfig.enderecoCidade || '',
+      estado: storeConfig.enderecoEstado || '',
+      latitude: null,
+      longitude: null,
+      streetSelected: false,
+    });
+    setAddressOpen(true);
+  }, [storeConfig.enderecoCidade, storeConfig.enderecoEstado]);
+
   const closeStoreClosedNotice = useCallback(() => {
     setStoreClosedNoticeOpen(false);
   }, []);
@@ -1152,6 +1179,7 @@ export function CardapioProvider({
   }, []);
 
   const openManualAddressForm = useCallback(() => {
+    setAddressLookupSource('street');
     setCepOpen(false);
     setAddrForm({
       cep: '',
@@ -1181,6 +1209,7 @@ export function CardapioProvider({
       try {
         const result = await fetchViaCep(cepDigits);
         if (result && !result.erro) {
+          setAddressLookupSource('cep');
           setAddrForm((f) => ({
             ...f,
             cep: maskCep(cepValue),
@@ -1206,6 +1235,7 @@ export function CardapioProvider({
         return;
       }
     } else if (profileCep.length === 8 && !cepDigits.length) {
+      setAddressLookupSource('cep');
       setAddrForm((f) => ({
         ...f,
         cep: profileAddress.cep || f.cep,
@@ -1329,23 +1359,31 @@ export function CardapioProvider({
         return;
       }
 
-      if (isDeliveryCheck) {
-        if (res.status === 503) {
+      if (res.status === 503) {
+        if (isDeliveryCheck) {
           setDeliveryAvailability(null);
           setDeliveryCheckResult({ available: false, serviceUnavailable: true });
-        } else {
+          setAddressOpen(false);
+          setDeliveryCheckResultOpen(true);
+          return;
+        }
+      } else {
+        const suggestStreetSearch = addressLookupSource !== 'street';
+        if (!suggestStreetSearch) {
           setDeliveryFee(0);
           setDeliveryMeta(null);
-          setDeliveryAvailability({ available: false, fee: 0 });
-          setDeliveryCheckResult({ available: false, fee: 0 });
+          if (isDeliveryCheck) {
+            setDeliveryAvailability({ available: false, fee: 0 });
+          }
         }
+        setDeliveryCheckResult({
+          available: false,
+          fee: 0,
+          suggestStreetSearch,
+          errorMessage: json.error || null,
+        });
         setAddressOpen(false);
         setDeliveryCheckResultOpen(true);
-        return;
-      }
-
-      if (res.status !== 503) {
-        void showAlert(json.error || 'Não foi possível calcular a entrega para este endereço.');
         return;
       }
     } catch {
@@ -1404,6 +1442,7 @@ export function CardapioProvider({
     profileDisplayPhone,
     profileImage,
     addressFlowContext,
+    addressLookupSource,
     showAlert,
   ]);
 
@@ -2997,6 +3036,8 @@ export function CardapioProvider({
       toggleDeliveryCard,
       openDeliveryCheckCep,
       closeDeliveryCheckResult,
+      retryDeliveryAddressByStreet,
+      markAddressLookupAsStreet,
       closeStoreClosedNotice,
       selectDeliveryMode,
       openCepPopup,
@@ -3075,6 +3116,8 @@ export function CardapioProvider({
       toggleDeliveryCard,
       openDeliveryCheckCep,
       closeDeliveryCheckResult,
+      retryDeliveryAddressByStreet,
+      markAddressLookupAsStreet,
       closeStoreClosedNotice,
       selectDeliveryMode,
       openCepPopup,
