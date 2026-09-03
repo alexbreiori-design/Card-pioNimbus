@@ -101,17 +101,25 @@ export async function POST(request) {
   }
 
   try {
-    await requireStoreAdmin(slug);
+    const user = await requireStoreAdmin(slug);
     const supabase = getServiceClient();
     if (!supabase) {
       return NextResponse.json({ ok: false, error: 'Serviço indisponível.' }, { status: 503 });
     }
 
+    const saveSource = String(
+      body.saveSource || request.headers.get('x-save-source') || 'admin'
+    ).slice(0, 64);
+
     const withStorageUrls = await normalizeStoreStateImages(incoming, slug, (storeSlug, dataUrl, folder) =>
       uploadMenuAssetFromDataUrl(supabase, storeSlug, dataUrl, { folder })
     );
     const stamped = stampStoreMeta(withDerivedData(withStorageUrls));
-    const saved = await upsertStoreStateServer(slug, stamped);
+    const saved = await upsertStoreStateServer(slug, stamped, {
+      source: saveSource,
+      actorUserId: user.id,
+      actorEmail: user.email,
+    });
     const sizeWarning = formatStoreStateSizeMessage(saved.sizeReport);
     return NextResponse.json({
       ok: true,
