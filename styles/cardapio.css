@@ -4545,6 +4545,27 @@ button.addon-item.addon-item--selectable,
   font-size: 17px;
 }
 
+.delivery-check-result--retry .delivery-check-result-title {
+  font-size: 16px;
+}
+
+.delivery-check-result-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.delivery-check-result-footer .btn-modal-confirm {
+  flex: 1 1 180px;
+  white-space: normal;
+  line-height: 1.25;
+  padding: 12px 14px;
+}
+
+.delivery-check-result-footer .btn-modal-back {
+  flex: 0 0 auto;
+}
+
 .store-closed-notice-title {
   margin: 0 0 8px;
   font-size: 16px;

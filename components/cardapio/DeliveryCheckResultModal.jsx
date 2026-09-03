@@ -4,8 +4,13 @@ import { useCardapio } from '@/context/CardapioContext';
 import { IconClose } from './icons';
 
 export default function DeliveryCheckResultModal() {
-  const { deliveryCheckResultOpen, deliveryCheckResult, closeDeliveryCheckResult, formatPrice } =
-    useCardapio();
+  const {
+    deliveryCheckResultOpen,
+    deliveryCheckResult,
+    closeDeliveryCheckResult,
+    retryDeliveryAddressByStreet,
+    formatPrice,
+  } = useCardapio();
 
   const handleOverlayClick = (e) => {
     if (e.target.id === 'deliveryCheckResultOverlay') closeDeliveryCheckResult();
@@ -15,6 +20,9 @@ export default function DeliveryCheckResultModal() {
 
   const available = deliveryCheckResult.available === true;
   const fee = Number(deliveryCheckResult.fee || 0);
+  const serviceUnavailable = deliveryCheckResult.serviceUnavailable === true;
+  const suggestStreetSearch =
+    !available && !serviceUnavailable && deliveryCheckResult.suggestStreetSearch === true;
 
   return (
     <div
@@ -43,6 +51,16 @@ export default function DeliveryCheckResultModal() {
                   : 'E a taxa de entrega é grátis!'}
               </p>
             </div>
+          ) : suggestStreetSearch ? (
+            <div className="delivery-check-result delivery-check-result--retry">
+              <p className="delivery-check-result-title">
+                Infelizmente não conseguimos verificar a disponibilidade de entrega pelo CEP
+                digitado.
+              </p>
+              <p className="delivery-check-result-sub">
+                Tente buscar pelo nome da rua — assim confirmamos o endereço com mais precisão.
+              </p>
+            </div>
           ) : (
             <div className="delivery-check-result delivery-check-result--fail">
               <p className="delivery-check-result-title">
@@ -54,10 +72,29 @@ export default function DeliveryCheckResultModal() {
             </div>
           )}
         </div>
-        <div className="modal-footer">
-          <button type="button" className="btn-modal-confirm" onClick={closeDeliveryCheckResult}>
-            ENTENDI
-          </button>
+        <div className="modal-footer delivery-check-result-footer">
+          {suggestStreetSearch ? (
+            <>
+              <button
+                type="button"
+                className="btn-modal-back"
+                onClick={closeDeliveryCheckResult}
+              >
+                FECHAR
+              </button>
+              <button
+                type="button"
+                className="btn-modal-confirm"
+                onClick={retryDeliveryAddressByStreet}
+              >
+                Buscar endereço pelo nome da rua
+              </button>
+            </>
+          ) : (
+            <button type="button" className="btn-modal-confirm" onClick={closeDeliveryCheckResult}>
+              ENTENDI
+            </button>
+          )}
         </div>
       </div>
     </div>
