@@ -30,7 +30,7 @@ export async function POST(request, { params }) {
   }
 
   try {
-    await requireSuperAdmin();
+    const adminUser = await requireSuperAdmin();
     const row = await fetchStoreStateBySlugServer(safeSlug);
     const currentData = row?.data || {};
     const result = applyCatalogImport(payload, currentData, { mode, dryRun: dryRun });
@@ -65,7 +65,11 @@ export async function POST(request, { params }) {
     const withStorageUrls = await normalizeStoreStateImages(withAssetUrls, safeSlug, (storeSlug, dataUrl, folder) =>
       uploadMenuAssetFromDataUrl(supabase, storeSlug, dataUrl, { folder })
     );
-    const saved = await upsertStoreStateServer(safeSlug, withStorageUrls);
+    const saved = await upsertStoreStateServer(safeSlug, withStorageUrls, {
+      source: 'catalog-import',
+      actorUserId: adminUser.id,
+      actorEmail: adminUser.email,
+    });
     return NextResponse.json({
       ok: true,
       dryRun: false,
