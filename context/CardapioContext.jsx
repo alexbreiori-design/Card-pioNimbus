@@ -1318,7 +1318,9 @@ export function CardapioProvider({
         const fee = Number(json.taxaEntrega) || 0;
         const meta = {
           distanciaKm: json.distanciaKm,
-          zonaNome: json.zonaNome,
+          distanciaModo: json.distanciaModo || null,
+          zonaNome: json.zonaNome || null,
+          zonaId: json.zonaId || null,
           latitude: json.latitude,
           longitude: json.longitude,
         };
@@ -1367,25 +1369,33 @@ export function CardapioProvider({
           setDeliveryCheckResultOpen(true);
           return;
         }
-      } else {
-        const suggestStreetSearch = addressLookupSource !== 'street';
-        if (!suggestStreetSearch) {
-          setDeliveryFee(0);
-          setDeliveryMeta(null);
-          if (isDeliveryCheck) {
-            setDeliveryAvailability({ available: false, fee: 0 });
-          }
-        }
-        setDeliveryCheckResult({
-          available: false,
-          fee: 0,
-          suggestStreetSearch,
-          errorMessage: json.error || null,
-        });
-        setAddressOpen(false);
-        setDeliveryCheckResultOpen(true);
+        void showAlert(
+          json.error ||
+            'Serviço de entrega temporariamente indisponível. Tente de novo em instantes.'
+        );
         return;
       }
+
+      const suggestStreetSearch = addressLookupSource !== 'street';
+      if (!suggestStreetSearch) {
+        setDeliveryFee(0);
+        setDeliveryMeta(null);
+        if (isDeliveryCheck) {
+          setDeliveryAvailability({ available: false, fee: 0 });
+        }
+        if (addressFlowContext === 'checkout') {
+          setCheckoutAddressConfirmed(false);
+        }
+      }
+      setDeliveryCheckResult({
+        available: false,
+        fee: 0,
+        suggestStreetSearch,
+        errorMessage: json.error || null,
+      });
+      setAddressOpen(false);
+      setDeliveryCheckResultOpen(true);
+      return;
     } catch {
       if (isDeliveryCheck) {
         setDeliveryAvailability(null);
@@ -1394,45 +1404,11 @@ export function CardapioProvider({
         setDeliveryCheckResultOpen(true);
         return;
       }
-      /* MVP: permite entrega com taxa zero se API indisponível */
-    }
-
-    const nextAddress = {
-      rua: rua.trim(),
-      num: num.trim(),
-      bairro: bairro.trim(),
-      cidade: cidade.trim(),
-      estado: estado.trim(),
-      cep: cep.trim(),
-      comp: comp.trim(),
-    };
-    setDeliveryFee(0);
-    setDeliveryMeta(null);
-    setSavedAddress(nextAddress);
-    setProfileAddress(nextAddress);
-    if (addressFlowContext === 'checkout') {
-      setCheckoutAddressConfirmed(true);
-    }
-    try {
-      window.localStorage.setItem(
-        PROFILE_STORAGE_KEY,
-        JSON.stringify({
-          name: profileDisplayName,
-          phone: profileDisplayPhone,
-          image: profileImage,
-          address: nextAddress,
-        })
+      void showAlert(
+        'Não foi possível calcular a taxa de entrega. Verifique sua conexão e tente de novo.'
       );
-    } catch {}
-    if (profileDisplayName !== 'Seu nome' && profileDisplayPhone !== '(00) 00000-0000') {
-      void persistClientSnapshot({
-        name: profileDisplayName,
-        phone: profileDisplayPhone,
-        address: nextAddress,
-      });
+      return;
     }
-    setAddressOpen(false);
-    setCurrentDeliveryMode('entregar');
   }, [
     addrForm,
     storeConfig.slug,

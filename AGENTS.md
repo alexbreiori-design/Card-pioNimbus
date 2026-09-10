@@ -91,8 +91,10 @@ Ver [`docs/decisions.md`](./docs/decisions.md). Em resumo: Next 16 + React Compi
 |--------------------|----------------|
 | **ship prev** | commit + PR + **merge** só em `staging` (preview/homologação) |
 | **ship prod** | commit + PR + merge em `main`; se ainda não estiver no prev, sobe **prev primeiro** e depois prod |
+| **cofre sync** | atualiza o cofre Obsidian (`H:\Obsidian\Cardapio-Nimbus`, MCP `obsidian-nimbus`) com decisões da conversa — **fora do Git**; alias `vault sync` |
 
-Sem um desses (ou pedido explícito equivalente), **não** fazer deploy completo. Detalhes de ambiente: [`STAGING.md`](./STAGING.md).
+Sem `ship prev` / `ship prod` (ou pedido explícito equivalente), **não** fazer deploy completo. Detalhes de ambiente: [`STAGING.md`](./STAGING.md).  
+Sem `cofre sync` (ou equivalente), **não** reescrever o vault por precaução. Skill: [`.cursor/skills/cofre-sync/SKILL.md`](./.cursor/skills/cofre-sync/SKILL.md).
 
 ## Links para docs
 

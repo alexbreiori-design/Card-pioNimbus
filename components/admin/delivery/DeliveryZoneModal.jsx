@@ -674,7 +674,10 @@ export default function DeliveryZoneModal({
             <h2 id="delivery-zone-modal-title">
               {editing ? 'Editar área de entrega' : 'Nova área de entrega'}
             </h2>
-            <p>Ajuste o raio e, se precisar, marque exclusões vermelhas no mapa.</p>
+            <p>
+              Ajuste o raio (km de rota) e a taxa. O círculo no mapa é ilustrativo. Exclusões
+              vermelhas valem para todas as áreas da loja.
+            </p>
           </div>
           <button
             type="button"
@@ -796,8 +799,9 @@ export default function DeliveryZoneModal({
                 </button>
               </div>
               <p id="delivery-zone-raio-hint" className="admin-help-text admin-delivery-zone-raio-hint">
-                Arraste o controle ou digite o valor ({RAIO_MIN}–{RAIO_MAX} km). O círculo no mapa
-                acompanha o raio.
+                Raio máximo em km de rota ({RAIO_MIN}–{RAIO_MAX}). O círculo no mapa é ilustrativo e
+                pode diferir um pouco da rota real. Com várias áreas, vale a taxa da menor que ainda
+                cobre o endereço.
               </p>
             </div>
 
@@ -827,7 +831,8 @@ export default function DeliveryZoneModal({
               </div>
               {exclusions.length === 0 ? (
                 <p className="admin-help-text">
-                  Nenhuma exclusão. Ative o modo e arraste no mapa para bloquear uma região.
+                  Nenhuma exclusão. Ative o modo e arraste no mapa para bloquear uma região — a
+                  exclusão vale para todas as áreas desta loja.
                 </p>
               ) : (
                 <ul className="admin-delivery-zone-exclusions-list">

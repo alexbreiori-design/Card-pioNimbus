@@ -19,15 +19,20 @@ alwaysApply: true
 
 ## O que NÃO fazer sem pedido explícito
 - Commit, push, PR ou merge (exceto se o usuário pedir ou usar `ship prev` / `ship prod`).
-- Migrations / schema em produção.
 - Alterar secrets, webhooks, `PAYMENTS_ENC_KEY`, OAuth.
 - Refactors amplos ou arquivos fora do pedido.
 - Remover o bloco Next.js no topo de `AGENTS.md`.
 
+## Migrations
+- Ao criar arquivo em `supabase/migrations/`: **aplicar na hora** (staging + prod se aditiva) — ver `.cursor/rules/supabase-migrations.mdc`. Só comunicar que rodou; não esperar pedido.
 ## Deploy
 - **`ship prev`**: commit + PR + merge só em `staging`.
 - **`ship prod`**: se necessário, prev primeiro; depois merge em `main`.
 - Sem isso: **não** fazer deploy completo.
+
+## Cofre Obsidian
+- **`cofre sync`** (alias: `vault sync`): atualizar o cofre fora do Git com decisões da conversa — skill `.cursor/skills/cofre-sync`.
+- Sem esse comando (ou pedido explícito): não reescrever o vault “por precaução”.
 
 ## Estilo de mudança
 - Diff mínimo; reutilizar padrões de pastas vizinhas (`components/admin`, `lib/…`, CSS em `styles/`).

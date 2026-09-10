@@ -216,8 +216,8 @@ export default function DeliveryZonesCrud({
       <div className="admin-delivery-areas-toolbar">
         <p className="admin-help-text admin-delivery-areas-hint">
           {isMobile
-            ? 'Cadastre áreas com nome, raio e taxa. Exclusões no mapa ficam no computador.'
-            : 'Cadastre áreas com raio em km e taxa. Use exclusões no mapa para bloquear regiões mesmo dentro do raio.'}
+            ? 'Cadastre áreas com nome, raio (km de rota) e taxa. A menor área que cobre o endereço define a taxa. Exclusões no mapa valem para todas as áreas — edite no computador.'
+            : 'Cadastre áreas com raio em km de rota e taxa. Vale a taxa da menor área que ainda cobre o endereço. O círculo no mapa é ilustrativo (pode haver pequena diferença). Exclusões bloqueiam a entrega em todas as áreas da loja.'}
         </p>
         <button type="button" className="admin-btn admin-btn-primary" onClick={openNewForm}>
           + Nova área
@@ -232,7 +232,7 @@ export default function DeliveryZonesCrud({
           {exclusions.length > 0 ? (
             <p className="admin-help-text">
               Há {exclusions.length} exclus
-              {exclusions.length === 1 ? 'ão' : 'ões'} no mapa. Elas continuam valendo; para
+              {exclusions.length === 1 ? 'ão' : 'ões'} no mapa — valem para todas as áreas. Para
               alterá-las, use o computador.
             </p>
           ) : null}
