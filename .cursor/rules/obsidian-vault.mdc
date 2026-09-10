@@ -1,0 +1,35 @@
+---
+description: Consultar o cofre Obsidian (memória de produto/ops) via MCP antes de planejar ou decidir
+alwaysApply: true
+---
+
+# Cofre Obsidian — Cardápio Nimbus
+
+Memória interna do produto (**fora do Git**). Path: `H:\Obsidian\Cardapio-Nimbus`. MCP: **`obsidian-nimbus`**.
+
+## Quando consultar (sem o usuário pedir)
+
+- Início de tarefa com impacto de **produto, fluxo, UX, ops, ship, impressão/quiosque, pagamentos, entrega, multi-tenant**.
+- Antes de propor comportamento novo ou mudar regra já discutida.
+- Quando `AGENTS.md` / código não bastarem para o “porquê”.
+
+**Pode pular** em pedidos triviais (typo, CSS pontual, rename local sem decisão de produto).
+
+## Como consultar
+
+1. Preferir ferramentas do MCP `obsidian-nimbus` (listar / ler / buscar notas).
+2. Se o MCP falhar: ler arquivos em `H:\Obsidian\Cardapio-Nimbus\` com a ferramenta de leitura.
+3. Ordem mínima: `00-Inicio.md` → notas do tema (Produto / Domínios / Decisões / Ops / Ship).
+4. Em dúvida de decisão: pasta `07-Decisoes` e `ADR-indice`.
+
+## Sugerir `cofre sync` (sempre que fizer sentido)
+
+Se a conversa gerou decisão de produto, ADR, mudança de fluxo/ops/ship, preferência que não pode se perder, ou algo que o próximo agente precisaria saber — e o usuário **não** pediu sync — **sugerir ativamente** no fim da resposta (1 linha), por exemplo: *“Quer que eu rode `cofre sync`?”*
+
+Não atualizar o vault sozinho: só quando ele disser **`cofre sync`** / `vault sync` / equivalente. Skill: `.cursor/skills/cofre-sync`. Sem senhas/tokens; **não** no Git.
+
+Não sugerir em todo turno trivial (typo, CSS pontual sem decisão).
+
+## Hierarquia
+
+Código + `AGENTS.md` + rules do repo mandam no *como implementar*. O cofre manda no *contexto de produto/ops*. Conflito → marcar **TODO / confirmar** com o usuário.
