@@ -77,6 +77,7 @@ export async function POST(request) {
     const payload = { error: e?.message || 'Não foi possível calcular a taxa de entrega.' };
     if (e?.code === 'DELIVERY_OUT_OF_ZONE') {
       if (Number.isFinite(Number(e.distanciaKm))) payload.distanciaKm = Number(e.distanciaKm);
+      if (e.distanciaModo) payload.distanciaModo = e.distanciaModo;
       if (Number.isFinite(Number(e.maxRaioKm))) payload.maxRaioKm = Number(e.maxRaioKm);
       if (Number.isFinite(Number(e.latitude))) payload.latitude = Number(e.latitude);
       if (Number.isFinite(Number(e.longitude))) payload.longitude = Number(e.longitude);

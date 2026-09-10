@@ -438,6 +438,12 @@ CREATE POLICY produtos_publica ON produtos FOR SELECT
 -- CREATE POLICY pedidos_insert_publico ON pedidos FOR INSERT
 --   WITH CHECK (origem = 'cardapio_online');
 
+-- Metadados de frete (migration 20260910160000_pedidos_entrega_frete_meta.sql)
+ALTER TABLE pedidos
+  ADD COLUMN IF NOT EXISTS entrega_zona_id UUID REFERENCES zonas_entrega (id) ON DELETE SET NULL;
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS entrega_zona_nome TEXT;
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS distancia_calculo TEXT;
+
 -- -----------------------------------------------------------------------------
 -- SEED opcional (descomente após criar um usuário no Auth)
 -- -----------------------------------------------------------------------------

@@ -1,0 +1,27 @@
+---
+description: Ao criar migration SQL, aplicar no Supabase na mesma sessão sem esperar o usuário
+alwaysApply: true
+---
+
+# Migrations Supabase — aplicar na hora
+
+IDs dos projetos (MCP `plugin-supabase-supabase` / `apply_migration`):
+
+| Ambiente | project_id | Nome |
+|----------|------------|------|
+| Staging | `lsmleqnhahpimgvvduac` | Staging |
+| Produção | `ewzwqyiupjoialvssfuq` | Cardápio Digital Project |
+
+## Obrigatório
+
+Sempre que **criar ou alterar** um arquivo em `supabase/migrations/`:
+
+1. Aplicar o SQL via MCP `apply_migration` (nome em `snake_case`, sem timestamp).
+2. **Staging primeiro**, depois **produção** (migrations aditivas/seguras — padrão deste SaaS).
+3. Se a migration for destrutiva (drop de coluna/tabela, rewrite de dados), aplicar só staging e **avisar** antes de produção.
+4. Na resposta ao usuário: **uma linha** informando que aplicou (staging ± prod). Não perguntar “posso rodar?”.
+
+## Não fazer
+
+- Deixar migration só no Git sem aplicar no banco.
+- Apontar Preview/local para o projeto de produção (variáveis continuam staging no `.env.local`).

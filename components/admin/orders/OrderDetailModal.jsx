@@ -129,7 +129,14 @@ export default function OrderDetailModal({
                 <strong>{addressText(order)}</strong>
                 {formatDistanceKm(order.distanciaKm) ? (
                   <small className="admin-order-detail-distance">
-                    Distância da rota: {formatDistanceKm(order.distanciaKm)}
+                    Distância
+                    {order.distanciaCalculo === 'linha_reta' ? ' (aprox.)' : ' da rota'}:{' '}
+                    {formatDistanceKm(order.distanciaKm)}
+                    {order.entregaZonaNome ? ` · ${order.entregaZonaNome}` : ''}
+                  </small>
+                ) : order.entregaZonaNome ? (
+                  <small className="admin-order-detail-distance">
+                    Área: {order.entregaZonaNome}
                   </small>
                 ) : null}
               </div>
