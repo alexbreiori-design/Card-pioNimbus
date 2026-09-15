@@ -11,48 +11,35 @@ import MenuImageArea from '@/components/cardapio/MenuImageArea';
 const SACOLA_ITEMS_PEEK_PX = 28;
 const SACOLA_VISIBLE_ITEMS = 3;
 
-function AlsoCarousel({ items, formatPrice, onOpen }) {
-  const scrollRef = useRef(null);
+function AlsoSuggestions({ items, formatPrice, onOpen }) {
+  if (!items.length) return null;
 
-  function scrollBy(direction) {
-    const el = scrollRef.current;
-    if (!el) return;
-    const amount = Math.max(160, Math.floor(el.clientWidth * 0.7));
-    el.scrollBy({ left: direction * amount, behavior: 'smooth' });
-  }
+  const columns = Math.min(5, items.length);
 
   return (
-    <div className="sacola-also-carousel">
-      <button
-        type="button"
-        className="sacola-also-nav prev"
-        onClick={() => scrollBy(-1)}
-        aria-label="Ver sugestões anteriores"
-      >
-        <IconChevron />
-      </button>
-      <div className="sacola-also-scroll" ref={scrollRef}>
-        {items.map((a) => (
-          <button type="button" className="also-item" key={a.id} onClick={() => onOpen(a.id)}>
-            <MenuImageArea
-              imageUrl={a.imageUrl}
-              className="also-item-img"
-              alt={a.name}
-              sizes="72px"
-            />
-            <div className="also-item-name">{a.name}</div>
-            <div className="also-item-price">{formatPrice(a.price)}</div>
-          </button>
-        ))}
-      </div>
-      <button
-        type="button"
-        className="sacola-also-nav next"
-        onClick={() => scrollBy(1)}
-        aria-label="Ver mais sugestões"
-      >
-        <IconChevron />
-      </button>
+    <div
+      className="sacola-also-grid"
+      role="list"
+      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+    >
+      {items.map((a) => (
+        <button
+          type="button"
+          className="also-item"
+          key={a.id}
+          role="listitem"
+          onClick={() => onOpen(a.id)}
+        >
+          <MenuImageArea
+            imageUrl={a.imageUrl}
+            className="also-item-img"
+            alt={a.name}
+            sizes="20vw"
+          />
+          <div className="also-item-name">{a.name}</div>
+          <div className="also-item-price">{formatPrice(a.price)}</div>
+        </button>
+      ))}
     </div>
   );
 }
@@ -122,7 +109,6 @@ export default function SacolaPanel({
   const empty = cart.length === 0;
   const emptyLabel = orderTerminology ? 'Pedido vazio' : 'Sacola vazia';
   const headerLabel = orderTerminology ? 'Seu pedido' : 'Sua sacola';
-  const itemsScrollable = cart.length > SACOLA_VISIBLE_ITEMS;
   const itemsShellRef = useRef(null);
   const itemsWrapRef = useRef(null);
   const itemsListRef = useRef(null);
@@ -138,11 +124,11 @@ export default function SacolaPanel({
     const clearWrapSize = () => {
       wrap.style.height = '';
       wrap.style.maxHeight = '';
-      shell.classList.remove('has-fade');
+      shell.classList.remove('is-scrollable', 'has-fade');
     };
 
     const updateFade = () => {
-      if (!itemsScrollable) {
+      if (!shell.classList.contains('is-scrollable')) {
         shell.classList.remove('has-fade');
         return;
       }
@@ -151,38 +137,46 @@ export default function SacolaPanel({
     };
 
     const measure = () => {
-      if (!itemsScrollable) {
-        clearWrapSize();
-        return;
-      }
+      // Mede sem altura fixa para saber o tamanho natural da lista.
+      wrap.style.height = '';
+      wrap.style.maxHeight = '';
+      shell.classList.remove('is-scrollable', 'has-fade');
+
       const rows = list.querySelectorAll(':scope > .sacola-item');
-      if (rows.length <= SACOLA_VISIBLE_ITEMS) {
+      if (!rows.length) {
         clearWrapSize();
         return;
       }
 
-      let itemsHeight = 0;
-      for (let i = 0; i < SACOLA_VISIBLE_ITEMS; i += 1) {
-        itemsHeight += rows[i].getBoundingClientRect().height;
-      }
-      const desired = Math.ceil(itemsHeight + SACOLA_ITEMS_PEEK_PX);
+      const listHeight = Math.ceil(list.getBoundingClientRect().height);
+      const headerEl = panel?.querySelector('.sacola-header');
+      const stickyEl = panel?.querySelector('.sacola-panel-sticky');
+      const used =
+        (headerEl?.getBoundingClientRect().height || 0) +
+        (stickyEl?.getBoundingClientRect().height || 0);
+      const panelH = panel?.clientHeight || 0;
+      const availableFromPanel =
+        panelH > 0 ? Math.max(88, Math.floor(panelH - used)) : Number.POSITIVE_INFINITY;
 
-      // Cabe no card da sacola (totais/sugestões ficam fixos embaixo).
-      let available = desired;
-      if (panel) {
-        const headerEl = panel.querySelector('.sacola-header');
-        const stickyEl = panel.querySelector('.sacola-panel-sticky');
-        const used =
-          (headerEl?.getBoundingClientRect().height || 0) +
-          (stickyEl?.getBoundingClientRect().height || 0);
-        const panelH = panel.clientHeight || 0;
-        if (panelH > 0) {
-          available = Math.max(96, Math.floor(panelH - used));
+      // Preferência visual: no máximo ~3 itens + peek quando há muitos.
+      let desired = listHeight;
+      if (rows.length > SACOLA_VISIBLE_ITEMS) {
+        let threeHeight = 0;
+        for (let i = 0; i < SACOLA_VISIBLE_ITEMS; i += 1) {
+          threeHeight += rows[i].getBoundingClientRect().height;
         }
+        desired = Math.ceil(threeHeight + SACOLA_ITEMS_PEEK_PX);
       }
 
-      const capped = Math.max(96, Math.min(desired, available));
-      // height fixa o scrollport; maxHeight reforça o teto de ~3 itens.
+      const capped = Math.max(88, Math.min(desired, availableFromPanel));
+      const needsScroll = listHeight > capped + 2;
+
+      if (!needsScroll) {
+        clearWrapSize();
+        return;
+      }
+
+      shell.classList.add('is-scrollable');
       wrap.style.maxHeight = `${capped}px`;
       wrap.style.height = `${capped}px`;
       updateFade();
@@ -200,7 +194,7 @@ export default function SacolaPanel({
       wrap.removeEventListener('scroll', updateFade);
       ro?.disconnect();
     };
-  }, [itemsScrollable, cart]);
+  }, [cart]);
 
   return (
     <div className={`sacola-panel${empty ? ' is-empty' : ''}`}>
@@ -228,10 +222,7 @@ export default function SacolaPanel({
                 LIMPAR
               </button>
             </div>
-            <div
-              ref={itemsShellRef}
-              className={`sacola-items-shell${itemsScrollable ? ' is-scrollable' : ''}`}
-            >
+            <div ref={itemsShellRef} className="sacola-items-shell">
               <div className="sacola-items-wrap" ref={itemsWrapRef}>
                 <div className="sacola-items" role="list" ref={itemsListRef}>
                   {cart.map((item) => (
@@ -280,7 +271,7 @@ export default function SacolaPanel({
           {relatedItems.length > 0 ? (
             <div className="sacola-also">
               <div className="sacola-also-title">Adicione ao pedido</div>
-              <AlsoCarousel items={relatedItems} formatPrice={formatPrice} onOpen={openProduct} />
+              <AlsoSuggestions items={relatedItems} formatPrice={formatPrice} onOpen={openProduct} />
             </div>
           ) : null}
           <div className="sacola-totals">
@@ -330,19 +321,21 @@ export default function SacolaPanel({
                 <IconChevron />
               </span>
             </div>
-            {onAddMore ? (
-              <button type="button" className="btn-sacola-secondary" onClick={onAddMore}>
-                Adicionar mais itens
+            <div className={`sacola-panel-footer-actions${onAddMore ? ' has-add-more' : ''}`}>
+              {onAddMore ? (
+                <button type="button" className="btn-sacola-secondary" onClick={onAddMore}>
+                  Adicionar mais itens
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="btn-continuar"
+                disabled={!canFinalizeCart}
+                onClick={onFinalize}
+              >
+                {!canFinalizeCart ? 'Loja fechada no momento' : finalizeLabel}
               </button>
-            ) : null}
-            <button
-              type="button"
-              className="btn-continuar"
-              disabled={!canFinalizeCart}
-              onClick={onFinalize}
-            >
-              {!canFinalizeCart ? 'Loja fechada no momento' : finalizeLabel}
-            </button>
+            </div>
           </div>
         </div>
       ) : null}
