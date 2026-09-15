@@ -1041,8 +1041,14 @@ export function CardapioProvider({
 
   const relatedItems = useMemo(() => {
     const cartIds = new Set(cart.map((item) => item.productId));
-    const configuredIds = [];
+    const toSuggestion = (p) => ({
+      id: p.id,
+      name: p.name,
+      price: p.price,
+      imageUrl: p.imageUrl || '',
+    });
 
+    const configuredIds = [];
     cart.forEach((cartItem) => {
       const source = dynamicProducts.find((p) => p.id === cartItem.productId);
       (source?.relatedProductIds || []).forEach((id) => {
@@ -1051,18 +1057,18 @@ export function CardapioProvider({
       });
     });
 
-    if (configuredIds.length) {
-      return configuredIds
-        .slice(0, MAX_PECA_TAMBEM)
-        .map((id) => dynamicProducts.find((p) => p.id === id))
-        .filter((p) => p && !cartIds.has(p.id))
-        .map((p) => ({
-          id: p.id,
-          name: p.name,
-          price: p.price,
-          imageUrl: p.imageUrl || '',
-        }));
-    }
+    const picked = [];
+    const pickedIds = new Set();
+
+    configuredIds.forEach((id) => {
+      if (picked.length >= MAX_PECA_TAMBEM) return;
+      const product = dynamicProducts.find((p) => p.id === id);
+      if (!product || cartIds.has(product.id) || pickedIds.has(product.id)) return;
+      pickedIds.add(product.id);
+      picked.push(toSuggestion(product));
+    });
+
+    if (picked.length >= MAX_PECA_TAMBEM) return picked;
 
     const priority = ['bebidas', 'porções', 'porcoes', 'sobremesas'];
     const priorityIndex = (category) => {
@@ -1070,20 +1076,18 @@ export function CardapioProvider({
       const idx = priority.findIndex((name) => normalized.includes(name));
       return idx === -1 ? 99 : idx;
     };
-    const seenPoolIds = new Set();
+
     const pool = dynamicProducts
-      .filter((p) => {
-        if (cartIds.has(p.id) || seenPoolIds.has(p.id)) return false;
-        seenPoolIds.add(p.id);
-        return true;
-      })
+      .filter((p) => !cartIds.has(p.id) && !pickedIds.has(p.id))
       .sort((a, b) => priorityIndex(a.category) - priorityIndex(b.category));
-    return pool.slice(0, MAX_PECA_TAMBEM).map((p) => ({
-      id: p.id,
-      name: p.name,
-      price: p.price,
-      imageUrl: p.imageUrl || '',
-    }));
+
+    for (const product of pool) {
+      if (picked.length >= MAX_PECA_TAMBEM) break;
+      pickedIds.add(product.id);
+      picked.push(toSuggestion(product));
+    }
+
+    return picked;
   }, [cart, dynamicProducts]);
 
   const selectCategory = useCallback((cat) => {
